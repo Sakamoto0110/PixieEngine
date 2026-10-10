@@ -1,0 +1,11 @@
+# Unversioned working documentation and local state (see docs/governance/documentation-policy.md)
+.local/
+
+# IDE and build output
+.vs/
+.vscode/
+*.user
+build/
+out/
+bin/
+obj/

@@ -1,0 +1,230 @@
+{
+  "schemaVersion": 1,
+  "schemaId": "pixieengine.documentation/1",
+  "derivedFrom": "NekoLib docs/schemas/documentation-schema.json, schemaVersion 1, observed 2026-10-09",
+  "description": "Structural contract for PixieEngine document metadata, module manifests, schedulers, archive records, stable record IDs, and validation vocabulary.",
+  "authority": "This file defines structure and vocabulary only. Meaning is owned by docs/governance/documentation-policy.md. Source code and build files retain their own authority.",
+  "metadata": {
+    "syntax": "bold-label",
+    "valueLayout": "single-physical-line",
+    "requiredForExtendedSchema": [
+      "Document ID",
+      "Schema version",
+      "Kind",
+      "Lifecycle",
+      "Subject",
+      "Surface",
+      "Boundary",
+      "Authority role",
+      "Mutation",
+      "Indexing"
+    ],
+    "fields": {
+      "Kind": ["reference", "guide", "roadmap/status", "audit"],
+      "Lifecycle": ["current", "frozen", "historical"],
+      "Surface": [
+        "manifest",
+        "introduction",
+        "technical-reference",
+        "internals",
+        "history",
+        "changelog",
+        "issues",
+        "findings",
+        "proposal",
+        "validation-requirements",
+        "validation-evidence",
+        "audit",
+        "migration",
+        "archive-record",
+        "policy",
+        "guide",
+        "roadmap",
+        "dependency-registry",
+        "work-scheduler",
+        "task-scheduler",
+        "portal",
+        "index",
+        "template"
+      ],
+      "Authority role": ["normative", "roadmap", "scheduler", "evidence", "non-normative", "portal"],
+      "Mutation": ["authored", "generated", "append-only", "snapshot"],
+      "Indexing": ["include", "pointer-only", "exclude"]
+    },
+    "boundaryPattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)*$",
+    "documentIdPattern": "^[A-Z][A-Z0-9-]*$",
+    "canonicalPathStyle": "repository-relative-forward-slashes",
+    "conditionalRules": [
+      "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
+      "Current technical references do not carry a historical Reference date.",
+      "Migrations are non-normative and require Reference date.",
+      "Archive records are historical snapshots and require Reference date and Reference commit; moved or imported records also require Original path."
+    ]
+  },
+  "surfaceRules": {
+    "portal": {
+      "allowedAuthorityRoles": ["portal"],
+      "requiredIndexing": "pointer-only",
+      "requiredMetadata": ["Canonical"]
+    },
+    "introduction": { "allowedAuthorityRoles": ["non-normative"] },
+    "technical-reference": {
+      "allowedAuthorityRoles": ["normative"],
+      "forbiddenMetadataWhenCurrent": ["Reference date"]
+    },
+    "migration": {
+      "allowedAuthorityRoles": ["non-normative"],
+      "requiredMetadata": ["Reference date"],
+      "requiresManifestBoundary": true
+    },
+    "audit": {
+      "allowedAuthorityRoles": ["evidence"],
+      "requiredMutationWhenHistorical": "snapshot"
+    },
+    "archive-record": {
+      "allowedAuthorityRoles": ["evidence", "non-normative"],
+      "requiredLifecycle": "historical",
+      "requiredMutation": "snapshot",
+      "requiredMetadata": ["Reference date", "Reference commit"],
+      "requiredMetadataWhenMovedOrImported": ["Original path"]
+    },
+    "work-scheduler": { "allowedAuthorityRoles": ["scheduler"] },
+    "task-scheduler": {
+      "allowedAuthorityRoles": ["scheduler"],
+      "parentScheduler": "TODO.md"
+    }
+  },
+  "manifest": {
+    "requiredFields": [
+      "Projects",
+      "Language",
+      "Artifact",
+      "Platforms",
+      "Module dependencies",
+      "Third-party dependencies",
+      "Distribution",
+      "Stability",
+      "Public API",
+      "Profiles",
+      "Technical reference",
+      "Related boundaries",
+      "Source",
+      "Tests",
+      "Runtime scenarios"
+    ],
+    "listSeparator": ",",
+    "emptyValue": "none",
+    "language": ["cpp", "csharp"],
+    "artifact": ["static-library", "shared-library", "executable", "managed-assembly", "none"],
+    "distribution": ["shipped-runtime", "editor-only", "tooling", "unshipped"],
+    "stability": ["stable", "preview", "experimental", "unshipped"]
+  },
+  "module": {
+    "requiredSurfaces": ["MANIFEST.md", "README.md", "REFERENCE.md", "HISTORY.md"],
+    "onDemandSurfaces": [
+      "ISSUES.md",
+      "FINDINGS.md",
+      "VALIDATION_REQUIREMENTS.md",
+      "VALIDATIONS.md",
+      "CHANGELOG.md",
+      "INTERNALS.md"
+    ],
+    "onDemandDirectories": ["audits", "migrations"],
+    "onDemandRule": "An on-demand surface is created together with its first record. Its absence is not evidence that no record exists.",
+    "normativeTechnicalReferenceCount": 1,
+    "profilesOwnerSurface": "manifest"
+  },
+  "dependencies": {
+    "file": "DEPENDENCIES.md",
+    "statuses": ["ok", "outdated", "not-installed"],
+    "candidatesRule": "Suggested dependencies are listed as candidates until the owner adopts them."
+  },
+  "schedulers": {
+    "todo": {
+      "file": "TODO.md",
+      "idPattern": "^[A-Z][A-Z0-9.]*-TODO-[0-9]{3}$",
+      "requiredFields": ["Status", "Source", "Accepted scope", "Dependencies and gates", "Completion criteria", "Breakdown"],
+      "statuses": ["promoted", "in-progress", "blocked", "completed", "withdrawn"],
+      "breakdownEmptyValue": "none"
+    },
+    "tasklist": {
+      "file": "TASKLIST.md",
+      "parent": "todo",
+      "sectionKey": "Parent",
+      "idPattern": "^[A-Z][A-Z0-9.]*-TASK-[0-9]{3}$",
+      "requiredFields": ["Status", "Description"],
+      "conditionalFields": { "dropped": ["Reason"] },
+      "statuses": ["open", "in-progress", "done", "dropped"],
+      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. A completed parent's section moves to docs/archive/."
+    }
+  },
+  "records": {
+    "history": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-HISTORY-[0-9]{3}$",
+      "requiredFields": ["Release", "Evidence"]
+    },
+    "changelog": {
+      "idPattern": "^(Unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$",
+      "requiredFields": ["Compatibility class", "Consumer impact", "Migration"]
+    },
+    "issues": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-ISSUE-[0-9]{3}$",
+      "requiredFields": ["Status", "Severity", "Affected releases", "Symptom", "Trigger", "Evidence", "Workaround", "Intended fix", "Fix release", "Roadmap"],
+      "statuses": ["confirmed", "fixed", "wont-fix", "superseded"]
+    },
+    "findings": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-FINDING-[0-9]{3}$",
+      "requiredFields": ["Status", "Confidence", "Observation", "Evidence", "Hypothesis", "Disposition", "Outcome link"],
+      "statuses": ["open", "confirmed", "disproved", "rejected", "superseded"]
+    },
+    "proposal": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-PROPOSAL-[0-9]{3}$",
+      "requiredFields": ["State", "Idea", "Rationale", "Constraints", "Promotion target"],
+      "statuses": ["idea", "exploring", "rejected", "promoted", "superseded"]
+    },
+    "validation-requirements": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALREQ-[0-9]{3}$",
+      "requiredFields": ["Classification", "Trigger", "Category", "Boundary", "Targets", "Acceptance criteria", "Required evidence level", "Rationale"]
+    },
+    "validation-evidence": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALEVID-[0-9]{8}-[0-9]{3}$",
+      "requiredFields": ["Requirement IDs", "Version", "Commit", "Tree state", "Environment", "Targets", "Command or scenario", "Execution", "Evidence level", "Result", "Artifacts", "Gaps", "Supersedes"]
+    }
+  },
+  "stableIds": {
+    "newIdsAreNeverRenumberedOrReused": true,
+    "examples": ["PIXIE-TODO-001", "PIXIE-TASK-001", "PIXIE-PROPOSAL-001", "RENDER-ISSUE-001"]
+  },
+  "proposals": {
+    "directory": "docs/proposals",
+    "index": "docs/proposals/README.md",
+    "template": "docs/templates/PROPOSAL.md",
+    "recordSurface": "proposal",
+    "oneRecordPerFile": true,
+    "promotionAuthority": "TODO.md",
+    "promotionSourceExclusive": false
+  },
+  "archive": {
+    "directory": "docs/archive",
+    "index": "docs/archive/README.md",
+    "template": "docs/templates/ARCHIVE-RECORD.md",
+    "recordSurface": "archive-record"
+  },
+  "local": {
+    "root": ".local",
+    "versioned": false,
+    "authority": "none",
+    "openQuestions": ".local/decisions/open-questions.md",
+    "rule": "Versioned documents never link into .local/. Answers that shape code, structure, or direction are promoted to a versioned owner."
+  },
+  "validation": {
+    "categories": ["build", "focused-regression", "full-regression", "api-compatibility", "runtime", "rendering", "interactive-ui", "automated-ui", "performance", "soak"],
+    "execution": ["automated", "manual"],
+    "boundaries": ["in-process", "filesystem", "ipc", "process", "gpu", "native-ui", "deployment"],
+    "evidenceLevels": ["build-only", "automated-runtime", "interactive", "automated-ui"],
+    "requirementStatuses": ["REQUIRED", "CONDITIONAL", "RECOMMENDED", "NOT_APPLICABLE"],
+    "evidenceStatuses": ["PASS", "FAIL", "PARTIAL", "NOT_RUN", "BLOCKED", "NOT_APPLICABLE", "SUPERSEDED"],
+    "profiles": {},
+    "profilesRule": "Validation profiles are defined with the first module that needs one. Profiles may be combined and requirements elevated; inherited requirements must not be weakened silently."
+  }
+}
