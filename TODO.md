@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-09
+**Last promotion decision:** 2026-10-11
 
 ## Purpose and admission rule
 
@@ -64,3 +64,7 @@ is derived from NekoLib's and adapted. No code, build files, or modules.
 - the result is committed.
 
 **Breakdown:** none
+
+`PIXIE-TODO-002` (main loop and the hello-gl sample) completed on 2026-10-11.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).

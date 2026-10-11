@@ -39,4 +39,5 @@ and the section shape is in the
 
 ## Open breakdowns
 
-None as of 2026-10-09.
+None as of 2026-10-11. The breakdown of PIXIE-TODO-002 is in its
+[archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).

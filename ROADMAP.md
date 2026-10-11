@@ -50,8 +50,7 @@ decisions below is in the [archive](docs/archive/README.md).
 ## Current direction
 
 1. Establish the documentation foundation and its rules.
-2. Resolve the open architecture decisions: language standard, build
-   system, editor viewport, native bridge, and module boundaries.
+2. Resolve the open architecture decisions: editor viewport, native bridge, and module boundaries.
 3. Build a thin end-to-end slice before deepening any module (see
    [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), not yet promoted).
 
@@ -60,6 +59,23 @@ decisions below is in the [archive](docs/archive/README.md).
 - **2D first.** Accepted 2026-10-09.
 - **OpenGL 4.5 core.** Accepted 2026-10-09. Rationale and cost in the
   [inception record](docs/archive/inception-2026-10-09.md#rationale-opengl-45-core).
+- **The engine never depends on the editor.** Dependencies point one way: the
+  editor depends on the engine, never the reverse. What the editor needs on
+  the native side (picking, debug drawing, scene saving, play mode) enters the
+  engine as a general feature usable by the player, tools, and tests, never as
+  an editor-specific one. The player building and running with nothing from
+  the editor is the proof. Accepted 2026-10-10.
+- **C++20, without modules.** Accepted 2026-10-10. Rationale in the
+  [inception record](docs/archive/inception-2026-10-09.md#recommendations-not-yet-accepted).
+  Moving to C++26 is to be evaluated later; it is an intention, not a plan.
+- **CMake builds the native side.** Accepted 2026-10-10. The C# editor keeps
+  its own solution.
+- **Time is passed explicitly.** `Update` and `Render` receive a `FrameTime`
+  struct (the step or frame delta, the render interpolation alpha, simulated
+  elapsed time, and the call index); there is no global timestep. Time belongs to a World, not to the
+  process. Accepted 2026-10-10.
+- **Executables do not need the Visual C++ Redistributable.** MSVC builds link
+  the C++ runtime statically into every target. Accepted 2026-10-11.
 - **GLEW is the GL loader to start with.** Accepted 2026-10-09; glad 2 remains
   a candidate in [`DEPENDENCIES.md`](DEPENDENCIES.md).
 - **PixieLib owns primitives and math forwarding.** Accepted 2026-10-09.

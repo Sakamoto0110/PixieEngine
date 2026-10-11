@@ -53,4 +53,9 @@ Boundary keys become `docs/modules/<boundary>/` only when their code exists.
 
 **Promotion target:** owner decision required
 
+**Outcome:** partly promoted on 2026-10-10. The dependency direction (the
+engine never depends on the editor) is a guardrail in
+[`ROADMAP.md`](../../ROADMAP.md#active-guardrails). The module split itself
+remains an idea.
+
 **Source:** [inception record](../archive/inception-2026-10-09.md)

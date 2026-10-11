@@ -20,7 +20,10 @@
 
 **Indexing:** include
 
-**Last checked:** 2026-10-09
+**Last checked:** 2026-10-11
+
+Vendored third-party sources live under `external/<name>/`, unmodified from
+the release archive whose hash is recorded below.
 
 This is the master list of what PixieEngine depends on: toolchain, graphics,
 UI, the owner's own projects, and candidates under consideration. It owns which
@@ -43,8 +46,8 @@ version change.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Full C++20 support. The language standard is still an open decision. |
-| CMake | Native build, if chosen | 4.3.1, bundled with Visual Studio | — | `ok` | Not on `PATH`; available from the Visual Studio developer shell. The build system is still an open decision. A standalone install is needed only to build outside Visual Studio or on another OS. |
+| Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Builds the native side in C++20 (accepted 2026-10-10), with the C++ runtime linked statically (accepted 2026-10-11), so executables do not need the Visual C++ Redistributable. |
+| CMake | Native build system (accepted 2026-10-10) | 4.3.1, bundled with Visual Studio | — | `ok` | Not on `PATH`; available from the Visual Studio developer shell. A standalone install is needed only to build outside Visual Studio or on another OS. GLFW 3.5.1 builds through its own `CMakeLists.txt`. |
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
 | .NET SDK | Editor and InteractiveEditor | 10.0.401 and 10.0.301 | — | `ok` | |
 | Git | Version control | 2.55.0 | — | `ok` | |
@@ -53,9 +56,10 @@ version change.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| OpenGL 4.5 core | Rendering | AMD Radeon RX 7600, driver 32.0.31041.1004 (2026-08-16) | — | `ok` | Inferred from the GPU and driver; the context version has not been queried yet. The first window should log `GL_VERSION`. |
-| GLEW | GL function loader | — | 2.3.1 (2026-01-24) | `not-installed` | Adopted 2026-10-09 as the starting loader. Build from source as a static library (`GLEW_STATIC`). Under the core profile: set `glewExperimental = GL_TRUE` before `glewInit()`, then drain `glGetError()` once before installing the debug callback, because `glewInit()` leaves a spurious `GL_INVALID_ENUM`. On Wayland/EGL hosts, GLEW must be built with EGL support. |
-| GLFW | Player window and input | — | 3.5.1 (2026-07-31) | `not-installed` | Vendor the 3.5.1 source and build it with the engine. |
+| OpenGL 4.5 core | Rendering | AMD Radeon RX 7600, driver 32.0.31041.1004 (2026-08-16) | — | `ok` | Confirmed on 2026-10-11: the hello-gl sample logs `4.5.0 Core Profile Context 26.8.1.260810`. |
+| GLEW | GL function loader | 2.3.1 source release, unmodified, in `external/glew/`; archive `glew-2.3.1.tgz`, SHA-256 `b64790f94b926acd7e8f84c5d6000a86cb43967bd1e688b03089079799c9e889` | 2.3.1 (2026-01-24) | `ok` | Built as a static library in Debug and Release (2026-10-11). Modified BSD and MIT licenses (`external/glew/LICENSE.txt`). Adopted 2026-10-09 as the starting loader. Build from source as a static library (`GLEW_STATIC`). Under the core profile: set `glewExperimental = GL_TRUE` before `glewInit()`, then drain `glGetError()` once before installing the debug callback, because `glewInit()` leaves a spurious `GL_INVALID_ENUM`. On Wayland/EGL hosts, GLEW must be built with EGL support. |
+| stb_easy_font | Debug text in the hello-gl sample | `stb_easy_font.h` and `LICENSE` from `nothings/stb` at commit `2c980bb59875b0d32144a71867fbdebb2f77cd20`, unmodified, in `external/stb/`; header SHA-256 `7b48b52a316477766c0a7a096b33a29bcbd847b6fab4fabd32bb3fdb7cea1a60` | No releases; `master` at the pinned commit (2026-08-02) | `ok` | MIT or public domain. Text built from quads, no texture. Adopted 2026-10-11 for the sample only. |
+| GLFW | Player window and input | 3.5.1 source release, unmodified, in `external/glfw/`; archive `glfw-3.5.1.zip`, SHA-256 `ea79bc5feffc254c87291980c2d0bce9acebb68c4983b79f961dcd2cb8a611a0` | 3.5.1 (2026-07-31) | `ok` | Built through its own CMake project in Debug and Release (2026-10-11). zlib/libpng license (`external/glfw/LICENSE.md`). |
 
 ## Editor UI
 

@@ -41,7 +41,7 @@ module:
 and the editor surface early, while each piece is still small.
 
 **Constraints:** Depends on PIXIE-PROPOSAL-001, PIXIE-PROPOSAL-002, and the
-open build-system, language-standard, and viewport decisions.
+open viewport decision.
 
 **Promotion target:** owner decision required; promoted steps enter `TODO.md`,
 with their breakdown in `TASKLIST.md`

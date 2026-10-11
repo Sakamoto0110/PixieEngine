@@ -30,6 +30,6 @@ update its state, and link the outcome.
 
 | Proposal | ID | State | Promotion state |
 |---|---|---|---|
-| [`engine-module-boundaries.md`](engine-module-boundaries.md) | PIXIE-PROPOSAL-001 | idea | Owner decision required |
+| [`engine-module-boundaries.md`](engine-module-boundaries.md) | PIXIE-PROPOSAL-001 | idea | Dependency direction promoted to `ROADMAP.md` (2026-10-10); module split still requires an owner decision |
 | [`editor-native-bridge.md`](editor-native-bridge.md) | PIXIE-PROPOSAL-002 | idea | Owner decision required |
 | [`vertical-slice.md`](vertical-slice.md) | PIXIE-PROPOSAL-003 | idea | Owner decision required |
