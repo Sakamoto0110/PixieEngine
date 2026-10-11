@@ -1,1 +1,6 @@
 * text=auto
+
+# Vendored third-party sources are stored byte for byte, as released; see DEPENDENCIES.md.
+external/glew/** -text
+external/glfw/** -text
+external/stb/** -text
