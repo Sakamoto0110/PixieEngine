@@ -1,11 +1,12 @@
 # Unversioned working documentation and local state (see docs/governance/documentation-policy.md)
-.local/
+/.local/
 
-# IDE and build output
-.vs/
-.vscode/
+# IDE and build output. Anchored to the root so vendored sources under external/ stay complete.
+/.vs/
+/.vscode/
+/build/
+/bin/
+# Generated on configure by cmake/PixieRootSolution.cmake.
+/PixieEngine.slnx
+/out/
 *.user
-build/
-out/
-bin/
-obj/
