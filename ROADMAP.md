@@ -49,9 +49,9 @@ decisions below is in the [archive](docs/archive/README.md).
 
 ## Current direction
 
-1. Establish the documentation foundation and its rules.
-2. Resolve the open architecture decisions: editor viewport, native bridge, and module boundaries.
-3. Build a thin end-to-end slice before deepening any module (see
+1. Resolve the open architecture decisions: editor viewport, native bridge,
+   and module boundaries.
+2. Build a thin end-to-end slice before deepening any module (see
    [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), not yet promoted).
 
 ## Active guardrails

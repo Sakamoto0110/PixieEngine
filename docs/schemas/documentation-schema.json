@@ -27,7 +27,6 @@
         "introduction",
         "technical-reference",
         "internals",
-        "history",
         "changelog",
         "issues",
         "findings",
@@ -58,7 +57,7 @@
       "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
       "Current technical references do not carry a historical Reference date.",
       "Migrations are non-normative and require Reference date.",
-      "Archive records are historical snapshots and require Reference date and Reference commit; moved or imported records also require Original path."
+      "Archive records are historical snapshots and require Archive ID, Type, Origin, Author, Reference date, and Commits; moved or imported records also require Original path."
     ]
   },
   "surfaceRules": {
@@ -85,7 +84,8 @@
       "allowedAuthorityRoles": ["evidence", "non-normative"],
       "requiredLifecycle": "historical",
       "requiredMutation": "snapshot",
-      "requiredMetadata": ["Reference date", "Reference commit"],
+      "requiredMetadata": ["Archive ID", "Type", "Origin", "Author", "Reference date", "Commits"],
+      "optionalMetadata": ["Reference commit", "Current state"],
       "requiredMetadataWhenMovedOrImported": ["Original path"]
     },
     "work-scheduler": { "allowedAuthorityRoles": ["scheduler"] },
@@ -120,7 +120,7 @@
     "stability": ["stable", "preview", "experimental", "unshipped"]
   },
   "module": {
-    "requiredSurfaces": ["MANIFEST.md", "README.md", "REFERENCE.md", "HISTORY.md"],
+    "requiredSurfaces": ["MANIFEST.md", "README.md", "REFERENCE.md"],
     "onDemandSurfaces": [
       "ISSUES.md",
       "FINDINGS.md",
@@ -159,10 +159,6 @@
     }
   },
   "records": {
-    "history": {
-      "idPattern": "^[A-Z][A-Z0-9.]*-HISTORY-[0-9]{3}$",
-      "requiredFields": ["Release", "Evidence"]
-    },
     "changelog": {
       "idPattern": "^(Unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$",
       "requiredFields": ["Compatibility class", "Consumer impact", "Migration"]
@@ -180,6 +176,7 @@
     "proposal": {
       "idPattern": "^[A-Z][A-Z0-9.]*-PROPOSAL-[0-9]{3}$",
       "requiredFields": ["State", "Idea", "Rationale", "Constraints", "Promotion target"],
+      "optionalFields": ["Source", "Outcome"],
       "statuses": ["idea", "exploring", "rejected", "promoted", "superseded"]
     },
     "validation-requirements": {
@@ -193,7 +190,7 @@
   },
   "stableIds": {
     "newIdsAreNeverRenumberedOrReused": true,
-    "examples": ["PIXIE-TODO-001", "PIXIE-TASK-001", "PIXIE-PROPOSAL-001", "RENDER-ISSUE-001"]
+    "examples": ["PIXIE-TODO-001", "PIXIE-TASK-001", "PIXIE-PROPOSAL-001", "PIXIE-ARCHIVE-001", "RENDER-ISSUE-001"]
   },
   "proposals": {
     "directory": "docs/proposals",
@@ -204,11 +201,26 @@
     "promotionAuthority": "TODO.md",
     "promotionSourceExclusive": false
   },
+  "samples": {
+    "readme": "<sample directory>/README.md",
+    "purposeDrivenRule": "A scenario (proves a claim) or an oracle (breaks something on purpose) also documents the claim or failure, the expected outcome, and how to read the result."
+  },
+  "commits": {
+    "prefixes": ["(feat)", "(fix)", "(refactor)", "(docs)"],
+    "rule": "Code and documentation in separate commits; the documentation commit cites the code commit hashes. Vendored code in its own commit."
+  },
   "archive": {
     "directory": "docs/archive",
     "index": "docs/archive/README.md",
+    "indexRole": "router: one table row per record, in Archive ID order, with enough to find the record",
+    "indexColumns": ["ID", "Date", "Type", "Origin", "Author", "Summary", "Commits", "Record"],
+    "authors": ["owner", "claude", "codex"],
     "template": "docs/templates/ARCHIVE-RECORD.md",
-    "recordSurface": "archive-record"
+    "recordSurface": "archive-record",
+    "oneRecordPerFile": true,
+    "idPattern": "^[A-Z][A-Z0-9.]*-ARCHIVE-[0-9]{3}$",
+    "types": ["decision", "promotion", "completion", "fix", "finding", "proposal", "dependency", "roadmap", "import"],
+    "selfReferenceCommits": "with this record (parent <full hash>)"
   },
   "local": {
     "root": ".local",

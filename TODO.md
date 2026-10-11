@@ -39,31 +39,11 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-### `PIXIE-TODO-001` — Establish the documentation foundation
+None as of 2026-10-11.
 
-**Status:** in-progress
-
-**Source:** owner decision on 2026-10-09
-
-**Accepted scope:** the root `README.md`, `ROADMAP.md`, `TODO.md`,
-`TASKLIST.md`, and `DEPENDENCIES.md`; the documentation policy, schema, templates, proposal index,
-and archive under `docs/`; and the unversioned `.local/` convention. The model
-is derived from NekoLib's and adapted. No code, build files, or modules.
-
-**Dependencies and gates:**
-
-1. Owner review of the structure and the policy.
-2. The initial commit requires separate owner authorization.
-
-**Completion criteria:**
-
-- every file in the accepted scope exists with valid metadata, checked by
-  review because no verifier exists yet;
-- every relative link resolves;
-- the owner accepts the policy, or its corrections are applied; and
-- the result is committed.
-
-**Breakdown:** none
+`PIXIE-TODO-001` (documentation foundation) completed on 2026-10-11. Its
+entry, the policy review, and its verification are preserved in the
+[archive record](docs/archive/todo-001-documentation-foundation-2026-10-11.md).
 
 `PIXIE-TODO-002` (main loop and the hello-gl sample) completed on 2026-10-11.
 Its entry, breakdown, and verification are preserved in the

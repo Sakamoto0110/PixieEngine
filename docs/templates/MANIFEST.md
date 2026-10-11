@@ -43,6 +43,6 @@ Tests: repository-relative test paths, comma-separated, or none
 Runtime scenarios: repository-relative scenario paths, comma-separated, or none
 ```
 
-The body routes the introduction, technical reference, history, every on-demand
-surface that exists, relevant proposals, source, tests, scenarios, and related
+The body routes the introduction, technical reference, the module's archive
+records, every on-demand surface that exists, relevant proposals, source, tests, scenarios, and related
 boundaries. Do not reproduce the public symbol inventory.

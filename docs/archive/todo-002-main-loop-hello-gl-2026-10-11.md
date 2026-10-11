@@ -20,9 +20,17 @@
 
 **Indexing:** include
 
+**Archive ID:** PIXIE-ARCHIVE-006
+
+**Type:** completion
+
+**Origin:** PIXIE-TODO-002 (PIXIE-TASK-001 to PIXIE-TASK-010)
+
+**Author:** claude
+
 **Reference date:** 2026-10-11
 
-**Reference commit:** `f99f121a7a9f770bc1db620a8db6116d87d42cf9`
+**Commits:** `1b67d02430e54a51c492db4d30f16e8bf018a77d`, `f99f121a7a9f770bc1db620a8db6116d87d42cf9`, `ccf1db9e7537f20f3d9eb127c492984ee1eefa5e`
 
 **Original path:** `TODO.md` (the entry) and `TASKLIST.md` (the breakdown)
 

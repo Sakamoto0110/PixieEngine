@@ -20,7 +20,17 @@
 
 **Indexing:** include
 
+**Archive ID:** PIXIE-ARCHIVE-002
+
+**Type:** decision
+
+**Origin:** owner decisions during the scope discussion
+
+**Author:** claude
+
 **Reference date:** 2026-10-09
+
+**Commits:** `f081b81ddd4ec3c9301a28aba581bb1a94681dbf`
 
 **Reference commit:** none (before the initial commit)
 

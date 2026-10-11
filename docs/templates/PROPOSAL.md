@@ -38,4 +38,5 @@ it concise and link deeper evidence instead of copying it.
 **Promotion target:** owner decision required
 
 **Source:** optional link to evidence or an archive record
+**Outcome:** optional; what was promoted, rejected, or superseded, and where
 ```

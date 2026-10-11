@@ -35,11 +35,14 @@ only fit the former were changed or left out deliberately:
 
 | Area | NekoLib | PixieEngine | Reason |
 |---|---|---|---|
-| Module required surfaces | 9 files and 2 directories | `MANIFEST`, `README`, `REFERENCE`, `HISTORY`; the rest on demand | Avoid empty scaffolds that prove nothing |
+| Module required surfaces | 9 files and 2 directories | `MANIFEST`, `README`, `REFERENCE`; the rest on demand | Avoid empty scaffolds that prove nothing |
+| Module history | A per-module `HISTORY.md` | None; module history lives in `docs/archive/` with the module's `Boundary` | One owner for history; owner decision, 2026-10-11 |
+| Module creation | When the module's code exists | When the module's boundary is decided | Provisional code precedes the module split |
+| Samples and commits | Not covered | A `README.md` per sample; commit conventions | Owner decision, 2026-10-11 |
 | Manifest fields | `.csproj`, target frameworks, packages, API baselines | Build projects, language, artifact, platforms, third-party dependencies, public API surface | C++ has no compiled-assembly API oracle; packages are not the distribution unit |
 | API oracle | Assembly-derived manifests under `eng/public-api/` | A module's public header, once it exists | Same reason |
 | Schedulers | `TODO.md` only | `TODO.md` plus its child `TASKLIST.md` | Owner decision, 2026-10-09 |
-| Chronology | `docs/history/` plus `docs/audit/` | `docs/archive/` only, with an `archive-record` surface | Owner decision, 2026-10-09 |
+| Chronology | `docs/history/` plus `docs/audit/`, and a timeline per module | `docs/archive/` only: one record per event, each naming its origin and commits, and a router index | Owner decisions, 2026-10-09 and 2026-10-11 |
 | Dependency registry | Package and project files only | Root `DEPENDENCIES.md` with status and candidates | Owner decision, 2026-10-09 |
 | Unversioned working state | Not part of the documentation schema | `.local/`, never authority | Owner decision, 2026-10-09 |
 | Template for module introductions | `docs/templates/README.md` | `docs/templates/INTRODUCTION.md` | A file named `README.md` reads as a directory index |
