@@ -35,7 +35,7 @@ decisions below is in the [archive](docs/archive/README.md).
 - A game engine whose first target is **2D**.
 - A **C++ runtime** rendering through **OpenGL 4.5 core**.
 - A **standalone player** executable as the deployable form of a game.
-- A **C# editor** that uses InteractiveEditor to inspect and edit engine state,
+- A **C# editor** that uses PixieInspector to inspect and edit engine state,
   with hosts on more than one platform.
 - A consumer of **PixieLib**, which supplies the basic primitives and forwards
   to math libraries.
@@ -43,8 +43,9 @@ decisions below is in the [archive](docs/archive/README.md).
 ## What PixieEngine is not
 
 - Not a 3D engine in its first cut. 3D is not ruled out, but 2D comes first.
-- Not an OpenGL 4.1 or older renderer. As a consequence, macOS is not a target
-  of the OpenGL renderer; a macOS port would be a separate rendering backend.
+- Not an OpenGL 4.1 or older renderer.
+- Not a macOS engine: macOS is not a target platform, for the engine, the
+  player, or the editor.
 - Not an owner of its own primitive or math types. These belong to PixieLib.
 
 ## Current direction
@@ -79,6 +80,8 @@ decisions below is in the [archive](docs/archive/README.md).
 - **GLEW is the GL loader to start with.** Accepted 2026-10-09; glad 2 remains
   a candidate in [`DEPENDENCIES.md`](DEPENDENCIES.md).
 - **PixieLib owns primitives and math forwarding.** Accepted 2026-10-09.
+- **macOS is not a target.** No choice is weighed against macOS support.
+  Accepted 2026-10-12.
 - **Editor portability.** The editor is gaining hosts on more than one
   platform; engine-side choices must not assume a Windows-only editor.
   Accepted 2026-10-09.

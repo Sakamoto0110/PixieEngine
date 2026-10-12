@@ -29,7 +29,18 @@ vocabulary is owned by the
 ## Derivation
 
 The schema is a fork of NekoLib `docs/schemas/documentation-schema.json`,
-schema version 1, as observed on 2026-10-09. NekoLib is a released .NET library
+schema version 1, as observed on 2026-10-09. Its authority traversal,
+self-review, and stop rules come from the documentation references of Void
+Agent Workplace (`profiles/nekolib/references/documentation/`, observed
+2026-10-12 at `c9d81ba`), adapted to this repository. This is a
+documentation-only derivation: the repository is not bound to a Void Agent
+Workplace profile and depends on none of its tooling.
+
+PixieLib and PixieInspector derived their documentation from this schema at
+`46ee6aa` on 2026-10-12. Practices they added that fit here were brought back
+on the same day: `docs/development.md`, the named commit identity, the branch
+rule, `.local/` in disposable environments, the evidence rules, and the
+language of imported records. NekoLib is a released .NET library
 family; PixieEngine is a pre-code C++ and C# engine. Parts of the source that
 only fit the former were changed or left out deliberately:
 
@@ -39,6 +50,8 @@ only fit the former were changed or left out deliberately:
 | Module history | A per-module `HISTORY.md` | None; module history lives in `docs/archive/` with the module's `Boundary` | One owner for history; owner decision, 2026-10-11 |
 | Module creation | When the module's code exists | When the module's boundary is decided | Provisional code precedes the module split |
 | Samples and commits | Not covered | A `README.md` per sample; commit conventions | Owner decision, 2026-10-11 |
+| Authority traversal, self-review, stop rules | Profile references in Void Agent Workplace | Sections of the documentation policy | Taken from Void Agent Workplace; owner decision, 2026-10-12 |
+| Working agreements | `docs/development.md` | `docs/development.md`, with the commit rules in the policy | As PixieLib and PixieInspector; owner decision, 2026-10-12 |
 | Manifest fields | `.csproj`, target frameworks, packages, API baselines | Build projects, language, artifact, platforms, third-party dependencies, public API surface | C++ has no compiled-assembly API oracle; packages are not the distribution unit |
 | API oracle | Assembly-derived manifests under `eng/public-api/` | A module's public header, once it exists | Same reason |
 | Schedulers | `TODO.md` only | `TODO.md` plus its child `TASKLIST.md` | Owner decision, 2026-10-09 |

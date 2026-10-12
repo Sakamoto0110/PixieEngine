@@ -32,7 +32,7 @@ module:
 2. Scene: an entity with a transform and a sprite, saved and loaded from disk;
    the player loads it.
 3. `capi` and the editor: a viewport in an editor host shows the same scene.
-4. Inspector: selecting the entity binds InteractiveEditor to its proxy, and
+4. Inspector: selecting the entity binds PixieInspector to its proxy, and
    editing a value updates the viewport.
 5. Play, stop, and export: a World from the Scene; export produces a folder
    with the player and the scene.

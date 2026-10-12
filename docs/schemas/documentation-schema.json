@@ -205,7 +205,10 @@
     "readme": "<sample directory>/README.md",
     "purposeDrivenRule": "A scenario (proves a claim) or an oracle (breaks something on purpose) also documents the claim or failure, the expected outcome, and how to read the result."
   },
+  "developmentGuide": "docs/development.md",
   "commits": {
+    "identity": "Rafael Sakamoto <rafael.sakamoto1@hotmail.com>",
+    "branch": "main",
     "prefixes": ["(feat)", "(fix)", "(refactor)", "(docs)"],
     "rule": "Code and documentation in separate commits; the documentation commit cites the code commit hashes. Vendored code in its own commit."
   },

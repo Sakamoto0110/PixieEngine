@@ -8,7 +8,7 @@
 
 **Lifecycle:** current
 
-**Subject:** authority, lifecycle, ownership, scheduling, and archiving rules for PixieEngine documentation
+**Subject:** authority, lifecycle, ownership, scheduling, archiving, and commit rules for PixieEngine documentation
 
 **Surface:** policy
 
@@ -26,9 +26,14 @@ documents move between states. The structural vocabulary lives in the
 the meaning of that vocabulary.
 
 The model is derived from the NekoLib documentation policy and schema (schema
-version 1, observed 2026-10-09). The derivation and every intentional
-difference are recorded in the [schema index](../schemas/README.md). NekoLib is
-the origin of the model, not an authority over this repository.
+version 1, observed 2026-10-09), and its authority traversal, self-review, and
+stop rules from the documentation references of Void Agent Workplace (observed
+2026-10-12 at `c9d81ba`), which extracted the NekoLib model. PixieLib and
+PixieInspector derive their documentation from this one. The derivation and
+every intentional difference are recorded in the
+[schema index](../schemas/README.md). None of those projects is an authority
+over this repository, and this repository is not bound to a Void Agent
+Workplace profile.
 
 ## Authority
 
@@ -40,6 +45,8 @@ to its owner; they must not maintain a competing mutable copy.
 | Implemented behavior | Current source code |
 | Build configuration, targets, toolchain, and dependency wiring | CMake files: the root `CMakeLists.txt`, `CMakePresets.json`, `cmake/`, and each directory's `CMakeLists.txt` |
 | Dependencies (toolchain, third-party, own projects), versions, status, and candidates | Root `DEPENDENCIES.md` |
+| How to build, check, and commit a change | `docs/development.md`, under the commit rules below |
+| What a sample shows and how to run it | `samples/<sample>/README.md` |
 | Third-party source code | `external/<name>/`, unmodified from the release recorded in `DEPENDENCIES.md` |
 | Public native API | The module's public header, once it exists |
 | Module technical contract | `docs/modules/<boundary>/REFERENCE.md` |
@@ -51,7 +58,7 @@ to its owner; they must not maintain a competing mutable copy.
 | Confirmed defects | Module `ISSUES.md` |
 | Unconfirmed observations | Module `FINDINGS.md` |
 | Evidence requirements | Module `VALIDATION_REQUIREMENTS.md` |
-| Executed evidence | Module `VALIDATIONS.md`, tests, and scenarios |
+| Executed evidence | Module `VALIDATIONS.md`, tests, scenarios, and the verification recorded in archive records |
 | Chronology, completed work, superseded state, and dated rationale | `docs/archive/` |
 | Documentation structure and vocabulary | `docs/schemas/documentation-schema.json` |
 | Open questions and answers before promotion | `.local/` (unversioned; never authority) |
@@ -59,6 +66,24 @@ to its owner; they must not maintain a competing mutable copy.
 Generated output is never authority and is never versioned: `build/`, `bin/`, and the root
 `PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
 instead.
+
+## Authority traversal
+
+When sources disagree or a fact must be established, each source is used only
+for the facts it owns, in this order:
+
+1. Source code and the CMake files establish behavior, targets, dependencies,
+   and build properties.
+2. Public headers establish the public native API.
+3. Module `REFERENCE.md` files and this policy establish the documented
+   contracts.
+4. `ROADMAP.md` establishes direction, guardrails, and freezes.
+5. `TODO.md` and `TASKLIST.md` establish promoted work, gates, and completion.
+6. Tests, samples, scenarios, and recorded verification demonstrate bounded
+   claims.
+7. Archive records preserve chronology and rationale at their baselines.
+8. Proposals, findings, `.local/`, and the documents of other repositories are
+   non-normative leads.
 
 ## Scheduling: `TODO.md` and `TASKLIST.md`
 
@@ -105,7 +130,11 @@ the owner's own projects. Each one has a status observed on the file's
 A suggested dependency stays under candidates until the owner adopts it. A
 status is an observation from its date, not a guarantee; recheck before a
 version change. Vendored code is recorded with its release, source, and the
-SHA-256 of the archive or file it came from.
+SHA-256 of the archive or file it came from. The CMake files own the wiring:
+which target uses which dependency, built how. `DEPENDENCIES.md` records why and
+the status. A dependency of another project of the owner, such as the GUI
+binding of PixieInspector, belongs to that project's `DEPENDENCIES.md`; this one
+lists only what the engine and its samples consume.
 
 ## Unversioned working documentation: `.local/`
 
@@ -119,6 +148,11 @@ answer by number. After an answer, an item is either promoted, expanded into
 because a clone does not contain it. An answer that shapes code, structure, or
 direction must be promoted to a versioned owner; an unpromoted answer is not a
 repository fact.
+
+A session in a disposable environment, such as a cloud container, loses
+`.local/` when the environment ends. There the questions are asked in the
+conversation, numbered the same way, and each answer is promoted as soon as it
+is given.
 
 ## Archive
 
@@ -164,6 +198,7 @@ context. Find the event in the router, then read only its record.
   corrections and appended reconciliation sections are allowed.
 - A record is true only for its baseline. It never owns current technical
   facts, open work, or direction.
+- An imported record keeps the language of its body, under an English header.
 
 ## Module surfaces
 
@@ -202,6 +237,15 @@ failure is caught. Its `README.md` also states the claim or the failure, the
 expected outcome, and how to read the result. What such a project demonstrates
 is evidence; it never defines behavior.
 
+## Tests and evidence
+
+Tests, samples, and measured runs are evidence: they demonstrate claims and
+never define behavior. A measurement holds only for the machine, configuration,
+and commit it ran with, and is recorded with them, as PIXIE-TODO-002 recorded
+its frame and update rates. A console or program written outside the
+repository, for a comparison or a deliberately broken copy, is evidence only
+when its result is recorded with its inputs; otherwise it is a working aid.
+
 ## Commits
 
 - Messages are in English and start with a prefix in parentheses: `(feat)`,
@@ -211,10 +255,17 @@ is evidence; it never defines behavior.
   records code work cites the hashes of the code commits.
 - Vendored third-party code goes in its own commit, separate from the code that
   uses it.
-- Commits carry the owner's identity only, with no co-author or tool
+- Commits carry the owner's identity only, as author and committer:
+  `Rafael Sakamoto <rafael.sakamoto1@hotmail.com>`, with no co-author or tool
   attribution lines.
+- Work goes to `main` on `Sakamoto0110/PixieEngine`. A session that can push
+  only to a branch of its own pushes there, fast-forwards `main` to the same
+  commit, and deletes its branch; no other branch is created without an owner
+  decision. Nothing is pushed without an owner decision.
 - History may be rewritten only before it is pushed; afterwards, a correction
-  is a new commit. Nothing is pushed without an owner decision.
+  is a new commit.
+- No continuous integration exists yet. When it does, its run is checked after
+  every push, and a red `main` comes before anything else.
 
 ## Metadata
 
@@ -233,20 +284,53 @@ Document IDs and record IDs are stable and never renumbered or reused.
 
 ## Language and authoring
 
-Versioned and `.local/` documentation is written in English. Documents must be
+Versioned and `.local/` documentation is written in English, except the body of
+an imported record. Code and code comments are in English. Documents must be
 understandable without a private prompt, a conversation, an external workspace,
 or knowledge of which person or tool wrote them. External procedures, including
 agent tooling, may add emphasis but do not own a format, path, authority rule,
 or acceptance criterion here.
 
-## Conflict handling
+## Stop rules
 
-- If source and a current normative reference disagree, record the exact
-  conflict and stop for disposition; do not silently rewrite either side.
-- Evidence demonstrates claims but does not define behavior.
-- A finding becomes an issue only after verification.
-- Historical bodies are not rewritten to match later truth; later outcomes are
-  recorded separately.
+Stop, preserve the evidence, and ask the owner for a disposition when:
+
+- source and a current normative reference disagree; do not silently rewrite
+  either side;
+- the requested documentation outcome needs a change to code, the public API,
+  or the build;
+- work would cross an active freeze, a guardrail, or the requested boundary;
+- a finding lacks the evidence to become an issue;
+- work would promote a proposal, finding, or decision that the owner has not
+  accepted;
+- the owner of a fact, a module, or a dependency cannot be established;
+- uncommitted work that was already in the tree overlaps the intended change;
+  or
+- an archive record would have to be rewritten instead of reconciled.
+
+A stop authorizes no broader investigation or change. Report the smallest exact
+conflict and the sources that expose it. Evidence demonstrates claims but does
+not define behavior, a finding becomes an issue only after verification, and
+historical bodies are not rewritten to match later truth.
+
+## Self-review
+
+Before declaring documentation work complete, check that:
+
+- every required document exists and carries the metadata the schema requires,
+  with stable IDs;
+- every relative link and anchor resolves with the repository's casing;
+- each fact has one owner, and summaries link to it instead of copying it;
+- current claims match the source and the CMake files;
+- proposals and findings are not presented as decisions or scheduled work;
+- evidence is not presented as contract, and records only what actually ran;
+- archive records keep their baseline and body, and the router lists every
+  record with the same ID;
+- gaps and what was not run are stated; and
+- another session or agent can continue from the repository alone.
+
+Report what was checked and what was not, separately: source, build, runs,
+documentation, and the commit or push.
 
 ## Enforcement
 

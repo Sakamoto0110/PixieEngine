@@ -37,7 +37,7 @@ only downward in this list:
 | `runtime` | C++ | static library | The World: instantiation from a Scene, systems, fixed-step loop, play and stop |
 | `capi` | C++ | shared library | The C ABI the editor consumes; nothing else depends on it |
 | `player` | C++ | executable | The deployable game: links the engine statically and loads a packaged project |
-| `editor` | C# | managed assemblies | Interop over `capi`, viewport, hierarchy, inspector through InteractiveEditor, play mode, export |
+| `editor` | C# | managed assemblies | Interop over `capi`, viewport, hierarchy, inspector through PixieInspector, play mode, export |
 | `tools` | to be decided | to be decided | Cook and export from editor assets to runtime formats |
 
 PixieLib sits below `core`. Third-party code sits outside the boundaries.

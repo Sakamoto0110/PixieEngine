@@ -29,7 +29,8 @@ owns the authority table: which document owns which kind of fact.
 | [`../TODO.md`](../TODO.md) | Formally promoted work |
 | [`../TASKLIST.md`](../TASKLIST.md) | Task breakdowns of promoted work |
 | [`../DEPENDENCIES.md`](../DEPENDENCIES.md) | Dependencies, versions, status, and candidates |
-| [`governance/`](governance/documentation-policy.md) | Documentation rules |
+| [`development.md`](development.md) | How to build, check, and commit a change |
+| [`governance/`](governance/documentation-policy.md) | Documentation and commit rules |
 | [`schemas/`](schemas/README.md) | Documentation structure and vocabulary, and its derivation |
 | [`templates/`](templates/) | Templates for modules, schedulers, proposals, and archive records |
 | [`proposals/`](proposals/README.md) | Unpromoted ideas |
