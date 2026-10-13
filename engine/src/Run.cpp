@@ -1,8 +1,9 @@
 #include "pixie/Run.hpp"
 
 #include "FrameLimiter.hpp"
-#include "GlDebugOutput.hpp"
+#include "pixie/FixedStepper.hpp"
 #include "pixie/Gl.hpp"
+#include "pixie/GlLoader.hpp"
 #include "pixie/Log.hpp"
 #include "pixie/RateMeter.hpp"
 #include "pixie/Screenshot.hpp"
@@ -19,21 +20,12 @@ namespace {
 
 using Clock = std::chrono::steady_clock;
 
-// A frame longer than this is treated as this long, so a stall (a dragged window, a breakpoint)
-// does not trigger a burst of catch-up updates.
-constexpr double kMaxFrameDelta = 0.25;
-
 double Seconds(Clock::duration duration) {
     return std::chrono::duration<double>(duration).count();
 }
 
 void OnGlfwError(int code, const char* description) {
     LogError(std::format("GLFW {}: {}", code, description));
-}
-
-const char* GlString(GLenum name) {
-    const auto* value = reinterpret_cast<const char*>(glGetString(name));
-    return value != nullptr ? value : "(null)";
 }
 
 // Terminates GLFW on every exit path; it also destroys any window still open.
@@ -94,25 +86,6 @@ void ConnectInput(GLFWwindow* handle, Input& input) {
     input.EndUpdate();
 }
 
-bool LoadGl() {
-    // Under the core profile, GLEW must not rely on the removed extension string.
-    glewExperimental = GL_TRUE;
-    const GLenum result = glewInit();
-    if (result != GLEW_OK) {
-        LogError(std::format("GLEW: {}",
-                             reinterpret_cast<const char*>(glewGetErrorString(result))));
-        return false;
-    }
-    // glewInit leaves a spurious GL_INVALID_ENUM under the core profile; clear it so the
-    // debug output does not report an error that is not ours.
-    while (glGetError() != GL_NO_ERROR) {
-    }
-    LogInfo(std::format("GL_VERSION: {}", GlString(GL_VERSION)));
-    LogInfo(std::format("GL_RENDERER: {}", GlString(GL_RENDERER)));
-    LogInfo(std::format("GL_VENDOR: {}", GlString(GL_VENDOR)));
-    return true;
-}
-
 } // namespace
 
 int Run(App& app, const RunConfig& config) {
@@ -132,7 +105,6 @@ int Run(App& app, const RunConfig& config) {
     if (!LoadGl()) {
         return 1;
     }
-    InstallGlDebugOutput();
     glfwSwapInterval(config.vsync ? 1 : 0);
     LogInfo(std::format("Update rate: {} Hz; frame cap: {}; vsync: {}", config.updateRate,
                         config.frameRateCap > 0.0 ? std::format("{} Hz", config.frameRateCap)
@@ -149,10 +121,7 @@ int Run(App& app, const RunConfig& config) {
         return 1;
     }
 
-    const double step = 1.0 / config.updateRate;
-    double accumulator = 0.0;
-    double simulated = 0.0;
-    std::uint64_t updateIndex = 0;
+    FixedStepper stepper(config.updateRate);
     std::uint64_t frameIndex = 0;
 
     const auto start = Clock::now();
@@ -164,25 +133,22 @@ int Run(App& app, const RunConfig& config) {
         glfwPollEvents();
 
         const auto now = Clock::now();
-        const double frameDelta = std::min(Seconds(now - previous), kMaxFrameDelta);
+        const double frameDelta = Seconds(now - previous);
         previous = now;
 
-        accumulator += frameDelta;
-        while (accumulator >= step) {
-            app.Update(FrameTime{step, 0.0, simulated, updateIndex}, input);
+        stepper.Advance(frameDelta, [&](const FrameTime& time) {
+            app.Update(time, input);
             input.EndUpdate();
-            simulated += step;
-            accumulator -= step;
-            ++updateIndex;
             meter.CountUpdate();
-        }
+        });
 
         const bool quitting =
             config.quitAfterSeconds > 0.0 && Seconds(now - start) >= config.quitAfterSeconds;
         const FramebufferSize size = window.GetFramebufferSize();
         if (size.width > 0 && size.height > 0) {
             glViewport(0, 0, size.width, size.height);
-            app.Render(FrameTime{frameDelta, accumulator / step, simulated, frameIndex}, input);
+            const double drawnDelta = std::min(frameDelta, FixedStepper::kMaxFrameDelta);
+            app.Render(stepper.RenderTime(drawnDelta, frameIndex), input);
             if (quitting && !config.screenshotPath.empty()) {
                 SaveFramebufferPng(config.screenshotPath, size);
             }

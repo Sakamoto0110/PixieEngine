@@ -4,7 +4,10 @@ add_library(pixie_runtime STATIC
     src/AttractorAffector.cpp
     src/InteractionAffector.cpp
     src/ParticleSystem.cpp
+    src/ProjectApp.cpp
+    src/ProjectSession.cpp
     src/Random.cpp
+    src/RuntimeComponents.cpp
     src/ShapeDrawing.cpp
     src/SpatialGrid.cpp
     src/World.cpp

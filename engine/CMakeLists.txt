@@ -6,12 +6,14 @@ add_library(pixie_engine STATIC
     src/FrameLimiter.cpp
     src/GlBuffer.cpp
     src/GlDebugOutput.cpp
+    src/GlLoader.cpp
     src/GlVertexArray.cpp
     src/Input.cpp
     src/LibraryCheck.cpp
     src/Log.cpp
     src/ParticleRenderer.cpp
     src/RateMeter.cpp
+    src/RenderTarget.cpp
     src/Run.cpp
     src/Screenshot.cpp
     src/ShaderProgram.cpp

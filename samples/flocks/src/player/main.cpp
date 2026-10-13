@@ -1,8 +1,9 @@
-#include "FlocksApp.hpp"
+#include "FlocksProject.hpp"
 
 #include "SampleOptions.hpp"
 
 #include "pixie/Run.hpp"
+#include "pixie/runtime/ProjectApp.hpp"
 
 #include <array>
 
@@ -20,6 +21,9 @@ int main(int argc, char** argv) {
     if (!sample::ParseOptions(argc, argv, "flocks", config, options)) {
         return 2;
     }
-    FlocksApp app(count, static_cast<std::uint64_t>(seed));
+    pixie::SessionSettings settings;
+    settings.seed = static_cast<std::uint64_t>(seed);
+    settings.updateRate = config.updateRate;
+    pixie::ProjectApp app(std::make_unique<FlocksProject>(count), settings);
     return pixie::Run(app, config);
 }

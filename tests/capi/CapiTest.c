@@ -1,0 +1,298 @@
+/*
+ * Drives one game's C API library the way an editor host does: loads it at run time, creates a
+ * hidden window with an OpenGL 4.5 core context, and runs a session through every part of the API.
+ * Written in C and including only pixie_capi.h from the engine, so it proves the API is C.
+ *
+ * usage: capi-test <path to a game's capi library>
+ * Exits 0 when every check passes, 1 otherwise.
+ */
+#include "pixie_capi.h"
+
+#include <math.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#if defined(_WIN32)
+#define WIN32_LEAN_AND_MEAN
+#include <windows.h>
+typedef HMODULE Library;
+static Library OpenLibrary(const char* path) { return LoadLibraryA(path); }
+static void* Symbol(Library library, const char* name) { return (void*)GetProcAddress(library, name); }
+static void CloseLibrary(Library library) { FreeLibrary(library); }
+#else
+#include <dlfcn.h>
+typedef void* Library;
+static Library OpenLibrary(const char* path) { return dlopen(path, RTLD_NOW); }
+static void* Symbol(Library library, const char* name) { return dlsym(library, name); }
+static void CloseLibrary(Library library) { dlclose(library); }
+#endif
+
+/* After windows.h, which defines APIENTRY itself. */
+#define GLFW_INCLUDE_NONE
+#include <GLFW/glfw3.h>
+
+/* The API, looked up by name, as P/Invoke does. */
+static struct {
+    int32_t (*api_version)(void);
+    int32_t (*last_error)(char*, int32_t);
+    PixieResult (*session_create)(int32_t, int32_t, uint64_t, PixieSession**);
+    void (*session_destroy)(PixieSession*);
+    PixieResult (*project_name)(PixieSession*, char*, int32_t);
+    PixieResult (*session_resize)(PixieSession*, int32_t, int32_t);
+    PixieResult (*session_advance)(PixieSession*, double);
+    PixieResult (*session_step)(PixieSession*);
+    PixieResult (*session_set_paused)(PixieSession*, int32_t);
+    PixieResult (*session_reset)(PixieSession*);
+    PixieResult (*session_render)(PixieSession*, uint32_t*);
+    PixieResult (*session_stats)(PixieSession*, PixieStats*);
+    PixieResult (*input_cursor)(PixieSession*, double, double);
+    PixieResult (*input_key)(PixieSession*, int32_t, int32_t);
+    PixieResult (*entities)(PixieSession*, uint32_t*, int32_t, int32_t*);
+    PixieResult (*entity_name)(PixieSession*, uint32_t, char*, int32_t);
+    int32_t (*entity_alive)(PixieSession*, uint32_t);
+    int32_t (*type_count)(PixieSession*);
+    PixieResult (*type_name)(PixieSession*, int32_t, char*, int32_t);
+    int32_t (*entity_has)(PixieSession*, uint32_t, int32_t);
+    int32_t (*field_count)(PixieSession*, int32_t);
+    PixieResult (*field_name)(PixieSession*, int32_t, int32_t, char*, int32_t);
+    PixieResult (*field_kind)(PixieSession*, int32_t, int32_t, int32_t*);
+    PixieResult (*field_get)(PixieSession*, uint32_t, int32_t, int32_t, PixieValue*);
+    PixieResult (*field_set)(PixieSession*, uint32_t, int32_t, int32_t, const PixieValue*);
+} api;
+
+static int failures = 0;
+
+#define CHECK(expression)                                                                          \
+    do {                                                                                           \
+        if (!(expression)) {                                                                       \
+            char error[256];                                                                       \
+            error[0] = '\0';                                                                       \
+            if (api.last_error != NULL) {                                                          \
+                api.last_error(error, (int32_t)sizeof error);                                      \
+            }                                                                                      \
+            fprintf(stderr, "%s(%d): check failed: %s [last error: %s]\n", __FILE__, __LINE__,     \
+                    #expression, error);                                                           \
+            ++failures;                                                                            \
+        }                                                                                          \
+    } while (0)
+
+static int Load(Library library) {
+    int missing = 0;
+#define LOAD(field, name)                                                                          \
+    *(void**)&api.field = Symbol(library, name);                                                   \
+    if (api.field == NULL) {                                                                       \
+        fprintf(stderr, "missing export: %s\n", name);                                             \
+        missing = 1;                                                                               \
+    }
+    LOAD(api_version, "pixie_api_version")
+    LOAD(last_error, "pixie_last_error")
+    LOAD(session_create, "pixie_session_create")
+    LOAD(session_destroy, "pixie_session_destroy")
+    LOAD(project_name, "pixie_project_name")
+    LOAD(session_resize, "pixie_session_resize")
+    LOAD(session_advance, "pixie_session_advance")
+    LOAD(session_step, "pixie_session_step")
+    LOAD(session_set_paused, "pixie_session_set_paused")
+    LOAD(session_reset, "pixie_session_reset")
+    LOAD(session_render, "pixie_session_render")
+    LOAD(session_stats, "pixie_session_stats")
+    LOAD(input_cursor, "pixie_input_cursor")
+    LOAD(input_key, "pixie_input_key")
+    LOAD(entities, "pixie_entities")
+    LOAD(entity_name, "pixie_entity_name")
+    LOAD(entity_alive, "pixie_entity_alive")
+    LOAD(type_count, "pixie_type_count")
+    LOAD(type_name, "pixie_type_name")
+    LOAD(entity_has, "pixie_entity_has")
+    LOAD(field_count, "pixie_field_count")
+    LOAD(field_name, "pixie_field_name")
+    LOAD(field_kind, "pixie_field_kind")
+    LOAD(field_get, "pixie_field_get")
+    LOAD(field_set, "pixie_field_set")
+#undef LOAD
+    return !missing;
+}
+
+static int32_t FindType(PixieSession* s, const char* name) {
+    char buffer[128];
+    for (int32_t t = 0; t < api.type_count(s); ++t) {
+        if (api.type_name(s, t, buffer, (int32_t)sizeof buffer) == PIXIE_OK && strcmp(buffer, name) == 0) {
+            return t;
+        }
+    }
+    return -1;
+}
+
+static int32_t FindField(PixieSession* s, int32_t type, const char* name) {
+    char buffer[128];
+    for (int32_t f = 0; f < api.field_count(s, type); ++f) {
+        if (api.field_name(s, type, f, buffer, (int32_t)sizeof buffer) == PIXIE_OK && strcmp(buffer, name) == 0) {
+            return f;
+        }
+    }
+    return -1;
+}
+
+/* The one GL function the test calls itself, loaded through GLFW, with the constants it needs. */
+#if defined(_WIN32)
+#define TEST_GLAPI __stdcall
+#else
+#define TEST_GLAPI
+#endif
+#define TEST_GL_RGBA 0x1908
+#define TEST_GL_UNSIGNED_BYTE 0x1401
+typedef void(TEST_GLAPI* GetTextureImage)(unsigned int, int, unsigned int, unsigned int, int, void*);
+
+/* True when the texture's pixels are not all the same: the World was drawn into it. */
+static int TextureHasContent(uint32_t texture, int width, int height) {
+    GetTextureImage getTextureImage = (GetTextureImage)glfwGetProcAddress("glGetTextureImage");
+    if (getTextureImage == NULL) {
+        return 0;
+    }
+    const size_t size = (size_t)width * (size_t)height * 4;
+    unsigned char* pixels = (unsigned char*)malloc(size);
+    if (pixels == NULL) {
+        return 0;
+    }
+    getTextureImage(texture, 0, TEST_GL_RGBA, TEST_GL_UNSIGNED_BYTE, (int)size, pixels);
+    int differs = 0;
+    for (size_t i = 4; i < size && !differs; i += 4) {
+        differs = memcmp(pixels, pixels + i, 3) != 0;
+    }
+    free(pixels);
+    return differs;
+}
+
+static void Exercise(PixieSession* s) {
+    char name[128];
+    CHECK(api.project_name(s, name, (int32_t)sizeof name) == PIXIE_OK && name[0] != '\0');
+    printf("project: %s\n", name);
+
+    /* Types and fields. */
+    const int32_t transform = FindType(s, "Transform2D");
+    CHECK(transform >= 0);
+    const int32_t position = FindField(s, transform, "position");
+    CHECK(position >= 0);
+    int32_t kind = -1;
+    CHECK(api.field_kind(s, transform, position, &kind) == PIXIE_OK && kind == PIXIE_FIELD_POINT);
+    printf("component types: %d\n", api.type_count(s));
+
+    /* Entities: find one with a Transform2D and a name or not. */
+    int32_t count = 0;
+    CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count > 0);
+    uint32_t* ids = (uint32_t*)malloc(sizeof(uint32_t) * (size_t)count);
+    int32_t filled = 0;
+    CHECK(ids != NULL && api.entities(s, ids, count, &filled) == PIXIE_OK && filled == count);
+    uint32_t moving = 0;
+    int found = 0;
+    for (int32_t i = 0; i < count && !found; ++i) {
+        if (api.entity_has(s, ids[i], transform)) {
+            moving = ids[i];
+            found = 1;
+        }
+    }
+    CHECK(found);
+    CHECK(api.entity_name(s, ids[0], name, (int32_t)sizeof name) == PIXIE_OK);
+    printf("entities: %d, first named \"%s\"\n", count, name);
+
+    /* Write a field and read it back. */
+    const PixieValue target = {12.5, -3.25, 0.0, 0.0};
+    PixieValue read;
+    CHECK(api.field_set(s, moving, transform, position, &target) == PIXIE_OK);
+    CHECK(api.field_get(s, moving, transform, position, &read) == PIXIE_OK);
+    CHECK(read.x == 12.5 && read.y == -3.25);
+
+    /* A field of the game's own: every project describes at least one type after the runtime's. */
+    const int32_t own = api.type_count(s) - 1;
+    CHECK(api.type_name(s, own, name, (int32_t)sizeof name) == PIXIE_OK);
+    printf("last type: %s\n", name);
+
+    /* Time: 0.2 s of wall time is 12 steps at 60 per second; a frame longer than 0.25 s counts as
+     * 0.25 s, so 1 s more adds 15. */
+    PixieStats stats;
+    CHECK(api.input_cursor(s, 320.0, 180.0) == PIXIE_OK);
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 12);
+    CHECK(api.session_advance(s, 1.0) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 27);
+    printf("after 1.2 s: %llu steps, %.3f ms last step\n", (unsigned long long)stats.steps,
+           stats.lastStepMilliseconds);
+
+    /* Pause: time does not advance, a single step does. */
+    CHECK(api.session_set_paused(s, 1) == PIXIE_OK);
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 27 && stats.paused == 1);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 28);
+    CHECK(api.session_set_paused(s, 0) == PIXIE_OK);
+
+    /* A key press goes through without error. */
+    CHECK(api.input_key(s, 32, 1) == PIXIE_OK && api.input_key(s, 32, 0) == PIXIE_OK);
+    CHECK(api.session_advance(s, 1.0 / 60.0) == PIXIE_OK);
+
+    /* Render into the session's texture, at a new size. */
+    uint32_t texture = 0;
+    CHECK(api.session_resize(s, 320, 200) == PIXIE_OK);
+    CHECK(api.session_render(s, &texture) == PIXIE_OK && texture != 0);
+    CHECK(TextureHasContent(texture, 320, 200));
+
+    /* Errors: a bad type, a stale entity, a short buffer. */
+    CHECK(api.field_get(s, moving, 9999, 0, &read) == PIXIE_ERROR_ARGUMENT);
+    char tiny[3];
+    CHECK(api.project_name(s, tiny, (int32_t)sizeof tiny) == PIXIE_ERROR_BUFFER && strlen(tiny) == 2);
+
+    /* Reset: a new World, with its own time, and the old handles stale or new. */
+    CHECK(api.session_reset(s) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 0 && stats.entities > 0);
+    printf("after reset: %d entities\n", stats.entities);
+
+    free(ids);
+}
+
+int main(int argc, char** argv) {
+    if (argc != 2) {
+        fprintf(stderr, "usage: capi-test <library>\n");
+        return 2;
+    }
+    Library library = OpenLibrary(argv[1]);
+    if (library == NULL) {
+        fprintf(stderr, "cannot load %s\n", argv[1]);
+        return 1;
+    }
+    if (!Load(library)) {
+        return 1;
+    }
+    CHECK(api.api_version() == PIXIE_CAPI_VERSION);
+
+    if (!glfwInit()) {
+        fprintf(stderr, "GLFW initialization failed\n");
+        return 1;
+    }
+    glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+    glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
+    glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
+    glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+    GLFWwindow* window = glfwCreateWindow(640, 360, "capi-test", NULL, NULL);
+    if (window == NULL) {
+        fprintf(stderr, "no OpenGL 4.5 core context\n");
+        glfwTerminate();
+        return 1;
+    }
+    glfwMakeContextCurrent(window);
+
+    PixieSession* session = NULL;
+    CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);
+    CHECK(api.session_create(640, 360, 7, &session) == PIXIE_OK && session != NULL);
+    if (session != NULL) {
+        Exercise(session);
+        api.session_destroy(session);
+    }
+
+    glfwDestroyWindow(window);
+    glfwTerminate();
+    CloseLibrary(library);
+    printf("%s: %d failed checks\n", argv[1], failures);
+    return failures == 0 ? 0 : 1;
+}

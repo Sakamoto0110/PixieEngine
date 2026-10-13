@@ -1,8 +1,9 @@
-#include "BoidsApp.hpp"
+#include "BoidsProject.hpp"
 
 #include "SampleOptions.hpp"
 
 #include "pixie/Run.hpp"
+#include "pixie/runtime/ProjectApp.hpp"
 
 #include <array>
 
@@ -20,6 +21,9 @@ int main(int argc, char** argv) {
     if (!sample::ParseOptions(argc, argv, "boids", config, options)) {
         return 2;
     }
-    BoidsApp app(count, static_cast<std::uint64_t>(seed));
+    pixie::SessionSettings settings;
+    settings.seed = static_cast<std::uint64_t>(seed);
+    settings.updateRate = config.updateRate;
+    pixie::ProjectApp app(std::make_unique<BoidsProject>(count), settings);
     return pixie::Run(app, config);
 }
