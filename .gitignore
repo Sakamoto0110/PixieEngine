@@ -10,3 +10,8 @@
 /PixieEngine.slnx
 /out/
 *.user
+
+# The C# editor's build output and its saved dock layout.
+/editor/**/bin/
+/editor/**/obj/
+imgui.ini

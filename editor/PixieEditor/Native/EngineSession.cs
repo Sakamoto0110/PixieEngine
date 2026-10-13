@@ -1,0 +1,145 @@
+using System.Text;
+
+namespace PixieEditor.Native;
+
+// A failure reported by the C API, with its last error text.
+public sealed class EngineException(string message) : Exception(message);
+
+// A game's session through the C API: the managed face of PixieSession. Every call needs the GL
+// context the session was created with current on this thread. A failed call throws an
+// EngineException with the engine's reason.
+public sealed unsafe class EngineSession : IDisposable
+{
+    private nint Handle;
+    private readonly Dictionary<string, int> TypeIndices = [];
+    private readonly Dictionary<(int Type, string Field), int> FieldIndices = [];
+
+    private EngineSession(nint handle)
+    {
+        Handle = handle;
+        for (var t = 0; t < TypeCount; t++)
+            TypeIndices[TypeName(t)] = t;
+    }
+
+    public static EngineSession Create(int width, int height, ulong seed)
+    {
+        if (PixieCapi.ApiVersion() != PixieCapi.Version)
+            throw new EngineException($"The game's library has C API version {PixieCapi.ApiVersion()}; the editor needs {PixieCapi.Version}.");
+
+        Check(PixieCapi.SessionCreate(width, height, seed, out var handle), "create the session");
+        return new EngineSession(handle);
+    }
+
+    public void Dispose()
+    {
+        if (Handle == 0)
+            return;
+
+        PixieCapi.SessionDestroy(Handle);
+        Handle = 0;
+    }
+
+    public string ProjectName => ReadString((b, n) => PixieCapi.ProjectName(Handle, b, n), "read the project name");
+
+    public PixieStats Stats
+    {
+        get
+        {
+            Check(PixieCapi.SessionStats(Handle, out var stats), "read the stats");
+            return stats;
+        }
+    }
+
+    public bool Paused
+    {
+        get => Stats.Paused != 0;
+        set => Check(PixieCapi.SessionSetPaused(Handle, value ? 1 : 0), "pause or resume");
+    }
+
+    public void Resize(int width, int height) => Check(PixieCapi.SessionResize(Handle, width, height), "resize");
+    public void Advance(double seconds) => Check(PixieCapi.SessionAdvance(Handle, seconds), "advance");
+    public void Step() => Check(PixieCapi.SessionStep(Handle), "step");
+    public void Reset() => Check(PixieCapi.SessionReset(Handle), "reset");
+
+    public uint Render()
+    {
+        Check(PixieCapi.SessionRender(Handle, out var texture), "render");
+        return texture;
+    }
+
+    public void Cursor(double x, double y) => Check(PixieCapi.InputCursor(Handle, x, y), "send the cursor");
+    public void MouseButton(int button, bool down) => Check(PixieCapi.InputMouseButton(Handle, button, down ? 1 : 0), "send a button");
+    public void Key(int key, bool down) => Check(PixieCapi.InputKey(Handle, key, down ? 1 : 0), "send a key");
+    public void Scroll(double dx, double dy) => Check(PixieCapi.InputScroll(Handle, dx, dy), "send the scroll");
+
+    // Live entities, oldest first.
+    public uint[] Entities()
+    {
+        Check(PixieCapi.Entities(Handle, null, 0, out var count), "count the entities");
+        var entities = new uint[count];
+        fixed (uint* buffer = entities)
+        {
+            Check(PixieCapi.Entities(Handle, buffer, count, out _), "list the entities");
+        }
+        return entities;
+    }
+
+    public string EntityName(uint entity) => ReadString((b, n) => PixieCapi.EntityName(Handle, entity, b, n), "read a name");
+    public bool IsAlive(uint entity) => PixieCapi.EntityAlive(Handle, entity) != 0;
+
+    public int TypeCount => PixieCapi.TypeCount(Handle);
+    public string TypeName(int type) => ReadString((b, n) => PixieCapi.TypeName(Handle, type, b, n), "read a type name");
+    public int TypeIndex(string name) => TypeIndices.TryGetValue(name, out var index) ? index : -1;
+    public bool Has(uint entity, int type) => PixieCapi.EntityHas(Handle, entity, type) != 0;
+
+    public int FieldIndex(int type, string field)
+    {
+        if (FieldIndices.TryGetValue((type, field), out var index))
+            return index;
+
+        var count = PixieCapi.FieldCount(Handle, type);
+        for (var f = 0; f < count; f++)
+        {
+            if (ReadString((b, n) => PixieCapi.FieldName(Handle, type, f, b, n), "read a field name") == field)
+            {
+                FieldIndices[(type, field)] = f;
+                return f;
+            }
+        }
+
+        throw new EngineException($"Type {TypeName(type)} has no field '{field}'.");
+    }
+
+    public PixieValue Get(uint entity, int type, int field)
+    {
+        Check(PixieCapi.FieldGet(Handle, entity, type, field, out var value), "read a field");
+        return value;
+    }
+
+    public void Set(uint entity, int type, int field, PixieValue value)
+    {
+        Check(PixieCapi.FieldSet(Handle, entity, type, field, in value), "write a field");
+    }
+
+    private static string LastError()
+    {
+        var buffer = stackalloc byte[512];
+        var length = PixieCapi.LastError(buffer, 512);
+        return Encoding.UTF8.GetString(buffer, Math.Min(length, 511));
+    }
+
+    private static void Check(PixieResult result, string what)
+    {
+        if (result != PixieResult.Ok)
+            throw new EngineException($"Could not {what}: {result}, {LastError()}");
+    }
+
+    private delegate PixieResult StringReader(byte* buffer, int capacity);
+
+    private static string ReadString(StringReader read, string what)
+    {
+        var buffer = stackalloc byte[256];
+        Check(read(buffer, 256), what);
+        return Encoding.UTF8.GetString(buffer, new ReadOnlySpan<byte>(buffer, 256).IndexOf((byte)0));
+    }
+}
