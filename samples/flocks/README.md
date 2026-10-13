@@ -34,6 +34,17 @@ Changes are logged. Once per second the log also shows how long the World's step
 The flock lives in the visible area, so adding boids makes it denser and each boid's neighbourhood
 larger: the step's cost grows faster than the count.
 
+## Layout
+
+- `src/game/`: the game, built as the static library `flocks-game`. `FlocksProject` is its `Project`
+  (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
+  it builds the World, handles the pointer and the keys before each step, draws the overlay, and
+  describes the game's components for tools. `pixie::CreateProject` returns it with its defaults.
+- `src/player/`: the player, `flocks`, which runs the project in its own window through
+  `ProjectApp`.
+- `flocks-capi`: the same game as a shared library with the
+  [C API](../../docs/modules/capi/README.md), for hosts such as the editor.
+
 ## Build and run
 
 From the repository root, in the Visual Studio developer prompt:

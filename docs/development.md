@@ -76,6 +76,8 @@ cmake --build --preset vs2026-release
 - **Build:** Debug and Release build with 0 warnings and 0 errors.
 - **Tests:** `ctest --preset vs2026-debug` and `ctest --preset vs2026-release`
   pass. Tests live under `tests/`, with a minimal harness (`tests/Check.hpp`).
+  The C API tests (`boids-capi`, `flocks-capi`, `particles-capi`) open a hidden
+  window, so they need a desktop session with an OpenGL 4.5 driver.
 - **Run:** the samples that exercise the change start, show what their README
   describes, and exit 0. `hello-gl --quit-after 5` runs for five seconds and
   closes; its log shows `GL_VERSION` and the measured rates once per second.

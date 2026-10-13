@@ -48,6 +48,10 @@ All under `runtime/include/pixie/runtime/`:
 | `ParticleSystem.hpp` | `AddParticleSystem` and `DrawParticles` |
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
+| `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
+| `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
+| `ProjectSession.hpp` | `ProjectSession`, a running project, and `SessionSettings` |
+| `ProjectApp.hpp` | `ProjectApp`, which runs a project in `pixie::Run`'s window |
 | `Shape.hpp` | `Shape`, an entity's look |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
@@ -162,6 +166,57 @@ particle order. The runtime provides two:
 `DrawParticles(world, renderer, camera, alpha)` draws every pool with its `style`, interpolated on
 the GPU.
 
+## Reflection
+
+`ComponentTypes` lists the component types a tool may inspect and edit, each a
+`ComponentDescriptor`: a name, the EnTT type hash, its fields, and a `find` function that returns
+the component of an entity or null (null for a destroyed entity too). A type is described in code,
+once:
+
+```cpp
+types.Add<Transform2D>("Transform2D")
+    .Field<&Transform2D::position>("position")
+    .Field<&Transform2D::rotation>("rotation");
+```
+
+Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type (`bool`, other
+integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`; any other type
+does not compile), optional names for an enum's values 0, 1, ..., and `read` and `write` functions
+that move the value in and out of a component instance as a `FieldValue` (four doubles; the kind
+says which are used). Colors are clamped to 0 to 255 and rounded when written. Fields are reached
+through accessor functions generated from member pointers rather than byte offsets, so a
+component need not be standard layout. Empty tag types cannot be described.
+
+`DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
+`Attractor`, and `ParticleEmitter` (its emission values). The C API reads and writes fields only
+through these descriptors; serialization is meant to use them too, once promoted.
+
+## Projects and sessions
+
+A `Project` is a game as the engine sees it: `Name`, `Background` (the clear color), `Describe`
+(its own component types), `Build` (fills a new World; the camera's viewport is set),
+`BeforeStep` (outside the step: copy the host's view and input into the World, react to keys, move
+the camera; structural changes are allowed), and `DrawOverlay` (shapes drawn over the World). Every
+game library defines `pixie::CreateProject()`, which returns the project with its defaults; one
+binary links one game.
+
+A `ProjectSession` runs one project: its World (seeded from `SessionSettings::seed`), a
+`Camera2D`, the shape and particle renderers, an `Input`, and a `FixedStepper`. `Start(size)`
+creates the GL objects and builds the World; `Stop` releases them; both need the context current.
+
+- `Update(delta, input)`: the project's `BeforeStep`, then `World::Step`; it records the step's
+  wall time (`LastStepMilliseconds`).
+- `Advance(frameDelta)`: for a host that drives the session; runs the fixed steps the frame makes
+  due with the session's own `Input`, forgetting presses after each, unless paused.
+  `StepOnce` runs one step regardless; `SetPaused` pauses or resumes; `Reset` builds the World
+  again.
+- `Render(alpha)` clears to the project's background and draws particles, then shapes, then the
+  overlay, into the bound framebuffer; `RenderToTarget()` does it into the session's own
+  `RenderTarget`, sized to the viewport, and returns its texture.
+
+`ProjectApp` is the player side: an `App` whose fixed updates call `Update` with `pixie::Run`'s
+time and input and whose frames call `Render`. It logs the step cost once per second.
+
 ## Drawing
 
 `SubmitShapes(world, renderer, alpha)` submits each entity with `Transform2D` and `Shape` to a
@@ -191,5 +246,7 @@ deferred destruction and actions, the World's time, velocity integration with th
 transform, the Entity handle, the generator's determinism, the spatial grid against a brute-force
 search, a step's independence from the Behaviours' update order (with a negative control that
 breaks the rule and is caught), particle emission, aging, expiry, and capacity, a circular orbit
-that keeps its radius, and the interaction's independence from particle order. `SubmitShapes` is exercised by the
+that keeps its radius, the interaction's independence from particle order, and the field
+descriptors (kinds, round trips, color clamping, and finding components on entities). Sessions are
+exercised by the samples and, through the C API, by `capi-test`. `SubmitShapes` is exercised by the
 samples that draw a World.

@@ -11,6 +11,8 @@ thousand. It uses the `runtime` module's particle pools
   short-range push between particles closer than 4 world units, found through a spatial grid.
 - Attractors are entities (`Transform2D`, `Attractor`, and a gold ring `Shape`), so they can be
   placed and moved like anything else.
+- The interaction's values live in a `ParticleControls` component on the `particles` entity, which
+  the project copies into the affector before each step, so a tool can change them.
 - A preset puts particles in nearly circular orbits, spread over the attractors in turn, between 40
   and 260 units out, at the circular speed `sqrt(strength / r)` give or take 8%. With one attractor
   and the interaction off, the disc keeps its shape while it turns; with the interaction on, the
@@ -32,6 +34,17 @@ thousand. It uses the `runtime` module's particle pools
 | R | Respawn the current count around the current attractors |
 
 Changes are logged. Once per second the log also shows how long the World's steps took.
+
+## Layout
+
+- `src/game/`: the game, built as the static library `particles-game`. `ParticlesProject` is its `Project`
+  (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
+  it builds the World, handles the pointer and the keys before each step, draws the overlay, and
+  describes the game's components for tools. `pixie::CreateProject` returns it with its defaults.
+- `src/player/`: the player, `particles`, which runs the project in its own window through
+  `ProjectApp`.
+- `particles-capi`: the same game as a shared library with the
+  [C API](../../docs/modules/capi/README.md), for hosts such as the editor.
 
 ## Build and run
 

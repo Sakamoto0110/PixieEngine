@@ -12,13 +12,24 @@ boids that the user steers with the mouse. It is the first sample built on the `
   every Behaviour has run, and the sample's `boids.wrap` system moves a boid that leaves the view to
   the opposite edge.
 - The tunable values live on a `controls` entity (`BoidControls`, `Pointer`, `Bounds`), which the
-  App updates from the camera and the cursor before each step.
+  project updates from the camera and the cursor before each step.
 - Space switches between attracting (green ring) and repelling (red ring). Up and Down add or
   remove 100 boids. While attracting, boids gather into a ball on the cursor; while repelling, they
   leave an empty disc around it.
 - Once per second the log shows how long the World's steps took, average and slowest.
 
-The World is built in code (`BoidsScene.cpp`); nothing is saved or loaded.
+The World is built in code (`src/game/BoidsScene.cpp`); nothing is saved or loaded.
+
+## Layout
+
+- `src/game/`: the game, built as the static library `boids-game`. `BoidsProject` is its `Project`
+  (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
+  it builds the World, handles the pointer and the keys before each step, draws the overlay, and
+  describes the game's components for tools. `pixie::CreateProject` returns it with its defaults.
+- `src/player/`: the player, `boids`, which runs the project in its own window through
+  `ProjectApp`.
+- `boids-capi`: the same game as a shared library with the
+  [C API](../../docs/modules/capi/README.md), for hosts such as the editor.
 
 ## Build and run
 

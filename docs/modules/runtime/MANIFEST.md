@@ -42,7 +42,7 @@
 
 **Technical reference:** docs/modules/runtime/REFERENCE.md
 
-**Related boundaries:** none
+**Related boundaries:** capi
 
 **Source:** runtime/src
 

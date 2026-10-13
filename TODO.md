@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-010` — Engine side for editor hosts: host loop, render target, reflection, and `capi`
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13: the viewport, reflection, and gameplay-code recommendations, and [PIXIE-PROPOSAL-002](docs/proposals/editor-native-bridge.md)
-
-**Accepted scope:** general engine features that an editor, tools, and tests use alike: a loop that a host drives (step and render called from outside, which `pixie::Run` also uses); rendering into an offscreen target whose color texture a host displays; input fed from host events. Field descriptors (name, type, offset) registered per component, for the built-in and the anchors' components. The `capi` module, with its module documents: a shared library whose interface is C only, which creates and destroys a World from a project, steps it, renders it to a texture, takes input, enumerates entities and their components, and gets and sets fields through the descriptors, returning result codes and letting no exception cross the boundary. Each anchor's game code becomes a static library linked into its player executable and into a per-project `capi` library. On the host side, the engine library never calls GLFW.
-
-**Dependencies and gates:** 1. PIXIE-TODO-007; 2. PIXIE-TODO-009 (all three anchors exist)
-
-**Completion criteria:** (1) a test program that includes only the C header drives each anchor in a hidden window, renders it to a texture, and reads and writes a field; (2) the players still run as before; (3) zero warnings in Debug and Release; (4) the `capi` documents match its header.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-010--engine-side-for-editor-hosts-host-loop-render-target-reflection-and-capi)
-
 ### `PIXIE-TODO-011` — C# ImGui editor over the anchors
 
 **Status:** promoted
@@ -118,3 +104,8 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-009` (particles and anchor 3: attractors) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-009-particles-attractors-2026-10-13.md).
+
+`PIXIE-TODO-010` (engine side for editor hosts: host loop, render target,
+reflection, and `capi`) completed on 2026-10-13. Its entry, breakdown, and
+verification are preserved in the
+[archive record](docs/archive/todo-010-host-loop-reflection-capi-2026-10-13.md).

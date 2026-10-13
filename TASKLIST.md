@@ -44,17 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-010` — Engine side for editor hosts: host loop, render target, reflection, and `capi`
-
-**Parent:** [PIXIE-TODO-010](TODO.md#pixie-todo-010--engine-side-for-editor-hosts-host-loop-render-target-reflection-and-capi)
-
-- `PIXIE-TASK-046` — **Status:** open — A host-driven loop: fixed steps and rendering called from outside, which `pixie::Run` also uses; input fed from host events.
-- `PIXIE-TASK-047` — **Status:** open — Offscreen render target: a framebuffer with a color texture, resized on demand, whose texture ID a host displays.
-- `PIXIE-TASK-048` — **Status:** open — Field descriptors (name, type, offset) registered per component, for the built-in and the anchors' components.
-- `PIXIE-TASK-049` — **Status:** open — Each anchor's game code as a static library, linked into its player executable and its `capi` library, with a project entry point that builds its World.
-- `PIXIE-TASK-050` — **Status:** open — Create the `capi` module, its library, and `docs/modules/capi/`: the C header, result codes, World lifetime, step, render to texture, input, entity and component enumeration, and field get and set.
-- `PIXIE-TASK-051` — **Status:** open — Verification: a test program that includes only the C header drives each anchor in a hidden window; the players run as before.
-
 ## `PIXIE-TODO-011` — C# ImGui editor over the anchors
 
 **Parent:** [PIXIE-TODO-011](TODO.md#pixie-todo-011--c-imgui-editor-over-the-anchors)
