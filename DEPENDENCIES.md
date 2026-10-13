@@ -23,7 +23,8 @@
 **Last checked:** 2026-10-13
 
 Vendored third-party sources live under `external/<name>/`, unmodified from
-the release archive whose hash is recorded below.
+the release archive whose hash is recorded below. Where no hash is published
+(GitHub tag archives), the recorded hash is the one computed on download.
 
 This is the master list of what PixieEngine and its samples depend on:
 toolchain, graphics, the owner's own projects, and candidates under
@@ -67,8 +68,8 @@ version change.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| EnTT | Component storage of the World (entities, components, views) | — | v4.0.0 (2026-07-23) | `not-installed` | Adopted 2026-10-13 (PIXIE-TODO-003): to be vendored unmodified under `external/entt/` and used header-only. MIT license. v4.0.0 requires C++20. Components stay plain structs, so the storage can be replaced later. |
-| GLM | Vectors and matrices behind PixieLib's math | — | 1.0.3 (2025-12-31) | `not-installed` | Brought by PixieLib (`pixie::math`), pinned there to 1.0.3. Adopted 2026-10-13 (PIXIE-TODO-003): the release archive vendored under `external/glm/`. MIT or Happy Bunny license. Not used directly by the engine. |
+| EnTT | Component storage of the World (entities, components, views) | v4.0.0 source, unmodified, in `external/entt/`; archive `v4.0.0.tar.gz` (GitHub tag archive), SHA-256 `32a2ff2c72cb047dfd57306006ef238820b70da7c6ce4e7e8a507ac63365212e` | v4.0.0 (2026-07-23) | `ok` | MIT license. Adopted 2026-10-13; used header-only from `external/entt/src` through the `EnTT::EnTT` interface target, not through its own CMake project. v4.0.0 requires C++20. Components stay plain structs, so the storage can be replaced later. |
+| GLM | Vectors and matrices behind PixieLib's math | 1.0.3 release, unmodified, in `external/glm/`; archive `glm-1.0.3.zip`, SHA-256 `1c0a0fced9b0d87c7b7bc94e40be490cff6d4c83c25db8488d8f33754e7fdeb2` (the digest GitHub publishes for the asset) | 1.0.3 (2025-12-31) | `ok` | MIT or Happy Bunny license (`external/glm/copying.txt`). Brought by PixieLib (`pixie::math`), which pins 1.0.3; given to it as its `FetchContent` source. Not used directly by the engine. |
 
 ## Editor side
 
@@ -88,7 +89,7 @@ PixieInspector's decision; its own `DEPENDENCIES.md` lists them.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| PixieLib (C++) | Primitives and math for the native engine | — | v0.2.0 (`Sakamoto0110/PixieLib`, tag `v0.2.0`, 2026-10-12) | `not-installed` | Distributed as a release tag for CMake `FetchContent`; `pixie::math` brings GLM 1.0.3, and `PIXIE_MATH=OFF` leaves it out. Decided 2026-10-13: the release source is vendored under `external/pixielib/`, with GLM 1.0.3 vendored under `external/glm/` and given to PixieLib's `FetchContent` as its source, so a build never needs the network (PIXIE-TODO-003). 0.2.0 separates points from vectors. |
+| PixieLib (C++) | Primitives and math for the native engine | v0.2.0 source, unmodified, in `external/pixielib/`; archive `v0.2.0.tar.gz` (GitHub tag archive), SHA-256 `942d70a7b34be9cdd927eb675c4d304d9a6f463b0c7b04f54bcd5feae45f3389` | v0.2.0 (`Sakamoto0110/PixieLib`, tag `v0.2.0`, 2026-10-12) | `ok` | MIT license. Built through its own CMake project (`external/pixielib/cpp`) as a `SYSTEM` subdirectory; the engine links `pixie::pixie` and `pixie::math` (2026-10-13). Its GLM `FetchContent` takes the vendored `external/glm/` through `FETCHCONTENT_SOURCE_DIR_PIXIE_GLM`, so a configure never downloads it. 0.2.0 separates points from vectors. The archive matches the tag in the local checkout, line endings aside. |
 | PixieLib (.NET) | Primitives for the C# editor, when it exists | — | 0.2.0 on nuget.org (`net10.0`, `net481`) | `not-installed` | Same layout as the C++ side (`docs/layout.md` in PixieLib): unsuffixed types are `double` in both languages. The editor receives 0.2.0 through PixieInspector, whose core depends on it; a direct reference must be 0.2.0 or newer. |
 | PixieInspector | The inspector of the C# editor | — | 0.1.0 on nuget.org (2026-10-13; MIT; tag `v0.1.0` of `Sakamoto0110/PixieInspector`): `PixieInspector` (core), `PixieInspector.ImGui`, `PixieInspector.Avalonia`, `PixieInspector.WinForms`, `PixieInspector.Wpf` (the last two `net10.0-windows`) | `not-installed` | Consumed only as a package: no project reference, copied code, or commit reference. The ImGui editor references `PixieInspector.ImGui` alone, which brings the core, PixieLib 0.2.0, and Hexa.NET.ImGui 2.2.9. Each view requires the core at the same exact version, because it uses the core's internals; forcing another core version raises NU1608. A change to the inspector is made in its repository and returns as a new package version; below 1.0, a breaking change raises the minor version. The local checkout `dev/PixieInspector` (renamed from `dev/InteractiveEditor` on 2026-10-13) is only for developing the inspector; the engine consumes PixieInspector from NuGet, as the `PixieInspector.ImGui` 0.1.0 package. |
 

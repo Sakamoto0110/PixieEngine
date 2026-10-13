@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-003` — Vendor PixieLib, GLM, and EnTT
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13: PixieLib vendored with its GLM; EnTT as the component storage
-
-**Accepted scope:** PixieLib v0.2.0 under `external/pixielib/` and GLM 1.0.3 under `external/glm/`, from their release archives, unmodified. PixieLib's own CMake project builds `pixie::pixie` and `pixie::math`, with its GLM `FetchContent` pointed at the vendored copy, so that configuring never needs the network. EnTT v4.0.0 under `external/entt/`, unmodified, as a header-only target. `DEPENDENCIES.md` records each release, source, license, and SHA-256. The engine links them; nothing uses them yet.
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) each tree is identical to its release archive, whose SHA-256 is recorded; (2) a configure from an empty `build/` with `FETCHCONTENT_FULLY_DISCONNECTED=ON` succeeds; (3) Debug and Release build with `/W4 /WX` and zero warnings in the project's own targets, with an engine translation unit that includes PixieLib, PixieLib math, and EnTT headers; (4) the vendored code is in its own commit.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-003--vendor-pixielib-glm-and-entt)
-
 ### `PIXIE-TODO-004` — Documentation verifier
 
 **Status:** promoted
@@ -188,3 +174,7 @@ entry, the policy review, and its verification are preserved in the
 `PIXIE-TODO-002` (main loop and the hello-gl sample) completed on 2026-10-11.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
+
+`PIXIE-TODO-003` (PixieLib, GLM, and EnTT vendored) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-003-vendor-pixielib-glm-entt-2026-10-13.md).

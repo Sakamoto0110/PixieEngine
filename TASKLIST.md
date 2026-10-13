@@ -40,18 +40,9 @@ and the section shape is in the
 ## Open breakdowns
 
 Opened on 2026-10-13 for PIXIE-TODO-003 to PIXIE-TODO-011, in the order of
-their parents. The breakdown of PIXIE-TODO-002 is in its
+their parents. Completed breakdowns are in their archive records, as the one of
+PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
-
-## `PIXIE-TODO-003` — Vendor PixieLib, GLM, and EnTT
-
-**Parent:** [PIXIE-TODO-003](TODO.md#pixie-todo-003--vendor-pixielib-glm-and-entt)
-
-- `PIXIE-TASK-011` — **Status:** open — Download the PixieLib v0.2.0 source archive, verify it, and copy it unmodified to `external/pixielib/`.
-- `PIXIE-TASK-012` — **Status:** open — Download the GLM 1.0.3 release archive, verify it, and copy it unmodified to `external/glm/`.
-- `PIXIE-TASK-013` — **Status:** open — Download the EnTT v4.0.0 source archive, verify it, and copy it unmodified to `external/entt/`.
-- `PIXIE-TASK-014` — **Status:** open — Wire the targets in `external/CMakeLists.txt`: PixieLib through its own project with `FETCHCONTENT_SOURCE_DIR_PIXIE_GLM` set to `external/glm/`, EnTT as an interface target, both with system include directories; link them to the engine and include their headers from one engine source.
-- `PIXIE-TASK-015` — **Status:** open — Record the three in `DEPENDENCIES.md` and `.gitattributes`; verify a disconnected configure and both configurations with zero warnings.
 
 ## `PIXIE-TODO-004` — Documentation verifier
 
