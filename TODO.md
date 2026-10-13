@@ -39,33 +39,10 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-Promoted on 2026-10-13 from
-[PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md) and the
-owner's answers in the
-[decision record](docs/archive/object-model-and-editor-decisions-2026-10-13.md),
-with the owner's authorization to execute them. The entries are ordered so
-that simple work, and work that later entries depend on, comes first; an entry
-starts when its gates are met. Scene serialization is postponed and is not
-promoted.
-
-Out of scope for every entry below, unless an entry says otherwise: scene
-serialization and the `scene` boundary, stable entity IDs, play mode as a copy
-of a Scene into a World, hot reload, C# scripting, sprites loaded from image
-files, audio, and physics.
-
-### `PIXIE-TODO-011` — C# ImGui editor over the anchors
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13: the editor starts as an ImGui view through Hexa.NET.ImGui; [PIXIE-PROPOSAL-002](docs/proposals/editor-native-bridge.md)
-
-**Accepted scope:** a C# editor under `editor/`, in its own solution, referencing `PixieInspector.ImGui` 0.1.0 from NuGet with the GLFW and OpenGL3 backends of Hexa.NET.ImGui, on an OpenGL 4.5 core context. P/Invoke over `capi` through source-generated `LibraryImport`; a docked viewport that shows the World's texture with `ImGui.Image` and forwards the mouse to the engine; an entity list; an inspector bound by PixieInspector to hand-written C# proxies whose properties call into `capi`; pause, resume, single step, and reset. It opens the `capi` library of any of the three anchors.
-
-**Dependencies and gates:** 1. PIXIE-TODO-010
-
-**Completion criteria:** (1) for each anchor, the editor shows it running, the mouse steers it through the viewport, and editing a value in the inspector changes the running World; (2) the editor builds with zero warnings; (3) its `README.md` describes building and running it; (4) nothing is copied from PixieInspector's repository.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-011--c-imgui-editor-over-the-anchors)
+None as of 2026-10-13. The nine entries promoted that day from
+[PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), PIXIE-TODO-003
+to PIXIE-TODO-011, are completed; see below. Scene serialization stays
+postponed and is not promoted.
 
 ## Completed
 
@@ -109,3 +86,7 @@ Its entry, breakdown, and verification are preserved in the
 reflection, and `capi`) completed on 2026-10-13. Its entry, breakdown, and
 verification are preserved in the
 [archive record](docs/archive/todo-010-host-loop-reflection-capi-2026-10-13.md).
+
+`PIXIE-TODO-011` (C# ImGui editor over the anchors) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-011-imgui-editor-2026-10-13.md).

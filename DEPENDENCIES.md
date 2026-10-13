@@ -52,7 +52,7 @@ version change.
 | Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Builds the native side in C++20 (accepted 2026-10-10), with the C++ runtime linked statically (accepted 2026-10-11), so executables do not need the Visual C++ Redistributable. |
 | CMake | Native build system (accepted 2026-10-10) | 4.3.1, bundled with Visual Studio | — | `ok` | Not on `PATH`; available from the Visual Studio developer shell. A standalone install is needed only to build outside Visual Studio or on another OS. GLFW 3.5.1 builds through its own `CMakeLists.txt`. |
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
-| .NET SDK | The C# editor, when it exists, and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | Nothing in this repository uses it yet. |
+| .NET SDK | The C# editor (`editor/`) and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | The editor targets `net10.0` and builds with `dotnet build editor/PixieEditor.slnx` (2026-10-13). |
 | Git | Version control | 2.55.0 | — | `ok` | |
 | Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
 
@@ -78,21 +78,23 @@ The engine has no dependency on a GUI toolkit or binding. Its contract with an
 editor host is an active OpenGL 4.5 core context and a texture to display; any
 host that provides that works.
 
-The C# editor, when it exists in this repository, takes one PixieInspector view
-package, and its host uses the binding and the version that package brings: on
-2026-10-13, `PixieInspector.ImGui` 0.1.0 brings Hexa.NET.ImGui 2.2.9, used with
-Hexa.NET.ImGui.Backends and Hexa.NET.ImGui.Backends.GLFW 1.0.18, and
-`PixieInspector.Avalonia` 0.1.0 brings Avalonia 12.1.3. Those are dependencies
-of the editor project, not of the engine. A change of binding is
-PixieInspector's decision; its own `DEPENDENCIES.md` lists them.
+The C# editor (`editor/`, since 2026-10-13) takes one PixieInspector view
+package, and its host uses the binding and the version that package brings:
+`PixieInspector.ImGui` 0.1.0 brings Hexa.NET.ImGui 2.2.9, which the editor uses
+with Hexa.NET.GLFW 1.0.5 and Hexa.NET.ImGui.Backends and
+Hexa.NET.ImGui.Backends.GLFW 1.0.18, the versions PixieInspector's own ImGui
+host uses (`editor/PixieEditor/PixieEditor.csproj`). `PixieInspector.Avalonia`
+0.1.0 would bring Avalonia 12.1.3. Those are dependencies of the editor
+project, not of the engine. A change of binding is PixieInspector's decision;
+its own `DEPENDENCIES.md` lists them.
 
 ## Own projects
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
 | PixieLib (C++) | Primitives and math for the native engine | v0.2.0 source, unmodified, in `external/pixielib/`; archive `v0.2.0.tar.gz` (GitHub tag archive), SHA-256 `942d70a7b34be9cdd927eb675c4d304d9a6f463b0c7b04f54bcd5feae45f3389` | v0.2.0 (`Sakamoto0110/PixieLib`, tag `v0.2.0`, 2026-10-12) | `ok` | MIT license. Built through its own CMake project (`external/pixielib/cpp`) as a `SYSTEM` subdirectory; the engine links `pixie::pixie` and `pixie::math` (2026-10-13). Its GLM `FetchContent` takes the vendored `external/glm/` through `FETCHCONTENT_SOURCE_DIR_PIXIE_GLM`, so a configure never downloads it. 0.2.0 separates points from vectors. The archive matches the tag in the local checkout, line endings aside. |
-| PixieLib (.NET) | Primitives for the C# editor, when it exists | — | 0.2.0 on nuget.org (`net10.0`, `net481`) | `not-installed` | Same layout as the C++ side (`docs/layout.md` in PixieLib): unsuffixed types are `double` in both languages. The editor receives 0.2.0 through PixieInspector, whose core depends on it; a direct reference must be 0.2.0 or newer. |
-| PixieInspector | The inspector of the C# editor | — | 0.1.0 on nuget.org (2026-10-13; MIT; tag `v0.1.0` of `Sakamoto0110/PixieInspector`): `PixieInspector` (core), `PixieInspector.ImGui`, `PixieInspector.Avalonia`, `PixieInspector.WinForms`, `PixieInspector.Wpf` (the last two `net10.0-windows`) | `not-installed` | Consumed only as a package: no project reference, copied code, or commit reference. The ImGui editor references `PixieInspector.ImGui` alone, which brings the core, PixieLib 0.2.0, and Hexa.NET.ImGui 2.2.9. Each view requires the core at the same exact version, because it uses the core's internals; forcing another core version raises NU1608. A change to the inspector is made in its repository and returns as a new package version; below 1.0, a breaking change raises the minor version. The local checkout `dev/PixieInspector` (renamed from `dev/InteractiveEditor` on 2026-10-13) is only for developing the inspector; the engine consumes PixieInspector from NuGet, as the `PixieInspector.ImGui` 0.1.0 package. |
+| PixieLib (.NET) | Primitives for the C# editor | 0.2.0, through `PixieInspector.ImGui` | 0.2.0 on nuget.org (`net10.0`, `net481`) | `ok` | Same layout as the C++ side (`docs/layout.md` in PixieLib): unsuffixed types are `double` in both languages. The editor receives 0.2.0 through PixieInspector, whose core depends on it, and uses `PxColorRgba` in its proxies; a direct reference must be 0.2.0 or newer. |
+| PixieInspector | The inspector of the C# editor | `PixieInspector.ImGui` 0.1.0, referenced by `editor/PixieEditor/PixieEditor.csproj` (2026-10-13) | 0.1.0 on nuget.org (2026-10-13; MIT; tag `v0.1.0` of `Sakamoto0110/PixieInspector`): `PixieInspector` (core), `PixieInspector.ImGui`, `PixieInspector.Avalonia`, `PixieInspector.WinForms`, `PixieInspector.Wpf` (the last two `net10.0-windows`) | `ok` | Consumed only as a package: no project reference, copied code, or commit reference. The ImGui editor references `PixieInspector.ImGui` alone, which brings the core, PixieLib 0.2.0, and Hexa.NET.ImGui 2.2.9. Each view requires the core at the same exact version, because it uses the core's internals; forcing another core version raises NU1608. A change to the inspector is made in its repository and returns as a new package version; below 1.0, a breaking change raises the minor version. The local checkout `dev/PixieInspector` (renamed from `dev/InteractiveEditor` on 2026-10-13) is only for developing the inspector; the engine consumes PixieInspector from NuGet, as the `PixieInspector.ImGui` 0.1.0 package. |
 
 ## Candidates
 

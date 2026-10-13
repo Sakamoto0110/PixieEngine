@@ -71,6 +71,16 @@ cmake --build --preset vs2026-release
 
 `build/` and `bin/` can be deleted at any time; configure again.
 
+The C# editor builds on its own, with the .NET 10 SDK, after the engine (it
+loads the games' C API libraries from `bin/`):
+
+```bash
+dotnet build editor/PixieEditor.slnx -c Release
+```
+
+It compiles with warnings as errors. Its output stays under `editor/`; see
+[`editor/README.md`](../editor/README.md).
+
 ## Checks before a commit
 
 - **Build:** Debug and Release build with 0 warnings and 0 errors.

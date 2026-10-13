@@ -71,8 +71,10 @@ foundational work first, each broken into tasks in
    `capi` (PIXIE-TODO-010).
 9. The C# ImGui editor over the three anchors (PIXIE-TODO-011).
 
-Scene serialization is postponed: until the owner promotes it, Worlds are
-built in code and nothing is saved. These blocks supersede the vertical slice
+All nine blocks were completed on 2026-10-13: the three anchors run as
+players and in the editor (see [`TODO.md`](TODO.md#completed) and the
+[archive](docs/archive/README.md)). Scene serialization is postponed: until the
+owner promotes it, Worlds are built in code and nothing is saved. These blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
 code grows in the provisional engine library until they are.

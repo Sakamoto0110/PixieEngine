@@ -6,14 +6,22 @@ executable, and a C# editor that inspects engine state through
 from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
 Early stage: a provisional engine library (window, OpenGL context, main loop,
-input, 2D camera, and instanced shapes) and the samples that consume it, under
-[`samples/`](samples/), each with its own README. From the Visual Studio 2026
-developer prompt:
+input, 2D camera, shapes, and particles), the `runtime` and `capi` modules, the
+samples under [`samples/`](samples/) (three of them the anchors: boids, flocks,
+and particles), and the C# ImGui editor under [`editor/`](editor/README.md),
+which runs any of the anchors. From the Visual Studio 2026 developer prompt:
 
 ```bash
 cmake --preset vs2026
 cmake --build --preset vs2026-debug
-bin/Debug/shapes
+bin/Debug/boids
+```
+
+Then the editor, with the .NET 10 SDK:
+
+```bash
+dotnet build editor/PixieEditor.slnx -c Release
+editor/PixieEditor/bin/Release/net10.0/PixieEditor --game boids
 ```
 
 The configure step also writes `PixieEngine.slnx` at the root. Building,
