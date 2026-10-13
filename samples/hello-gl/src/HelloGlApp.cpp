@@ -58,7 +58,7 @@ bool HelloGlApp::Start(pixie::Window& window) {
     return true;
 }
 
-void HelloGlApp::Update(const pixie::FrameTime& time) {
+void HelloGlApp::Update(const pixie::FrameTime& time, const pixie::Input&) {
     const Vec2 bounds = Bounds();
     for (Ball& ball : balls_) {
         Step(ball, static_cast<float>(time.delta), bounds);
@@ -66,7 +66,7 @@ void HelloGlApp::Update(const pixie::FrameTime& time) {
     rates_.CountUpdate();
 }
 
-void HelloGlApp::Render(const pixie::FrameTime& time) {
+void HelloGlApp::Render(const pixie::FrameTime& time, const pixie::Input&) {
     glClearColor(kBackground.r, kBackground.g, kBackground.b, kBackground.a);
     glClear(GL_COLOR_BUFFER_BIT);
 

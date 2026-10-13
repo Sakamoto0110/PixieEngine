@@ -1,5 +1,6 @@
 #pragma once
 
+#include <filesystem>
 #include <string>
 
 namespace pixie {
@@ -15,6 +16,9 @@ struct RunConfig {
     bool vsync = true;
     // Closes the window after this many seconds; 0 runs until the window is closed.
     double quitAfterSeconds = 0.0;
+    // When set together with quitAfterSeconds, the last frame drawn before the window closes is saved
+    // here as a PNG.
+    std::filesystem::path screenshotPath;
 };
 
 } // namespace pixie

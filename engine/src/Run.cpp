@@ -5,6 +5,7 @@
 #include "pixie/Gl.hpp"
 #include "pixie/Log.hpp"
 #include "pixie/RateMeter.hpp"
+#include "pixie/Screenshot.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -54,6 +55,45 @@ GLFWwindow* CreateContextWindow(const RunConfig& config) {
     return glfwCreateWindow(config.width, config.height, config.title.c_str(), nullptr, nullptr);
 }
 
+Input& InputOf(GLFWwindow* handle) {
+    return *static_cast<Input*>(glfwGetWindowUserPointer(handle));
+}
+
+// GLFW reports the cursor in window coordinates; the engine works in framebuffer pixels, which
+// differ when the system scales the display.
+pxPoint CursorInPixels(GLFWwindow* handle, double x, double y) {
+    int windowWidth = 0;
+    int windowHeight = 0;
+    int pixelWidth = 0;
+    int pixelHeight = 0;
+    glfwGetWindowSize(handle, &windowWidth, &windowHeight);
+    glfwGetFramebufferSize(handle, &pixelWidth, &pixelHeight);
+    const double sx = windowWidth > 0 ? static_cast<double>(pixelWidth) / windowWidth : 1.0;
+    const double sy = windowHeight > 0 ? static_cast<double>(pixelHeight) / windowHeight : 1.0;
+    return pxPoint(x * sx, y * sy);
+}
+
+void ConnectInput(GLFWwindow* handle, Input& input) {
+    glfwSetWindowUserPointer(handle, &input);
+    glfwSetKeyCallback(handle, [](GLFWwindow* window, int key, int, int action, int) {
+        InputOf(window).SetKey(key, action != GLFW_RELEASE);
+    });
+    glfwSetMouseButtonCallback(handle, [](GLFWwindow* window, int button, int action, int) {
+        InputOf(window).SetMouseButton(button, action != GLFW_RELEASE);
+    });
+    glfwSetCursorPosCallback(handle, [](GLFWwindow* window, double x, double y) {
+        InputOf(window).SetCursor(CursorInPixels(window, x, y));
+    });
+    glfwSetScrollCallback(handle, [](GLFWwindow* window, double x, double y) {
+        InputOf(window).AddScroll(pxVec2(x, y));
+    });
+    double x = 0.0;
+    double y = 0.0;
+    glfwGetCursorPos(handle, &x, &y);
+    input.SetCursor(CursorInPixels(handle, x, y));
+    input.EndUpdate();
+}
+
 bool LoadGl() {
     // Under the core profile, GLEW must not rely on the removed extension string.
     glewExperimental = GL_TRUE;
@@ -99,6 +139,9 @@ int Run(App& app, const RunConfig& config) {
                                                   : std::string("none"),
                         config.vsync ? "on" : "off"));
 
+    Input input;
+    ConnectInput(handle, input);
+
     Window window(handle);
     if (!app.Start(window)) {
         LogError("App::Start failed");
@@ -126,17 +169,23 @@ int Run(App& app, const RunConfig& config) {
 
         accumulator += frameDelta;
         while (accumulator >= step) {
-            app.Update(FrameTime{step, 0.0, simulated, updateIndex});
+            app.Update(FrameTime{step, 0.0, simulated, updateIndex}, input);
+            input.EndUpdate();
             simulated += step;
             accumulator -= step;
             ++updateIndex;
             meter.CountUpdate();
         }
 
+        const bool quitting =
+            config.quitAfterSeconds > 0.0 && Seconds(now - start) >= config.quitAfterSeconds;
         const FramebufferSize size = window.GetFramebufferSize();
         if (size.width > 0 && size.height > 0) {
             glViewport(0, 0, size.width, size.height);
-            app.Render(FrameTime{frameDelta, accumulator / step, simulated, frameIndex});
+            app.Render(FrameTime{frameDelta, accumulator / step, simulated, frameIndex}, input);
+            if (quitting && !config.screenshotPath.empty()) {
+                SaveFramebufferPng(config.screenshotPath, size);
+            }
             glfwSwapBuffers(handle);
             ++frameIndex;
             meter.CountFrame();
@@ -153,7 +202,7 @@ int Run(App& app, const RunConfig& config) {
             LogInfo(rates);
             window.SetTitle(std::format("{} | {}", config.title, rates));
         }
-        if (config.quitAfterSeconds > 0.0 && Seconds(now - start) >= config.quitAfterSeconds) {
+        if (quitting) {
             glfwSetWindowShouldClose(handle, GLFW_TRUE);
         }
     }

@@ -14,8 +14,8 @@
 class HelloGlApp final : public pixie::App {
 public:
     bool Start(pixie::Window& window) override;
-    void Update(const pixie::FrameTime& time) override;
-    void Render(const pixie::FrameTime& time) override;
+    void Update(const pixie::FrameTime& time, const pixie::Input& input) override;
+    void Render(const pixie::FrameTime& time, const pixie::Input& input) override;
     void Stop() override;
 
 private:

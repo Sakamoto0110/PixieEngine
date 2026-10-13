@@ -1,13 +1,20 @@
-# Provisional engine library: window, GL context, and main loop.
+# Provisional engine library: window, GL context, main loop, input, 2D camera, and shape rendering.
 # Its layout changes when the module split (PIXIE-PROPOSAL-001) is decided.
 
 add_library(pixie_engine STATIC
+    src/Camera2D.cpp
     src/FrameLimiter.cpp
+    src/GlBuffer.cpp
     src/GlDebugOutput.cpp
+    src/GlVertexArray.cpp
+    src/Input.cpp
     src/LibraryCheck.cpp
     src/Log.cpp
     src/RateMeter.cpp
     src/Run.cpp
+    src/Screenshot.cpp
+    src/ShaderProgram.cpp
+    src/ShapeRenderer.cpp
     src/Window.cpp
 )
 add_library(Pixie::Engine ALIAS pixie_engine)
