@@ -39,7 +39,7 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-016, in the order of
+Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-017, in the order of
 their parents. Completed breakdowns are in their archive records, routed from
 the [archive router](docs/archive/README.md).
 

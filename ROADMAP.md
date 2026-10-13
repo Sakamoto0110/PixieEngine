@@ -82,6 +82,8 @@ added five more blocks
 12. Attractor size and death on contact (PIXIE-TODO-014).
 13. Particle systems and spawners apart (PIXIE-TODO-015).
 14. Selection and editing in the viewport (PIXIE-TODO-016).
+15. Spawners placed by hand in the particles game (PIXIE-TODO-017), asked for
+    by the owner after the review.
  Scene serialization is postponed: until the
 owner promotes it, Worlds are built in code and nothing is saved. These blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

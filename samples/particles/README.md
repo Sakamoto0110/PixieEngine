@@ -15,7 +15,8 @@ thousand. It uses the `runtime` module's particle pools
 - A `spawner` entity on the left feeds the pool: 150 particles per second leave a small ring
   outward (`ParticleSpawner`, shape `Ring`, direction mode `ShapeNormal`), live 8 seconds, and fall
   toward the attractors. In the editor, its direction and spread turn on a dial, and its system
-  and target are chosen among the entities.
+  and target are chosen among the entities. More spawners can be placed with Alt + click; a new
+  one is a copy of this one with a rate of 0, so it emits nothing until its rate is set.
 - The interaction's values live in a `ParticleControls` component on the `particles` entity, which
   the project copies into the affector before each step, so a tool can change them.
 - A preset puts particles in nearly circular orbits, spread over the attractors in turn, between 40
@@ -31,8 +32,9 @@ thousand. It uses the `runtime` module's particle pools
 | Input | Effect |
 |---|---|
 | Left click on empty space | Adds an attractor there (up to 16), and drags it while held |
-| Left drag on an attractor | Moves it |
-| Right click on an attractor | Removes it |
+| Alt + left click on empty space | Adds a spawner there (up to 16), at a rate of 0, and drags it while held |
+| Left drag on an attractor or a spawner | Moves it |
+| Right click on an attractor or a spawner | Removes it |
 | Middle drag, wheel | Pan, and zoom around the cursor |
 | 1 to 5 | Respawn 1, 10, 100, 10,000, or 100,000 particles; 100,000 turns the interaction off |
 | I | Turn the particle-to-particle interaction on or off |

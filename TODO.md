@@ -122,3 +122,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-015` (particle systems and spawners apart) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-015-particle-spawners-2026-10-13.md).
+
+`PIXIE-TODO-017` (spawners placed by hand in the particles game) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-017-spawners-by-hand-2026-10-13.md).
