@@ -39,7 +39,8 @@ void main() {
 }
 )";
 
-// Circles and rings are cut out of their quad by distance, with a one-pixel soft edge.
+// Circles and rings are cut out of their quad by distance, with a one-pixel soft edge. A ring's line
+// is kRingPixels wide on screen at any size.
 constexpr std::string_view kFragmentShader = R"(#version 450 core
 in vec2 vLocal;
 in vec4 vColor;
@@ -48,7 +49,7 @@ layout(location = 1) uniform int uKind;
 
 out vec4 oColor;
 
-const float kRingWidth = 0.18;
+const float kRingPixels = 2.0;
 
 void main() {
     float coverage = 1.0;
@@ -57,7 +58,8 @@ void main() {
         float edge = fwidth(distance);
         coverage = 1.0 - smoothstep(1.0 - edge, 1.0, distance);
         if (uKind == 2) {
-            coverage *= smoothstep(1.0 - kRingWidth - edge, 1.0 - kRingWidth, distance);
+            float inner = 1.0 - kRingPixels * edge;
+            coverage *= smoothstep(inner - edge, inner, distance);
         }
         if (coverage <= 0.0) {
             discard;

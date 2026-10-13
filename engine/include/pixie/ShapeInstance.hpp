@@ -16,7 +16,7 @@ enum class ShapeKind : std::uint8_t {
     Triangle,
     // A filled disc of radius 1, antialiased.
     Circle,
-    // A circle outline of radius 1, antialiased.
+    // A circle outline of radius 1, antialiased, two pixels wide on screen.
     Ring,
     // A filled square.
     Quad,

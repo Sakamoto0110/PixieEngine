@@ -1,7 +1,9 @@
-# Code shared by the samples (command-line options); it uses only the engine, like the samples do.
+# Code shared by the samples (command-line options, step timing); it uses only the engine, like the
+# samples do.
 
 add_library(pixie_sample_common STATIC
     src/SampleOptions.cpp
+    src/StepTimer.cpp
 )
 set_target_properties(pixie_sample_common PROPERTIES FOLDER samples)
 
