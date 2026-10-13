@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-008` — Spatial grid and anchor 2: flocks
-
-**Status:** promoted
-
-**Source:** [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), anchor 2
-
-**Accepted scope:** a uniform spatial grid in the `runtime` module, rebuilt in `PreUpdate`, that answers radius queries. A `flocks` sample: boids steered by separation, alignment, and cohesion with their neighbours, and by the mouse; each writes only its own acceleration in `Update`, and `PostUpdate` integrates. Keys tune the weights until the editor exists.
-
-**Dependencies and gates:** 1. PIXIE-TODO-007
-
-**Completion criteria:** (1) grid tests agree with a brute-force search over random points; (2) the result of a step does not depend on update order (a test shuffles it); (3) 5,000 flocking boids at 60 updates per second, measured and recorded; (4) zero warnings in Debug and Release.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-008--spatial-grid-and-anchor-2-flocks)
-
 ### `PIXIE-TODO-009` — Particles and anchor 3: attractors
 
 **Status:** promoted
@@ -138,3 +124,7 @@ in the [archive record](docs/archive/todo-006-runtime-module-2026-10-13.md).
 `PIXIE-TODO-007` (anchor 1: boids steered by the user) completed on
 2026-10-13. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-007-anchor-1-boids-2026-10-13.md).
+
+`PIXIE-TODO-008` (spatial grid and anchor 2: flocks) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-008-spatial-grid-flocks-2026-10-13.md).

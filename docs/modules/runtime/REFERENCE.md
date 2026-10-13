@@ -40,6 +40,9 @@ All under `runtime/include/pixie/runtime/`:
 | `Random.hpp` | `Random`, the seeded generator |
 | `Transform2D.hpp` | `Transform2D` and `PreviousTransform2D` |
 | `Velocity2D.hpp` | `Velocity2D` |
+| `Acceleration2D.hpp` | `Acceleration2D` |
+| `SpatialGrid.hpp` | `SpatialGrid`, radius queries over points |
+| `SpatialIndex.hpp` | `AddSpatialIndex`, the system that keeps a grid filled |
 | `Shape.hpp` | `Shape`, an entity's look |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
@@ -55,8 +58,10 @@ Use `Entity`'s templates through `World.hpp`, which defines them.
 2. Behaviours: for each Behaviour class, in the order the classes were first added to the World,
    every instance in its storage's order. An instance's `Start` runs right before its first
    `Update`. A class first added during a step is updated from the next step on.
-3. `PostUpdate` systems, in the order added. The first is the World's own: it integrates
-   `Velocity2D` into `Transform2D` (`position += linear * delta`, `rotation += angular * delta`).
+3. `PostUpdate` systems, in the order added. The first is the World's own: it adds each
+   `Acceleration2D` to its `Velocity2D` (`linear += acceleration * delta`), then integrates every
+   `Velocity2D` into its `Transform2D` (`position += linear * delta`, `rotation += angular *
+   delta`), so the position moves with the new velocity (semi-implicit Euler).
 4. The destructions requested during the step, then the deferred actions, in request order.
 
 Each system and Behaviour receives the World's `FrameTime`: `delta`, `elapsed` (the World's
@@ -69,6 +74,8 @@ paused one, keep separate clocks.
 - A Behaviour derives from `Behaviour` and overrides any of `Start`, `Update(time, input)`, and
   `Stop`. `Self()` is its entity; `GetWorld()` its World.
 - `Entity::AddBehaviour<T>(args...)` constructs it in place, replacing a `T` already there.
+  (`Entity::Add<T>` returns the component, or nothing for an empty tag type, which EnTT stores
+  without instances.)
 - `Stop` runs once, if `Start` ran, when the Behaviour leaves: removed with `Remove<T>()`, its
   entity destroyed, or the World destroyed. At World destruction, Behaviours stop class by class
   before any other component is removed, so `Stop` can still read its entity.
@@ -95,8 +102,25 @@ paused one, keep separate clocks.
   `World::ResetInterpolation(entity)` makes it equal the current transform, so a jump is not
   drawn as motion.
 - `Velocity2D`: `linear` (`pxVec2`, units per second) and `angular` (radians per second).
+- `Acceleration2D`: `linear` (`pxVec2`, units per second squared). It persists until changed; a
+  steering Behaviour overwrites it every step.
 - `Shape`: a `ShapeKind`, a half extent `size` before the transform's scale, and a `pxColorRgba`.
 - `Name`: a string, added by `World::Create(name)` when the name is not empty.
+
+## Order independence and neighbours
+
+A step's result does not depend on the order Behaviours run in when each Behaviour writes only its
+own components and reads others' state that no Behaviour writes during the step. The runtime is
+shaped for that: positions and velocities change only in `PostUpdate`, and a steering Behaviour
+writes its `Acceleration2D`.
+
+Neighbour queries read a snapshot. `SpatialGrid` is a uniform grid of square cells whose occupied
+cells are found through a hash table sized to the items, so it has no bounds. Fill it with `Clear`,
+`Add`, and `Build`; `ForEachWithin(center, radius, fn)` then calls `fn(id, position,
+distanceSquared)` once for each item within `radius`, the boundary included. A cell size near the
+usual query radius keeps queries cheap. `AddSpatialIndex<Member>(world, owner, cellSize)` gives
+`owner` a `SpatialGrid` component and adds a `PreUpdate` system that refills it, at the start of
+every step, from each entity with a `Transform2D` and a `Member` component.
 
 ## Drawing
 
@@ -124,5 +148,7 @@ multithreaded systems.
 
 `tests/runtime/` (CTest `runtime-tests`) covers the phase order, the Behaviour lifecycle,
 deferred destruction and actions, the World's time, velocity integration with the previous
-transform, the Entity handle, and the generator's determinism. `SubmitShapes` is exercised by the
+transform, the Entity handle, the generator's determinism, the spatial grid against a brute-force
+search, and a step's independence from the Behaviours' update order (with a negative control that
+breaks the rule and is caught). `SubmitShapes` is exercised by the
 samples that draw a World.

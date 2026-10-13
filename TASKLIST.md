@@ -44,15 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-008` — Spatial grid and anchor 2: flocks
-
-**Parent:** [PIXIE-TODO-008](TODO.md#pixie-todo-008--spatial-grid-and-anchor-2-flocks)
-
-- `PIXIE-TASK-036` — **Status:** open — `SpatialGrid` in the `runtime` module: a uniform grid rebuilt in `PreUpdate`, with radius queries; tests against a brute-force search over random points.
-- `PIXIE-TASK-037` — **Status:** open — `flocks` sample: separation, alignment, and cohesion over grid neighbours, plus the mouse; each boid writes only its own acceleration; keys tune the weights; its `README.md`.
-- `PIXIE-TASK-038` — **Status:** open — A test that shuffles the Behaviour update order and gets the same step result.
-- `PIXIE-TASK-039` — **Status:** open — Verification: 5,000 flocking boids at 60 updates per second, measured and recorded.
-
 ## `PIXIE-TODO-009` — Particles and anchor 3: attractors
 
 **Parent:** [PIXIE-TODO-009](TODO.md#pixie-todo-009--particles-and-anchor-3-attractors)
