@@ -21,7 +21,20 @@ add_subdirectory(glfw)
 add_library(stb_easy_font INTERFACE)
 target_include_directories(stb_easy_font SYSTEM INTERFACE stb)
 
-foreach(target glew glfw update_mappings)
+# PixieLib: built through its own CMake project (pixie::pixie, pixie::events, pixie::math). Its math
+# fetches GLM with FetchContent; pointing that content at the vendored GLM means a configure never
+# downloads it. SYSTEM keeps warnings from PixieLib's and GLM's headers out of our /W4 /WX targets.
+set(FETCHCONTENT_SOURCE_DIR_PIXIE_GLM ${CMAKE_CURRENT_SOURCE_DIR}/glm CACHE PATH
+    "GLM for PixieLib: the vendored release" FORCE)
+add_subdirectory(pixielib/cpp pixielib SYSTEM)
+
+# EnTT: header-only, used straight from its sources instead of through its own CMake project.
+add_library(entt INTERFACE)
+add_library(EnTT::EnTT ALIAS entt)
+target_include_directories(entt SYSTEM INTERFACE entt/src)
+target_compile_features(entt INTERFACE cxx_std_20)
+
+foreach(target glew glfw update_mappings pixie_math)
     if(TARGET ${target})
         set_target_properties(${target} PROPERTIES FOLDER external)
     endif()
