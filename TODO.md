@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-005` — Input, 2D camera, and instanced shapes
-
-**Status:** promoted
-
-**Source:** [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), anchors 1 to 3
-
-**Accepted scope:** in the provisional engine library: input state (keys, mouse buttons, cursor position, scroll) fed by the player's GLFW window and readable by the App, with presses that are not lost between fixed updates; a 2D camera (position and zoom, screen-to-world and world-to-screen, an orthographic projection) on PixieLib math; small OpenGL helpers (shader programs, buffers); an instanced renderer for triangles, circles, and quads with per-instance position, rotation, scale, and color. A `shapes` sample draws thousands of shapes, pans and zooms the camera with the mouse, and marks the cursor's world position. The `platform` and `render` boundaries stay undecided, and this code stays provisional.
-
-**Dependencies and gates:** 1. PIXIE-TODO-003 (PixieLib math)
-
-**Completion criteria:** (1) Debug and Release build with zero warnings; (2) the `shapes` sample draws 10,000 instanced shapes, pans and zooms, and its cursor marker stays under the cursor at every zoom; (3) its measured frame and update rates are recorded with machine, configuration, and commit; (4) its `README.md` describes it.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-005--input-2d-camera-and-instanced-shapes)
-
 ### `PIXIE-TODO-006` — Runtime module: World, entities, Behaviours, and phases
 
 **Status:** promoted
@@ -168,3 +154,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-004` (documentation verifier) completed on 2026-10-13. Its entry,
 breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-004-documentation-verifier-2026-10-13.md).
+
+`PIXIE-TODO-005` (input, 2D camera, and instanced shapes) completed on
+2026-10-13. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-005-input-camera-shapes-2026-10-13.md).

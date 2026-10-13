@@ -61,7 +61,9 @@ cmake --build --preset vs2026-release
   solution, or open the folder in Visual Studio. Both are generated: to add a
   file or a project, change CMake and configure again.
 - Executables land in `bin/Debug/` and `bin/Release/`.
-- `-DPIXIE_BUILD_SAMPLES=OFF` builds the engine alone.
+- `-DPIXIE_BUILD_SAMPLES=OFF` builds the engine alone, and
+  `-DPIXIE_ENGINE_BUILD_TESTS=OFF` leaves out the tests (PixieLib owns the name
+  `PIXIE_BUILD_TESTS`, for its own tests, which stay off).
 - Every target links the C++ runtime statically (`/MT`), so an executable needs
   no Visual C++ Redistributable.
 - The project's own targets compile with `/W4 /WX`: a warning is an error.
@@ -72,9 +74,13 @@ cmake --build --preset vs2026-release
 ## Checks before a commit
 
 - **Build:** Debug and Release build with 0 warnings and 0 errors.
+- **Tests:** `ctest --preset vs2026-debug` and `ctest --preset vs2026-release`
+  pass. Tests live under `tests/`, with a minimal harness (`tests/Check.hpp`).
 - **Run:** the samples that exercise the change start, show what their README
   describes, and exit 0. `hello-gl --quit-after 5` runs for five seconds and
   closes; its log shows `GL_VERSION` and the measured rates once per second.
+  Every sample takes `--screenshot <file.png>`, which saves the last frame
+  before `--quit-after` closes the window.
 - **Rates:** a change to the loop or the frame limiter is measured with vsync on,
   vsync off, and a frame cap, and the numbers are recorded with the machine and
   commit (see the [policy](governance/documentation-policy.md#tests-and-evidence)).

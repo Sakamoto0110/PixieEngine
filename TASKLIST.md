@@ -44,17 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-005` — Input, 2D camera, and instanced shapes
-
-**Parent:** [PIXIE-TODO-005](TODO.md#pixie-todo-005--input-2d-camera-and-instanced-shapes)
-
-- `PIXIE-TASK-020` — **Status:** open — Input state fed by GLFW in the player loop: keys, mouse buttons, cursor position, and scroll, with presses and releases kept until the next fixed update reads them.
-- `PIXIE-TASK-021` — **Status:** open — OpenGL helpers: a shader program built from sources, with errors logged, and owning wrappers for buffers and vertex arrays.
-- `PIXIE-TASK-022` — **Status:** open — `Camera2D` on PixieLib math: position, zoom, viewport size, view-projection matrix, and screen-to-world and world-to-screen conversion.
-- `PIXIE-TASK-023` — **Status:** open — Instanced shape renderer: triangles, circles (distance-based edge in the fragment shader), and quads, with per-instance position, rotation, scale, and color, drawn with one call per shape kind.
-- `PIXIE-TASK-024` — **Status:** open — `shapes` sample: 10,000 moving shapes, panning by dragging and zooming around the cursor with the scroll wheel, a marker at the cursor's world position; its `README.md`.
-- `PIXIE-TASK-025` — **Status:** open — Verification: both configurations, the cursor marker at several zoom levels, and measured rates recorded with machine, configuration, and commit.
-
 ## `PIXIE-TODO-006` — Runtime module: World, entities, Behaviours, and phases
 
 **Parent:** [PIXIE-TODO-006](TODO.md#pixie-todo-006--runtime-module-world-entities-behaviours-and-phases)

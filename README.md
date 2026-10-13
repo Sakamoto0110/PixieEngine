@@ -5,14 +5,15 @@ executable, and a C# editor that inspects engine state through
 [PixieInspector](https://github.com/Sakamoto0110/PixieInspector). Primitives come
 from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
-Early stage: a provisional engine library (window, OpenGL context, main loop) and
-the `hello-gl` sample that consumes it. From the Visual Studio 2026 developer
-prompt:
+Early stage: a provisional engine library (window, OpenGL context, main loop,
+input, 2D camera, and instanced shapes) and the samples that consume it, under
+[`samples/`](samples/), each with its own README. From the Visual Studio 2026
+developer prompt:
 
 ```bash
 cmake --preset vs2026
 cmake --build --preset vs2026-debug
-bin/Debug/hello-gl
+bin/Debug/shapes
 ```
 
 The configure step also writes `PixieEngine.slnx` at the root. Building,
