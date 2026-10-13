@@ -56,7 +56,8 @@ typedef enum PixieFieldKind {
     PIXIE_FIELD_POINT = 5,  /* x, y */
     PIXIE_FIELD_VECTOR = 6, /* x, y */
     PIXIE_FIELD_RECT = 7,   /* x, y, z: width, w: height */
-    PIXIE_FIELD_COLOR = 8   /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
+    PIXIE_FIELD_COLOR = 8,  /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
+    PIXIE_FIELD_ENTITY = 9  /* x: an entity handle; 4294967295 is none */
 } PixieFieldKind;
 
 /* The editor a tool should use for a field; AUTO lets it choose from the kind. */
@@ -98,7 +99,8 @@ typedef enum PixieFieldText {
     PIXIE_TEXT_TOOLTIP = 1,
     PIXIE_TEXT_HELP = 2,
     PIXIE_TEXT_UNIT_SUFFIX = 3,
-    PIXIE_TEXT_ARC_SPREAD = 4   /* for an ARC field, the name of the field with the arc's width */
+    PIXIE_TEXT_ARC_SPREAD = 4,  /* for an ARC field, the name of the field with the arc's width */
+    PIXIE_TEXT_REFERENCES = 5   /* for an ENTITY field, the component type a valid entity has */
 } PixieFieldText;
 
 typedef struct PixieValue {

@@ -6,7 +6,7 @@
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
-#include "pixie/runtime/ParticleEmitter.hpp"
+#include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -169,7 +169,7 @@ void ParticlesProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, 
 
     // The controls are the source of truth; the affector follows them.
     const ParticleControls& controls = emitter_.Get<ParticleControls>();
-    auto* interaction = emitter_.Get<pixie::ParticleEmitter>().FindAffector<pixie::InteractionAffector>();
+    auto* interaction = emitter_.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>();
     if (interaction != nullptr) {
         interaction->SetEnabled(controls.interaction);
         interaction->radius = controls.interactionRadius;

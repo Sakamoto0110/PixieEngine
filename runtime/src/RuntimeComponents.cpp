@@ -1,7 +1,8 @@
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
-#include "pixie/runtime/ParticleEmitter.hpp"
+#include "pixie/runtime/ParticleSpawner.hpp"
+#include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
@@ -66,31 +67,68 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Attractor::killOnContact>("killOnContact")
         .Label("die on contact")
         .Tooltip("Remove a particle that comes within the body. Off, particles pass through it.");
-    types.Add<ParticleEmitter>("ParticleEmitter")
-        .Field<&ParticleEmitter::rate>("rate")
-        .Tooltip("Particles emitted per second at the entity; 0 emits nothing.")
+    types.Add<ParticleSystem>("ParticleSystem")
+        .Field<&ParticleSystem::capacity>("capacity")
+        .Tooltip("Most particles the pool holds; spawners stop emitting while it is full.")
+        .Range(0.0, 1000000.0, 1.0)
+        .Scrub(10.0);
+    types.Add<ParticleSpawner>("ParticleSpawner")
+        .Field<&ParticleSpawner::system>("system")
+        .References("ParticleSystem")
+        .Tooltip("The particle system this spawner feeds.")
+        .Field<&ParticleSpawner::rate>("rate")
+        .Tooltip("Particles emitted per second; 0 emits nothing.")
         .Range(0.0, 100000.0)
         .Scrub(1.0)
-        .Field<&ParticleEmitter::lifetime>("lifetime")
+        .Field<&ParticleSpawner::lifetime>("lifetime")
         .Tooltip("How long an emitted particle lives, in seconds; 0 means forever.")
         .Unit(" s")
         .Range(0.0, 600.0)
         .Scrub(0.05)
-        .Field<&ParticleEmitter::speedMin>("speedMin")
+        .Field<&ParticleSpawner::speedMin>("speedMin")
         .Label("speed min")
         .Tooltip("Slowest emission speed, in world units per second.")
         .Range(0.0, 10000.0)
         .Scrub(1.0)
-        .Field<&ParticleEmitter::speedMax>("speedMax")
+        .Field<&ParticleSpawner::speedMax>("speedMax")
         .Label("speed max")
         .Tooltip("Fastest emission speed, in world units per second.")
         .Range(0.0, 10000.0)
         .Scrub(1.0)
-        .Field<&ParticleEmitter::spread>("spread")
-        .Tooltip("Width of the emission cone around the entity's rotation, in degrees.")
+        .Field<&ParticleSpawner::shape>("shape", {"Point", "Circle", "Ring", "Rectangle", "Segment"})
+        .Tooltip("Where particles start: the spawner's point, inside a disc, on a circle, inside a "
+                 "rectangle, or on a segment.")
+        .Field<&ParticleSpawner::radius>("radius")
+        .Tooltip("Radius of the circle or the ring, in world units.")
+        .Range(0.0, 10000.0)
+        .Scrub(0.5)
+        .Field<&ParticleSpawner::size>("size")
+        .Tooltip("Half width and half height of the rectangle, in world units.")
+        .Range(0.0, 10000.0)
+        .Scrub(0.5)
+        .Field<&ParticleSpawner::segmentEnd>("segmentEnd")
+        .Label("segment end")
+        .Tooltip("Where the segment ends, as an offset from the spawner, in world units.")
+        .Scrub(0.5)
+        .Field<&ParticleSpawner::directionMode>("directionMode", {"Fixed", "ShapeNormal", "TowardTarget"})
+        .Label("direction mode")
+        .Tooltip("What the direction is measured from: the spawner's rotation, the shape's outward "
+                 "normal where the particle starts, or the target.")
+        .Field<&ParticleSpawner::direction>("direction")
+        .Tooltip("Center of the emission cone, in degrees, added to the direction mode's angle. Drag "
+                 "the dial to turn it; Shift + drag to open or close the cone.")
+        .Degrees()
+        .Range(-360.0, 360.0)
+        .Scrub(1.0)
+        .Arc("spread")
+        .Field<&ParticleSpawner::spread>("spread")
+        .Tooltip("Width of the emission cone, in degrees.")
         .Degrees()
         .Range(0.0, 360.0)
-        .Scrub(1.0);
+        .Scrub(1.0)
+        .Field<&ParticleSpawner::target>("target")
+        .References("Transform2D")
+        .Tooltip("The entity particles leave toward, in the TowardTarget mode.");
 }
 
 } // namespace pixie

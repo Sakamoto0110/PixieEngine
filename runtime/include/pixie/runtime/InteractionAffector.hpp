@@ -18,7 +18,7 @@ public:
     // Fraction of the relative velocity removed per second while in contact, so piles settle.
     double damping = 3.0;
 
-    void Apply(World& world, Entity emitter, std::span<Particle> particles,
+    void Apply(World& world, Entity system, std::span<Particle> particles,
                const FrameTime& time) override;
 
 private:

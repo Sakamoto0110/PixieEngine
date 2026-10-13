@@ -200,6 +200,12 @@ static void Exercise(PixieSession* s) {
     CHECK(api.field_text(s, transform, rotation, PIXIE_TEXT_LABEL, text, (int32_t)sizeof text) == PIXIE_OK &&
           strcmp(text, "rotation") == 0);
     CHECK(api.field_text(s, transform, rotation, 99, text, (int32_t)sizeof text) == PIXIE_ERROR_ARGUMENT);
+    /* An entity reference: ParticleSpawner.system names the type its choices have. */
+    const int32_t spawner = FindType(s, "ParticleSpawner");
+    const int32_t system = spawner >= 0 ? FindField(s, spawner, "system") : -1;
+    CHECK(system >= 0 && api.field_info(s, spawner, system, &info) == PIXIE_OK && info.kind == PIXIE_FIELD_ENTITY);
+    CHECK(api.field_text(s, spawner, system, PIXIE_TEXT_REFERENCES, text, (int32_t)sizeof text) == PIXIE_OK &&
+          strcmp(text, "ParticleSystem") == 0);
     /* Every field of every type carries a tooltip. */
     for (int32_t t = 0; t < api.type_count(s); ++t) {
         for (int32_t f = 0; f < api.field_count(s, t); ++f) {

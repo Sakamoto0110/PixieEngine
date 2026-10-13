@@ -1,7 +1,7 @@
 #include "pixie/runtime/ProjectSession.hpp"
 
 #include "pixie/Gl.hpp"
-#include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
 
 #include <algorithm>

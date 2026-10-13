@@ -3,8 +3,9 @@
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/AttractorAffector.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
-#include "pixie/runtime/ParticleEmitter.hpp"
+#include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -22,10 +23,10 @@ constexpr double kOuterOrbit = 260.0;
 } // namespace
 
 pixie::Entity SetUpParticles(pixie::World& world) {
-    pixie::AddParticleSystem(world);
+    pixie::AddParticleStep(world);
     pixie::Entity emitter = world.Create("particles");
     emitter.Add<pixie::Transform2D>();
-    pixie::ParticleEmitter& pool = emitter.Add<pixie::ParticleEmitter>();
+    pixie::ParticleSystem& pool = emitter.Add<pixie::ParticleSystem>();
     pool.capacity = 200000;
     pool.style.color = kParticleColor;
     pool.style.size = 2.0f;
@@ -33,6 +34,21 @@ pixie::Entity SetUpParticles(pixie::World& world) {
     pool.style.additive = true;
     pool.AddAffector<pixie::AttractorAffector>();
     pool.AddAffector<pixie::InteractionAffector>();
+
+    // A spawner on the left: particles leave a small ring outward and fall toward the attractors.
+    pixie::Entity spawner = world.Create("spawner");
+    spawner.Add<pixie::Transform2D>(pixie::Transform2D{pxPoint(-420.0, 0.0)});
+    pixie::ParticleSpawner& feed = spawner.Add<pixie::ParticleSpawner>();
+    feed.system = emitter.Id();
+    feed.rate = 150.0;
+    feed.lifetime = 8.0f;
+    feed.speedMin = 60.0;
+    feed.speedMax = 110.0;
+    feed.shape = pixie::EmissionShape::Ring;
+    feed.radius = 16.0;
+    feed.directionMode = pixie::DirectionMode::ShapeNormal;
+    feed.spread = 0.6;
+    spawner.Add<pixie::Shape>(pixie::Shape{pixie::ShapeKind::Ring, pxVec2(16.0, 16.0), pxColorRgba(140, 200, 255)});
     return emitter;
 }
 
@@ -62,7 +78,7 @@ void SpawnOrbits(pixie::World& world, pixie::Entity emitter, int count) {
         centers.push_back({pxPoint(0.0, 0.0), pixie::Attractor{}.strength});
     }
 
-    pixie::ParticleEmitter& pool = emitter.Get<pixie::ParticleEmitter>();
+    pixie::ParticleSystem& pool = emitter.Get<pixie::ParticleSystem>();
     pool.particles.clear();
     pixie::Random& random = world.GetRandom();
     for (int i = 0; i < count; ++i) {
@@ -82,12 +98,12 @@ void SpawnOrbits(pixie::World& world, pixie::Entity emitter, int count) {
 }
 
 void SetInteraction(pixie::Entity emitter, bool on) {
-    if (auto* interaction = emitter.Get<pixie::ParticleEmitter>().FindAffector<pixie::InteractionAffector>()) {
+    if (auto* interaction = emitter.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>()) {
         interaction->SetEnabled(on);
     }
 }
 
 bool InteractionOn(pixie::Entity emitter) {
-    const auto* interaction = emitter.Get<pixie::ParticleEmitter>().FindAffector<pixie::InteractionAffector>();
+    const auto* interaction = emitter.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>();
     return interaction != nullptr && interaction->IsEnabled();
 }

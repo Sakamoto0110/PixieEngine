@@ -11,7 +11,7 @@ namespace pixie {
 // killOnContact removes the particles that come within its body.
 class AttractorAffector final : public ParticleAffector {
 public:
-    void Apply(World& world, Entity emitter, std::span<Particle> particles,
+    void Apply(World& world, Entity system, std::span<Particle> particles,
                const FrameTime& time) override;
 
 private:

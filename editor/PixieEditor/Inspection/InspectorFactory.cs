@@ -113,6 +113,19 @@ internal static class InspectorFactory
                     },
                     readOnly ? null : (h, c) => h.Set(field, new PixieValue { X = c.R, Y = c.G, Z = c.B, W = c.A })), label);
                 break;
+
+            case PixieFieldKind.Entity:
+                var references = session.TypeIndex(session.FieldText(type, field, PixieFieldText.References));
+                var entity = inspector.AddField<ComponentHandle, string>(name,
+                    h => EntityLabel(session, (uint)h.Get(field).X),
+                    readOnly ? null : (h, v) =>
+                    {
+                        if (EntityOf(session, references, v) is uint chosen)
+                            h.Set(field, new PixieValue { X = chosen });
+                    });
+                entity.Choices = () => EntityChoices(session, references);
+                yield return Labeled(entity, label);
+                break;
         }
     }
 
@@ -138,6 +151,32 @@ internal static class InspectorFactory
         node.Label = label;
         return node;
     }
+
+    // An Entity field's choices: "(none)", then every live entity that has component `references`
+    // (every entity when the type is unknown), as "name #index".
+    private const uint NoEntity = uint.MaxValue;
+    private const uint IndexMask = 0xFFFFF;
+    private const string NoEntityLabel = "(none)";
+
+    private static string EntityLabel(EngineSession session, uint entity)
+    {
+        if (entity == NoEntity || !session.IsAlive(entity))
+            return NoEntityLabel;
+        var name = session.EntityName(entity);
+        return name.Length > 0 ? $"{name} #{entity & IndexMask}" : $"#{entity & IndexMask}";
+    }
+
+    private static IEnumerable<uint> EntityCandidates(EngineSession session, int references) =>
+        session.Entities().Where(e => references < 0 || session.Has(e, references));
+
+    private static string[] EntityChoices(EngineSession session, int references) =>
+        [NoEntityLabel, .. EntityCandidates(session, references).Select(e => EntityLabel(session, e))];
+
+    // The entity a choice names; null when no live candidate has that label, which leaves the field as it was.
+    private static uint? EntityOf(EngineSession session, int references, string label) =>
+        label == NoEntityLabel
+            ? NoEntity
+            : EntityCandidates(session, references).Where(e => EntityLabel(session, e) == label).Select(e => (uint?)e).FirstOrDefault();
 
     private static string Name(string[] names, int value) =>
         value >= 0 && value < names.Length ? names[value] : value.ToString(System.Globalization.CultureInfo.InvariantCulture);

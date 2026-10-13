@@ -26,6 +26,7 @@ enum class FieldKind : std::uint8_t {
     Vector,  // x, y
     Rect,    // x, y, z: width, w: height
     Color,   // x, y, z, w: red, green, blue, alpha, 0 to 255
+    Entity,  // x: the entity as its 32-bit number (index and version); 4294967295 is none
 };
 
 // A field's value, whatever its kind, in doubles; see FieldKind for which members are used.
@@ -69,6 +70,8 @@ struct FieldMetadata {
     double unitOffset = 0.0;
     // For an Arc field (the center angle): the name of the sibling field with the arc's width.
     std::string arcSpread;
+    // For an Entity field: the component type an entity needs to be a valid choice.
+    std::string references;
 };
 
 // One reflected field: a name, a kind, how to read and write it in a component instance, and how a
@@ -134,6 +137,9 @@ template<typename M>
 constexpr FieldKind KindOf() {
     if constexpr (std::is_same_v<M, bool>) {
         return FieldKind::Bool;
+    } else if constexpr (std::is_same_v<M, entt::entity>) {
+        // Before the enum test: entt::entity is an enum class.
+        return FieldKind::Entity;
     } else if constexpr (std::is_enum_v<M>) {
         return FieldKind::Enum;
     } else if constexpr (std::is_integral_v<M>) {
@@ -161,7 +167,9 @@ inline std::uint8_t ToByte(double v) {
 
 template<typename M>
 FieldValue ToValue(const M& v) {
-    if constexpr (std::is_enum_v<M>) {
+    if constexpr (std::is_same_v<M, entt::entity>) {
+        return {static_cast<double>(static_cast<std::uint32_t>(v))};
+    } else if constexpr (std::is_enum_v<M>) {
         return {static_cast<double>(static_cast<std::underlying_type_t<M>>(v))};
     } else if constexpr (std::is_arithmetic_v<M>) {
         return {static_cast<double>(v)};
@@ -178,6 +186,8 @@ template<typename M>
 void FromValue(M& target, const FieldValue& v) {
     if constexpr (std::is_same_v<M, bool>) {
         target = v.x != 0.0;
+    } else if constexpr (std::is_same_v<M, entt::entity>) {
+        target = static_cast<entt::entity>(static_cast<std::uint32_t>(v.x));
     } else if constexpr (std::is_enum_v<M>) {
         target = static_cast<M>(static_cast<std::underlying_type_t<M>>(v.x));
     } else if constexpr (std::is_arithmetic_v<M>) {
@@ -294,6 +304,11 @@ public:
         return Unit(std::move(suffix), kRadiansToDegrees);
     }
 
+    // An Entity field: the entities that have component `type` are the valid choices.
+    ComponentBuilder& References(std::string type) {
+        return Last([&](FieldMetadata& m) { m.references = std::move(type); });
+    }
+
     // This angle is the center of an arc whose width is the sibling field `spread`.
     ComponentBuilder& Arc(std::string spread) {
         return Last([&](FieldMetadata& m) {
@@ -339,7 +354,7 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
 }
 
 // Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
-// Acceleration2D, Shape, Attractor, and ParticleEmitter.
+// Acceleration2D, Shape, Attractor, ParticleSystem, and ParticleSpawner.
 void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

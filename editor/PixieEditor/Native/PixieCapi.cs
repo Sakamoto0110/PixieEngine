@@ -26,6 +26,7 @@ public enum PixieFieldKind
     Vector = 6,
     Rect = 7,
     Color = 8,
+    Entity = 9,
 }
 
 public enum PixieEditorKind
@@ -55,6 +56,7 @@ public enum PixieFieldText
     Help = 2,
     UnitSuffix = 3,
     ArcSpread = 4,
+    References = 5,
 }
 
 // How a tool shows and edits a field (pixie_capi.h, PixieFieldInfo; 72 bytes).

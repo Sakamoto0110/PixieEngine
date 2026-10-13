@@ -19,6 +19,7 @@
 
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
+static_assert(static_cast<int>(pixie::FieldKind::Entity) == PIXIE_FIELD_ENTITY);
 
 struct PixieSession {
     pixie::ProjectSession session;
@@ -392,6 +393,8 @@ PixieResult pixie_field_text(PixieSession* s, int32_t type, int32_t field, int32
         return Copy(m.unitSuffix, buffer, capacity);
     case PIXIE_TEXT_ARC_SPREAD:
         return Copy(m.arcSpread, buffer, capacity);
+    case PIXIE_TEXT_REFERENCES:
+        return Copy(m.references, buffer, capacity);
     default:
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field text {}", which));
     }

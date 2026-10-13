@@ -1,23 +1,69 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
+#include "pixie/Particle.hpp"
 #include "pixie/ParticleRenderer.hpp"
+#include "pixie/runtime/ParticleAffector.hpp"
+
+#include <cstddef>
+#include <memory>
+#include <utility>
+#include <vector>
 
 namespace pixie {
 
-class World;
+// A component that owns a pool of particles, its look, and its affectors. Particles are not
+// entities: they live in one contiguous vector here, and the particle step (AddParticleStep) updates
+// the whole pool each step. Particles come from ParticleSpawner entities that point at this one
+// (several may feed it), or straight from Emit.
+struct ParticleSystem {
+    // Move-only, since it owns its affectors; said explicitly, because a vector of unique_ptr
+    // claims to be copyable and EnTT would try.
+    ParticleSystem() = default;
+    ParticleSystem(const ParticleSystem&) = delete;
+    ParticleSystem& operator=(const ParticleSystem&) = delete;
+    ParticleSystem(ParticleSystem&&) = default;
+    ParticleSystem& operator=(ParticleSystem&&) = default;
+    ~ParticleSystem() = default;
 
-// Adds the PostUpdate system that updates every ParticleEmitter's pool once per step, after the
-// Behaviours and the World's integration, so emitters and attractors are where this step left them:
-//
-// 1. each particle's previous position becomes its current one, and its age grows; particles
-//    past their lifetime leave the pool (the last one takes the freed place);
-// 2. rate emission adds particles at the entity's Transform2D, within the spread;
-// 3. the emitter's enabled affectors run, in the order added;
-// 4. each particle moves by its velocity.
-void AddParticleSystem(World& world);
+    // The pool never grows beyond this; emission stops while it is full.
+    int capacity = 10000;
+    ParticleStyle style;
 
-// Draws every ParticleEmitter's pool with its style, interpolated `alpha` of the way between steps.
-void DrawParticles(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha);
+    std::vector<Particle> particles;
+    std::vector<std::unique_ptr<ParticleAffector>> affectors;
+
+    // Adds one particle now; returns false, adding nothing, when the pool is full.
+    bool Emit(pxPointf position, pxVec2f velocity, float particleLifetime) {
+        if (particles.size() >= static_cast<std::size_t>(capacity)) {
+            return false;
+        }
+        Particle particle;
+        particle.position = position;
+        particle.previous = position;
+        particle.velocity = velocity;
+        particle.lifetime = particleLifetime;
+        particles.push_back(particle);
+        return true;
+    }
+
+    template<typename A, typename... Args>
+    A& AddAffector(Args&&... args) {
+        auto affector = std::make_unique<A>(std::forward<Args>(args)...);
+        A& added = *affector;
+        affectors.push_back(std::move(affector));
+        return added;
+    }
+
+    // The first affector of type A, or null.
+    template<typename A>
+    A* FindAffector() const {
+        for (const auto& affector : affectors) {
+            if (auto* found = dynamic_cast<A*>(affector.get())) {
+                return found;
+            }
+        }
+        return nullptr;
+    }
+};
 
 } // namespace pixie

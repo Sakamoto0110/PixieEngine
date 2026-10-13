@@ -10,8 +10,9 @@ class World;
 
 inline constexpr int kMaxAttractors = 16;
 
-// Builds the particles World in code: the particle system and one emitter entity, "particles",
-// whose pool has an AttractorAffector and an InteractionAffector. Returns the emitter.
+// Builds the particles World in code: the particle step and one particle system entity,
+// "particles", whose pool has an AttractorAffector and an InteractionAffector, and a spawner,
+// "spawner", that feeds it from a ring on the left. Returns the system's entity.
 pixie::Entity SetUpParticles(pixie::World& world);
 
 // An attractor entity at `position`: Transform2D, Attractor, and a ring Shape.
