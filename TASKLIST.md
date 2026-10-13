@@ -39,15 +39,6 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-017, in the order of
-their parents. Completed breakdowns are in their archive records, routed from
-the [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-016` — Selection and editing in the viewport
-
-**Parent:** [PIXIE-TODO-016](TODO.md#pixie-todo-016--selection-and-editing-in-the-viewport)
-
-- `PIXIE-TASK-074` — **Status:** done — C API: picking at a point and in a box, entity destruction, particle removal at a point, `pixie_spawn_at`, and the view bounds of an entity; `Project::SpawnAt` in each anchor.
-- `PIXIE-TASK-075` — **Status:** done — Viewport modes, Game and Select, with the click, Shift, Ctrl, and box gestures, and outlines of the selection.
-- `PIXIE-TASK-076` — **Status:** in-progress — Multi-selection in the entity list, and inspectors over the components common to the selection, with `AddBind`.
-- `PIXIE-TASK-077` — **Status:** in-progress — Verification with real input in each anchor; `capi-test` for the new functions; the documents.
+None. The breakdowns of PIXIE-TODO-012 to PIXIE-TODO-017, opened on
+2026-10-13, all completed the same day; they are in their archive records,
+routed from the [archive router](docs/archive/README.md).

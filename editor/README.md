@@ -30,8 +30,8 @@ its entities, and inspects and edits their components with
   references, shown as "name #index", or "(none)". With several entities selected, the inspector
   is bound to the first and to the rest with `AddBind`, so an edit changes all of them; a field
   whose values differ shows "--", except a number that scrubs, which shows the first entity's value
-  so a scrub moves each from its own. PixieInspector.ImGui 0.2.0 gives that number no mixed marker;
-  0.2.1 draws every mixed row's label in amber, with a tooltip. The fields read and write the
+  so a scrub moves each from its own. Every mixed row's label is amber, and its tooltip says the
+  entities differ. The fields read and write the
   component through the C API on every frame; the native World is the only copy of the state. No
   class per component exists in the editor: a component added to a game's library shows up without
   rebuilding it.
@@ -44,7 +44,7 @@ its entities, and inspects and edits their components with
 - **Session.** A single step while paused, reset, the World's time, entity count, and step cost, and buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game).
 
-The editor references `PixieInspector.ImGui` 0.2.0 from nuget.org, which brings Hexa.NET.ImGui
+The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings Hexa.NET.ImGui
 2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
 ([`DEPENDENCIES.md`](../DEPENDENCIES.md)). Nothing in it is copied from PixieInspector's repository.
 
