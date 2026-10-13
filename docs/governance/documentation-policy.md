@@ -334,6 +334,11 @@ documentation, and the commit or push.
 
 ## Enforcement
 
-No documentation verifier exists yet. Until one does, these rules are applied
-by review only, and a document that satisfies them has not been mechanically
-checked. Claims about structural validity must say so.
+`scripts/check_docs.py` mechanically checks part of these rules: relative
+links and their anchors, no link into `.local/`, the metadata fields that the
+schema requires and their vocabulary, unique Document IDs, the scheduler rules
+(parents, back-links, unique task IDs, reasons on dropped tasks), and an archive
+router that lists every record once, in order, under its own ID. The rest
+(single ownership of facts, claims that match the source, honest evidence) is
+applied by review only. Claims about structural validity say which of the two
+they rest on.

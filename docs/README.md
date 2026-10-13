@@ -35,4 +35,5 @@ owns the authority table: which document owns which kind of fact.
 | [`templates/`](templates/) | Templates for modules, schedulers, proposals, and archive records |
 | [`proposals/`](proposals/README.md) | Unpromoted ideas |
 | [`archive/`](archive/README.md) | Chronology, completed work, dated rationale |
+| `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
 | `modules/` | One directory per engine boundary; created when its code exists (none yet) |

@@ -44,15 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-004` — Documentation verifier
-
-**Parent:** [PIXIE-TODO-004](TODO.md#pixie-todo-004--documentation-verifier)
-
-- `PIXIE-TASK-016` — **Status:** open — `scripts/check_docs.py`: collect the versioned Markdown (outside `external/`, `build/`, `bin/`, and `.local/`) and check relative links and their anchors.
-- `PIXIE-TASK-017` — **Status:** open — Check metadata: the required fields of indexable documents and their values against `docs/schemas/documentation-schema.json`, and the extra fields of archive records.
-- `PIXIE-TASK-018` — **Status:** open — Check the schedulers and the archive router: section parents and back-links, unique task IDs, reasons on dropped tasks, and one router row per record with the same ID.
-- `PIXIE-TASK-019` — **Status:** open — Make one deliberate break of each kind in a copy and watch the script fail; describe the script in `docs/development.md` and in the policy's enforcement section.
-
 ## `PIXIE-TODO-005` — Input, 2D camera, and instanced shapes
 
 **Parent:** [PIXIE-TODO-005](TODO.md#pixie-todo-005--input-2d-camera-and-instanced-shapes)

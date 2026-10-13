@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-004` — Documentation verifier
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13: a small script checking metadata, links, and scheduler rules
-
-**Accepted scope:** a Python script under `scripts/` that checks the versioned Markdown for: the required metadata fields and the schema's vocabulary; relative links and anchors; the scheduler rules (each `TASKLIST.md` section has a `TODO.md` parent that links back, task IDs are unique, `dropped` tasks state a reason); and an archive router that lists every record under the same ID. The development guide and the policy's enforcement section describe it.
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) the script passes on the repository; (2) a broken link, metadata value, scheduler back-link, and router row, each in a copy, make it fail with a message naming the file; (3) `docs/development.md` lists it among the checks before a commit.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-004--documentation-verifier)
-
 ### `PIXIE-TODO-005` — Input, 2D camera, and instanced shapes
 
 **Status:** promoted
@@ -178,3 +164,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-003` (PixieLib, GLM, and EnTT vendored) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-003-vendor-pixielib-glm-entt-2026-10-13.md).
+
+`PIXIE-TODO-004` (documentation verifier) completed on 2026-10-13. Its entry,
+breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-004-documentation-verifier-2026-10-13.md).

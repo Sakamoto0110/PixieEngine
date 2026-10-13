@@ -78,10 +78,11 @@ cmake --build --preset vs2026-release
 - **Rates:** a change to the loop or the frame limiter is measured with vsync on,
   vsync off, and a frame cap, and the numbers are recorded with the machine and
   commit (see the [policy](governance/documentation-policy.md#tests-and-evidence)).
-- **Documentation:** the policy's
-  [self-review](governance/documentation-policy.md#self-review) passes. No
-  verifier exists yet; links, anchors, and metadata are checked by a script run
-  outside the repository, and the result is reported as such.
+- **Documentation:** `python scripts/check_docs.py` reports no problem, and
+  the policy's [self-review](governance/documentation-policy.md#self-review)
+  passes for what the script does not check. The script checks relative links
+  and anchors, metadata fields and their vocabulary, the cross-links and task
+  IDs of `TODO.md` and `TASKLIST.md`, and the archive router; it needs Python 3.
 - **Whitespace:** `git diff --check` is clean, outside `external/`.
 
 ## Dependencies

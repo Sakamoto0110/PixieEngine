@@ -54,6 +54,7 @@ version change.
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
 | .NET SDK | The C# editor, when it exists, and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | Nothing in this repository uses it yet. |
 | Git | Version control | 2.55.0 | — | `ok` | |
+| Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
 
 ## Graphics and platform
 
