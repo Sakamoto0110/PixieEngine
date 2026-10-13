@@ -48,13 +48,13 @@ stays postponed and is not promoted.
 
 ### `PIXIE-TODO-016` — Selection and editing in the viewport
 
-**Status:** promoted
+**Status:** blocked
 
 **Source:** owner decision on 2026-10-13 (request C, answers 34, 40, and 41)
 
 **Accepted scope:** the viewport gets a "Game" and a "Select" mode. In Select mode: a left click on an entity (a boid, an attractor, a spawner) selects it, Shift + left click adds it to the selection, and a drag on empty space selects by box; Ctrl + left click on empty space asks the project to create something there (`Project::SpawnAt`: a random boid in boids and flocks, a particle at rest in particles), and Ctrl + left click on a boid or a particle deletes it. Particles are never selected. The entity list takes Ctrl and Shift clicks too. The inspector shows the components every selected entity has, bound to the first and with `AddBind` to the rest. Selected entities are outlined in the viewport. The C API gains picking (a point, a box), destruction, particle removal, and spawning.
 
-**Dependencies and gates:** 1. PIXIE-TODO-012; 2. PIXIE-TODO-015
+**Dependencies and gates:** 1. PIXIE-TODO-012; 2. PIXIE-TODO-015; 3. PixieInspector.ImGui 0.2.1, for criterion (2): 0.2.0 draws a mixed number that scrubs with the first object's value and no marker; 0.2.1 draws every mixed row's label in amber with a tooltip saying the objects differ ([Sakamoto0110/PixieInspector#8](https://github.com/Sakamoto0110/PixieInspector/pull/8), awaiting merge and publication)
 
 **Completion criteria:** (1) each gesture works in each anchor as described, with real input; (2) editing a value with several attractors selected changes all of them, and different values show as mixed; (3) in Game mode the mouse still goes to the game; (4) `capi-test` covers the new functions; (5) zero warnings.
 

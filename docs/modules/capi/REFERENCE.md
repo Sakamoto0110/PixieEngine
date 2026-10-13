@@ -43,9 +43,9 @@ statically, like every target, so a host needs no Visual C++ Redistributable.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (2), raised when a function's meaning or a
-  struct's layout changes. Version 2 added the field metadata; a host built for version 1 does not
-  load a version 2 library.
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (3), raised when a function's meaning or a
+  struct's layout changes. Version 2 added the field metadata, version 3 picking, destruction, and
+  spawning; a host checks the version and does not load a library of another one.
 
 ## Session
 
@@ -111,6 +111,26 @@ Events are kept until the next step reads them.
   entity handle in `x`, with 4294967295 for none. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
   `PIXIE_ERROR_NOT_FOUND`.
+
+## Picking, destruction, and spawning
+
+For a host's selection, in view pixels like the input. Only entities with a `Transform2D` and a
+`Shape` can be picked ([runtime picking](../runtime/REFERENCE.md#picking)); particles are not
+entities.
+
+- `pixie_pick` returns the entity whose shape covers a point, widened by `tolerance` pixels,
+  nearest center first, or `PIXIE_ERROR_NOT_FOUND`. `pixie_pick_box` lists the entities whose
+  center lies in a box given by two corners in any order, oldest first, filling and counting as
+  `pixie_entities` does.
+- `pixie_entity_view_bounds` gives where an entity was drawn by the last render (between the
+  previous step and this one, as drawn) and the radius it can be picked within, in pixels, for
+  outlining it.
+- `pixie_entity_destroy` destroys an entity at once. It is meant for what a host can pick:
+  destroying an entity the game holds on to, such as its controls, is the host's risk.
+- `pixie_particle_remove_at` removes the particle nearest a point within `radius` pixels, or
+  returns `PIXIE_ERROR_NOT_FOUND`.
+- `pixie_spawn_at` asks the game to create something at a point (`Project::SpawnAt`) and reports
+  through `created` whether it did.
 
 ## Non-goals
 

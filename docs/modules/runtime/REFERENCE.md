@@ -50,6 +50,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
+| `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
 | `ProjectSession.hpp` | `ProjectSession`, a running project, and `SessionSettings` |
 | `ProjectApp.hpp` | `ProjectApp`, which runs a project in `pixie::Run`'s window |
@@ -188,6 +189,17 @@ particle order. The runtime provides two:
 `DrawParticles(world, renderer, camera, alpha)` draws every pool with its `style`, interpolated on
 the GPU.
 
+## Picking
+
+`Picking.hpp` finds things by where they are, for a tool's selection. Only entities with a
+`Transform2D` and a `Shape` can be picked: what is drawn can be clicked. An entity covers
+`PickRadius`, its shape's larger half extent times the transform's larger scale.
+`PickAt(world, point, tolerance)` returns the entity whose radius plus `tolerance` covers the
+point, nearest center first, or `entt::null`; `PickIn(world, box)` lists the entities whose center
+lies in the box, oldest first. Particles are not entities: `RemoveParticleAt(world, point, radius)`
+removes the particle nearest the point within the radius, from whichever pool holds it, at once.
+Positions are the current ones, in world units.
+
 ## Reflection
 
 `ComponentTypes` lists the component types a tool may inspect and edit, each a
@@ -236,7 +248,9 @@ A `Project` is a game as the engine sees it: `Name`, `Background` (the clear col
 (before the World is rebuilt: read back what the next `Build` starts from, such as an edited
 scenario component),
 `BeforeStep` (outside the step: copy the host's view and input into the World, react to keys, move
-the camera; structural changes are allowed), and `DrawOverlay` (shapes drawn over the World). Every
+the camera; structural changes are allowed), `SpawnAt` (a tool asks for something at a point, such
+as an editor's Ctrl + click on empty space: a boid in boids and flocks, a particle at rest in
+particles; false when the game creates nothing), and `DrawOverlay` (shapes drawn over the World). Every
 game library defines `pixie::CreateProject()`, which returns the project with its defaults; one
 binary links one game.
 
