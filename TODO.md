@@ -46,20 +46,6 @@ owner's authorization to execute them, in this order. The first nine entries,
 PIXIE-TODO-003 to PIXIE-TODO-011, are completed; see below. Scene serialization
 stays postponed and is not promoted.
 
-### `PIXIE-TODO-013` — Scenario values, scene rebuild, and time control
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13 (requests D and time control)
-
-**Accepted scope:** each anchor's starting values (counts, attractors, interaction) move into a scenario struct owned by its Project and mirrored in a `…Scenario` component that the editor inspects; rebuilding the scene reads the component back, so the World is built again with the edited values; a component type marked as a scenario gets a "Rebuild the scene" button in the editor. The players' options fill the same struct. The session gets a time scale (`pixie_session_set_time_scale`) from the steps 0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, and 2; buttons at the top of the editor slow time down, speed it up, and pause, showing the scale. The fixed step stays 1/60 s.
-
-**Dependencies and gates:** 1. PIXIE-TODO-012
-
-**Completion criteria:** (1) editing a count in an anchor's scenario and pressing the button rebuilds that anchor with it; (2) at 0.25 times a World's simulated time advances a quarter as fast as wall time, measured, and at 2 times twice as fast; (3) the players still accept their options; (4) zero warnings.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-013--scenario-values-scene-rebuild-and-time-control)
-
 ### `PIXIE-TODO-014` — Attractor size and death on contact
 
 **Status:** promoted
@@ -152,3 +138,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-012` (single source of field metadata) completed on 2026-10-13. Its
 entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-012-single-source-metadata-2026-10-13.md).
+
+`PIXIE-TODO-013` (scenario values, scene rebuild, and time control) completed on
+2026-10-13. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-013-scenario-time-control-2026-10-13.md).

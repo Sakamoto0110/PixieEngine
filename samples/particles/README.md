@@ -35,6 +35,9 @@ thousand. It uses the `runtime` module's particle pools
 
 Changes are logged. Once per second the log also shows how long the World's steps took.
 
+The starting values (the count, the attractors, and the interaction) live in a scenario struct of the project, mirrored in a `ParticlesScenario` component on
+the `scenario` entity; the options below fill it, and the editor rebuilds the scene from it.
+
 ## Layout
 
 - `src/game/`: the game, built as the static library `particles-game`. `ParticlesProject` is its `Project`

@@ -20,6 +20,9 @@ boids that the user steers with the mouse. It is the first sample built on the `
 
 The World is built in code (`src/game/BoidsScene.cpp`); nothing is saved or loaded.
 
+The starting values (the count) live in a scenario struct of the project, mirrored in a `BoidsScenario` component on
+the `scenario` entity; the options below fill it, and the editor rebuilds the scene from it.
+
 ## Layout
 
 - `src/game/`: the game, built as the static library `boids-game`. `BoidsProject` is its `Project`

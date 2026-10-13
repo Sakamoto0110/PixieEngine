@@ -61,8 +61,9 @@ returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be made.
 | `pixie_session_advance(seconds)` | Adds wall time and runs the fixed steps it makes due (60 per second), unless paused; one call counts for 0.25 s at most |
 | `pixie_session_step` | Runs one fixed step now, paused or not |
 | `pixie_session_set_paused` | Pauses or resumes; resuming drops the leftover fraction of a step |
-| `pixie_session_reset` | Rebuilds the World from the game with the same seed; steps start over |
-| `pixie_session_stats` | Steps, simulated seconds, last step's wall time, entity count, paused |
+| `pixie_session_set_time_scale` | Simulated seconds per wall second given to advance, from 0.01 to 8 (clamped); not positive is an argument error |
+| `pixie_session_reset` | Rebuilds the World from the game with the same seed, after the game reads back its scenario; steps start over |
+| `pixie_session_stats` | Steps, simulated seconds, last step's wall time, entity count, paused, time scale |
 | `pixie_project_name` | The game's name |
 
 Before each step the session calls the project's `BeforeStep` with the session's input, then
@@ -95,6 +96,8 @@ Events are kept until the next step reads them.
   (`DescribeRuntimeComponents`), then the game's (`Project::Describe`). `pixie_type_name`,
   `pixie_field_count`, `pixie_field_name`, `pixie_field_kind`, `pixie_field_enum_count`, and
   `pixie_field_enum_name` describe them; `pixie_entity_has` tells whether an entity has one.
+  `pixie_type_flags` returns `PIXIE_TYPE_SCENARIO` for a type that holds a scenario: values the
+  scene is built from, which a host offers to rebuild with after an edit.
 - `pixie_field_info` fills a `PixieFieldInfo` (72 bytes): the kind, the editor
   (`PixieEditorKind`), flags (`PIXIE_FIELD_READ_ONLY`, `PIXIE_FIELD_HAS_RANGE`,
   `PIXIE_FIELD_HAS_UNIT`), the order, the scrub per pixel and its axis, the number of enum names,

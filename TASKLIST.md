@@ -43,15 +43,6 @@ Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-016, in the order of
 their parents. Completed breakdowns are in their archive records, routed from
 the [archive router](docs/archive/README.md).
 
-## `PIXIE-TODO-013` — Scenario values, scene rebuild, and time control
-
-**Parent:** [PIXIE-TODO-013](TODO.md#pixie-todo-013--scenario-values-scene-rebuild-and-time-control)
-
-- `PIXIE-TASK-063` — **Status:** open — Scenario structs owned by each anchor's Project, mirrored in `BoidsScenario`, `FlocksScenario`, and `ParticlesScenario` components, read back when the scene is rebuilt; the players' options fill them.
-- `PIXIE-TASK-064` — **Status:** open — A scenario mark on component types, exported by the C API; the editor adds a "Rebuild the scene" button to a scenario's inspector.
-- `PIXIE-TASK-065` — **Status:** open — Session time scale and `pixie_session_set_time_scale`; editor buttons to slow down, speed up, and pause, with the scale shown.
-- `PIXIE-TASK-066` — **Status:** open — Verification: a rebuilt scene with edited counts, measured time at 0.25 and 2 times, the players' options.
-
 ## `PIXIE-TODO-014` — Attractor size and death on contact
 
 **Parent:** [PIXIE-TODO-014](TODO.md#pixie-todo-014--attractor-size-and-death-on-contact)

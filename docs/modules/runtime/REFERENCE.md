@@ -199,6 +199,9 @@ the three anchors carries a tooltip. Fields are reached
 through accessor functions generated from member pointers rather than byte offsets, so a
 component need not be standard layout. Empty tag types cannot be described.
 
+A type marked with `Scenario()` holds a scenario: the values a scene is built from rather than live
+state. A tool offers to rebuild the scene after editing one.
+
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
 `Attractor`, and `ParticleEmitter` (its emission values). The C API reads and writes fields only
 through these descriptors; serialization is meant to use them too, once promoted.
@@ -206,7 +209,9 @@ through these descriptors; serialization is meant to use them too, once promoted
 ## Projects and sessions
 
 A `Project` is a game as the engine sees it: `Name`, `Background` (the clear color), `Describe`
-(its own component types), `Build` (fills a new World; the camera's viewport is set),
+(its own component types), `Build` (fills a new World; the camera's viewport is set), `Capture`
+(before the World is rebuilt: read back what the next `Build` starts from, such as an edited
+scenario component),
 `BeforeStep` (outside the step: copy the host's view and input into the World, react to keys, move
 the camera; structural changes are allowed), and `DrawOverlay` (shapes drawn over the World). Every
 game library defines `pixie::CreateProject()`, which returns the project with its defaults; one
@@ -220,8 +225,10 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   wall time (`LastStepMilliseconds`).
 - `Advance(frameDelta)`: for a host that drives the session; runs the fixed steps the frame makes
   due with the session's own `Input`, forgetting presses after each, unless paused.
-  `StepOnce` runs one step regardless; `SetPaused` pauses or resumes; `Reset` builds the World
-  again.
+  `StepOnce` runs one step regardless; `SetPaused` pauses or resumes; `SetTimeScale` makes
+  simulated time run faster or slower than wall time (0.01 to 8; the fixed step stays the same, so a
+  faster scale runs more steps per frame); `Reset` lets the project `Capture`, then builds the World
+  again with the same seed.
 - `Render(alpha)` clears to the project's background and draws particles, then shapes, then the
   overlay, into the bound framebuffer; `RenderToTarget()` does it into the session's own
   `RenderTarget`, sized to the viewport, and returns its texture.

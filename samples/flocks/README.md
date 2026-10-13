@@ -34,6 +34,9 @@ Changes are logged. Once per second the log also shows how long the World's step
 The flock lives in the visible area, so adding boids makes it denser and each boid's neighbourhood
 larger: the step's cost grows faster than the count.
 
+The starting values (the count) live in a scenario struct of the project, mirrored in a `FlocksScenario` component on
+the `scenario` entity; the options below fill it, and the editor rebuilds the scene from it.
+
 ## Layout
 
 - `src/game/`: the game, built as the static library `flocks-game`. `FlocksProject` is its `Project`

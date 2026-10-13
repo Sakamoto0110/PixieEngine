@@ -19,8 +19,13 @@ its entities, and inspects and edits their components with
   component through the C API on every frame; the native World is the only copy of the state. No
   class per component exists in the editor: a component added to a game's library shows up without
   rebuilding it.
-- **Session.** Pause, resume, a single step while paused, reset, the World's time, entity count,
-  and step cost, and buttons that open the other games built next to this one in a new editor
+- **Time.** A bar at the top slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
+  0.75, 1, 1.25, 1.5, 1.75, and 2 times. The fixed step stays 1/60 s; faster runs more steps per
+  frame, so a heavy World (5,000 flocking boids) falls a little behind at 2 times.
+- **Scenario.** Each game's starting values (counts, attractors) live in a scenario component on
+  the `scenario` entity; its inspector has a "Rebuild the scene" button that builds the World again
+  from the edited values.
+- **Session.** A single step while paused, reset, the World's time, entity count, and step cost, and buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game).
 
 The editor references `PixieInspector.ImGui` 0.2.0 from nuget.org, which brings Hexa.NET.ImGui
@@ -50,7 +55,9 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--edit-after <seconds>` | `1` | When the `--set` edits happen |
 | `--quit-after <seconds>` | `0` | Closes the editor after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame of the window |
+| `--time-scale <x>` | `1` | Starts with simulated time at this speed; with `--quit-after`, the simulated time is logged at the end |
 
-For example, `--game boids --select controls --set BoidControls.mode=Repel --set
+A `--set` on a button presses it: `--select scenario --set BoidsScenario.count=300 --set
+BoidsScenario.rebuild=go` rebuilds the boids with 300. For example, `--game boids --select controls --set BoidControls.mode=Repel --set
 BoidControls.radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
 hand in the inspector.
