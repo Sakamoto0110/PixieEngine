@@ -39,10 +39,82 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None as of 2026-10-13. The nine entries promoted that day from
-[PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), PIXIE-TODO-003
-to PIXIE-TODO-011, are completed; see below. Scene serialization stays
-postponed and is not promoted.
+Promoted on 2026-10-13 from the owner's review of the anchors and the editor,
+recorded in the
+[decision record](docs/archive/editor-review-decisions-2026-10-13.md), with the
+owner's authorization to execute them, in this order. The first nine entries,
+PIXIE-TODO-003 to PIXIE-TODO-011, are completed; see below. Scene serialization
+stays postponed and is not promoted.
+
+### `PIXIE-TODO-012` — Single source of field metadata
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-13: the native registry is the single source of field metadata, "even if it costs more"
+
+**Accepted scope:** `ComponentTypes` fields carry the metadata an inspector needs, in the vocabulary of PixieInspector's node options: label, tooltip, help, order, read-only, editor kind, range (minimum, maximum, step), scrub (multiplier, axis), display unit (suffix, factor, offset), the arc's spread sibling, and enum names; range and step are in the displayed unit. The C API goes to version 2 and exports them (`pixie_field_info` for the numbers, `pixie_field_text` for the strings). The editor moves to PixieInspector 0.2.0 and builds one inspector per component type from the descriptors, with `AddField` over a handle (session, entity, component type); the hand-written proxies, their catalog, and their attributes are removed. Every reflected field of the runtime and the anchors gets a tooltip with its unit, a range, and a scrub step; angles show in degrees; fields a project rewrites every step (`Pointer`, `Bounds`) are read-only.
+
+**Dependencies and gates:** none
+
+**Completion criteria:** (1) the editor inspects every reflected component of the three anchors with no C# class per component, and a component added to a game's library appears without rebuilding the editor; (2) tooltips, ranges, scrub, and degrees show as described, and editing still changes the running World; (3) `capi-test` reads the metadata back; (4) zero warnings in the engine and the editor.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-012--single-source-of-field-metadata)
+
+### `PIXIE-TODO-013` — Scenario values, scene rebuild, and time control
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-13 (requests D and time control)
+
+**Accepted scope:** each anchor's starting values (counts, attractors, interaction) move into a scenario struct owned by its Project and mirrored in a `…Scenario` component that the editor inspects; rebuilding the scene reads the component back, so the World is built again with the edited values; a component type marked as a scenario gets a "Rebuild the scene" button in the editor. The players' options fill the same struct. The session gets a time scale (`pixie_session_set_time_scale`) from the steps 0.1, 0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, and 2; buttons at the top of the editor slow time down, speed it up, and pause, showing the scale. The fixed step stays 1/60 s.
+
+**Dependencies and gates:** 1. PIXIE-TODO-012
+
+**Completion criteria:** (1) editing a count in an anchor's scenario and pressing the button rebuilds that anchor with it; (2) at 0.25 times a World's simulated time advances a quarter as fast as wall time, measured, and at 2 times twice as fast; (3) the players still accept their options; (4) zero warnings.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-013--scenario-values-scene-rebuild-and-time-control)
+
+### `PIXIE-TODO-014` — Attractor size and death on contact
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-13 (request F, answer 37)
+
+**Accepted scope:** the attractor's pull stays `strength`, and its size becomes a separate value: a body radius, in world units, times its transform's scale, which the attractor's shape follows. The old `radius` becomes `reach` (the distance beyond which particles feel nothing). A new flag on the attractor, die on contact, removes a particle that enters its body. With the flag off, the behaviour is the same as before: size does not change the pull.
+
+**Dependencies and gates:** 1. PIXIE-TODO-012
+
+**Completion criteria:** (1) a test shows a particle entering a body removed with the flag on and passing through with it off; (2) the orbit test still holds; (3) the particles sample shows attractors sized by their body, editable in the inspector; (4) zero warnings.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-014--attractor-size-and-death-on-contact)
+
+### `PIXIE-TODO-015` — Particle systems and spawners apart
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-13 (request E, answers 36 and 38)
+
+**Accepted scope:** `ParticleEmitter` splits into `ParticleSystem` (pool, capacity, style, affectors) and `ParticleSpawner` entities that point at a system: rate, lifetime, speed range, an emission shape (point, circle, ring, rectangle, or segment, the last through PixieLib's `pxSegment`), and a direction mode (a fixed angle, the shape's outward normal, or toward a target entity), with `direction` and `spread` in radians, shown in degrees and edited together as an arc. Several spawners may feed one system. A new `Entity` field kind lets a descriptor reference another entity; the editor offers the entities that have the expected component. The particles sample uses spawners. The viewport gizmo for direction and cone is not part of this entry.
+
+**Dependencies and gates:** 1. PIXIE-TODO-012; 2. PIXIE-TODO-014
+
+**Completion criteria:** (1) tests cover each emission shape and direction mode and two spawners feeding one pool; (2) the particles sample runs with spawners, and the editor edits a spawner's direction and spread with the arc editor and its system and target by choice; (3) the performance targets of PIXIE-TODO-009 still hold; (4) zero warnings.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-015--particle-systems-and-spawners-apart)
+
+### `PIXIE-TODO-016` — Selection and editing in the viewport
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-13 (request C, answers 34, 40, and 41)
+
+**Accepted scope:** the viewport gets a "Game" and a "Select" mode. In Select mode: a left click on an entity (a boid, an attractor, a spawner) selects it, Shift + left click adds it to the selection, and a drag on empty space selects by box; Ctrl + left click on empty space asks the project to create something there (`Project::SpawnAt`: a random boid in boids and flocks, a particle at rest in particles), and Ctrl + left click on a boid or a particle deletes it. Particles are never selected. The entity list takes Ctrl and Shift clicks too. The inspector shows the components every selected entity has, bound to the first and with `AddBind` to the rest. Selected entities are outlined in the viewport. The C API gains picking (a point, a box), destruction, particle removal, and spawning.
+
+**Dependencies and gates:** 1. PIXIE-TODO-012; 2. PIXIE-TODO-015
+
+**Completion criteria:** (1) each gesture works in each anchor as described, with real input; (2) editing a value with several attractors selected changes all of them, and different values show as mixed; (3) in Game mode the mouse still goes to the game; (4) `capi-test` covers the new functions; (5) zero warnings.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-016--selection-and-editing-in-the-viewport)
 
 ## Completed
 

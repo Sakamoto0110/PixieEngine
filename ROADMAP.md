@@ -73,7 +73,16 @@ foundational work first, each broken into tasks in
 
 All nine blocks were completed on 2026-10-13: the three anchors run as
 players and in the editor (see [`TODO.md`](TODO.md#completed) and the
-[archive](docs/archive/README.md)). Scene serialization is postponed: until the
+[archive](docs/archive/README.md)). The owner's review of them, the same day,
+added five more blocks
+([decision record](docs/archive/editor-review-decisions-2026-10-13.md)):
+
+10. A single source of field metadata in the native registry (PIXIE-TODO-012).
+11. Scenario values, scene rebuild, and time control (PIXIE-TODO-013).
+12. Attractor size and death on contact (PIXIE-TODO-014).
+13. Particle systems and spawners apart (PIXIE-TODO-015).
+14. Selection and editing in the viewport (PIXIE-TODO-016).
+ Scene serialization is postponed: until the
 owner promotes it, Worlds are built in code and nothing is saved. These blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
@@ -106,9 +115,16 @@ code grows in the provisional engine library until they are.
   rendered offscreen in a shared OpenGL 4.5 core context. Accepted 2026-10-13.
 - **The editor reaches the engine through a C API.** A shared library with a
   C-only interface (`capi`), consumed through P/Invoke; the native World is the
-  single source of truth, and C# holds handles and proxies only
+  single source of truth, and C# holds handles only (hand-written proxies
+  until PIXIE-TODO-012 replaces them with fields built from the descriptors)
   ([PIXIE-PROPOSAL-002](docs/proposals/editor-native-bridge.md)). Accepted
   2026-10-13.
+- **The native registry is the single source of field metadata.** Names,
+  kinds, and inspector metadata (labels, tooltips, ranges, scrub, units) are
+  declared once, in `ComponentTypes`; the C API exports them and tools build
+  on them, with no per-component class on the tool side. C++26 reflection may
+  generate the same descriptors once MSVC supports it; until then the project
+  stays on C++20. Accepted 2026-10-13.
 - **Time is passed explicitly.** `Update` and `Render` receive a `FrameTime`
   struct (the step or frame delta, the render interpolation alpha, simulated
   elapsed time, and the call index); there is no global timestep. Time belongs to a World, not to the
