@@ -1,6 +1,9 @@
 # The runtime module (docs/modules/runtime/): the World, entities, Behaviours, and update phases.
 
 add_library(pixie_runtime STATIC
+    src/AttractorAffector.cpp
+    src/InteractionAffector.cpp
+    src/ParticleSystem.cpp
     src/Random.cpp
     src/ShapeDrawing.cpp
     src/SpatialGrid.cpp

@@ -10,6 +10,7 @@ add_library(pixie_engine STATIC
     src/Input.cpp
     src/LibraryCheck.cpp
     src/Log.cpp
+    src/ParticleRenderer.cpp
     src/RateMeter.cpp
     src/Run.cpp
     src/Screenshot.cpp

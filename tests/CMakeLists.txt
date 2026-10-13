@@ -17,6 +17,7 @@ add_test(NAME engine-tests COMMAND engine-tests)
 add_executable(runtime-tests
     TestMain.cpp
     runtime/OrderIndependenceTests.cpp
+    runtime/ParticleTests.cpp
     runtime/RandomTests.cpp
     runtime/SpatialGridTests.cpp
     runtime/WorldTests.cpp
