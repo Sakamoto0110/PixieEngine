@@ -24,6 +24,7 @@ set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 add_subdirectory(external)
 add_subdirectory(engine)
+add_subdirectory(runtime)
 if(PIXIE_ENGINE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

@@ -13,3 +13,14 @@ target_include_directories(engine-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(engine-tests PRIVATE Pixie::Engine)
 pixie_target_defaults(engine-tests)
 add_test(NAME engine-tests COMMAND engine-tests)
+
+add_executable(runtime-tests
+    TestMain.cpp
+    runtime/RandomTests.cpp
+    runtime/WorldTests.cpp
+)
+set_target_properties(runtime-tests PROPERTIES FOLDER tests)
+target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(runtime-tests PRIVATE Pixie::Runtime)
+pixie_target_defaults(runtime-tests)
+add_test(NAME runtime-tests COMMAND runtime-tests)
