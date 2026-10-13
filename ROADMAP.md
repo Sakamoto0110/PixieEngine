@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-09
+**Direction decision date:** 2026-10-13
 
 ## Purpose
 
@@ -50,10 +50,32 @@ decisions below is in the [archive](docs/archive/README.md).
 
 ## Current direction
 
-1. Resolve the open architecture decisions: editor viewport, native bridge,
-   and module boundaries.
-2. Build a thin end-to-end slice before deepening any module (see
-   [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), not yet promoted).
+Decided on 2026-10-13
+([decision record](docs/archive/object-model-and-editor-decisions-2026-10-13.md)):
+three anchor scenarios drive the first cut, each with user interaction and an
+editor: boids steered by the user, flocks, and particle systems with
+attractors ([PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md)).
+The work is scheduled in [`TODO.md`](TODO.md) as blocks, simple and
+foundational work first, each broken into tasks in
+[`TASKLIST.md`](TASKLIST.md):
+
+1. Dependencies: PixieLib, GLM, and EnTT vendored (PIXIE-TODO-003).
+2. A documentation verifier (PIXIE-TODO-004).
+3. Input, a 2D camera, and instanced shapes (PIXIE-TODO-005).
+4. The `runtime` module: World, entities, Behaviours, and update phases
+   (PIXIE-TODO-006).
+5. Anchor 1, boids (PIXIE-TODO-007).
+6. A spatial grid and anchor 2, flocks (PIXIE-TODO-008).
+7. Particles and anchor 3, attractors (PIXIE-TODO-009).
+8. The engine side for editor hosts: host loop, render target, reflection, and
+   `capi` (PIXIE-TODO-010).
+9. The C# ImGui editor over the three anchors (PIXIE-TODO-011).
+
+Scene serialization is postponed: until the owner promotes it, Worlds are
+built in code and nothing is saved. These blocks supersede the vertical slice
+of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
+first scenario. The `platform` and `render` boundaries stay undecided; their
+code grows in the provisional engine library until they are.
 
 ## Active guardrails
 
@@ -71,6 +93,20 @@ decisions below is in the [archive](docs/archive/README.md).
   Moving to C++26 is to be evaluated later; it is an intention, not a plan.
 - **CMake builds the native side.** Accepted 2026-10-10. The C# editor keeps
   its own solution.
+- **Object model: an EC-style API over ECS storage.** Game logic is written as
+  C++ `Behaviour` classes with `Update()`; components are data-only structs in
+  contiguous storage, iterated by engine systems. There is one runtime, and no
+  object model is chosen at boot. A step runs in phases: `PreUpdate` (engine),
+  `Update` (Behaviours, which write only their own state), and `PostUpdate`
+  (engine). Accepted 2026-10-13.
+- **The editor is a C# ImGui application first.** It uses Hexa.NET.ImGui
+  through PixieInspector.ImGui and shows the engine's output as a texture
+  rendered offscreen in a shared OpenGL 4.5 core context. Accepted 2026-10-13.
+- **The editor reaches the engine through a C API.** A shared library with a
+  C-only interface (`capi`), consumed through P/Invoke; the native World is the
+  single source of truth, and C# holds handles and proxies only
+  ([PIXIE-PROPOSAL-002](docs/proposals/editor-native-bridge.md)). Accepted
+  2026-10-13.
 - **Time is passed explicitly.** `Update` and `Render` receive a `FrameTime`
   struct (the step or frame delta, the render interpolation alpha, simulated
   elapsed time, and the call index); there is no global timestep. Time belongs to a World, not to the

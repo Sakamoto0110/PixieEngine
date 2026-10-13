@@ -22,7 +22,7 @@
 
 ## PIXIE-PROPOSAL-002
 
-**State:** idea
+**State:** promoted
 
 **Idea:** The editor reaches the engine in-process through a C ABI (`capi`)
 consumed with source-generated P/Invoke. The native Scene is the single source
@@ -46,3 +46,8 @@ mismatch, an `int` unsuffixed point in C++, was resolved there.
 **Promotion target:** owner decision required
 
 **Source:** [inception record](../archive/inception-2026-10-09.md)
+
+**Outcome:** promoted on 2026-10-13: a guardrail in
+[`ROADMAP.md`](../../ROADMAP.md#active-guardrails), built by PIXIE-TODO-010
+(`capi`) and PIXIE-TODO-011 (the C# editor) in [`TODO.md`](../../TODO.md); see
+the [decision record](../archive/object-model-and-editor-decisions-2026-10-13.md).

@@ -30,6 +30,7 @@ update its state, and link the outcome.
 
 | Proposal | ID | State | Promotion state |
 |---|---|---|---|
-| [`engine-module-boundaries.md`](engine-module-boundaries.md) | PIXIE-PROPOSAL-001 | idea | Dependency direction promoted to `ROADMAP.md` (2026-10-10); module split still requires an owner decision |
-| [`editor-native-bridge.md`](editor-native-bridge.md) | PIXIE-PROPOSAL-002 | idea | Owner decision required |
-| [`vertical-slice.md`](vertical-slice.md) | PIXIE-PROPOSAL-003 | idea | Owner decision required |
+| [`engine-module-boundaries.md`](engine-module-boundaries.md) | PIXIE-PROPOSAL-001 | idea | Dependency direction promoted to `ROADMAP.md` (2026-10-10); `runtime` and `capi` boundaries promoted to `TODO.md` (2026-10-13); the rest requires an owner decision |
+| [`editor-native-bridge.md`](editor-native-bridge.md) | PIXIE-PROPOSAL-002 | promoted | Guardrail in `ROADMAP.md` and PIXIE-TODO-010, PIXIE-TODO-011 (2026-10-13) |
+| [`vertical-slice.md`](vertical-slice.md) | PIXIE-PROPOSAL-003 | superseded | Superseded by PIXIE-PROPOSAL-004 (2026-10-13) |
+| [`scene-model-and-anchors.md`](scene-model-and-anchors.md) | PIXIE-PROPOSAL-004 | promoted | Object model and anchors in `ROADMAP.md` and PIXIE-TODO-005 to PIXIE-TODO-011 (2026-10-13); serialization postponed, owner decision required |

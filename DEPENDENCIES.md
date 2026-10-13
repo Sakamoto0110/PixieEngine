@@ -63,6 +63,13 @@ version change.
 | stb_easy_font | Debug text in the hello-gl sample | `stb_easy_font.h` and `LICENSE` from `nothings/stb` at commit `2c980bb59875b0d32144a71867fbdebb2f77cd20`, unmodified, in `external/stb/`; header SHA-256 `7b48b52a316477766c0a7a096b33a29bcbd847b6fab4fabd32bb3fdb7cea1a60` | No releases; `master` at the pinned commit (2026-08-02) | `ok` | MIT or public domain. Text built from quads, no texture. Adopted 2026-10-11 for the sample only. |
 | GLFW | Player window and input | 3.5.1 source release, unmodified, in `external/glfw/`; archive `glfw-3.5.1.zip`, SHA-256 `ea79bc5feffc254c87291980c2d0bce9acebb68c4983b79f961dcd2cb8a611a0` | 3.5.1 (2026-07-31) | `ok` | Built through its own CMake project in Debug and Release (2026-10-11). zlib/libpng license (`external/glfw/LICENSE.md`). |
 
+## Runtime
+
+| Dependency | Used for | In use | Latest | Status | Notes and suggestions |
+|---|---|---|---|---|---|
+| EnTT | Component storage of the World (entities, components, views) | — | v4.0.0 (2026-07-23) | `not-installed` | Adopted 2026-10-13 (PIXIE-TODO-003): to be vendored unmodified under `external/entt/` and used header-only. MIT license. v4.0.0 requires C++20. Components stay plain structs, so the storage can be replaced later. |
+| GLM | Vectors and matrices behind PixieLib's math | — | 1.0.3 (2025-12-31) | `not-installed` | Brought by PixieLib (`pixie::math`), pinned there to 1.0.3. Adopted 2026-10-13 (PIXIE-TODO-003): the release archive vendored under `external/glm/`. MIT or Happy Bunny license. Not used directly by the engine. |
+
 ## Editor side
 
 The engine has no dependency on a GUI toolkit or binding. Its contract with an
@@ -81,7 +88,7 @@ PixieInspector's decision; its own `DEPENDENCIES.md` lists them.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| PixieLib (C++) | Primitives and math for the native engine | — | v0.2.0 (`Sakamoto0110/PixieLib`, tag `v0.2.0`, 2026-10-12) | `not-installed` | Distributed as a release tag consumed through CMake `FetchContent`; `pixie::math` brings GLM 1.0.3, and `PIXIE_MATH=OFF` leaves it out. How the engine consumes it (`FetchContent` at a tag, or the release source vendored under `external/`) is an open decision. 0.2.0 separates points from vectors. |
+| PixieLib (C++) | Primitives and math for the native engine | — | v0.2.0 (`Sakamoto0110/PixieLib`, tag `v0.2.0`, 2026-10-12) | `not-installed` | Distributed as a release tag for CMake `FetchContent`; `pixie::math` brings GLM 1.0.3, and `PIXIE_MATH=OFF` leaves it out. Decided 2026-10-13: the release source is vendored under `external/pixielib/`, with GLM 1.0.3 vendored under `external/glm/` and given to PixieLib's `FetchContent` as its source, so a build never needs the network (PIXIE-TODO-003). 0.2.0 separates points from vectors. |
 | PixieLib (.NET) | Primitives for the C# editor, when it exists | — | 0.2.0 on nuget.org (`net10.0`, `net481`) | `not-installed` | Same layout as the C++ side (`docs/layout.md` in PixieLib): unsuffixed types are `double` in both languages. The editor receives 0.2.0 through PixieInspector, whose core depends on it; a direct reference must be 0.2.0 or newer. |
 | PixieInspector | The inspector of the C# editor | — | 0.1.0 on nuget.org (2026-10-13; MIT; tag `v0.1.0` of `Sakamoto0110/PixieInspector`): `PixieInspector` (core), `PixieInspector.ImGui`, `PixieInspector.Avalonia`, `PixieInspector.WinForms`, `PixieInspector.Wpf` (the last two `net10.0-windows`) | `not-installed` | Consumed only as a package: no project reference, copied code, or commit reference. The ImGui editor references `PixieInspector.ImGui` alone, which brings the core, PixieLib 0.2.0, and Hexa.NET.ImGui 2.2.9. Each view requires the core at the same exact version, because it uses the core's internals; forcing another core version raises NU1608. A change to the inspector is made in its repository and returns as a new package version; below 1.0, a breaking change raises the minor version. The local checkout `dev/PixieInspector` (renamed from `dev/InteractiveEditor` on 2026-10-13) is only for developing the inspector; the engine consumes PixieInspector from NuGet, as the `PixieInspector.ImGui` 0.1.0 package. |
 
@@ -95,4 +102,4 @@ adopts it.
 | glad 2 | GL function loader, if GLEW is replaced | v2.0.8 (2024-09-29); `glad2` branch active (2026-09-28) | Generated for exactly `gl:core=4.5`, so a call outside 4.5 core fails to compile; takes any loader callback, independent of who created the context. |
 | stb_image (`nothings/stb`) | Image loading | No releases; pin a commit | Single header, public domain; covers PNG for sprites. |
 | miniaudio | Audio | 0.11.25 (2026-03-03) | Single header; no shared library to ship. |
-| nlohmann/json | Scene and project serialization | v3.12.0 (2025-04-11) | Readable text scenes for diffs and debugging. A binary format can come later for the player. |
+| nlohmann/json | Scene and project serialization | v3.12.0 (2025-04-11) | Readable text scenes for diffs and debugging. A binary format can come later for the player. Recommended for the scene format of PIXIE-PROPOSAL-004, whose serialization the owner postponed on 2026-10-13. |

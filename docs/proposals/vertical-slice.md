@@ -22,7 +22,7 @@
 
 ## PIXIE-PROPOSAL-003
 
-**State:** idea
+**State:** superseded
 
 **Idea:** Build the whole edit-to-deploy loop thinly before deepening any
 module:
@@ -47,3 +47,9 @@ open viewport decision.
 with their breakdown in `TASKLIST.md`
 
 **Source:** [inception record](../archive/inception-2026-10-09.md)
+
+**Outcome:** superseded on 2026-10-13 by the anchors of
+[PIXIE-PROPOSAL-004](scene-model-and-anchors.md), whose blocks in
+[`TODO.md`](../../TODO.md) keep the idea of an end-to-end path, with anchor 1
+as the first scenario and scene saving postponed; see the
+[decision record](../archive/object-model-and-editor-decisions-2026-10-13.md).

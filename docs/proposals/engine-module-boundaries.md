@@ -55,7 +55,11 @@ Boundary keys become `docs/modules/<boundary>/` only when their code exists.
 
 **Outcome:** partly promoted on 2026-10-10. The dependency direction (the
 engine never depends on the editor) is a guardrail in
-[`ROADMAP.md`](../../ROADMAP.md#active-guardrails). The module split itself
-remains an idea.
+[`ROADMAP.md`](../../ROADMAP.md#active-guardrails). On 2026-10-13 the
+`runtime` boundary was promoted (PIXIE-TODO-006) and the `capi` boundary with
+PIXIE-PROPOSAL-002 (PIXIE-TODO-010); `scene` waits with the postponed
+serialization of [PIXIE-PROPOSAL-004](scene-model-and-anchors.md). The other
+boundaries remain ideas, decided when their code is promoted; see the
+[decision record](../archive/object-model-and-editor-decisions-2026-10-13.md).
 
 **Source:** [inception record](../archive/inception-2026-10-09.md)
