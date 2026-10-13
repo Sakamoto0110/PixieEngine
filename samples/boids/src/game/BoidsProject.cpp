@@ -20,6 +20,12 @@ constexpr pxColorRgba kRepelColor{250, 110, 110, 110};
 } // namespace
 
 void BoidsProject::Describe(pixie::ComponentTypes& types) const {
+    types.Add<BoidsScenario>("BoidsScenario")
+        .Scenario()
+        .Field<&BoidsScenario::count>("count")
+        .Tooltip("How many boids the scene starts with. Rebuild the scene to apply.")
+        .Range(0.0, 200000.0, 1.0)
+        .Scrub(10.0);
     types.Add<BoidControls>("BoidControls")
         .Field<&BoidControls::mode>("mode", {"Attract", "Repel"})
         .Tooltip("Whether boids within reach steer toward the pointer or away from it.")
@@ -62,9 +68,17 @@ void BoidsProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void BoidsProject::Build(pixie::World& world, pixie::Camera2D& camera) {
-    controls_ = SetUpBoids(world, camera.VisibleWorld(), count_);
+    scenarioEntity_ = world.Create("scenario");
+    scenarioEntity_.Add<BoidsScenario>(scenario_);
+    controls_ = SetUpBoids(world, camera.VisibleWorld(), scenario_.count);
     pixie::LogInfo(std::format("boids: {} boids, attracting; Space switches, Up and Down change the count",
                                BoidCount(world)));
+}
+
+void BoidsProject::Capture(pixie::World&) {
+    if (const auto* edited = scenarioEntity_.TryGet<BoidsScenario>()) {
+        scenario_ = *edited;
+    }
 }
 
 void BoidsProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) {

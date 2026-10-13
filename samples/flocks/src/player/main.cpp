@@ -10,11 +10,11 @@
 int main(int argc, char** argv) {
     pixie::RunConfig config;
     config.title = "flocks";
-    int count = 5000;
+    FlocksScenario scenario;
     int seed = 1;
     const std::array options = {
         sample::Option{"--count", "<n>", "number of boids, 0 to 100000 (default 5000)",
-                       [&count](std::string_view v) { return sample::ParseCount(v, count, 0, 100000); }},
+                       [&scenario](std::string_view v) { return sample::ParseCount(v, scenario.count, 0, 100000); }},
         sample::Option{"--seed", "<n>", "seed of the World's random numbers (default 1)",
                        [&seed](std::string_view v) { return sample::ParseCount(v, seed, 0, 1 << 30); }},
     };
@@ -24,6 +24,6 @@ int main(int argc, char** argv) {
     pixie::SessionSettings settings;
     settings.seed = static_cast<std::uint64_t>(seed);
     settings.updateRate = config.updateRate;
-    pixie::ProjectApp app(std::make_unique<FlocksProject>(count), settings);
+    pixie::ProjectApp app(std::make_unique<FlocksProject>(scenario), settings);
     return pixie::Run(app, config);
 }

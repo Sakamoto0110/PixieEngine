@@ -189,6 +189,17 @@ PixieResult pixie_session_set_paused(PixieSession* s, int32_t paused) {
     });
 }
 
+PixieResult pixie_session_set_time_scale(PixieSession* s, double scale) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!(scale > 0.0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "the time scale must be positive");
+    }
+    return Guard([&] {
+        s->session.SetTimeScale(scale);
+        return PIXIE_OK;
+    });
+}
+
 PixieResult pixie_session_reset(PixieSession* s) {
     PIXIE_REQUIRE_SESSION(s);
     return Guard([&] {
@@ -220,6 +231,7 @@ PixieResult pixie_session_stats(PixieSession* s, PixieStats* stats) {
         stats->lastStepMilliseconds = s->session.LastStepMilliseconds();
         stats->entities = static_cast<int32_t>(world.EntityCount());
         stats->paused = s->session.IsPaused() ? 1 : 0;
+        stats->timeScale = s->session.TimeScale();
         return PIXIE_OK;
     });
 }
@@ -295,6 +307,11 @@ PixieResult pixie_type_name(PixieSession* s, int32_t type, char* buffer, int32_t
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no component type {}", type));
     }
     return Copy(descriptor->name, buffer, capacity);
+}
+
+uint32_t pixie_type_flags(PixieSession* s, int32_t type) {
+    const pixie::ComponentDescriptor* descriptor = s != nullptr ? TypeAt(s, type) : nullptr;
+    return descriptor != nullptr && descriptor->scenario ? PIXIE_TYPE_SCENARIO : 0u;
 }
 
 int32_t pixie_entity_has(PixieSession* s, uint32_t entity, int32_t type) {

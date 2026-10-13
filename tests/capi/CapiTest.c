@@ -44,6 +44,8 @@ static struct {
     PixieResult (*session_step)(PixieSession*);
     PixieResult (*session_set_paused)(PixieSession*, int32_t);
     PixieResult (*session_reset)(PixieSession*);
+    PixieResult (*session_set_time_scale)(PixieSession*, double);
+    uint32_t (*type_flags)(PixieSession*, int32_t);
     PixieResult (*session_render)(PixieSession*, uint32_t*);
     PixieResult (*session_stats)(PixieSession*, PixieStats*);
     PixieResult (*input_cursor)(PixieSession*, double, double);
@@ -97,6 +99,8 @@ static int Load(Library library) {
     LOAD(session_step, "pixie_session_step")
     LOAD(session_set_paused, "pixie_session_set_paused")
     LOAD(session_reset, "pixie_session_reset")
+    LOAD(session_set_time_scale, "pixie_session_set_time_scale")
+    LOAD(type_flags, "pixie_type_flags")
     LOAD(session_render, "pixie_session_render")
     LOAD(session_stats, "pixie_session_stats")
     LOAD(input_cursor, "pixie_input_cursor")
@@ -252,6 +256,23 @@ static void Exercise(PixieSession* s) {
     CHECK(api.session_step(s) == PIXIE_OK);
     CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 28);
     CHECK(api.session_set_paused(s, 0) == PIXIE_OK);
+
+    /* Time scale: at 0.25, 0.2 s of wall time is 3 steps; at 2, 0.1 s is 12. */
+    CHECK(api.session_set_time_scale(s, 0.0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.session_set_time_scale(s, 0.25) == PIXIE_OK);
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 31 && stats.timeScale == 0.25);
+    CHECK(api.session_set_time_scale(s, 2.0) == PIXIE_OK);
+    CHECK(api.session_advance(s, 0.1) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 43);
+    CHECK(api.session_set_time_scale(s, 1.0) == PIXIE_OK);
+
+    /* Every game marks one scenario type. */
+    int scenarios = 0;
+    for (int32_t t = 0; t < api.type_count(s); ++t) {
+        scenarios += (api.type_flags(s, t) & PIXIE_TYPE_SCENARIO) != 0;
+    }
+    CHECK(scenarios == 1);
 
     /* A key press goes through without error. */
     CHECK(api.input_key(s, 32, 1) == PIXIE_OK && api.input_key(s, 32, 0) == PIXIE_OK);

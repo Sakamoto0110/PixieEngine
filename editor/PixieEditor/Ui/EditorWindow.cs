@@ -57,6 +57,10 @@ internal sealed class EditorWindow(EditorOptions options)
             if (options.Select != null)
                 entities.Selected = entities.Find(options.Select);
 
+            if (options.TimeScale is { } scale)
+                session.TimeScale = scale;
+            var toolbar = new TimeToolbar(session);
+
             var previous = GLFW.GetTime();
             var start = previous;
             var editsApplied = false;
@@ -71,6 +75,12 @@ internal sealed class EditorWindow(EditorOptions options)
                 ImGuiImplGLFW.NewFrame();
                 ImGui.NewFrame();
 
+                if (inspector.RebuildRequested)
+                {
+                    inspector.RebuildRequested = false;
+                    session.Reset();
+                }
+
                 var dockspace = ImGui.GetID("dockspace");
                 if (firstLayout)
                 {
@@ -78,6 +88,7 @@ internal sealed class EditorWindow(EditorOptions options)
                     firstLayout = false;
                 }
 
+                toolbar.Draw();
                 ImGui.DockSpaceOverViewport(dockspace);
                 controls.Draw();
                 entities.Draw();
@@ -95,6 +106,12 @@ internal sealed class EditorWindow(EditorOptions options)
                 ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
 
                 var quitting = options.QuitAfter > 0 && now - start >= options.QuitAfter;
+                if (quitting)
+                {
+                    var stats = session.Stats;
+                    Console.Error.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                        $"[info] Simulated {stats.Elapsed:F3} s in {stats.Steps} steps over {now - start:F3} s of wall time, at {stats.TimeScale:0.##}x"));
+                }
                 if (quitting && options.Screenshot != null)
                 {
                     int width, height;

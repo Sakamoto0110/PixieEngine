@@ -87,6 +87,9 @@ struct ComponentDescriptor {
     std::string name;
     entt::id_type type = 0;
     std::vector<FieldDescriptor> fields;
+    // A scenario holds the values a scene is built from, rather than live state; a tool offers to
+    // rebuild the scene after editing one.
+    bool scenario = false;
     // The component of `entity`, or null when it has none.
     void* (*find)(entt::registry& registry, entt::entity entity) = nullptr;
 };
@@ -229,6 +232,12 @@ public:
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));
+        return *this;
+    }
+
+    // Marks the type as a scenario: values the scene is built from (see ComponentDescriptor).
+    ComponentBuilder& Scenario() {
+        types_.types_[index_].scenario = true;
         return *this;
     }
 

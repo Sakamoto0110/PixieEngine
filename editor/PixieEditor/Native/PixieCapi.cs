@@ -92,6 +92,7 @@ public struct PixieStats
     public double LastStepMilliseconds;
     public int Entities;
     public int Paused;
+    public double TimeScale;
 }
 
 internal static unsafe partial class PixieCapi
@@ -127,6 +128,12 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_session_set_paused")]
     internal static partial PixieResult SessionSetPaused(nint session, int paused);
+
+    [LibraryImport(Library, EntryPoint = "pixie_session_set_time_scale")]
+    internal static partial PixieResult SessionSetTimeScale(nint session, double scale);
+
+    [LibraryImport(Library, EntryPoint = "pixie_type_flags")]
+    internal static partial uint TypeFlags(nint session, int type);
 
     [LibraryImport(Library, EntryPoint = "pixie_session_reset")]
     internal static partial PixieResult SessionReset(nint session);

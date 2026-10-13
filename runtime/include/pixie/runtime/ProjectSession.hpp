@@ -37,7 +37,8 @@ public:
     bool Start(FramebufferSize size);
     void Stop();
 
-    // Throws the World away and builds it again from the project, with the same seed.
+    // Throws the World away and builds it again from the project, with the same seed, after the
+    // project has captured what it starts from (Project::Capture).
     void Reset();
 
     // Sets the viewport the camera maps the World into.
@@ -52,6 +53,14 @@ public:
     void StepOnce();
     void SetPaused(bool paused);
     bool IsPaused() const { return paused_; }
+
+    // How fast simulated time runs against wall time in Advance: 0.5 is half speed. The fixed step
+    // stays the same; a faster scale runs more steps per frame. Clamped to [kMinTimeScale,
+    // kMaxTimeScale].
+    void SetTimeScale(double scale);
+    double TimeScale() const { return timeScale_; }
+    static constexpr double kMinTimeScale = 0.01;
+    static constexpr double kMaxTimeScale = 8.0;
 
     // One step with the caller's time and input: the project's BeforeStep, then World::Step.
     void Update(double delta, const Input& input);
@@ -86,6 +95,7 @@ private:
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;
+    double timeScale_ = 1.0;
     double lastStepMilliseconds_ = 0.0;
 };
 

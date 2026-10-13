@@ -13,6 +13,10 @@ namespace PixieEditor.Ui;
 // inspectors are made again when the selection or the entity's set of components changes.
 internal sealed class InspectorPanel(EngineSession session) : IDisposable
 {
+    // Set by a scenario's button; the editor rebuilds the scene at the start of the next frame, not
+    // while an inspector is drawing.
+    public bool RebuildRequested { get; set; }
+
     private sealed record Section(int Type, string Name, Inspector Inspector, ImGuiInspectorView View);
 
     private readonly List<Section> Sections = [];
@@ -62,6 +66,12 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
             return false;
 
         var node = section.Inspector[property];
+        if (node is ButtonNode button)
+        {
+            button.Press();
+            return true;
+        }
+
         object value = node.ValueType switch
         {
             var t when t == typeof(bool) => bool.Parse(text),
@@ -90,7 +100,7 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
 
         foreach (var type in types)
         {
-            var inspector = InspectorFactory.Build(session, type, [new ComponentHandle(session, id, type)]);
+            var inspector = InspectorFactory.Build(session, type, [new ComponentHandle(session, id, type)], () => RebuildRequested = true);
             Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView()));
         }
     }

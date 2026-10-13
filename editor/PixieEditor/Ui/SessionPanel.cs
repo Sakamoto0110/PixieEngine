@@ -4,7 +4,7 @@ using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
-// The session's controls and numbers: pause, resume, a single step, reset, the World's time and size,
+// The session's controls and numbers: a single step while paused, reset, the World's time and size,
 // the cost of a step, and the other games built next to this one, each opened in a new editor.
 internal sealed class SessionPanel(EngineSession session, string game)
 {
@@ -18,18 +18,11 @@ internal sealed class SessionPanel(EngineSession session, string game)
             var stats = session.Stats;
             ImGui.TextUnformatted($"Game: {session.ProjectName}");
 
-            if (stats.Paused != 0)
-            {
-                if (ImGui.Button("Resume"))
-                    session.Paused = false;
-                ImGui.SameLine();
-                if (ImGui.Button("Step"))
-                    session.Step();
-            }
-            else if (ImGui.Button("Pause"))
-            {
-                session.Paused = true;
-            }
+            // Pause and the speed of time are on the toolbar above.
+            ImGui.BeginDisabled(stats.Paused == 0);
+            if (ImGui.Button("Step"))
+                session.Step();
+            ImGui.EndDisabled();
 
             ImGui.SameLine();
             if (ImGui.Button("Reset"))

@@ -16,6 +16,7 @@ internal sealed record EditorOptions
     public double EditAfter { get; init; } = 1.0;
     public double QuitAfter { get; init; }
     public string? Screenshot { get; init; }
+    public double? TimeScale { get; init; }
 }
 
 internal static class Program
@@ -29,6 +30,7 @@ internal static class Program
           --edit-after <seconds>   when the --set edits happen (default 1)
           --quit-after <seconds>   close after this long; 0 means never (default 0)
           --screenshot <file.png>  with --quit-after, save the last frame of the window
+          --time-scale <x>         start with simulated time at this speed (default 1)
         """;
 
     [STAThread]
@@ -83,6 +85,9 @@ internal static class Program
                     break;
                 case "--quit-after" when double.TryParse(value, CultureInfo.InvariantCulture, out var quit):
                     options = options with { QuitAfter = quit };
+                    break;
+                case "--time-scale" when double.TryParse(value, CultureInfo.InvariantCulture, out var scale) && scale > 0:
+                    options = options with { TimeScale = scale };
                     break;
                 case "--screenshot":
                     options = options with { Screenshot = value };

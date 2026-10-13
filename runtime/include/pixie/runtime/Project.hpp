@@ -33,6 +33,10 @@ public:
     // Fills a new, empty World. The camera's viewport is set; the project may move or zoom it.
     virtual void Build(World& world, Camera2D& camera) = 0;
 
+    // Runs before the World is thrown away to be built again: read back what the next Build should
+    // start from, such as a scenario component a tool has edited.
+    virtual void Capture(World& /*world*/) {}
+
     // Runs before each step, outside it: copy the pointer and the view into the World, react to
     // keys, move the camera. Structural changes are allowed here.
     virtual void BeforeStep(World& /*world*/, Camera2D& /*camera*/, const Input& /*input*/) {}

@@ -4,6 +4,7 @@
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
 
+#include <algorithm>
 #include <chrono>
 
 namespace pixie {
@@ -46,6 +47,9 @@ void ProjectSession::Build() {
 }
 
 void ProjectSession::Reset() {
+    if (world_) {
+        project_->Capture(*world_);
+    }
     Build();
     stepper_.Drop();
 }
@@ -66,7 +70,7 @@ void ProjectSession::Advance(double frameDelta) {
     if (paused_) {
         return;
     }
-    stepper_.Advance(frameDelta, [this](const FrameTime& time) {
+    stepper_.Advance(frameDelta * timeScale_, [this](const FrameTime& time) {
         Update(time.delta, input_);
         input_.EndUpdate();
     });
@@ -75,6 +79,10 @@ void ProjectSession::Advance(double frameDelta) {
 void ProjectSession::StepOnce() {
     Update(stepper_.StepSeconds(), input_);
     input_.EndUpdate();
+}
+
+void ProjectSession::SetTimeScale(double scale) {
+    timeScale_ = std::clamp(scale, kMinTimeScale, kMaxTimeScale);
 }
 
 void ProjectSession::SetPaused(bool paused) {

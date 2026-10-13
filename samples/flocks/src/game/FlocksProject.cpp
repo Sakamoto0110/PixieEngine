@@ -33,6 +33,12 @@ bool Tune(const pixie::Input& input, pixie::Key up, pixie::Key down, double& wei
 } // namespace
 
 void FlocksProject::Describe(pixie::ComponentTypes& types) const {
+    types.Add<FlocksScenario>("FlocksScenario")
+        .Scenario()
+        .Field<&FlocksScenario::count>("count")
+        .Tooltip("How many boids the scene starts with. Rebuild the scene to apply.")
+        .Range(0.0, 100000.0, 1.0)
+        .Scrub(10.0);
     types.Add<FlockControls>("FlockControls")
         .Field<&FlockControls::neighbourRadius>("neighbourRadius")
         .Label("neighbour radius")
@@ -102,11 +108,19 @@ void FlocksProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void FlocksProject::Build(pixie::World& world, pixie::Camera2D& camera) {
-    flock_ = SetUpFlocks(world, camera.VisibleWorld(), count_);
+    scenarioEntity_ = world.Create("scenario");
+    scenarioEntity_.Add<FlocksScenario>(scenario_);
+    flock_ = SetUpFlocks(world, camera.VisibleWorld(), scenario_.count);
     pixie::LogInfo(std::format(
         "flocks: {} boids; Q/A separation, W/S alignment, E/D cohesion, Space attract or repel, "
         "Up and Down change the count",
         FlockSize(world)));
+}
+
+void FlocksProject::Capture(pixie::World&) {
+    if (const auto* edited = scenarioEntity_.TryGet<FlocksScenario>()) {
+        scenario_ = *edited;
+    }
 }
 
 void FlocksProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) {

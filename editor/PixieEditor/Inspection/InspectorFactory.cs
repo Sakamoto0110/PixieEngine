@@ -11,8 +11,12 @@ namespace PixieEditor.Inspection;
 // this side; a component added to a game's library shows up without rebuilding the editor.
 internal static class InspectorFactory
 {
-    // An inspector of component `type`, bound to the first handle and to the rest with AddBind.
-    public static Inspector Build(EngineSession session, int type, IReadOnlyList<ComponentHandle> handles)
+    // The name of the button a scenario's inspector gets.
+    public const string RebuildButton = "rebuild";
+
+    // An inspector of component `type`, bound to the first handle and to the rest with AddBind. A
+    // scenario type also gets a button that asks for the scene to be rebuilt with its values.
+    public static Inspector Build(EngineSession session, int type, IReadOnlyList<ComponentHandle> handles, Action rebuild)
     {
         var inspector = Inspector.Create<ComponentHandle>(TypeBinderMode.Manual);
         var fields = Enumerable.Range(0, session.FieldCount(type))
@@ -28,6 +32,14 @@ internal static class InspectorFactory
                 ApplyOptions(node, session, type, field, info);
                 node.Order = row++;
             }
+        }
+
+        if (session.IsScenario(type))
+        {
+            var button = inspector.AddButton(RebuildButton, "Rebuild the scene", rebuild);
+            button.Label = string.Empty;
+            button.Tooltip = "Throws the World away and builds it again from these values.";
+            button.Order = row;
         }
 
         if (handles.Count > 0)

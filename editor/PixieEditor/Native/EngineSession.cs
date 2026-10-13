@@ -56,6 +56,15 @@ public sealed unsafe class EngineSession : IDisposable
         set => Check(PixieCapi.SessionSetPaused(Handle, value ? 1 : 0), "pause or resume");
     }
 
+    public double TimeScale
+    {
+        get => Stats.TimeScale;
+        set => Check(PixieCapi.SessionSetTimeScale(Handle, value), "set the time scale");
+    }
+
+    // The component type holds a scenario: values the scene is built from.
+    public bool IsScenario(int type) => (PixieCapi.TypeFlags(Handle, type) & 1u) != 0;
+
     public void Resize(int width, int height) => Check(PixieCapi.SessionResize(Handle, width, height), "resize");
     public void Advance(double seconds) => Check(PixieCapi.SessionAdvance(Handle, seconds), "advance");
     public void Step() => Check(PixieCapi.SessionStep(Handle), "step");

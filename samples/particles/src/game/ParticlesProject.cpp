@@ -29,6 +29,18 @@ constexpr double kAttractorRing = 250.0;
 } // namespace
 
 void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
+    types.Add<ParticlesScenario>("ParticlesScenario")
+        .Scenario()
+        .Field<&ParticlesScenario::count>("count")
+        .Tooltip("How many particles the scene starts with. Rebuild the scene to apply.")
+        .Range(0.0, 200000.0, 1.0)
+        .Scrub(10.0)
+        .Field<&ParticlesScenario::attractors>("attractors")
+        .Tooltip("How many attractors the scene starts with: one in the middle, or a ring of them.")
+        .Range(0.0, 16.0, 1.0)
+        .Scrub(0.1)
+        .Field<&ParticlesScenario::interaction>("interaction")
+        .Tooltip("Whether the scene starts with particle-to-particle interaction.");
     types.Add<ParticleControls>("ParticleControls")
         .Field<&ParticleControls::interaction>("interaction")
         .Tooltip("Whether particles closer than the interaction radius push each other apart.")
@@ -48,21 +60,29 @@ void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {
+    scenarioEntity_ = world.Create("scenario");
+    scenarioEntity_.Add<ParticlesScenario>(scenario_);
     emitter_ = SetUpParticles(world);
     dragged_ = {};
     ParticleControls& controls = emitter_.Add<ParticleControls>();
-    controls.interaction = settings_.interaction;
+    controls.interaction = scenario_.interaction;
     // One attractor at the middle; more on a ring around it.
-    for (int i = 0; i < settings_.attractors; ++i) {
-        const double angle = 2.0 * std::numbers::pi * i / settings_.attractors;
-        const double ring = settings_.attractors == 1 ? 0.0 : kAttractorRing;
+    for (int i = 0; i < scenario_.attractors; ++i) {
+        const double angle = 2.0 * std::numbers::pi * i / scenario_.attractors;
+        const double ring = scenario_.attractors == 1 ? 0.0 : kAttractorRing;
         AddAttractor(world, pxPoint(ring * std::cos(angle), ring * std::sin(angle)));
     }
     SetInteraction(emitter_, controls.interaction);
-    Respawn(world, settings_.count);
+    Respawn(world, scenario_.count);
     pixie::LogInfo("particles: 1-5 for 1, 10, 100, 10000, 100000 particles; I interaction; "
                    "left click adds or drags an attractor, right click removes it; "
                    "middle drag pans, the wheel zooms");
+}
+
+void ParticlesProject::Capture(pixie::World&) {
+    if (const auto* edited = scenarioEntity_.TryGet<ParticlesScenario>()) {
+        scenario_ = *edited;
+    }
 }
 
 void ParticlesProject::Respawn(pixie::World& world, int count) {

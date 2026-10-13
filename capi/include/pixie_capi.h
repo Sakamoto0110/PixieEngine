@@ -114,7 +114,11 @@ typedef struct PixieStats {
     double lastStepMilliseconds; /* wall time of the last step */
     int32_t entities;
     int32_t paused;
+    double timeScale;            /* simulated seconds per wall second */
 } PixieStats;
+
+/* pixie_type_flags */
+#define PIXIE_TYPE_SCENARIO 1u /* values the scene is built from; offer to rebuild after editing */
 
 /* PIXIE_CAPI_VERSION of the library. */
 PIXIE_API int32_t pixie_api_version(void);
@@ -134,7 +138,9 @@ PIXIE_API PixieResult pixie_session_advance(PixieSession* session, double second
 /* Runs one fixed step now, paused or not. */
 PIXIE_API PixieResult pixie_session_step(PixieSession* session);
 PIXIE_API PixieResult pixie_session_set_paused(PixieSession* session, int32_t paused);
-/* Rebuilds the World from the game, with the same seed. */
+/* How fast simulated time runs against the wall time given to advance, from 0.01 to 8 (clamped). */
+PIXIE_API PixieResult pixie_session_set_time_scale(PixieSession* session, double scale);
+/* Rebuilds the World from the game, with the same seed; the game first reads back its scenario. */
 PIXIE_API PixieResult pixie_session_reset(PixieSession* session);
 /* Draws the World into the session's own texture (RGBA8, view-sized, first row at the bottom) and
  * returns the GL texture name. The texture stays valid until the next render, resize, or destroy. */
@@ -160,6 +166,8 @@ PIXIE_API int32_t pixie_entity_alive(PixieSession* session, uint32_t entity);
 PIXIE_API int32_t pixie_type_count(PixieSession* session);
 PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char* buffer,
                                       int32_t capacity);
+/* PIXIE_TYPE_* flags of a component type. */
+PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */
 PIXIE_API int32_t pixie_entity_has(PixieSession* session, uint32_t entity, int32_t type);
 PIXIE_API int32_t pixie_field_count(PixieSession* session, int32_t type);
