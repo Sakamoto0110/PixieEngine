@@ -3,6 +3,7 @@
 add_library(pixie_runtime STATIC
     src/Random.cpp
     src/ShapeDrawing.cpp
+    src/SpatialGrid.cpp
     src/World.cpp
 )
 add_library(Pixie::Runtime ALIAS pixie_runtime)

@@ -159,7 +159,7 @@ void World::StopOne(entt::registry& registry, entt::entity id) {
 // --- Templates of Entity, which need the World ----------------------------------------------------
 
 template<typename T, typename... Args>
-T& Entity::Add(Args&&... args) const {
+decltype(auto) Entity::Add(Args&&... args) const {
     return world_->registry_.emplace_or_replace<T>(id_, std::forward<Args>(args)...);
 }
 

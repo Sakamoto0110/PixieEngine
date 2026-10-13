@@ -28,9 +28,10 @@ public:
     bool IsAlive() const;
     explicit operator bool() const { return IsAlive(); }
 
-    // Adds a component, or replaces the one of the same type, and returns it.
+    // Adds a component, or replaces the one of the same type, and returns it; returns nothing for
+    // an empty (tag) type, which EnTT stores without instances.
     template<typename T, typename... Args>
-    T& Add(Args&&... args) const;
+    decltype(auto) Add(Args&&... args) const;
     template<typename T>
     T& Get() const;
     // Null when the entity has no T.

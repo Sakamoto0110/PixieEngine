@@ -16,7 +16,9 @@ add_test(NAME engine-tests COMMAND engine-tests)
 
 add_executable(runtime-tests
     TestMain.cpp
+    runtime/OrderIndependenceTests.cpp
     runtime/RandomTests.cpp
+    runtime/SpatialGridTests.cpp
     runtime/WorldTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)
