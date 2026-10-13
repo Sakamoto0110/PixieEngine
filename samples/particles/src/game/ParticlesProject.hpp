@@ -22,8 +22,8 @@ struct ParticleControls {
     double damping = 3.0;
 };
 
-// Anchor 3 as a Project: particles in orbit around attractors that the user places, drags, and
-// removes. The same project runs in the particles player and, through the C API, in the editor.
+// Anchor 3 as a Project: particles in orbit around attractors, and spawners feeding them, that the
+// user places, drags, and removes. The same project runs in the particles player and, through the C API, in the editor.
 class ParticlesProject final : public pixie::Project {
 public:
     explicit ParticlesProject(ParticlesScenario scenario = {}) : scenario_(scenario) {}
@@ -40,7 +40,8 @@ private:
     void HandleMouse(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input);
     void HandleKeys(pixie::World& world, const pixie::Input& input);
     void Respawn(pixie::World& world, int count);
-    pixie::Entity AttractorAt(pixie::World& world, const pixie::Camera2D& camera, pxPoint screen);
+    // The attractor or spawner nearest `screen` within reach of the pointer, or none.
+    pixie::Entity HandleAt(pixie::World& world, const pixie::Camera2D& camera, pxPoint screen);
 
     ParticlesScenario scenario_;
     pixie::Entity scenarioEntity_;

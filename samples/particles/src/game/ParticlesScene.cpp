@@ -16,6 +16,7 @@
 namespace {
 
 constexpr pxColorRgba kAttractorColor{255, 214, 120};
+constexpr pxColorRgba kSpawnerColor{140, 200, 255};
 constexpr pxColorRgba kParticleColor{120, 175, 255, 200};
 constexpr double kInnerOrbit = 40.0;
 constexpr double kOuterOrbit = 260.0;
@@ -36,11 +37,16 @@ pixie::Entity SetUpParticles(pixie::World& world) {
     pool.AddAffector<pixie::InteractionAffector>();
 
     // A spawner on the left: particles leave a small ring outward and fall toward the attractors.
+    AddSpawner(world, emitter, pxPoint(-420.0, 0.0)).Get<pixie::ParticleSpawner>().rate = 150.0;
+    return emitter;
+}
+
+pixie::Entity AddSpawner(pixie::World& world, pixie::Entity system, pxPoint position) {
     pixie::Entity spawner = world.Create("spawner");
-    spawner.Add<pixie::Transform2D>(pixie::Transform2D{pxPoint(-420.0, 0.0)});
+    spawner.Add<pixie::Transform2D>(pixie::Transform2D{position});
     pixie::ParticleSpawner& feed = spawner.Add<pixie::ParticleSpawner>();
-    feed.system = emitter.Id();
-    feed.rate = 150.0;
+    feed.system = system.Id();
+    feed.rate = 0.0;
     feed.lifetime = 8.0f;
     feed.speedMin = 60.0;
     feed.speedMax = 110.0;
@@ -48,8 +54,12 @@ pixie::Entity SetUpParticles(pixie::World& world) {
     feed.radius = 16.0;
     feed.directionMode = pixie::DirectionMode::ShapeNormal;
     feed.spread = 0.6;
-    spawner.Add<pixie::Shape>(pixie::Shape{pixie::ShapeKind::Ring, pxVec2(16.0, 16.0), pxColorRgba(140, 200, 255)});
-    return emitter;
+    spawner.Add<pixie::Shape>(pixie::Shape{pixie::ShapeKind::Ring, pxVec2(16.0, 16.0), kSpawnerColor});
+    return spawner;
+}
+
+int SpawnerCount(pixie::World& world) {
+    return static_cast<int>(world.Registry().storage<pixie::ParticleSpawner>().size());
 }
 
 pixie::Entity AddAttractor(pixie::World& world, pxPoint position) {

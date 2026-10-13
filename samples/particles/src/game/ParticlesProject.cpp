@@ -6,6 +6,7 @@
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
+#include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -76,7 +77,8 @@ void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {
     SetInteraction(emitter_, controls.interaction);
     Respawn(world, scenario_.count);
     pixie::LogInfo("particles: 1-5 for 1, 10, 100, 10000, 100000 particles; I interaction; "
-                   "left click adds or drags an attractor, right click removes it; "
+                   "left click adds or drags an attractor, Alt + left click adds a spawner, "
+                   "a left drag moves either, right click removes it; "
                    "middle drag pans, the wheel zooms");
 }
 
@@ -93,17 +95,23 @@ void ParticlesProject::Respawn(pixie::World& world, int count) {
                                AttractorCount(world), InteractionOn(emitter_) ? "on" : "off"));
 }
 
-pixie::Entity ParticlesProject::AttractorAt(pixie::World& world, const pixie::Camera2D& camera,
-                                            pxPoint screen) {
+pixie::Entity ParticlesProject::HandleAt(pixie::World& world, const pixie::Camera2D& camera, pxPoint screen) {
     pixie::Entity found;
     double best = kPickPixels;
+    const auto consider = [&](pixie::Entity entity, const pixie::Transform2D& transform) {
+        const double distance = glm::length(camera.WorldToScreen(transform.position) - screen);
+        if (distance <= best) {
+            best = distance;
+            found = entity;
+        }
+    };
     world.Each<const pixie::Transform2D, const pixie::Attractor>(
         [&](pixie::Entity entity, const pixie::Transform2D& transform, const pixie::Attractor&) {
-            const double distance = glm::length(camera.WorldToScreen(transform.position) - screen);
-            if (distance <= best) {
-                best = distance;
-                found = entity;
-            }
+            consider(entity, transform);
+        });
+    world.Each<const pixie::Transform2D, const pixie::ParticleSpawner>(
+        [&](pixie::Entity entity, const pixie::Transform2D& transform, const pixie::ParticleSpawner&) {
+            consider(entity, transform);
         });
     return found;
 }
@@ -117,8 +125,13 @@ void ParticlesProject::HandleMouse(pixie::World& world, pixie::Camera2D& camera,
         camera.ZoomAt(cursor, std::pow(kZoomStep, input.Scroll().y));
     }
     if (input.WasPressed(pixie::MouseButton::Left)) {
-        dragged_ = AttractorAt(world, camera, cursor);
-        if (!dragged_ && AttractorCount(world) < kMaxAttractors) {
+        dragged_ = HandleAt(world, camera, cursor);
+        // On empty space: an attractor, or with Alt a spawner, which starts at rate 0.
+        const bool alt = input.IsDown(pixie::Key::LeftAlt) || input.IsDown(pixie::Key::RightAlt);
+        if (!dragged_ && alt && SpawnerCount(world) < kMaxSpawners) {
+            dragged_ = AddSpawner(world, emitter_, camera.ScreenToWorld(cursor));
+            pixie::LogInfo(std::format("particles: {} spawners", SpawnerCount(world)));
+        } else if (!dragged_ && !alt && AttractorCount(world) < kMaxAttractors) {
             dragged_ = AddAttractor(world, camera.ScreenToWorld(cursor));
             pixie::LogInfo(std::format("particles: {} attractors", AttractorCount(world)));
         }
@@ -131,9 +144,11 @@ void ParticlesProject::HandleMouse(pixie::World& world, pixie::Camera2D& camera,
         world.ResetInterpolation(dragged_);
     }
     if (input.WasPressed(pixie::MouseButton::Right)) {
-        if (pixie::Entity target = AttractorAt(world, camera, cursor)) {
+        if (pixie::Entity target = HandleAt(world, camera, cursor)) {
+            const bool spawner = target.Has<pixie::ParticleSpawner>();
             target.Destroy();
-            pixie::LogInfo(std::format("particles: {} attractors", AttractorCount(world)));
+            pixie::LogInfo(spawner ? std::format("particles: {} spawners", SpawnerCount(world))
+                                   : std::format("particles: {} attractors", AttractorCount(world)));
         }
     }
 }
