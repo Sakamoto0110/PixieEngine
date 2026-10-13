@@ -51,10 +51,3 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 For example, `--game boids --select controls --set BoidControls.Mode=Repel --set
 BoidControls.Radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
 hand in the inspector.
-
-## Known issue
-
-The process sometimes faults while exiting (exit code `0xC0000005`), after the window has closed and
-everything has been released; PixieInspector's own ImGui host, which sets up GLFW and the ImGui
-backends the same way, does too, and so does the editor when it creates no engine session. The
-cause lies outside the engine and is not isolated yet.
