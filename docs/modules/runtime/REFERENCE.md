@@ -147,7 +147,9 @@ integration, so emitters and attractors are where the step left them. For each e
 2. `rate` emission adds particles at the entity's `Transform2D` (the origin without one), within
    `spread` around its rotation, at a speed in `[speedMin, speedMax]`, while the pool is below
    `capacity`; `Emit` adds one particle directly;
-3. the enabled affectors run, in the order added;
+3. the enabled affectors run, in the order added; then the particles an affector killed
+   (`KillParticle`, which marks the particle as past its lifetime) leave the pool, so they are not
+   drawn again;
 4. every particle moves by its velocity.
 
 A `ParticleAffector` is the particles' counterpart of a Behaviour: a class whose
@@ -157,7 +159,9 @@ particle order. The runtime provides two:
 
 - `AttractorAffector`: every entity with a `Transform2D` and an `Attractor` pulls each particle
   with `strength * offset / (distance^2 + softening^2)^(3/2)`, ignoring particles beyond a
-  non-zero `radius`. A circular orbit at distance `r` has speed `sqrt(strength / r)`.
+  non-zero `reach`. A circular orbit at distance `r` has speed `sqrt(strength / r)`. The
+  attractor's `size` is its body's radius, times the transform's larger scale; it does not change
+  the pull. With `killOnContact`, a particle that comes within the body is removed.
 - `InteractionAffector`: particles closer than `radius` push each other apart with
   `stiffness * overlap`, and `damping` pulls their velocities together while in contact. It builds
   a `SpatialGrid` over the pool every step (the grid's ids are then pool indices: grid ids are

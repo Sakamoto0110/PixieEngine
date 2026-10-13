@@ -10,7 +10,8 @@ thousand. It uses the `runtime` module's particle pools
   attractor with a force falling with the square of the distance, and an `InteractionAffector`, a
   short-range push between particles closer than 4 world units, found through a spatial grid.
 - Attractors are entities (`Transform2D`, `Attractor`, and a gold ring `Shape`), so they can be
-  placed and moved like anything else.
+  placed and moved like anything else. The ring is the attractor's body (`Attractor.size`); with
+  "die on contact" set in the editor, particles that fall into it disappear.
 - The interaction's values live in a `ParticleControls` component on the `particles` entity, which
   the project copies into the affector before each step, so a tool can change them.
 - A preset puts particles in nearly circular orbits, spread over the attractors in turn, between 40

@@ -43,14 +43,6 @@ Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-016, in the order of
 their parents. Completed breakdowns are in their archive records, routed from
 the [archive router](docs/archive/README.md).
 
-## `PIXIE-TODO-014` — Attractor size and death on contact
-
-**Parent:** [PIXIE-TODO-014](TODO.md#pixie-todo-014--attractor-size-and-death-on-contact)
-
-- `PIXIE-TASK-067` — **Status:** open — `Attractor`: `size` (body radius, times the transform's scale), `reach` (renamed from `radius`), and the die-on-contact flag; the particle system removes the particles an affector marks dead, in the same step.
-- `PIXIE-TASK-068` — **Status:** open — Tests: contact with the flag on and off, and the orbit test unchanged.
-- `PIXIE-TASK-069` — **Status:** open — The particles sample: attractor shapes follow their body; verification in the player and the editor.
-
 ## `PIXIE-TODO-015` — Particle systems and spawners apart
 
 **Parent:** [PIXIE-TODO-015](TODO.md#pixie-todo-015--particle-systems-and-spawners-apart)

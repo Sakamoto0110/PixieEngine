@@ -46,20 +46,6 @@ owner's authorization to execute them, in this order. The first nine entries,
 PIXIE-TODO-003 to PIXIE-TODO-011, are completed; see below. Scene serialization
 stays postponed and is not promoted.
 
-### `PIXIE-TODO-014` — Attractor size and death on contact
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13 (request F, answer 37)
-
-**Accepted scope:** the attractor's pull stays `strength`, and its size becomes a separate value: a body radius, in world units, times its transform's scale, which the attractor's shape follows. The old `radius` becomes `reach` (the distance beyond which particles feel nothing). A new flag on the attractor, die on contact, removes a particle that enters its body. With the flag off, the behaviour is the same as before: size does not change the pull.
-
-**Dependencies and gates:** 1. PIXIE-TODO-012
-
-**Completion criteria:** (1) a test shows a particle entering a body removed with the flag on and passing through with it off; (2) the orbit test still holds; (3) the particles sample shows attractors sized by their body, editable in the inspector; (4) zero warnings.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-014--attractor-size-and-death-on-contact)
-
 ### `PIXIE-TODO-015` — Particle systems and spawners apart
 
 **Status:** promoted
@@ -142,3 +128,7 @@ entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-013` (scenario values, scene rebuild, and time control) completed on
 2026-10-13. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-013-scenario-time-control-2026-10-13.md).
+
+`PIXIE-TODO-014` (attractor size and death on contact) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-014-attractor-size-2026-10-13.md).
