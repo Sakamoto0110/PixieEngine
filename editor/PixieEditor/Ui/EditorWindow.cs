@@ -111,6 +111,11 @@ internal sealed class EditorWindow(EditorOptions options)
 
         ImGuiImplOpenGL3.Shutdown();
         ImGuiImplGLFW.Shutdown();
+        // Each backend DLL keeps its own copy of the current context, which DestroyContext does not
+        // clear; left pointing at the freed context, it faulted the process at exit about half the
+        // time (the cause was found in PixieInspector: Sakamoto0110/PixieInspector#6).
+        ImGuiImplOpenGL3.SetCurrentContext(default);
+        ImGuiImplGLFW.SetCurrentContext(default);
         ImGui.DestroyContext(context);
         GLFW.DestroyWindow(window);
         GLFW.Terminate();
