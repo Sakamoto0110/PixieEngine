@@ -103,11 +103,12 @@ Events are kept until the next step reads them.
   `PIXIE_FIELD_HAS_UNIT`), the order, the scrub per pixel and its axis, the number of enum names,
   the range and step, and the unit's factor and offset (shown = held * factor + offset). Range, step,
   and scrub are in the displayed unit. `pixie_field_text` gives the label (the field's name when none
-  was set), tooltip, help, unit suffix, or, for an arc, the name of the field with its width
-  (`PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
+  was set), tooltip, help, unit suffix, for an arc the name of the field with its width, or, for an
+  entity field, the component type a valid choice has (`PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
   them.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
-  `PixieValue`; `PixieFieldKind` says which members are used. Writing outside a step is safe;
+  `PixieValue`; `PixieFieldKind` says which members are used. A `PIXIE_FIELD_ENTITY` field holds an
+  entity handle in `x`, with 4294967295 for none. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
   `PIXIE_ERROR_NOT_FOUND`.
 

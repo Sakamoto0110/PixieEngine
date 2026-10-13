@@ -46,20 +46,6 @@ owner's authorization to execute them, in this order. The first nine entries,
 PIXIE-TODO-003 to PIXIE-TODO-011, are completed; see below. Scene serialization
 stays postponed and is not promoted.
 
-### `PIXIE-TODO-015` — Particle systems and spawners apart
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13 (request E, answers 36 and 38)
-
-**Accepted scope:** `ParticleEmitter` splits into `ParticleSystem` (pool, capacity, style, affectors) and `ParticleSpawner` entities that point at a system: rate, lifetime, speed range, an emission shape (point, circle, ring, rectangle, or segment, the last through PixieLib's `pxSegment`), and a direction mode (a fixed angle, the shape's outward normal, or toward a target entity), with `direction` and `spread` in radians, shown in degrees and edited together as an arc. Several spawners may feed one system. A new `Entity` field kind lets a descriptor reference another entity; the editor offers the entities that have the expected component. The particles sample uses spawners. The viewport gizmo for direction and cone is not part of this entry.
-
-**Dependencies and gates:** 1. PIXIE-TODO-012; 2. PIXIE-TODO-014
-
-**Completion criteria:** (1) tests cover each emission shape and direction mode and two spawners feeding one pool; (2) the particles sample runs with spawners, and the editor edits a spawner's direction and spread with the arc editor and its system and target by choice; (3) the performance targets of PIXIE-TODO-009 still hold; (4) zero warnings.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-015--particle-systems-and-spawners-apart)
-
 ### `PIXIE-TODO-016` — Selection and editing in the viewport
 
 **Status:** promoted
@@ -132,3 +118,7 @@ entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-014` (attractor size and death on contact) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-014-attractor-size-2026-10-13.md).
+
+`PIXIE-TODO-015` (particle systems and spawners apart) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-015-particle-spawners-2026-10-13.md).

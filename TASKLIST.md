@@ -43,15 +43,6 @@ Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-016, in the order of
 their parents. Completed breakdowns are in their archive records, routed from
 the [archive router](docs/archive/README.md).
 
-## `PIXIE-TODO-015` — Particle systems and spawners apart
-
-**Parent:** [PIXIE-TODO-015](TODO.md#pixie-todo-015--particle-systems-and-spawners-apart)
-
-- `PIXIE-TASK-070` — **Status:** open — `ParticleSystem` (pool, capacity, style, affectors) and its update system, replacing `ParticleEmitter`.
-- `PIXIE-TASK-071` — **Status:** open — `ParticleSpawner`: rate, lifetime, speed range, emission shapes (point, circle, ring, rectangle, segment), direction modes (fixed, shape normal, toward a target), direction and spread as an arc.
-- `PIXIE-TASK-072` — **Status:** open — The `Entity` field kind in descriptors and the C API; the editor offers the entities that have the expected component.
-- `PIXIE-TASK-073` — **Status:** open — Tests for each shape and direction mode and two spawners feeding one pool; the particles sample on spawners; the performance targets measured again.
-
 ## `PIXIE-TODO-016` — Selection and editing in the viewport
 
 **Parent:** [PIXIE-TODO-016](TODO.md#pixie-todo-016--selection-and-editing-in-the-viewport)

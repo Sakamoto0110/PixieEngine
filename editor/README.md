@@ -15,7 +15,9 @@ its entities, and inspects and edits their components with
 - **Inspector.** For the chosen entity, one section per component: a PixieInspector built from the
   engine's field descriptors (`Inspection/InspectorFactory.cs`), with one `AddField` per field (two
   for a point or a vector, four for a rectangle) over a handle of the component, and the label,
-  tooltip, range, scrub, unit, and editor the descriptor carries. The fields read and write the
+  tooltip, range, scrub, unit, and editor the descriptor carries. An entity field (a particle
+  spawner's system or target) is a choice among the live entities that have the component it
+  references, shown as "name #index", or "(none)". The fields read and write the
   component through the C API on every frame; the native World is the only copy of the state. No
   class per component exists in the editor: a component added to a game's library shows up without
   rebuilding it.

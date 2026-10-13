@@ -5,13 +5,17 @@ orbit around attractors that the user places, drags, and removes, from one parti
 thousand. It uses the `runtime` module's particle pools
 ([`docs/modules/runtime/REFERENCE.md`](../../docs/modules/runtime/REFERENCE.md#particles)).
 
-- The particles are not entities. One `particles` entity holds a `ParticleEmitter`, a contiguous
+- The particles are not entities. One `particles` entity holds a `ParticleSystem`, a contiguous
   pool, with two batch affectors: an `AttractorAffector`, which pulls every particle toward every
   attractor with a force falling with the square of the distance, and an `InteractionAffector`, a
   short-range push between particles closer than 4 world units, found through a spatial grid.
 - Attractors are entities (`Transform2D`, `Attractor`, and a gold ring `Shape`), so they can be
   placed and moved like anything else. The ring is the attractor's body (`Attractor.size`); with
   "die on contact" set in the editor, particles that fall into it disappear.
+- A `spawner` entity on the left feeds the pool: 150 particles per second leave a small ring
+  outward (`ParticleSpawner`, shape `Ring`, direction mode `ShapeNormal`), live 8 seconds, and fall
+  toward the attractors. In the editor, its direction and spread turn on a dial, and its system
+  and target are chosen among the entities.
 - The interaction's values live in a `ParticleControls` component on the `particles` entity, which
   the project copies into the affector before each step, so a tool can change them.
 - A preset puts particles in nearly circular orbits, spread over the attractors in turn, between 40

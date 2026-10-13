@@ -43,9 +43,10 @@ All under `runtime/include/pixie/runtime/`:
 | `Acceleration2D.hpp` | `Acceleration2D` |
 | `SpatialGrid.hpp` | `SpatialGrid`, radius queries over points |
 | `SpatialIndex.hpp` | `AddSpatialIndex`, the system that keeps a grid filled |
-| `ParticleEmitter.hpp` | `ParticleEmitter`, a component owning a particle pool |
+| `ParticleSystem.hpp` | `ParticleSystem`, a component owning a particle pool |
+| `ParticleSpawner.hpp` | `ParticleSpawner`, a component that feeds a system, and `EmitFromSpawner` |
 | `ParticleAffector.hpp` | `ParticleAffector`, the base of batch logic over a pool |
-| `ParticleSystem.hpp` | `AddParticleSystem` and `DrawParticles` |
+| `ParticleStep.hpp` | `AddParticleStep` and `DrawParticles` |
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
@@ -133,27 +134,44 @@ every step, from each entity with a `Transform2D` and a `Member` component.
 
 ## Particles
 
-Particles are not entities. A `ParticleEmitter` component owns a contiguous `std::vector` of
+Particles are not entities. A `ParticleSystem` component owns a contiguous `std::vector` of
 `Particle` (32 bytes, in float: position, previous position, velocity, age, lifetime; declared by
-the engine library, whose `ParticleRenderer` reads it as its vertex format). The emitter is
-move-only, since it owns its affectors.
+the engine library, whose `ParticleRenderer` reads it as its vertex format), up to `capacity`, with
+its draw `style` and its affectors. It is move-only, since it owns its affectors. `Emit` adds one
+particle directly, and fails while the pool is full.
 
-`AddParticleSystem(world)` adds the `particles.step` system to `PostUpdate`, after the World's
-integration, so emitters and attractors are where the step left them. For each emitter, in turn:
+A `ParticleSpawner` is a component on an entity of its own, with a `Transform2D`, that feeds the
+system named by its `system` field; several spawners may feed one system, and a spawner whose
+`system` is none emits nothing. It emits `rate` particles per second that live `lifetime` seconds
+(0 is forever), at a speed in `[speedMin, speedMax]`:
+
+- `shape` (`EmissionShape`) is where a particle starts, around the spawner and turned with its
+  rotation: `Point`; `Circle`, anywhere inside a disc of `radius`; `Ring`, on a circle of `radius`;
+  `Rectangle`, anywhere inside half extents `size`; `Segment`, anywhere from the spawner to the
+  offset `segmentEnd`.
+- `directionMode` (`DirectionMode`) is the angle the direction is measured from: `Fixed`, the
+  spawner's rotation; `ShapeNormal`, outward from the shape where the particle starts (radial for a
+  point, a circle, or a ring; the nearest edge's normal for a rectangle; the segment's left normal,
+  +90 degrees); `TowardTarget`, toward the `target` entity's `Transform2D` (the rotation without
+  one).
+- The particle leaves at that angle plus `direction`, within a cone `spread` wide. Angles are in
+  radians.
+
+`AddParticleStep(world)` adds the `particles.step` system to `PostUpdate`, after the World's
+integration, so spawners and attractors are where the step left them. For each system, in turn:
 
 1. every particle's `previous` becomes its `position` and its age grows by the step; a particle
    past a non-zero lifetime leaves the pool, and the last particle takes its place, so pool order
    is not stable;
-2. `rate` emission adds particles at the entity's `Transform2D` (the origin without one), within
-   `spread` around its rotation, at a speed in `[speedMin, speedMax]`, while the pool is below
-   `capacity`; `Emit` adds one particle directly;
+2. every spawner that feeds the system emits what it owes for the step, in storage order, while
+   the pool is below `capacity` (a spawner that meets a full pool drops the rest of its step);
 3. the enabled affectors run, in the order added; then the particles an affector killed
    (`KillParticle`, which marks the particle as past its lifetime) leave the pool, so they are not
    drawn again;
 4. every particle moves by its velocity.
 
 A `ParticleAffector` is the particles' counterpart of a Behaviour: a class whose
-`Apply(world, emitter, particles, time)` receives the whole pool. Affectors should change
+`Apply(world, system, particles, time)` receives the whole pool. Affectors should change
 velocities and read positions, which none of them changes, so their result does not depend on
 particle order. The runtime provides two:
 
@@ -184,7 +202,7 @@ types.Add<Transform2D>("Transform2D")
 ```
 
 Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type (`bool`, other
-integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`; any other type
+integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`, `entt::entity`; any other type
 does not compile), optional names for an enum's values 0, 1, ..., and `read` and `write` functions
 that move the value in and out of a component instance as a `FieldValue` (four doubles; the kind
 says which are used). Colors are clamped to 0 to 255 and rounded when written.
@@ -194,8 +212,9 @@ PixieInspector's node options. Builder calls chained after a `Field` set it for 
 `Label`, `Tooltip`, `Help`, `Order` (by default the declaration position), `ReadOnly`, `Editor`
 (`FieldEditor`: Auto, Number, Slider, Toggle, Choice, Color, Arc), `Range(min, max, step)`,
 `Scrub(perPixel, axis)`, `Unit(suffix, factor, offset)` (shown = held * factor + offset),
-`Degrees(suffix)` (radians shown in degrees), and `Arc(spread)` (this angle is the center of an
-arc whose width is the sibling field `spread`). Range, step, and scrub are in the displayed unit.
+`Degrees(suffix)` (radians shown in degrees), `Arc(spread)` (this angle is the center of an
+arc whose width is the sibling field `spread`), and `References(type)` (for an entity field, the
+component type an entity needs to be a valid choice). Range, step, and scrub are in the displayed unit.
 The registry is the single source of this metadata
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)): the C API exports it and the editor builds
 its inspectors from it, so nothing about a field is written twice. Every field of the runtime and of
@@ -207,7 +226,7 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Attractor`, and `ParticleEmitter` (its emission values). The C API reads and writes fields only
+`Attractor`, `ParticleSystem` (its capacity), and `ParticleSpawner`. The C API reads and writes fields only
 through these descriptors; serialization is meant to use them too, once promoted.
 
 ## Projects and sessions
