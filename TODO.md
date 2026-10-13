@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-009` — Particles and anchor 3: attractors
-
-**Status:** promoted
-
-**Source:** [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), anchor 3
-
-**Accepted scope:** in the `runtime` module: a `ParticleEmitter` component that owns a contiguous particle pool (emission rate, lifetime, capacity); batch affectors that receive the whole pool; `Attractor` entities and an affector that pulls particles toward them; a short-range particle-to-particle interaction through a spatial grid; particles drawn as instanced circles straight from the pool. A `particles` sample places and drags attractors with the mouse and switches between 1, 10, 100, and thousands of particles.
-
-**Dependencies and gates:** 1. PIXIE-TODO-006; 2. PIXIE-TODO-008 (spatial grid)
-
-**Completion criteria:** (1) 100,000 particles against up to 16 attractors, and 10,000 particles with short-range interaction, each at 60 updates per second, measured and recorded; (2) orbits form around an attractor as the `README.md` describes; (3) zero warnings in Debug and Release.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-009--particles-and-anchor-3-attractors)
-
 ### `PIXIE-TODO-010` — Engine side for editor hosts: host loop, render target, reflection, and `capi`
 
 **Status:** promoted
@@ -128,3 +114,7 @@ in the [archive record](docs/archive/todo-006-runtime-module-2026-10-13.md).
 `PIXIE-TODO-008` (spatial grid and anchor 2: flocks) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-008-spatial-grid-flocks-2026-10-13.md).
+
+`PIXIE-TODO-009` (particles and anchor 3: attractors) completed on 2026-10-13.
+Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-009-particles-attractors-2026-10-13.md).

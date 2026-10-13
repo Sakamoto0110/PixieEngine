@@ -44,17 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-009` — Particles and anchor 3: attractors
-
-**Parent:** [PIXIE-TODO-009](TODO.md#pixie-todo-009--particles-and-anchor-3-attractors)
-
-- `PIXIE-TASK-040` — **Status:** open — `ParticleEmitter`: a contiguous pool with emission rate, lifetime, and capacity, updated by an engine system.
-- `PIXIE-TASK-041` — **Status:** open — Batch affectors that receive the whole pool; `Attractor` entities and the affector that pulls particles toward them.
-- `PIXIE-TASK-042` — **Status:** open — Short-range particle-to-particle interaction through a spatial grid.
-- `PIXIE-TASK-043` — **Status:** open — Particles drawn as instanced circles straight from the pool.
-- `PIXIE-TASK-044` — **Status:** open — `particles` sample: place and drag attractors with the mouse, switch between 1, 10, 100, and thousands of particles; its `README.md`.
-- `PIXIE-TASK-045` — **Status:** open — Verification: 100,000 particles against up to 16 attractors, and 10,000 with interaction, at 60 updates per second, measured and recorded.
-
 ## `PIXIE-TODO-010` — Engine side for editor hosts: host loop, render target, reflection, and `capi`
 
 **Parent:** [PIXIE-TODO-010](TODO.md#pixie-todo-010--engine-side-for-editor-hosts-host-loop-render-target-reflection-and-capi)

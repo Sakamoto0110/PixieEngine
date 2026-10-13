@@ -43,6 +43,11 @@ All under `runtime/include/pixie/runtime/`:
 | `Acceleration2D.hpp` | `Acceleration2D` |
 | `SpatialGrid.hpp` | `SpatialGrid`, radius queries over points |
 | `SpatialIndex.hpp` | `AddSpatialIndex`, the system that keeps a grid filled |
+| `ParticleEmitter.hpp` | `ParticleEmitter`, a component owning a particle pool |
+| `ParticleAffector.hpp` | `ParticleAffector`, the base of batch logic over a pool |
+| `ParticleSystem.hpp` | `AddParticleSystem` and `DrawParticles` |
+| `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
+| `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `Shape.hpp` | `Shape`, an entity's look |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
@@ -122,6 +127,41 @@ usual query radius keeps queries cheap. `AddSpatialIndex<Member>(world, owner, c
 `owner` a `SpatialGrid` component and adds a `PreUpdate` system that refills it, at the start of
 every step, from each entity with a `Transform2D` and a `Member` component.
 
+## Particles
+
+Particles are not entities. A `ParticleEmitter` component owns a contiguous `std::vector` of
+`Particle` (32 bytes, in float: position, previous position, velocity, age, lifetime; declared by
+the engine library, whose `ParticleRenderer` reads it as its vertex format). The emitter is
+move-only, since it owns its affectors.
+
+`AddParticleSystem(world)` adds the `particles.step` system to `PostUpdate`, after the World's
+integration, so emitters and attractors are where the step left them. For each emitter, in turn:
+
+1. every particle's `previous` becomes its `position` and its age grows by the step; a particle
+   past a non-zero lifetime leaves the pool, and the last particle takes its place, so pool order
+   is not stable;
+2. `rate` emission adds particles at the entity's `Transform2D` (the origin without one), within
+   `spread` around its rotation, at a speed in `[speedMin, speedMax]`, while the pool is below
+   `capacity`; `Emit` adds one particle directly;
+3. the enabled affectors run, in the order added;
+4. every particle moves by its velocity.
+
+A `ParticleAffector` is the particles' counterpart of a Behaviour: a class whose
+`Apply(world, emitter, particles, time)` receives the whole pool. Affectors should change
+velocities and read positions, which none of them changes, so their result does not depend on
+particle order. The runtime provides two:
+
+- `AttractorAffector`: every entity with a `Transform2D` and an `Attractor` pulls each particle
+  with `strength * offset / (distance^2 + softening^2)^(3/2)`, ignoring particles beyond a
+  non-zero `radius`. A circular orbit at distance `r` has speed `sqrt(strength / r)`.
+- `InteractionAffector`: particles closer than `radius` push each other apart with
+  `stiffness * overlap`, and `damping` pulls their velocities together while in contact. It builds
+  a `SpatialGrid` over the pool every step (the grid's ids are then pool indices: grid ids are
+  opaque 32-bit values), computes every change from the state before it, then applies them all.
+
+`DrawParticles(world, renderer, camera, alpha)` draws every pool with its `style`, interpolated on
+the GPU.
+
 ## Drawing
 
 `SubmitShapes(world, renderer, alpha)` submits each entity with `Transform2D` and `Shape` to a
@@ -142,13 +182,14 @@ None. A World and its Behaviours are used from one thread at a time.
 ## Non-goals
 
 No saving or loading (serialization is postponed), no prefabs or hierarchy, no physics, no
-multithreaded systems.
+multithreaded systems, no long-range all-pairs forces between particles.
 
 ## Validation
 
 `tests/runtime/` (CTest `runtime-tests`) covers the phase order, the Behaviour lifecycle,
 deferred destruction and actions, the World's time, velocity integration with the previous
 transform, the Entity handle, the generator's determinism, the spatial grid against a brute-force
-search, and a step's independence from the Behaviours' update order (with a negative control that
-breaks the rule and is caught). `SubmitShapes` is exercised by the
+search, a step's independence from the Behaviours' update order (with a negative control that
+breaks the rule and is caught), particle emission, aging, expiry, and capacity, a circular orbit
+that keeps its radius, and the interaction's independence from particle order. `SubmitShapes` is exercised by the
 samples that draw a World.
