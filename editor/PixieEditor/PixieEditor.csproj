@@ -14,7 +14,7 @@
   <ItemGroup>
     <!-- The inspector and its Dear ImGui view, which bring the core, PixieLib, and Hexa.NET.ImGui 2.2.9;
          the window and ImGui's GLFW and OpenGL3 backends, at the versions made with that binding. -->
-    <PackageReference Include="PixieInspector.ImGui" Version="0.1.0" />
+    <PackageReference Include="PixieInspector.ImGui" Version="0.2.0" />
     <PackageReference Include="Hexa.NET.GLFW" Version="1.0.5" />
     <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.18" />
     <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.18" />

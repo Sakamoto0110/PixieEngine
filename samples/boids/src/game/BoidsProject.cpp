@@ -22,13 +22,43 @@ constexpr pxColorRgba kRepelColor{250, 110, 110, 110};
 void BoidsProject::Describe(pixie::ComponentTypes& types) const {
     types.Add<BoidControls>("BoidControls")
         .Field<&BoidControls::mode>("mode", {"Attract", "Repel"})
+        .Tooltip("Whether boids within reach steer toward the pointer or away from it.")
         .Field<&BoidControls::radius>("radius")
+        .Tooltip("How far from the pointer a boid feels it, in world units.")
+        .Range(0.0, 1000.0)
+        .Scrub(1.0)
         .Field<&BoidControls::maxSpeed>("maxSpeed")
+        .Label("max speed")
+        .Tooltip("Fastest a boid flies, in world units per second.")
+        .Range(0.0, 2000.0)
+        .Scrub(1.0)
         .Field<&BoidControls::cruiseSpeed>("cruiseSpeed")
+        .Label("cruise speed")
+        .Tooltip("Speed a boid settles to when the pointer is out of reach, in world units per second.")
+        .Range(0.0, 2000.0)
+        .Scrub(1.0)
         .Field<&BoidControls::maxForce>("maxForce")
-        .Field<&BoidControls::wander>("wander");
-    types.Add<Pointer>("Pointer").Field<&Pointer::position>("position").Field<&Pointer::active>("active");
-    types.Add<Bounds>("Bounds").Field<&Bounds::area>("area");
+        .Label("max force")
+        .Tooltip("Largest change of velocity per second, in world units per second squared.")
+        .Range(0.0, 10000.0)
+        .Scrub(5.0)
+        .Field<&BoidControls::wander>("wander")
+        .Tooltip("Largest random turn out of reach, in degrees per second.")
+        .Degrees("°/s")
+        .Range(0.0, 1080.0)
+        .Scrub(1.0);
+    types.Add<Pointer>("Pointer")
+        .Field<&Pointer::position>("position")
+        .Tooltip("The cursor in world units; the project writes it before every step.")
+        .ReadOnly()
+        .Field<&Pointer::active>("active")
+        .Tooltip("Whether the cursor is over the view.")
+        .ReadOnly();
+    types.Add<Bounds>("Bounds")
+        .Field<&Bounds::area>("area")
+        .Tooltip("The visible part of the world, in world units; boids wrap at its edges. The project "
+                 "writes it before every step.")
+        .ReadOnly();
 }
 
 void BoidsProject::Build(pixie::World& world, pixie::Camera2D& camera) {

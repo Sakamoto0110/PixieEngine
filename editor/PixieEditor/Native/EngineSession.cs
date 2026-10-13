@@ -110,6 +110,23 @@ public sealed unsafe class EngineSession : IDisposable
         throw new EngineException($"Type {TypeName(type)} has no field '{field}'.");
     }
 
+    public int FieldCount(int type) => PixieCapi.FieldCount(Handle, type);
+
+    public string FieldName(int type, int field) =>
+        ReadString((b, n) => PixieCapi.FieldName(Handle, type, field, b, n), "read a field name");
+
+    public PixieFieldInfo FieldInfo(int type, int field)
+    {
+        Check(PixieCapi.FieldInfo(Handle, type, field, out var info), "read a field's metadata");
+        return info;
+    }
+
+    public string FieldText(int type, int field, PixieFieldText which) =>
+        ReadString((b, n) => PixieCapi.FieldText(Handle, type, field, (int)which, b, n), "read a field's text");
+
+    public string EnumName(int type, int field, int value) =>
+        ReadString((b, n) => PixieCapi.FieldEnumName(Handle, type, field, value, b, n), "read an enum name");
+
     public PixieValue Get(uint entity, int type, int field)
     {
         Check(PixieCapi.FieldGet(Handle, entity, type, field, out var value), "read a field");

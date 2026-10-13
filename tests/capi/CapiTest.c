@@ -57,6 +57,8 @@ static struct {
     int32_t (*field_count)(PixieSession*, int32_t);
     PixieResult (*field_name)(PixieSession*, int32_t, int32_t, char*, int32_t);
     PixieResult (*field_kind)(PixieSession*, int32_t, int32_t, int32_t*);
+    PixieResult (*field_info)(PixieSession*, int32_t, int32_t, PixieFieldInfo*);
+    PixieResult (*field_text)(PixieSession*, int32_t, int32_t, int32_t, char*, int32_t);
     PixieResult (*field_get)(PixieSession*, uint32_t, int32_t, int32_t, PixieValue*);
     PixieResult (*field_set)(PixieSession*, uint32_t, int32_t, int32_t, const PixieValue*);
 } api;
@@ -108,6 +110,8 @@ static int Load(Library library) {
     LOAD(field_count, "pixie_field_count")
     LOAD(field_name, "pixie_field_name")
     LOAD(field_kind, "pixie_field_kind")
+    LOAD(field_info, "pixie_field_info")
+    LOAD(field_text, "pixie_field_text")
     LOAD(field_get, "pixie_field_get")
     LOAD(field_set, "pixie_field_set")
 #undef LOAD
@@ -177,6 +181,28 @@ static void Exercise(PixieSession* s) {
     int32_t kind = -1;
     CHECK(api.field_kind(s, transform, position, &kind) == PIXIE_OK && kind == PIXIE_FIELD_POINT);
     printf("component types: %d\n", api.type_count(s));
+
+    /* Metadata: Transform2D.rotation is shown in degrees, with a range and scrubbing. */
+    const int32_t rotation = FindField(s, transform, "rotation");
+    PixieFieldInfo info = {0};
+    char text[256];
+    CHECK(sizeof(PixieFieldInfo) == 72);
+    CHECK(rotation >= 0 && api.field_info(s, transform, rotation, &info) == PIXIE_OK);
+    CHECK(info.kind == PIXIE_FIELD_DOUBLE && (info.flags & PIXIE_FIELD_HAS_UNIT) != 0);
+    CHECK(fabs(info.unitFactor - 57.29577951308232) < 1e-9 && info.scrub > 0.0);
+    CHECK((info.flags & PIXIE_FIELD_HAS_RANGE) != 0 && info.rangeMin < info.rangeMax);
+    CHECK(api.field_text(s, transform, rotation, PIXIE_TEXT_UNIT_SUFFIX, text, (int32_t)sizeof text) == PIXIE_OK &&
+          strcmp(text, "\xC2\xB0") == 0);
+    CHECK(api.field_text(s, transform, rotation, PIXIE_TEXT_LABEL, text, (int32_t)sizeof text) == PIXIE_OK &&
+          strcmp(text, "rotation") == 0);
+    CHECK(api.field_text(s, transform, rotation, 99, text, (int32_t)sizeof text) == PIXIE_ERROR_ARGUMENT);
+    /* Every field of every type carries a tooltip. */
+    for (int32_t t = 0; t < api.type_count(s); ++t) {
+        for (int32_t f = 0; f < api.field_count(s, t); ++f) {
+            const int ok = api.field_text(s, t, f, PIXIE_TEXT_TOOLTIP, text, (int32_t)sizeof text) == PIXIE_OK;
+            CHECK(ok && text[0] != '\0');
+        }
+    }
 
     /* Entities: find one with a Transform2D and a name or not. */
     int32_t count = 0;

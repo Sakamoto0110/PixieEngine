@@ -36,13 +36,50 @@ struct FieldValue {
     double w = 0.0;
 };
 
-// One reflected field: a name, a kind, and how to read and write it in a component instance.
+// The editor a tool should use for a field; Auto lets the tool choose from the kind. The values
+// mirror PixieInspector's EditorKind, through the C API's PIXIE_EDITOR_* constants.
+enum class FieldEditor : std::uint8_t { Auto, Number, Slider, Toggle, Choice, Color, Arc };
+
+// Which way dragging a field's label changes it.
+enum class ScrubAxis : std::uint8_t { Horizontal, Vertical };
+
+// How a tool shows and edits a field: the vocabulary of PixieInspector's node options. Range, step,
+// and scrub are in the displayed unit, the one a person reads and types.
+struct FieldMetadata {
+    // Shown instead of the name when not empty.
+    std::string label;
+    std::string tooltip;
+    std::string help;
+    // Fields are shown by order; Field() sets it to the declaration position.
+    int order = 0;
+    bool readOnly = false;
+    FieldEditor editor = FieldEditor::Auto;
+    bool hasRange = false;
+    double rangeMin = 0.0;
+    double rangeMax = 0.0;
+    // 0 means no step.
+    double rangeStep = 0.0;
+    // Change per pixel dragged on the label; 0 means no scrubbing.
+    double scrub = 0.0;
+    ScrubAxis scrubAxis = ScrubAxis::Horizontal;
+    // shown = held * unitFactor + unitOffset, followed by unitSuffix.
+    bool hasUnit = false;
+    std::string unitSuffix;
+    double unitFactor = 1.0;
+    double unitOffset = 0.0;
+    // For an Arc field (the center angle): the name of the sibling field with the arc's width.
+    std::string arcSpread;
+};
+
+// One reflected field: a name, a kind, how to read and write it in a component instance, and how a
+// tool should show it.
 struct FieldDescriptor {
     std::string name;
     FieldKind kind = FieldKind::Double;
     std::vector<std::string> enumNames;
     FieldValue (*read)(const void* component) = nullptr;
     void (*write)(void* component, const FieldValue& value) = nullptr;
+    FieldMetadata metadata;
 };
 
 // One reflected component type: its name, its fields, and how to find it on an entity.
@@ -58,8 +95,9 @@ template<typename T>
 class ComponentBuilder;
 
 // The component types a tool can see and edit: a list of descriptors, filled in code, one builder
-// call per field. The C API, the editor's proxies, and later serialization all read fields through
-// it, so a component is described once. It holds no state of a World.
+// call per field, with the field's metadata chained after it. It is the single source of what a field
+// is and how it is shown: the C API exports it, the editor builds its inspectors from it, and
+// serialization is meant to read it. It holds no state of a World.
 class ComponentTypes {
 public:
     template<typename T>
@@ -188,11 +226,85 @@ public:
         field.enumNames = std::move(enumNames);
         field.read = &detail::Read<Member>;
         field.write = &detail::Write<Member>;
-        types_.types_[index_].fields.push_back(std::move(field));
+        auto& fields = types_.types_[index_].fields;
+        field.metadata.order = static_cast<int>(fields.size());
+        fields.push_back(std::move(field));
         return *this;
     }
 
+    // Metadata of the field declared last.
+    ComponentBuilder& Label(std::string text) {
+        return Last([&](FieldMetadata& m) { m.label = std::move(text); });
+    }
+    ComponentBuilder& Tooltip(std::string text) {
+        return Last([&](FieldMetadata& m) { m.tooltip = std::move(text); });
+    }
+    ComponentBuilder& Help(std::string text) {
+        return Last([&](FieldMetadata& m) { m.help = std::move(text); });
+    }
+    ComponentBuilder& Order(int order) {
+        return Last([&](FieldMetadata& m) { m.order = order; });
+    }
+    ComponentBuilder& ReadOnly() {
+        return Last([](FieldMetadata& m) { m.readOnly = true; });
+    }
+    ComponentBuilder& Editor(FieldEditor editor) {
+        return Last([&](FieldMetadata& m) { m.editor = editor; });
+    }
+
+    // Allowed values and the step between them, in the displayed unit.
+    ComponentBuilder& Range(double min, double max, double step = 0.0) {
+        return Last([&](FieldMetadata& m) {
+            m.hasRange = true;
+            m.rangeMin = min;
+            m.rangeMax = max;
+            m.rangeStep = step;
+        });
+    }
+
+    // Change per pixel dragged on the label, in the displayed unit.
+    ComponentBuilder& Scrub(double perPixel, ScrubAxis axis = ScrubAxis::Horizontal) {
+        return Last([&](FieldMetadata& m) {
+            m.scrub = perPixel;
+            m.scrubAxis = axis;
+        });
+    }
+
+    // Shown as held * factor + offset, followed by `suffix`.
+    ComponentBuilder& Unit(std::string suffix, double factor = 1.0, double offset = 0.0) {
+        return Last([&](FieldMetadata& m) {
+            m.hasUnit = true;
+            m.unitSuffix = std::move(suffix);
+            m.unitFactor = factor;
+            m.unitOffset = offset;
+        });
+    }
+
+    // An angle held in radians, shown in degrees, with `suffix` after it ("°", "°/s").
+    ComponentBuilder& Degrees(std::string suffix = "°") {
+        return Unit(std::move(suffix), kRadiansToDegrees);
+    }
+
+    // This angle is the center of an arc whose width is the sibling field `spread`.
+    ComponentBuilder& Arc(std::string spread) {
+        return Last([&](FieldMetadata& m) {
+            m.editor = FieldEditor::Arc;
+            m.arcSpread = std::move(spread);
+        });
+    }
+
+    static constexpr double kRadiansToDegrees = 57.29577951308232;
+
 private:
+    template<typename Change>
+    ComponentBuilder& Last(Change&& change) {
+        auto& fields = types_.types_[index_].fields;
+        if (!fields.empty()) {
+            change(fields.back().metadata);
+        }
+        return *this;
+    }
+
     ComponentTypes& types_;
     std::size_t index_;
 };
@@ -217,8 +329,8 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
     return -1;
 }
 
-// Describes the runtime's own components: Transform2D, Velocity2D, Acceleration2D, Shape,
-// Attractor, and ParticleEmitter.
+// Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
+// Acceleration2D, Shape, Attractor, and ParticleEmitter.
 void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 1
+#define PIXIE_CAPI_VERSION 2
 
 typedef struct PixieSession PixieSession;
 
@@ -58,6 +58,48 @@ typedef enum PixieFieldKind {
     PIXIE_FIELD_RECT = 7,   /* x, y, z: width, w: height */
     PIXIE_FIELD_COLOR = 8   /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
 } PixieFieldKind;
+
+/* The editor a tool should use for a field; AUTO lets it choose from the kind. */
+typedef enum PixieEditorKind {
+    PIXIE_EDITOR_AUTO = 0,
+    PIXIE_EDITOR_NUMBER = 1,
+    PIXIE_EDITOR_SLIDER = 2,
+    PIXIE_EDITOR_TOGGLE = 3,
+    PIXIE_EDITOR_CHOICE = 4,
+    PIXIE_EDITOR_COLOR = 5,
+    PIXIE_EDITOR_ARC = 6 /* an angle and the width around it; PIXIE_TEXT_ARC_SPREAD names the width */
+} PixieEditorKind;
+
+/* PixieFieldInfo.flags */
+#define PIXIE_FIELD_READ_ONLY 1u
+#define PIXIE_FIELD_HAS_RANGE 2u
+#define PIXIE_FIELD_HAS_UNIT 4u
+
+/* How a tool shows and edits a field. Range, step, and scrub are in the displayed unit: shown =
+ * held * unitFactor + unitOffset. */
+typedef struct PixieFieldInfo {
+    int32_t kind;      /* PixieFieldKind */
+    int32_t editor;    /* PixieEditorKind */
+    uint32_t flags;    /* PIXIE_FIELD_* */
+    int32_t order;     /* fields are shown by order */
+    int32_t scrubAxis; /* 0: horizontal, 1: vertical */
+    int32_t enumCount; /* names of an enum's values; pixie_field_enum_name */
+    double rangeMin;
+    double rangeMax;
+    double rangeStep;  /* 0: no step */
+    double scrub;      /* change per pixel dragged; 0: no scrubbing */
+    double unitFactor;
+    double unitOffset;
+} PixieFieldInfo;
+
+/* The texts of a field, for pixie_field_text. */
+typedef enum PixieFieldText {
+    PIXIE_TEXT_LABEL = 0,       /* the name shown; the field's name when none was set */
+    PIXIE_TEXT_TOOLTIP = 1,
+    PIXIE_TEXT_HELP = 2,
+    PIXIE_TEXT_UNIT_SUFFIX = 3,
+    PIXIE_TEXT_ARC_SPREAD = 4   /* for an ARC field, the name of the field with the arc's width */
+} PixieFieldText;
 
 typedef struct PixieValue {
     double x;
@@ -125,6 +167,11 @@ PIXIE_API PixieResult pixie_field_name(PixieSession* session, int32_t type, int3
                                        char* buffer, int32_t capacity);
 PIXIE_API PixieResult pixie_field_kind(PixieSession* session, int32_t type, int32_t field,
                                        int32_t* kind);
+/* The field's metadata (sizeof(PixieFieldInfo) is 72), and one of its texts (empty when unset). */
+PIXIE_API PixieResult pixie_field_info(PixieSession* session, int32_t type, int32_t field,
+                                       PixieFieldInfo* info);
+PIXIE_API PixieResult pixie_field_text(PixieSession* session, int32_t type, int32_t field,
+                                       int32_t which, char* buffer, int32_t capacity);
 PIXIE_API int32_t pixie_field_enum_count(PixieSession* session, int32_t type, int32_t field);
 PIXIE_API PixieResult pixie_field_enum_name(PixieSession* session, int32_t type, int32_t field,
                                             int32_t value, char* buffer, int32_t capacity);

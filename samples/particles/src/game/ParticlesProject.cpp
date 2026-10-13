@@ -31,9 +31,20 @@ constexpr double kAttractorRing = 250.0;
 void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
     types.Add<ParticleControls>("ParticleControls")
         .Field<&ParticleControls::interaction>("interaction")
+        .Tooltip("Whether particles closer than the interaction radius push each other apart.")
         .Field<&ParticleControls::interactionRadius>("interactionRadius")
+        .Label("interaction radius")
+        .Tooltip("Contact distance between two particles' centers, in world units.")
+        .Range(0.5, 50.0)
+        .Scrub(0.05)
         .Field<&ParticleControls::stiffness>("stiffness")
-        .Field<&ParticleControls::damping>("damping");
+        .Tooltip("Push at full overlap, in world units per second squared.")
+        .Range(0.0, 20000.0)
+        .Scrub(10.0)
+        .Field<&ParticleControls::damping>("damping")
+        .Tooltip("How much of the relative velocity contact removes per second.")
+        .Range(0.0, 50.0)
+        .Scrub(0.05);
 }
 
 void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {

@@ -4,15 +4,16 @@ using PixieEditor.Inspection;
 using PixieEditor.Native;
 using PixieInspector;
 using PixieInspector.ImGui;
+using PixieLib;
 
 namespace PixieEditor.Ui;
 
-// The selected entity's components: for each one with a proxy, a PixieInspector bound to the proxy and
-// drawn by its Dear ImGui view, under a header with the component's name. The inspectors are made
-// again when the selection or the entity's set of components changes.
+// The selected entity's components: one PixieInspector per component, built from the engine's field
+// descriptors and drawn by its Dear ImGui view under a header with the component's name. The
+// inspectors are made again when the selection or the entity's set of components changes.
 internal sealed class InspectorPanel(EngineSession session) : IDisposable
 {
-    private sealed record Section(int Type, string Name, Inspector? Inspector, ImGuiInspectorView? View);
+    private sealed record Section(int Type, string Name, Inspector Inspector, ImGuiInspectorView View);
 
     private readonly List<Section> Sections = [];
     private uint? Entity;
@@ -42,13 +43,7 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
                 {
                     ImGui.PushID(section.Type);
                     if (ImGui.CollapsingHeader(section.Name, ImGuiTreeNodeFlags.DefaultOpen))
-                    {
-                        if (section.View != null)
-                            section.View.Draw();
-                        else
-                            ImGui.TextDisabled("No proxy for this component yet.");
-                    }
-
+                        section.View.Draw();
                     ImGui.PopID();
                 }
             }
@@ -57,21 +52,32 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
         ImGui.End();
     }
 
-    // Writes "Property" of the selected entity's component "type" through its inspector, as the view
-    // does when a value is edited. Returns false when there is no such component or property.
+    // Writes field `property` of the selected entity's component `type` through its inspector, as the
+    // view does when a value is edited (a point's or vector's axis is the field's name with X or Y).
+    // Returns false when there is no such component or field.
     public bool Set(string type, string property, string text)
     {
-        var section = Sections.FirstOrDefault(s => s.Name == type && s.Inspector != null);
-        if (section?.Inspector == null)
+        var section = Sections.FirstOrDefault(s => s.Name == type);
+        if (section == null)
             return false;
 
         var node = section.Inspector[property];
-        var valueType = node.ValueType ?? typeof(double);
-        object value = valueType.IsEnum
-            ? Enum.Parse(valueType, text, ignoreCase: true)
-            : Convert.ChangeType(text, valueType, CultureInfo.InvariantCulture);
+        object value = node.ValueType switch
+        {
+            var t when t == typeof(bool) => bool.Parse(text),
+            var t when t == typeof(int) => int.Parse(text, CultureInfo.InvariantCulture),
+            var t when t == typeof(double) => double.Parse(text, CultureInfo.InvariantCulture),
+            var t when t == typeof(PxColorRgba) => ParseColor(text),
+            _ => text,
+        };
         node.SetValue(value);
         return true;
+    }
+
+    private static PxColorRgba ParseColor(string text)
+    {
+        var parts = text.Split(',').Select(p => byte.Parse(p.Trim(), CultureInfo.InvariantCulture)).ToArray();
+        return new PxColorRgba(parts[0], parts[1], parts[2], parts.Length > 3 ? parts[3] : (byte)255);
     }
 
     private void Rebuild(uint? entity, int[] types)
@@ -84,15 +90,8 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
 
         foreach (var type in types)
         {
-            var name = session.TypeName(type);
-            if (!ProxyCatalog.Has(name))
-            {
-                Sections.Add(new Section(type, name, null, null));
-                continue;
-            }
-
-            var inspector = ProxyCatalog.Inspect(name, session, id);
-            Sections.Add(new Section(type, name, inspector, inspector.CreateImGuiView()));
+            var inspector = InspectorFactory.Build(session, type, [new ComponentHandle(session, id, type)]);
+            Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView()));
         }
     }
 
@@ -100,8 +99,8 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
     {
         foreach (var section in Sections)
         {
-            section.View?.Dispose();
-            section.Inspector?.Dispose();
+            section.View.Dispose();
+            section.Inspector.Dispose();
         }
 
         Sections.Clear();

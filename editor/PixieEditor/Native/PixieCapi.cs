@@ -28,6 +28,53 @@ public enum PixieFieldKind
     Color = 8,
 }
 
+public enum PixieEditorKind
+{
+    Auto = 0,
+    Number = 1,
+    Slider = 2,
+    Toggle = 3,
+    Choice = 4,
+    Color = 5,
+    Arc = 6,
+}
+
+[Flags]
+public enum PixieFieldFlags : uint
+{
+    None = 0,
+    ReadOnly = 1,
+    HasRange = 2,
+    HasUnit = 4,
+}
+
+public enum PixieFieldText
+{
+    Label = 0,
+    Tooltip = 1,
+    Help = 2,
+    UnitSuffix = 3,
+    ArcSpread = 4,
+}
+
+// How a tool shows and edits a field (pixie_capi.h, PixieFieldInfo; 72 bytes).
+[StructLayout(LayoutKind.Sequential)]
+public struct PixieFieldInfo
+{
+    public PixieFieldKind Kind;
+    public PixieEditorKind Editor;
+    public PixieFieldFlags Flags;
+    public int Order;
+    public int ScrubAxis;
+    public int EnumCount;
+    public double RangeMin;
+    public double RangeMax;
+    public double RangeStep;
+    public double Scrub;
+    public double UnitFactor;
+    public double UnitOffset;
+}
+
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieValue
 {
@@ -52,7 +99,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 1;
+    internal const int Version = 2;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
@@ -128,6 +175,15 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_field_kind")]
     internal static partial PixieResult FieldKind(nint session, int type, int field, out int kind);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_info")]
+    internal static partial PixieResult FieldInfo(nint session, int type, int field, out PixieFieldInfo info);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_text")]
+    internal static partial PixieResult FieldText(nint session, int type, int field, int which, byte* buffer, int capacity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_enum_name")]
+    internal static partial PixieResult FieldEnumName(nint session, int type, int field, int value, byte* buffer, int capacity);
 
     [LibraryImport(Library, EntryPoint = "pixie_field_get")]
     internal static partial PixieResult FieldGet(nint session, uint entity, int type, int field, out PixieValue value);

@@ -17,6 +17,9 @@
 #include <string_view>
 #include <vector>
 
+static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
+static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
+
 struct PixieSession {
     pixie::ProjectSession session;
     explicit PixieSession(std::unique_ptr<pixie::Project> project, pixie::SessionSettings settings)
@@ -327,6 +330,54 @@ PixieResult pixie_field_kind(PixieSession* s, int32_t type, int32_t field, int32
     }
     *kind = static_cast<int32_t>(descriptor->kind);
     return PIXIE_OK;
+}
+
+PixieResult pixie_field_info(PixieSession* s, int32_t type, int32_t field, PixieFieldInfo* info) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr || info == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null output", field, type));
+    }
+    const pixie::FieldMetadata& m = descriptor->metadata;
+    *info = PixieFieldInfo{};
+    info->kind = static_cast<int32_t>(descriptor->kind);
+    info->editor = static_cast<int32_t>(m.editor);
+    info->flags = (m.readOnly ? PIXIE_FIELD_READ_ONLY : 0u) | (m.hasRange ? PIXIE_FIELD_HAS_RANGE : 0u) |
+                  (m.hasUnit ? PIXIE_FIELD_HAS_UNIT : 0u);
+    info->order = m.order;
+    info->scrubAxis = static_cast<int32_t>(m.scrubAxis);
+    info->enumCount = static_cast<int32_t>(descriptor->enumNames.size());
+    info->rangeMin = m.rangeMin;
+    info->rangeMax = m.rangeMax;
+    info->rangeStep = m.rangeStep;
+    info->scrub = m.scrub;
+    info->unitFactor = m.unitFactor;
+    info->unitOffset = m.unitOffset;
+    return PIXIE_OK;
+}
+
+PixieResult pixie_field_text(PixieSession* s, int32_t type, int32_t field, int32_t which, char* buffer,
+                             int32_t capacity) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}", field, type));
+    }
+    const pixie::FieldMetadata& m = descriptor->metadata;
+    switch (which) {
+    case PIXIE_TEXT_LABEL:
+        return Copy(m.label.empty() ? descriptor->name : m.label, buffer, capacity);
+    case PIXIE_TEXT_TOOLTIP:
+        return Copy(m.tooltip, buffer, capacity);
+    case PIXIE_TEXT_HELP:
+        return Copy(m.help, buffer, capacity);
+    case PIXIE_TEXT_UNIT_SUFFIX:
+        return Copy(m.unitSuffix, buffer, capacity);
+    case PIXIE_TEXT_ARC_SPREAD:
+        return Copy(m.arcSpread, buffer, capacity);
+    default:
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field text {}", which));
+    }
 }
 
 int32_t pixie_field_enum_count(PixieSession* s, int32_t type, int32_t field) {

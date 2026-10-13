@@ -97,3 +97,43 @@ TEST(DescriptorsFindComponentsOnEntities) {
     with.Destroy();
     CHECK(descriptor.find(world.Registry(), with.Id()) == nullptr);
 }
+
+TEST(MetadataAppliesToTheFieldDeclaredLast) {
+    ComponentTypes types;
+    types.Add<Everything>("Everything")
+        .Field<&Everything::amount>("amount")
+        .Label("Amount")
+        .Tooltip("How much.")
+        .Help("Longer help.")
+        .Range(0.0, 10.0, 0.5)
+        .Scrub(0.1, ScrubAxis::Vertical)
+        .Unit(" kg", 2.0, 1.0)
+        .ReadOnly()
+        .Field<&Everything::ratio>("ratio")
+        .Degrees()
+        .Arc("amount")
+        .Field<&Everything::count>("count")
+        .Order(-1);
+    const auto& fields = types.All()[0].fields;
+    const FieldMetadata& amount = fields[0].metadata;
+    CHECK(amount.label == "Amount" && amount.tooltip == "How much." && amount.help == "Longer help.");
+    CHECK(amount.hasRange && amount.rangeMin == 0.0 && amount.rangeMax == 10.0 && amount.rangeStep == 0.5);
+    CHECK(amount.scrub == 0.1 && amount.scrubAxis == ScrubAxis::Vertical);
+    CHECK(amount.hasUnit && amount.unitSuffix == " kg" && amount.unitFactor == 2.0 && amount.unitOffset == 1.0);
+    CHECK(amount.readOnly && amount.order == 0);
+    const FieldMetadata& ratio = fields[1].metadata;
+    CHECK(ratio.order == 1 && !ratio.readOnly && ratio.tooltip.empty());
+    CHECK(ratio.hasUnit && ratio.unitSuffix == "°" && ratio.unitFactor > 57.29 && ratio.unitFactor < 57.3);
+    CHECK(ratio.editor == FieldEditor::Arc && ratio.arcSpread == "amount");
+    CHECK(fields[2].metadata.order == -1);
+}
+
+TEST(EveryRuntimeFieldHasATooltip) {
+    ComponentTypes types;
+    DescribeRuntimeComponents(types);
+    for (const auto& type : types.All()) {
+        for (const auto& field : type.fields) {
+            CHECK(!field.metadata.tooltip.empty());
+        }
+    }
+}
