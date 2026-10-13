@@ -8,9 +8,11 @@ using PixieLib;
 
 namespace PixieEditor.Ui;
 
-// The selected entity's components: one PixieInspector per component, built from the engine's field
-// descriptors and drawn by its Dear ImGui view under a header with the component's name. The
-// inspectors are made again when the selection or the entity's set of components changes.
+// The selected entities' components: one PixieInspector per component type that every selected
+// entity has, built from the engine's field descriptors, bound to the first entity and with AddBind to
+// the rest, and drawn by its Dear ImGui view under a header with the component's name. An edit
+// changes every selected entity; values that differ show as mixed. The inspectors are made again when
+// the selection or the set of shared components changes.
 internal sealed class InspectorPanel(EngineSession session) : IDisposable
 {
     // Set by a scenario's button; the editor rebuilds the scene at the start of the next frame, not
@@ -20,28 +22,30 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
     private sealed record Section(int Type, string Name, Inspector Inspector, ImGuiInspectorView View);
 
     private readonly List<Section> Sections = [];
-    private uint? Entity;
+    private uint[] Entities = [];
     private int[] Types = [];
 
-    public void Draw(uint? selected)
+    public void Draw(IReadOnlyList<uint> selected)
     {
-        if (selected is { } candidate && !session.IsAlive(candidate))
-            selected = null;
-
-        var types = selected is { } id ? Enumerable.Range(0, session.TypeCount).Where(t => session.Has(id, t)).ToArray() : [];
-        if (selected != Entity || !types.SequenceEqual(Types))
-            Rebuild(selected, types);
+        var types = selected.Count == 0
+            ? []
+            : Enumerable.Range(0, session.TypeCount).Where(t => selected.All(id => session.Has(id, t))).ToArray();
+        if (!selected.SequenceEqual(Entities) || !types.SequenceEqual(Types))
+            Rebuild([.. selected], types);
 
         if (ImGui.Begin("Inspector"))
         {
-            if (Entity is not { } entity)
+            if (Entities.Length == 0)
             {
                 ImGui.TextDisabled("Choose an entity.");
             }
             else
             {
-                var name = session.EntityName(entity);
-                ImGui.TextUnformatted(name.Length > 0 ? $"{name} (#{entity & 0xFFFFF})" : $"#{entity & 0xFFFFF}");
+                ImGui.TextUnformatted(Entities.Length == 1
+                    ? Describe(Entities[0])
+                    : $"{Entities.Length} entities: {string.Join(", ", Entities.Take(4).Select(Describe))}{(Entities.Length > 4 ? ", ..." : "")}");
+                if (Entities.Length > 1 && Types.Length == 0)
+                    ImGui.TextDisabled("They share no component.");
                 ImGui.Separator();
                 foreach (var section in Sections)
                 {
@@ -56,7 +60,13 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
         ImGui.End();
     }
 
-    // Writes field `property` of the selected entity's component `type` through its inspector, as the
+    private string Describe(uint entity)
+    {
+        var name = session.EntityName(entity);
+        return name.Length > 0 ? $"{name} (#{entity & 0xFFFFF})" : $"#{entity & 0xFFFFF}";
+    }
+
+    // Writes field `property` of the selected entities' component `type` through its inspector, as the
     // view does when a value is edited (a point's or vector's axis is the field's name with X or Y).
     // Returns false when there is no such component or field.
     public bool Set(string type, string property, string text)
@@ -90,17 +100,15 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
         return new PxColorRgba(parts[0], parts[1], parts[2], parts.Length > 3 ? parts[3] : (byte)255);
     }
 
-    private void Rebuild(uint? entity, int[] types)
+    private void Rebuild(uint[] entities, int[] types)
     {
         Release();
-        Entity = entity;
+        Entities = entities;
         Types = types;
-        if (entity is not { } id)
-            return;
-
         foreach (var type in types)
         {
-            var inspector = InspectorFactory.Build(session, type, [new ComponentHandle(session, id, type)], () => RebuildRequested = true);
+            var handles = entities.Select(id => new ComponentHandle(session, id, type)).ToArray();
+            var inspector = InspectorFactory.Build(session, type, handles, () => RebuildRequested = true);
             Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView()));
         }
     }

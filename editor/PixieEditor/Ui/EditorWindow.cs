@@ -51,15 +51,19 @@ internal sealed class EditorWindow(EditorOptions options)
         using (var session = EngineSession.Create(800, 600, options.Seed))
         using (var inspector = new InspectorPanel(session))
         {
-            var viewport = new ViewportPanel(session).Started();
-            var entities = new EntitiesPanel(session);
+            var selection = new Selection();
+            var viewport = new ViewportPanel(session, selection).Started();
+            viewport.Mode = options.Mode;
+            var entities = new EntitiesPanel(session, selection);
             var controls = new SessionPanel(session, options.Game);
-            if (options.Select != null)
-                entities.Selected = entities.Find(options.Select);
+            if (options.Select != null && entities.Find(options.Select) is { } chosen)
+                selection.Set(chosen);
 
             if (options.TimeScale is { } scale)
                 session.TimeScale = scale;
-            var toolbar = new TimeToolbar(session);
+            if (options.Paused)
+                session.Paused = true;
+            var toolbar = new Toolbar(session, viewport);
 
             var previous = GLFW.GetTime();
             var start = previous;
@@ -81,6 +85,9 @@ internal sealed class EditorWindow(EditorOptions options)
                     session.Reset();
                 }
 
+                // A rebuild, a deletion in the viewport, or the game itself may have taken entities away.
+                selection.Prune(session);
+
                 var dockspace = ImGui.GetID("dockspace");
                 if (firstLayout)
                 {
@@ -92,7 +99,7 @@ internal sealed class EditorWindow(EditorOptions options)
                 ImGui.DockSpaceOverViewport(dockspace);
                 controls.Draw();
                 entities.Draw();
-                inspector.Draw(entities.Selected);
+                inspector.Draw(selection.Items);
                 viewport.Draw(frameDelta);
 
                 // The command line's edits go through the inspectors, once they exist.

@@ -158,6 +158,12 @@ void ParticlesProject::HandleKeys(pixie::World& world, const pixie::Input& input
     }
 }
 
+bool ParticlesProject::SpawnAt(pixie::World&, pxPoint at) {
+    // A particle at rest that lives until removed; the attractors take it from there.
+    return emitter_.Get<pixie::ParticleSystem>().Emit(
+        pxPointf(static_cast<float>(at.x), static_cast<float>(at.y)), pxVec2f(0.0f), 0.0f);
+}
+
 void ParticlesProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) {
     HandleMouse(world, camera, input);
     HandleKeys(world, input);

@@ -33,7 +33,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 2
+#define PIXIE_CAPI_VERSION 3
 
 typedef struct PixieSession PixieSession;
 
@@ -163,6 +163,31 @@ PIXIE_API PixieResult pixie_entity_name(PixieSession* session, uint32_t entity, 
                                         int32_t capacity);
 /* 1 when the entity exists, else 0. */
 PIXIE_API int32_t pixie_entity_alive(PixieSession* session, uint32_t entity);
+/* Destroys the entity at once. Meant for what a host can pick: destroying an entity the game itself
+ * holds on to, such as its controls, is the host's risk. */
+PIXIE_API PixieResult pixie_entity_destroy(PixieSession* session, uint32_t entity);
+
+/* Picking, in view pixels. Only entities with a Transform2D and a Shape can be picked; particles are
+ * not entities. pixie_pick finds the entity whose shape covers (x, y), widened by `tolerance`
+ * pixels, nearest center first, or returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities
+ * whose center lies in the box with corners (x0, y0) and (x1, y1), in any order of the corners,
+ * oldest first, filling and counting as pixie_entities does. */
+PIXIE_API PixieResult pixie_pick(PixieSession* session, double x, double y, double tolerance,
+                                 uint32_t* entity);
+PIXIE_API PixieResult pixie_pick_box(PixieSession* session, double x0, double y0, double x1,
+                                     double y1, uint32_t* entities, int32_t capacity,
+                                     int32_t* count);
+/* Where an entity with a Transform2D and a Shape appears in the view, as of the last render: its
+ * center and the radius it can be picked within, in view pixels. */
+PIXIE_API PixieResult pixie_entity_view_bounds(PixieSession* session, uint32_t entity, double* x,
+                                               double* y, double* radius);
+/* Removes the particle nearest (x, y) within `radius` pixels, from any particle system; returns
+ * PIXIE_ERROR_NOT_FOUND when none is that close. */
+PIXIE_API PixieResult pixie_particle_remove_at(PixieSession* session, double x, double y,
+                                               double radius);
+/* Asks the game to create something at (x, y), such as a boid or a particle at rest; `created`
+ * (which may be null) is set to 1 when it did, 0 when the game creates nothing. */
+PIXIE_API PixieResult pixie_spawn_at(PixieSession* session, double x, double y, int32_t* created);
 
 /* Component types that can be inspected, by index from 0 to pixie_type_count - 1. */
 PIXIE_API int32_t pixie_type_count(PixieSession* session);

@@ -12,6 +12,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <optional>
 #include <numbers>
 #include <vector>
 
@@ -28,12 +29,13 @@ pxColorRgba HeadingColor(double angle) {
     return pxColorRgba(channel(5.0), channel(3.0), channel(1.0));
 }
 
-void AddBoid(pixie::World& world, pixie::Entity flock) {
+void AddBoid(pixie::World& world, pixie::Entity flock, std::optional<pxPoint> at = {}) {
     pixie::Random& random = world.GetRandom();
     const pxRect area = flock.Get<Bounds>().area;
     const FlockControls& controls = flock.Get<FlockControls>();
     pixie::Entity boid = world.Create();
-    const pxPoint position(random.Range(area.x, area.Right()), random.Range(area.y, area.Bottom()));
+    const pxPoint position =
+        at ? *at : pxPoint(random.Range(area.x, area.Right()), random.Range(area.y, area.Bottom()));
     const pxVec2 velocity = random.Direction() * random.Range(controls.minSpeed, controls.maxSpeed);
     const double heading = std::atan2(velocity.y, velocity.x);
     boid.Add<pixie::Transform2D>(pixie::Transform2D{position, heading});
@@ -111,4 +113,8 @@ void SetFlockSize(pixie::World& world, pixie::Entity flock, int count) {
 
 int FlockSize(pixie::World& world) {
     return static_cast<int>(world.Registry().storage<FlockMember>().size());
+}
+
+void AddBoidAt(pixie::World& world, pixie::Entity flock, pxPoint at) {
+    AddBoid(world, flock, at);
 }

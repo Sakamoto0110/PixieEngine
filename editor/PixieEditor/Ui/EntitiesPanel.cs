@@ -3,21 +3,22 @@ using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
-// The World's entities, oldest first, by name or number; choosing one shows it in the inspector.
-// Only the rows in view ask the engine for a name, so a World of thousands stays cheap to list.
-internal sealed class EntitiesPanel(EngineSession session)
+// The World's entities, oldest first, by name or number. A click chooses one, Ctrl + click adds or
+// takes out one, and Shift + click chooses the range from the last one clicked. Only the rows in view
+// ask the engine for a name, so a World of thousands stays cheap to list.
+internal sealed class EntitiesPanel(EngineSession session, Selection selection)
 {
     // EnTT's 32-bit entity: the low 20 bits are the index, the rest the version.
     private const uint IndexMask = 0xFFFFF;
-
-    public uint? Selected { get; set; }
 
     public void Draw()
     {
         if (ImGui.Begin("Entities"))
         {
             var entities = session.Entities();
-            ImGui.TextUnformatted($"{entities.Length} entities");
+            ImGui.TextUnformatted(selection.Items.Count > 1
+                ? $"{entities.Length} entities, {selection.Items.Count} selected"
+                : $"{entities.Length} entities");
             ImGui.Separator();
 
             if (ImGui.BeginChild("##list"))
@@ -32,8 +33,8 @@ internal sealed class EntitiesPanel(EngineSession session)
                     var id = entities[i];
                     var name = session.EntityName(id);
                     var label = name.Length > 0 ? $"{name}  #{id & IndexMask}##{id}" : $"#{id & IndexMask}##{id}";
-                    if (ImGui.Selectable(label, Selected == id))
-                        Selected = id;
+                    if (ImGui.Selectable(label, selection.Contains(id)))
+                        Click(entities, id);
                 }
 
                 ImGui.Dummy(new System.Numerics.Vector2(1, (entities.Length - last) * line));
@@ -43,6 +44,25 @@ internal sealed class EntitiesPanel(EngineSession session)
         }
 
         ImGui.End();
+    }
+
+    private void Click(uint[] entities, uint id)
+    {
+        var io = ImGui.GetIO();
+        if (io.KeyCtrl)
+        {
+            selection.Toggle(id);
+        }
+        else if (io.KeyShift && selection.Anchor is { } anchor && Array.IndexOf(entities, anchor) is var from and >= 0)
+        {
+            var to = Array.IndexOf(entities, id);
+            // The range keeps its start, so a second Shift + click moves only its end.
+            selection.Set(entities[Math.Min(from, to)..(Math.Max(from, to) + 1)], anchor);
+        }
+        else
+        {
+            selection.Set(id);
+        }
     }
 
     // The first entity with this name, for choosing one from the command line.

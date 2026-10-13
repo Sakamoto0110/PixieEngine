@@ -23,6 +23,7 @@ public:
     void Build(pixie::World& world, pixie::Camera2D& camera) override;
     void Capture(pixie::World& world) override;
     void BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) override;
+    bool SpawnAt(pixie::World& world, pxPoint at) override;
     void DrawOverlay(pixie::World& world, pixie::ShapeRenderer& shapes,
                      const pixie::Camera2D& camera) override;
 

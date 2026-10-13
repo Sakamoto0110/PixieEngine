@@ -17,6 +17,8 @@ internal sealed record EditorOptions
     public double QuitAfter { get; init; }
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
+    public ViewportMode Mode { get; init; } = ViewportMode.Game;
+    public bool Paused { get; init; }
 }
 
 internal static class Program
@@ -31,6 +33,8 @@ internal static class Program
           --quit-after <seconds>   close after this long; 0 means never (default 0)
           --screenshot <file.png>  with --quit-after, save the last frame of the window
           --time-scale <x>         start with simulated time at this speed (default 1)
+          --mode <game|select>     what the mouse does in the viewport at the start (default game)
+          --paused <on|off>        start with time paused (default off)
         """;
 
     [STAThread]
@@ -88,6 +92,12 @@ internal static class Program
                     break;
                 case "--time-scale" when double.TryParse(value, CultureInfo.InvariantCulture, out var scale) && scale > 0:
                     options = options with { TimeScale = scale };
+                    break;
+                case "--mode" when Enum.TryParse<ViewportMode>(value, ignoreCase: true, out var mode):
+                    options = options with { Mode = mode };
+                    break;
+                case "--paused" when value is "on" or "off":
+                    options = options with { Paused = value == "on" };
                     break;
                 case "--screenshot":
                     options = options with { Screenshot = value };

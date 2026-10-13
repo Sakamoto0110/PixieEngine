@@ -20,6 +20,7 @@ add_executable(runtime-tests
     runtime/ComponentTypesTests.cpp
     runtime/OrderIndependenceTests.cpp
     runtime/ParticleTests.cpp
+    runtime/PickingTests.cpp
     runtime/RandomTests.cpp
     runtime/SpatialGridTests.cpp
     runtime/WorldTests.cpp

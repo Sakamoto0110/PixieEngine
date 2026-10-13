@@ -17,3 +17,7 @@ pixie::Entity SetUpFlocks(pixie::World& world, const pxRect& area, int count);
 void SetFlockSize(pixie::World& world, pixie::Entity flock, int count);
 
 int FlockSize(pixie::World& world);
+
+// Adds one boid at `at`, heading in a random direction within the flock's speeds. Call it outside a
+// step.
+void AddBoidAt(pixie::World& world, pixie::Entity flock, pxPoint at);

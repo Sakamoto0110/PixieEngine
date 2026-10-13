@@ -96,6 +96,42 @@ public sealed unsafe class EngineSession : IDisposable
     public string EntityName(uint entity) => ReadString((b, n) => PixieCapi.EntityName(Handle, entity, b, n), "read a name");
     public bool IsAlive(uint entity) => PixieCapi.EntityAlive(Handle, entity) != 0;
 
+    // Destroys an entity at once; false when it was already gone.
+    public bool Destroy(uint entity) => Found(PixieCapi.EntityDestroy(Handle, entity), "destroy an entity");
+
+    // Picking, in view pixels: the entity drawn under a point (widened by `tolerance` pixels), or null.
+    public uint? Pick(double x, double y, double tolerance) =>
+        Found(PixieCapi.Pick(Handle, x, y, tolerance, out var entity), "pick") ? entity : null;
+
+    // The entities whose center lies in the box between two corners, oldest first.
+    public uint[] PickBox(double x0, double y0, double x1, double y1)
+    {
+        Check(PixieCapi.PickBox(Handle, x0, y0, x1, y1, null, 0, out var count), "count the entities in a box");
+        var entities = new uint[count];
+        fixed (uint* buffer = entities)
+        {
+            Check(PixieCapi.PickBox(Handle, x0, y0, x1, y1, buffer, count, out _), "list the entities in a box");
+        }
+        return entities;
+    }
+
+    // Where a pickable entity was drawn by the last render, in view pixels; null for any other entity.
+    public (double X, double Y, double Radius)? ViewBounds(uint entity) =>
+        Found(PixieCapi.EntityViewBounds(Handle, entity, out var x, out var y, out var radius), "read an entity's bounds")
+            ? (x, y, radius)
+            : null;
+
+    // Removes the particle nearest a point within `radius` pixels; false when none is that close.
+    public bool RemoveParticleAt(double x, double y, double radius) =>
+        Found(PixieCapi.ParticleRemoveAt(Handle, x, y, radius), "remove a particle");
+
+    // Asks the game to create something at a point in view pixels; false when it creates nothing.
+    public bool SpawnAt(double x, double y)
+    {
+        Check(PixieCapi.SpawnAt(Handle, x, y, out var created), "spawn");
+        return created != 0;
+    }
+
     public int TypeCount => PixieCapi.TypeCount(Handle);
     public string TypeName(int type) => ReadString((b, n) => PixieCapi.TypeName(Handle, type, b, n), "read a type name");
     public int TypeIndex(string name) => TypeIndices.TryGetValue(name, out var index) ? index : -1;
@@ -152,6 +188,15 @@ public sealed unsafe class EngineSession : IDisposable
         var buffer = stackalloc byte[512];
         var length = PixieCapi.LastError(buffer, 512);
         return Encoding.UTF8.GetString(buffer, Math.Min(length, 511));
+    }
+
+    // Ok is true, not found is false, and anything else throws.
+    private static bool Found(PixieResult result, string what)
+    {
+        if (result == PixieResult.ErrorNotFound)
+            return false;
+        Check(result, what);
+        return true;
     }
 
     private static void Check(PixieResult result, string what)

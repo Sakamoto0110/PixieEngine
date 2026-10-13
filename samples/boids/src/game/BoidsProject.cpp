@@ -108,6 +108,11 @@ void BoidsProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, cons
     }
 }
 
+bool BoidsProject::SpawnAt(pixie::World& world, pxPoint at) {
+    AddBoidAt(world, controls_, at);
+    return true;
+}
+
 void BoidsProject::DrawOverlay(pixie::World&, pixie::ShapeRenderer& shapes, const pixie::Camera2D&) {
     const Pointer& pointer = controls_.Get<Pointer>();
     const BoidControls& controls = controls_.Get<BoidControls>();

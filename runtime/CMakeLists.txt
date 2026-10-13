@@ -4,6 +4,7 @@ add_library(pixie_runtime STATIC
     src/AttractorAffector.cpp
     src/InteractionAffector.cpp
     src/ParticleSpawner.cpp
+    src/Picking.cpp
     src/ParticleStep.cpp
     src/ProjectApp.cpp
     src/ProjectSession.cpp

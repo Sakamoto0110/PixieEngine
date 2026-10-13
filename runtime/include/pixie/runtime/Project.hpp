@@ -5,6 +5,7 @@
 #include "pixie/ShapeRenderer.hpp"
 
 #include <pixie/pxColorRgba.hpp>
+#include <pixie/pxPoint.hpp>
 
 #include <memory>
 #include <string_view>
@@ -40,6 +41,10 @@ public:
     // Runs before each step, outside it: copy the pointer and the view into the World, react to
     // keys, move the camera. Structural changes are allowed here.
     virtual void BeforeStep(World& /*world*/, Camera2D& /*camera*/, const Input& /*input*/) {}
+
+    // Creates something at `at`, in world units, when a tool asks (an editor's Ctrl + click on empty
+    // space): a boid, a particle. Called outside a step. Returns false when the game creates nothing.
+    virtual bool SpawnAt(World& /*world*/, pxPoint /*at*/) { return false; }
 
     // Submits what is drawn over the World's shapes and particles, such as a pointer's ring. The
     // session flushes the renderer afterwards.

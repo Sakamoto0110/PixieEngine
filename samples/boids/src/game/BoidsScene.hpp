@@ -16,3 +16,6 @@ pixie::Entity SetUpBoids(pixie::World& world, const pxRect& area, int count);
 void SetBoidCount(pixie::World& world, pixie::Entity controls, int count);
 
 int BoidCount(pixie::World& world);
+
+// Adds one boid at `at`, heading in a random direction at the cruise speed. Call it outside a step.
+void AddBoidAt(pixie::World& world, pixie::Entity controls, pxPoint at);

@@ -102,7 +102,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 2;
+    internal const int Version = 3;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
@@ -199,4 +199,22 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_field_set")]
     internal static partial PixieResult FieldSet(nint session, uint entity, int type, int field, in PixieValue value);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_destroy")]
+    internal static partial PixieResult EntityDestroy(nint session, uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_pick")]
+    internal static partial PixieResult Pick(nint session, double x, double y, double tolerance, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_pick_box")]
+    internal static partial PixieResult PickBox(nint session, double x0, double y0, double x1, double y1, uint* entities, int capacity, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_view_bounds")]
+    internal static partial PixieResult EntityViewBounds(nint session, uint entity, out double x, out double y, out double radius);
+
+    [LibraryImport(Library, EntryPoint = "pixie_particle_remove_at")]
+    internal static partial PixieResult ParticleRemoveAt(nint session, double x, double y, double radius);
+
+    [LibraryImport(Library, EntryPoint = "pixie_spawn_at")]
+    internal static partial PixieResult SpawnAt(nint session, double x, double y, out int created);
 }

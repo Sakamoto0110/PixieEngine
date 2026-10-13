@@ -9,6 +9,7 @@
 #include "pixie/runtime/World.hpp"
 
 #include <cmath>
+#include <optional>
 #include <vector>
 
 namespace {
@@ -17,11 +18,12 @@ constexpr pxColorRgba kPalette[] = {
     {120, 200, 255}, {140, 220, 190}, {170, 180, 255}, {110, 170, 235},
 };
 
-void AddBoid(pixie::World& world, pixie::Entity controls) {
+void AddBoid(pixie::World& world, pixie::Entity controls, std::optional<pxPoint> at = {}) {
     pixie::Random& random = world.GetRandom();
     const pxRect area = controls.Get<Bounds>().area;
     pixie::Entity boid = world.Create();
-    const pxPoint position(random.Range(area.x, area.Right()), random.Range(area.y, area.Bottom()));
+    const pxPoint position =
+        at ? *at : pxPoint(random.Range(area.x, area.Right()), random.Range(area.y, area.Bottom()));
     const pxVec2 velocity = random.Direction() * controls.Get<BoidControls>().cruiseSpeed;
     boid.Add<pixie::Transform2D>(pixie::Transform2D{position, std::atan2(velocity.y, velocity.x)});
     boid.Add<pixie::Velocity2D>(pixie::Velocity2D{velocity, 0.0});
@@ -90,4 +92,8 @@ void SetBoidCount(pixie::World& world, pixie::Entity controls, int count) {
 
 int BoidCount(pixie::World& world) {
     return static_cast<int>(world.Registry().storage<Boid>().size());
+}
+
+void AddBoidAt(pixie::World& world, pixie::Entity controls, pxPoint at) {
+    AddBoid(world, controls, at);
 }

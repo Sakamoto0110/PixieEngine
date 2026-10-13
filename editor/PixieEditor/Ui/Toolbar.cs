@@ -3,9 +3,10 @@ using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
-// The bar at the top of the window that controls time: slower, pause or resume, faster, and the speed
-// simulated time runs at. Slowing down is what it is mostly for; it speeds up to twice at most.
-internal sealed class TimeToolbar(EngineSession session)
+// The bar at the top of the window: the viewport's mode, Game or Select, and time: slower, pause or
+// resume, faster, and the speed simulated time runs at. Slowing down is what time control is mostly
+// for; it speeds up to twice at most.
+internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
 {
     private static readonly double[] Scales = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
 
@@ -13,6 +14,23 @@ internal sealed class TimeToolbar(EngineSession session)
     {
         if (!ImGui.BeginMainMenuBar())
             return;
+
+        foreach (var mode in Enum.GetValues<ViewportMode>())
+        {
+            var active = viewport.Mode == mode;
+            if (active)
+                ImGui.PushStyleColor(ImGuiCol.Button, ImGui.GetColorU32(ImGuiCol.ButtonActive));
+            if (ImGui.Button(mode.ToString()))
+                viewport.Mode = mode;
+            if (active)
+                ImGui.PopStyleColor();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(mode == ViewportMode.Game
+                    ? "The mouse plays the game."
+                    : "Click selects, Shift + click adds, drag selects by box, Ctrl + click deletes or creates.");
+        }
+
+        ImGui.Separator();
 
         var stats = session.Stats;
         var index = NearestIndex(stats.TimeScale);

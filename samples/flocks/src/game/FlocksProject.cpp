@@ -157,6 +157,11 @@ void FlocksProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, con
     }
 }
 
+bool FlocksProject::SpawnAt(pixie::World& world, pxPoint at) {
+    AddBoidAt(world, flock_, at);
+    return true;
+}
+
 void FlocksProject::DrawOverlay(pixie::World&, pixie::ShapeRenderer& shapes, const pixie::Camera2D&) {
     const Pointer& pointer = flock_.Get<Pointer>();
     const FlockControls& c = flock_.Get<FlockControls>();

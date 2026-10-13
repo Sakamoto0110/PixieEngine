@@ -6,6 +6,9 @@
 
 #include "pixie/GlLoader.hpp"
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/Picking.hpp"
+#include "pixie/runtime/Shape.hpp"
+#include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 
 #include <algorithm>
@@ -91,6 +94,16 @@ void* ComponentOf(PixieSession* s, uint32_t entity, int32_t type, PixieResult& r
                       std::format("entity {} is gone or has no {}", entity, descriptor->name));
     }
     return component;
+}
+
+// A point in view pixels, in world units.
+pxPoint ToWorld(PixieSession* s, double x, double y) {
+    return s->session.GetCamera().ScreenToWorld(pxPoint(x, y));
+}
+
+// A length in view pixels, in world units.
+double ToWorldLength(PixieSession* s, double pixels) {
+    return pixels / s->session.GetCamera().Zoom();
 }
 
 #define PIXIE_REQUIRE_SESSION(s)                                                                   \
@@ -277,6 +290,105 @@ PixieResult pixie_entities(PixieSession* s, uint32_t* entities, int32_t capacity
             entities[i] = static_cast<uint32_t>(live[static_cast<std::size_t>(n - 1 - i)]);
         }
         *count = n;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entity_destroy(PixieSession* s, uint32_t entity) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] {
+        pixie::World& world = s->session.GetWorld();
+        if (!world.Registry().valid(ToEntity(entity))) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
+        }
+        world.Destroy(world.Wrap(ToEntity(entity)));
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_pick(PixieSession* s, double x, double y, double tolerance, uint32_t* entity) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (entity == nullptr || tolerance < 0.0) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output or negative tolerance");
+    }
+    return Guard([&] {
+        const entt::entity picked =
+            pixie::PickAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance));
+        if (picked == entt::null) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("nothing to pick at ({}, {})", x, y));
+        }
+        *entity = static_cast<uint32_t>(picked);
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_pick_box(PixieSession* s, double x0, double y0, double x1, double y1, uint32_t* entities,
+                           int32_t capacity, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (count == nullptr || capacity < 0 || (entities == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output or negative capacity");
+    }
+    return Guard([&] {
+        const pxPoint a = ToWorld(s, x0, y0);
+        const pxPoint b = ToWorld(s, x1, y1);
+        const pxRect box(std::min(a.x, b.x), std::min(a.y, b.y), std::abs(a.x - b.x), std::abs(a.y - b.y));
+        const std::vector<entt::entity> picked = pixie::PickIn(s->session.GetWorld(), box);
+        const auto n = static_cast<int32_t>(picked.size());
+        for (int32_t i = 0; i < n && i < capacity; ++i) {
+            entities[i] = static_cast<uint32_t>(picked[static_cast<std::size_t>(i)]);
+        }
+        *count = n;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x, double* y, double* radius) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (x == nullptr || y == nullptr || radius == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    return Guard([&] {
+        entt::registry& registry = s->session.GetWorld().Registry();
+        const entt::entity id = ToEntity(entity);
+        const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
+        const auto* shape = registry.valid(id) ? registry.try_get<pixie::Shape>(id) : nullptr;
+        if (transform == nullptr || shape == nullptr) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no Transform2D and Shape", entity));
+        }
+        // Where the last render drew it: between the previous step and this one.
+        pxPoint position = transform->position;
+        if (const auto* previous = registry.try_get<pixie::PreviousTransform2D>(id)) {
+            position = pxPoint::Lerp(previous->value.position, transform->position, s->session.Alpha());
+        }
+        const pixie::Camera2D& camera = s->session.GetCamera();
+        const pxPoint screen = camera.WorldToScreen(position);
+        *x = screen.x;
+        *y = screen.y;
+        *radius = pixie::PickRadius(*shape, *transform) * camera.Zoom();
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_particle_remove_at(PixieSession* s, double x, double y, double radius) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (radius < 0.0) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "negative radius");
+    }
+    return Guard([&] {
+        if (!pixie::RemoveParticleAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, radius))) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("no particle near ({}, {})", x, y));
+        }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_spawn_at(PixieSession* s, double x, double y, int32_t* created) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] {
+        const bool made = s->session.GetProject().SpawnAt(s->session.GetWorld(), ToWorld(s, x, y));
+        if (created != nullptr) {
+            *created = made ? 1 : 0;
+        }
         return PIXIE_OK;
     });
 }

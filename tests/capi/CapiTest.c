@@ -63,6 +63,12 @@ static struct {
     PixieResult (*field_text)(PixieSession*, int32_t, int32_t, int32_t, char*, int32_t);
     PixieResult (*field_get)(PixieSession*, uint32_t, int32_t, int32_t, PixieValue*);
     PixieResult (*field_set)(PixieSession*, uint32_t, int32_t, int32_t, const PixieValue*);
+    PixieResult (*entity_destroy)(PixieSession*, uint32_t);
+    PixieResult (*pick)(PixieSession*, double, double, double, uint32_t*);
+    PixieResult (*pick_box)(PixieSession*, double, double, double, double, uint32_t*, int32_t, int32_t*);
+    PixieResult (*entity_view_bounds)(PixieSession*, uint32_t, double*, double*, double*);
+    PixieResult (*particle_remove_at)(PixieSession*, double, double, double);
+    PixieResult (*spawn_at)(PixieSession*, double, double, int32_t*);
 } api;
 
 static int failures = 0;
@@ -118,6 +124,12 @@ static int Load(Library library) {
     LOAD(field_text, "pixie_field_text")
     LOAD(field_get, "pixie_field_get")
     LOAD(field_set, "pixie_field_set")
+    LOAD(entity_destroy, "pixie_entity_destroy")
+    LOAD(pick, "pixie_pick")
+    LOAD(pick_box, "pixie_pick_box")
+    LOAD(entity_view_bounds, "pixie_entity_view_bounds")
+    LOAD(particle_remove_at, "pixie_particle_remove_at")
+    LOAD(spawn_at, "pixie_spawn_at")
 #undef LOAD
     return !missing;
 }
@@ -294,6 +306,50 @@ static void Exercise(PixieSession* s) {
     CHECK(api.field_get(s, moving, 9999, 0, &read) == PIXIE_ERROR_ARGUMENT);
     char tiny[3];
     CHECK(api.project_name(s, tiny, (int32_t)sizeof tiny) == PIXIE_ERROR_BUFFER && strlen(tiny) == 2);
+
+    /* Picking, paused so the view shows the current positions: the first entity that can be picked,
+     * found again at its center and in a box around it, then destroyed; a spawn at the same place;
+     * and, in the particles game, the particle spawned there removed. */
+    CHECK(api.session_set_paused(s, 1) == PIXIE_OK);
+    int32_t total = 0;
+    CHECK(api.entities(s, NULL, 0, &total) == PIXIE_OK);
+    uint32_t* all = (uint32_t*)malloc(sizeof(uint32_t) * (size_t)total);
+    CHECK(api.entities(s, all, total, &total) == PIXIE_OK);
+    uint32_t pickable = 0;
+    double px = 0.0, py = 0.0, pr = 0.0;
+    int pickableFound = 0;
+    for (int32_t i = 0; i < total && !pickableFound; ++i) {
+        if (api.entity_view_bounds(s, all[i], &px, &py, &pr) == PIXIE_OK) {
+            pickable = all[i];
+            pickableFound = 1;
+        }
+    }
+    free(all);
+    CHECK(pickableFound && pr > 0.0);
+    uint32_t picked = 0;
+    CHECK(api.pick(s, px, py, 0.0, &picked) == PIXIE_OK && picked == pickable);
+    CHECK(api.pick(s, -100000.0, -100000.0, 0.0, &picked) == PIXIE_ERROR_NOT_FOUND);
+    CHECK(api.pick(s, px, py, 0.0, NULL) == PIXIE_ERROR_ARGUMENT);
+    uint32_t boxed[64];
+    int32_t inBox = 0;
+    CHECK(api.pick_box(s, px + 0.5, py + 0.5, px - 0.5, py - 0.5, boxed, 64, &inBox) == PIXIE_OK && inBox >= 1);
+    int boxedIt = 0;
+    for (int32_t i = 0; i < inBox && i < 64; ++i) {
+        boxedIt |= boxed[i] == pickable;
+    }
+    CHECK(boxedIt);
+    CHECK(api.entity_destroy(s, pickable) == PIXIE_OK && api.entity_alive(s, pickable) == 0);
+    CHECK(api.entity_destroy(s, pickable) == PIXIE_ERROR_NOT_FOUND);
+    CHECK(api.entity_view_bounds(s, pickable, &px, &py, &pr) == PIXIE_ERROR_NOT_FOUND);
+    int32_t created = 0;
+    CHECK(api.spawn_at(s, px, py, &created) == PIXIE_OK && created == 1);
+    char game[64];
+    CHECK(api.project_name(s, game, (int32_t)sizeof game) == PIXIE_OK);
+    const int particles = strcmp(game, "particles") == 0;
+    CHECK(api.particle_remove_at(s, px, py, 1.0) == (particles ? PIXIE_OK : PIXIE_ERROR_NOT_FOUND));
+    CHECK(api.particle_remove_at(s, px, py, -1.0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.session_set_paused(s, 0) == PIXIE_OK);
+    printf("picked %u at (%.1f, %.1f), radius %.1f px\n", pickable, px, py, pr);
 
     /* Reset: a new World, with its own time, and the old handles stale or new. */
     CHECK(api.session_reset(s) == PIXIE_OK);
