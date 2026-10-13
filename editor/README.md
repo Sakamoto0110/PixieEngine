@@ -12,15 +12,18 @@ its entities, and inspects and edits their components with
   editor's wall time.
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
   for a name.
-- **Inspector.** For the chosen entity, one section per component: a typed PixieInspector bound to
-  a hand-written proxy (`Inspection/Proxies/`), whose properties read and write the component
-  through the C API on every frame. The native World is the only copy of the state. A component
-  without a proxy is listed with a note.
+- **Inspector.** For the chosen entity, one section per component: a PixieInspector built from the
+  engine's field descriptors (`Inspection/InspectorFactory.cs`), with one `AddField` per field (two
+  for a point or a vector, four for a rectangle) over a handle of the component, and the label,
+  tooltip, range, scrub, unit, and editor the descriptor carries. The fields read and write the
+  component through the C API on every frame; the native World is the only copy of the state. No
+  class per component exists in the editor: a component added to a game's library shows up without
+  rebuilding it.
 - **Session.** Pause, resume, a single step while paused, reset, the World's time, entity count,
   and step cost, and buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game).
 
-The editor references `PixieInspector.ImGui` 0.1.0 from nuget.org, which brings Hexa.NET.ImGui
+The editor references `PixieInspector.ImGui` 0.2.0 from nuget.org, which brings Hexa.NET.ImGui
 2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
 ([`DEPENDENCIES.md`](../DEPENDENCIES.md)). Nothing in it is copied from PixieInspector's repository.
 
@@ -43,11 +46,11 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--game <name\|path>` | `boids` | `boids`, `flocks`, `particles`, or the path to a game's C API library |
 | `--seed <n>` | `1` | Seed of the World |
 | `--select <name>` | none | Selects the entity with this name at the start |
-| `--set <Type.Property=value>` | none | After `--edit-after` seconds, sets a property of the selected entity through its inspector; repeatable |
+| `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`); repeatable |
 | `--edit-after <seconds>` | `1` | When the `--set` edits happen |
 | `--quit-after <seconds>` | `0` | Closes the editor after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame of the window |
 
-For example, `--game boids --select controls --set BoidControls.Mode=Repel --set
-BoidControls.Radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
+For example, `--game boids --select controls --set BoidControls.mode=Repel --set
+BoidControls.radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
 hand in the inspector.

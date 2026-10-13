@@ -43,16 +43,6 @@ Opened on 2026-10-13 for PIXIE-TODO-012 to PIXIE-TODO-016, in the order of
 their parents. Completed breakdowns are in their archive records, routed from
 the [archive router](docs/archive/README.md).
 
-## `PIXIE-TODO-012` — Single source of field metadata
-
-**Parent:** [PIXIE-TODO-012](TODO.md#pixie-todo-012--single-source-of-field-metadata)
-
-- `PIXIE-TASK-058` — **Status:** open — Field metadata in `ComponentTypes`: builder calls for label, tooltip, help, order, read-only, editor kind, range with step, scrub, display unit, arc spread, and enum names; unit tests.
-- `PIXIE-TASK-059` — **Status:** open — C API version 2: `pixie_field_info` and `pixie_field_text`; `capi-test` reads the metadata back.
-- `PIXIE-TASK-060` — **Status:** open — Metadata for every reflected field of the runtime and the three anchors: tooltips with units, ranges, scrub steps, degrees for angles, read-only for `Pointer` and `Bounds`.
-- `PIXIE-TASK-061` — **Status:** open — Editor on PixieInspector 0.2.0: a field handle (session, entity, type), one inspector per component type built from the descriptors with `AddField` and the node options; remove the proxies, their catalog, and their attributes.
-- `PIXIE-TASK-062` — **Status:** open — Verification: each anchor in the editor, a new game component appearing without rebuilding the editor, and the documents (capi and runtime references, editor README, `DEPENDENCIES.md`).
-
 ## `PIXIE-TODO-013` — Scenario values, scene rebuild, and time control
 
 **Parent:** [PIXIE-TODO-013](TODO.md#pixie-todo-013--scenario-values-scene-rebuild-and-time-control)

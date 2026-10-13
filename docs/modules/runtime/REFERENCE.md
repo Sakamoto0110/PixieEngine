@@ -183,7 +183,19 @@ Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type 
 integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`; any other type
 does not compile), optional names for an enum's values 0, 1, ..., and `read` and `write` functions
 that move the value in and out of a component instance as a `FieldValue` (four doubles; the kind
-says which are used). Colors are clamped to 0 to 255 and rounded when written. Fields are reached
+says which are used). Colors are clamped to 0 to 255 and rounded when written.
+
+Each field also carries a `FieldMetadata`: how a tool shows and edits it, in the vocabulary of
+PixieInspector's node options. Builder calls chained after a `Field` set it for that field:
+`Label`, `Tooltip`, `Help`, `Order` (by default the declaration position), `ReadOnly`, `Editor`
+(`FieldEditor`: Auto, Number, Slider, Toggle, Choice, Color, Arc), `Range(min, max, step)`,
+`Scrub(perPixel, axis)`, `Unit(suffix, factor, offset)` (shown = held * factor + offset),
+`Degrees(suffix)` (radians shown in degrees), and `Arc(spread)` (this angle is the center of an
+arc whose width is the sibling field `spread`). Range, step, and scrub are in the displayed unit.
+The registry is the single source of this metadata
+([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)): the C API exports it and the editor builds
+its inspectors from it, so nothing about a field is written twice. Every field of the runtime and of
+the three anchors carries a tooltip. Fields are reached
 through accessor functions generated from member pointers rather than byte offsets, so a
 component need not be standard layout. Empty tag types cannot be described.
 
@@ -247,6 +259,7 @@ transform, the Entity handle, the generator's determinism, the spatial grid agai
 search, a step's independence from the Behaviours' update order (with a negative control that
 breaks the rule and is caught), particle emission, aging, expiry, and capacity, a circular orbit
 that keeps its radius, the interaction's independence from particle order, and the field
-descriptors (kinds, round trips, color clamping, and finding components on entities). Sessions are
+descriptors (kinds, round trips, color clamping, finding components on entities, metadata, and a
+tooltip on every runtime field). Sessions are
 exercised by the samples and, through the C API, by `capi-test`. `SubmitShapes` is exercised by the
 samples that draw a World.

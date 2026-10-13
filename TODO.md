@@ -46,20 +46,6 @@ owner's authorization to execute them, in this order. The first nine entries,
 PIXIE-TODO-003 to PIXIE-TODO-011, are completed; see below. Scene serialization
 stays postponed and is not promoted.
 
-### `PIXIE-TODO-012` — Single source of field metadata
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-13: the native registry is the single source of field metadata, "even if it costs more"
-
-**Accepted scope:** `ComponentTypes` fields carry the metadata an inspector needs, in the vocabulary of PixieInspector's node options: label, tooltip, help, order, read-only, editor kind, range (minimum, maximum, step), scrub (multiplier, axis), display unit (suffix, factor, offset), the arc's spread sibling, and enum names; range and step are in the displayed unit. The C API goes to version 2 and exports them (`pixie_field_info` for the numbers, `pixie_field_text` for the strings). The editor moves to PixieInspector 0.2.0 and builds one inspector per component type from the descriptors, with `AddField` over a handle (session, entity, component type); the hand-written proxies, their catalog, and their attributes are removed. Every reflected field of the runtime and the anchors gets a tooltip with its unit, a range, and a scrub step; angles show in degrees; fields a project rewrites every step (`Pointer`, `Bounds`) are read-only.
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) the editor inspects every reflected component of the three anchors with no C# class per component, and a component added to a game's library appears without rebuilding the editor; (2) tooltips, ranges, scrub, and degrees show as described, and editing still changes the running World; (3) `capi-test` reads the metadata back; (4) zero warnings in the engine and the editor.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-012--single-source-of-field-metadata)
-
 ### `PIXIE-TODO-013` — Scenario values, scene rebuild, and time control
 
 **Status:** promoted
@@ -162,3 +148,7 @@ verification are preserved in the
 `PIXIE-TODO-011` (C# ImGui editor over the anchors) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-011-imgui-editor-2026-10-13.md).
+
+`PIXIE-TODO-012` (single source of field metadata) completed on 2026-10-13. Its
+entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-012-single-source-metadata-2026-10-13.md).

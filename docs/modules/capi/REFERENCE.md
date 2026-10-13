@@ -43,8 +43,9 @@ statically, like every target, so a host needs no Visual C++ Redistributable.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (1), raised when a function's meaning or a
-  struct's layout changes.
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (2), raised when a function's meaning or a
+  struct's layout changes. Version 2 added the field metadata; a host built for version 1 does not
+  load a version 2 library.
 
 ## Session
 
@@ -94,6 +95,14 @@ Events are kept until the next step reads them.
   (`DescribeRuntimeComponents`), then the game's (`Project::Describe`). `pixie_type_name`,
   `pixie_field_count`, `pixie_field_name`, `pixie_field_kind`, `pixie_field_enum_count`, and
   `pixie_field_enum_name` describe them; `pixie_entity_has` tells whether an entity has one.
+- `pixie_field_info` fills a `PixieFieldInfo` (72 bytes): the kind, the editor
+  (`PixieEditorKind`), flags (`PIXIE_FIELD_READ_ONLY`, `PIXIE_FIELD_HAS_RANGE`,
+  `PIXIE_FIELD_HAS_UNIT`), the order, the scrub per pixel and its axis, the number of enum names,
+  the range and step, and the unit's factor and offset (shown = held * factor + offset). Range, step,
+  and scrub are in the displayed unit. `pixie_field_text` gives the label (the field's name when none
+  was set), tooltip, help, unit suffix, or, for an arc, the name of the field with its width
+  (`PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
+  them.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
   `PixieValue`; `PixieFieldKind` says which members are used. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
@@ -108,7 +117,8 @@ fields of nested structs (such as a particle pool's style) yet.
 
 `tests/capi/CapiTest.c` is a C11 program that includes only `pixie_capi.h` from the engine, loads a
 game's library at run time (`LoadLibrary` or `dlopen`, as P/Invoke does), creates a hidden GLFW
-window with an OpenGL 4.5 core context, and checks: the version; type and field lookup; the entity
+window with an OpenGL 4.5 core context, and checks: the version; type and field lookup; the
+metadata of a field shown in degrees, and a tooltip on every field; the entity
 list and the oldest entity's name; writing a field and reading it back; time, the 0.25 s clamp,
 pause, and single steps; a key press; rendering into a texture at a new size, with content; errors
 for a bad type and a short buffer; and reset. CTest runs it once per game library.

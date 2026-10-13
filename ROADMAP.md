@@ -115,8 +115,8 @@ code grows in the provisional engine library until they are.
   rendered offscreen in a shared OpenGL 4.5 core context. Accepted 2026-10-13.
 - **The editor reaches the engine through a C API.** A shared library with a
   C-only interface (`capi`), consumed through P/Invoke; the native World is the
-  single source of truth, and C# holds handles only (hand-written proxies
-  until PIXIE-TODO-012 replaces them with fields built from the descriptors)
+  single source of truth, and C# holds handles only; its inspectors are built
+  from the engine's field descriptors
   ([PIXIE-PROPOSAL-002](docs/proposals/editor-native-bridge.md)). Accepted
   2026-10-13.
 - **The native registry is the single source of field metadata.** Names,
