@@ -4,3 +4,6 @@
 external/glew/** -text
 external/glfw/** -text
 external/stb/** -text
+external/pixielib/** -text
+external/glm/** -text
+external/entt/** -text

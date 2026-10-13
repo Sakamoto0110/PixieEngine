@@ -1,0 +1,48 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <!-- net481 because NekoLib uses PixieLib on the .NET Framework too (rework 3.9). No windows target:
+       the conversions with WinForms and WPF live in the InteractiveEditor (4.4). -->
+  <PropertyGroup>
+    <TargetFrameworks>net481;net10.0</TargetFrameworks>
+    <LangVersion>latest</LangVersion>
+    <Nullable>enable</Nullable>
+    <RootNamespace>PixieLib</RootNamespace>
+  </PropertyGroup>
+
+  <!-- The package (7.1 to 7.3): .github/workflows/publish.yml, started by hand on GitHub, publishes it
+       to nuget.org and tags the commit with v and the Version. A new release raises the Version here. -->
+  <PropertyGroup>
+    <Version>0.2.0</Version>
+    <PackageId>PixieLib</PackageId>
+    <Authors>Rafael Sakamoto</Authors>
+    <Copyright>Copyright (c) 2026 Rafael Sakamoto</Copyright>
+    <Description>Primitives and math with the same names, memory layout and bits as their C++ side: points, sizes, rectangles, regions, paddings, RGBA and HSL colors, vectors, segments and matrices, in double, float and int.</Description>
+    <PackageTags>primitives;geometry;math;vector;matrix;color;glm;interop</PackageTags>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+    <PackageProjectUrl>https://github.com/Sakamoto0110/PixieLib</PackageProjectUrl>
+    <RepositoryUrl>https://github.com/Sakamoto0110/PixieLib</RepositoryUrl>
+    <PackageReadmeFile>README.md</PackageReadmeFile>
+    <IncludeSymbols>true</IncludeSymbols>
+    <SymbolPackageFormat>snupkg</SymbolPackageFormat>
+    <ContinuousIntegrationBuild Condition="'$(GITHUB_ACTIONS)' == 'true'">true</ContinuousIntegrationBuild>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <None Include="..\..\README.md" Pack="true" PackagePath="\" Visible="false" />
+  </ItemGroup>
+
+  <!-- The primitives that come in three precisions are written once, in Templates, and copied by the
+       generator (4.11). The templates are not compiled themselves. -->
+  <ItemGroup>
+    <Compile Remove="Templates/**" />
+    <AdditionalFiles Include="Templates/*.template.cs" />
+    <ProjectReference Include="..\PixieLib.Generators\PixieLib.Generators.csproj"
+                      OutputItemType="Analyzer" ReferenceOutputAssembly="false" />
+  </ItemGroup>
+
+  <!-- System.Drawing is part of .NET; on the .NET Framework it is a separate assembly. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net481'">
+    <Reference Include="System.Drawing" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,530 @@
+{
+  "schemaVersion": 1,
+  "schemaId": "pixielib.documentation/1",
+  "derivedFrom": "PixieEngine docs/schemas/documentation-schema.json (pixieengine.documentation/1), observed 2026-10-12 at PixieEngine 46ee6aa, with the .NET additions of PixieInspector (pixieinspector.documentation/1), observed 2026-10-12 at PixieInspector 25d56df; both derived from NekoLib schemaVersion 1",
+  "description": "Structural contract for PixieLib document metadata, module manifests, the cross-language layout contract, schedulers, archive records, stable record IDs, and validation vocabulary.",
+  "authority": "This file defines structure and vocabulary only. Meaning is owned by docs/governance/documentation-policy.md. Source code and build files retain their own authority.",
+  "metadata": {
+    "syntax": "bold-label",
+    "valueLayout": "single-physical-line",
+    "requiredForExtendedSchema": [
+      "Document ID",
+      "Schema version",
+      "Kind",
+      "Lifecycle",
+      "Subject",
+      "Surface",
+      "Boundary",
+      "Authority role",
+      "Mutation",
+      "Indexing"
+    ],
+    "fields": {
+      "Kind": [
+        "reference",
+        "guide",
+        "roadmap/status",
+        "audit"
+      ],
+      "Lifecycle": [
+        "current",
+        "frozen",
+        "historical"
+      ],
+      "Surface": [
+        "manifest",
+        "introduction",
+        "technical-reference",
+        "internals",
+        "changelog",
+        "issues",
+        "findings",
+        "proposal",
+        "validation-requirements",
+        "validation-evidence",
+        "audit",
+        "migration",
+        "archive-record",
+        "policy",
+        "guide",
+        "roadmap",
+        "dependency-registry",
+        "work-scheduler",
+        "task-scheduler",
+        "portal",
+        "index",
+        "template"
+      ],
+      "Authority role": [
+        "normative",
+        "roadmap",
+        "scheduler",
+        "evidence",
+        "non-normative",
+        "portal"
+      ],
+      "Mutation": [
+        "authored",
+        "generated",
+        "append-only",
+        "snapshot"
+      ],
+      "Indexing": [
+        "include",
+        "pointer-only",
+        "exclude"
+      ]
+    },
+    "boundaryPattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)*$",
+    "documentIdPattern": "^[A-Z][A-Z0-9-]*$",
+    "canonicalPathStyle": "repository-relative-forward-slashes",
+    "conditionalRules": [
+      "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
+      "Current technical references do not carry a historical Reference date.",
+      "Migrations are non-normative and require Reference date.",
+      "Archive records are historical snapshots and require Archive ID, Type, Origin, Author, Reference date, and Commits; moved or imported records also require Original path."
+    ]
+  },
+  "surfaceRules": {
+    "portal": {
+      "allowedAuthorityRoles": [
+        "portal"
+      ],
+      "requiredIndexing": "pointer-only",
+      "requiredMetadata": [
+        "Canonical"
+      ]
+    },
+    "introduction": {
+      "allowedAuthorityRoles": [
+        "non-normative"
+      ]
+    },
+    "technical-reference": {
+      "allowedAuthorityRoles": [
+        "normative"
+      ],
+      "forbiddenMetadataWhenCurrent": [
+        "Reference date"
+      ]
+    },
+    "migration": {
+      "allowedAuthorityRoles": [
+        "non-normative"
+      ],
+      "requiredMetadata": [
+        "Reference date"
+      ],
+      "requiresManifestBoundary": true
+    },
+    "audit": {
+      "allowedAuthorityRoles": [
+        "evidence"
+      ],
+      "requiredMutationWhenHistorical": "snapshot"
+    },
+    "archive-record": {
+      "allowedAuthorityRoles": [
+        "evidence",
+        "non-normative"
+      ],
+      "requiredLifecycle": "historical",
+      "requiredMutation": "snapshot",
+      "requiredMetadata": [
+        "Archive ID",
+        "Type",
+        "Origin",
+        "Author",
+        "Reference date",
+        "Commits"
+      ],
+      "optionalMetadata": [
+        "Reference commit",
+        "Current state"
+      ],
+      "requiredMetadataWhenMovedOrImported": [
+        "Original path"
+      ]
+    },
+    "work-scheduler": {
+      "allowedAuthorityRoles": [
+        "scheduler"
+      ]
+    },
+    "task-scheduler": {
+      "allowedAuthorityRoles": [
+        "scheduler"
+      ],
+      "parentScheduler": "TODO.md"
+    }
+  },
+  "manifest": {
+    "requiredFields": [
+      "Projects",
+      "Language",
+      "Artifact",
+      "Platforms",
+      "Target frameworks",
+      "Module dependencies",
+      "Third-party dependencies",
+      "Distribution",
+      "Stability",
+      "Public API",
+      "Profiles",
+      "Technical reference",
+      "Related boundaries",
+      "Source",
+      "Tests",
+      "Runtime scenarios"
+    ],
+    "listSeparator": ",",
+    "emptyValue": "none",
+    "language": [
+      "cpp",
+      "csharp"
+    ],
+    "artifact": [
+      "header-only",
+      "static-library",
+      "managed-assembly",
+      "analyzer",
+      "none"
+    ],
+    "distribution": [
+      "package",
+      "source",
+      "unshipped"
+    ],
+    "stability": [
+      "stable",
+      "preview",
+      "experimental",
+      "unshipped"
+    ],
+    "languageRule": "A module that has both sides lists both; its technical reference describes both.",
+    "distributionMeaning": {
+      "package": "the C# side, in the PixieLib package on nuget.org",
+      "source": "the C++ side, taken by FetchContent at a release tag",
+      "unshipped": "not distributed"
+    },
+    "targetFrameworksEmptyValue": "none",
+    "publicApiOracle": "The compiled assembly on the C# side and the public headers on the C++ side; no accepted API baseline exists yet."
+  },
+  "module": {
+    "requiredSurfaces": [
+      "MANIFEST.md",
+      "README.md",
+      "REFERENCE.md"
+    ],
+    "onDemandSurfaces": [
+      "ISSUES.md",
+      "FINDINGS.md",
+      "VALIDATION_REQUIREMENTS.md",
+      "VALIDATIONS.md",
+      "CHANGELOG.md",
+      "INTERNALS.md"
+    ],
+    "onDemandDirectories": [
+      "audits",
+      "migrations"
+    ],
+    "onDemandRule": "An on-demand surface is created together with its first record. Its absence is not evidence that no record exists.",
+    "normativeTechnicalReferenceCount": 1,
+    "profilesOwnerSurface": "manifest"
+  },
+  "crossLanguageContract": {
+    "file": "docs/layout.md",
+    "role": "global normative reference: the layout of every type both languages share and the semantics both sides repeat; module references link to it and do not copy it"
+  },
+  "portals": [
+    {
+      "file": "docs/notas.md",
+      "canonical": "docs/archive/decision-notes-2026-10-12.md",
+      "reason": "source comments cite the path"
+    }
+  ],
+  "dependencies": {
+    "file": "DEPENDENCIES.md",
+    "statuses": [
+      "ok",
+      "outdated",
+      "not-installed"
+    ],
+    "candidatesRule": "Suggested dependencies are listed as candidates until the owner adopts them."
+  },
+  "schedulers": {
+    "todo": {
+      "file": "TODO.md",
+      "idPattern": "^[A-Z][A-Z0-9.]*-TODO-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Source",
+        "Accepted scope",
+        "Dependencies and gates",
+        "Completion criteria",
+        "Breakdown"
+      ],
+      "statuses": [
+        "promoted",
+        "in-progress",
+        "blocked",
+        "completed",
+        "withdrawn"
+      ],
+      "breakdownEmptyValue": "none"
+    },
+    "tasklist": {
+      "file": "TASKLIST.md",
+      "parent": "todo",
+      "sectionKey": "Parent",
+      "idPattern": "^[A-Z][A-Z0-9.]*-TASK-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Description"
+      ],
+      "conditionalFields": {
+        "dropped": [
+          "Reason"
+        ]
+      },
+      "statuses": [
+        "open",
+        "in-progress",
+        "done",
+        "dropped"
+      ],
+      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. A completed parent's section moves to docs/archive/."
+    }
+  },
+  "records": {
+    "changelog": {
+      "idPattern": "^(Unreleased|[0-9]+\\.[0-9]+\\.[0-9]+(?:[-+][0-9A-Za-z.-]+)?)$",
+      "requiredFields": [
+        "Compatibility class",
+        "Consumer impact",
+        "Migration"
+      ]
+    },
+    "issues": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-ISSUE-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Severity",
+        "Affected releases",
+        "Symptom",
+        "Trigger",
+        "Evidence",
+        "Workaround",
+        "Intended fix",
+        "Fix release",
+        "Roadmap"
+      ],
+      "statuses": [
+        "confirmed",
+        "fixed",
+        "wont-fix",
+        "superseded"
+      ]
+    },
+    "findings": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-FINDING-[0-9]{3}$",
+      "requiredFields": [
+        "Status",
+        "Confidence",
+        "Observation",
+        "Evidence",
+        "Hypothesis",
+        "Disposition",
+        "Outcome link"
+      ],
+      "statuses": [
+        "open",
+        "confirmed",
+        "disproved",
+        "rejected",
+        "superseded"
+      ]
+    },
+    "proposal": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-PROPOSAL-[0-9]{3}$",
+      "requiredFields": [
+        "State",
+        "Idea",
+        "Rationale",
+        "Constraints",
+        "Promotion target"
+      ],
+      "optionalFields": [
+        "Source",
+        "Outcome"
+      ],
+      "statuses": [
+        "idea",
+        "exploring",
+        "rejected",
+        "promoted",
+        "superseded"
+      ]
+    },
+    "validation-requirements": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALREQ-[0-9]{3}$",
+      "requiredFields": [
+        "Classification",
+        "Trigger",
+        "Category",
+        "Boundary",
+        "Targets",
+        "Acceptance criteria",
+        "Required evidence level",
+        "Rationale"
+      ]
+    },
+    "validation-evidence": {
+      "idPattern": "^[A-Z][A-Z0-9.]*-VALEVID-[0-9]{8}-[0-9]{3}$",
+      "requiredFields": [
+        "Requirement IDs",
+        "Version",
+        "Commit",
+        "Tree state",
+        "Environment",
+        "Targets",
+        "Command or scenario",
+        "Execution",
+        "Evidence level",
+        "Result",
+        "Artifacts",
+        "Gaps",
+        "Supersedes"
+      ]
+    }
+  },
+  "stableIds": {
+    "newIdsAreNeverRenumberedOrReused": true,
+    "examples": [
+      "PXL-TODO-001",
+      "PXL-TASK-001",
+      "PXL-PROPOSAL-001",
+      "PXL-ARCHIVE-001",
+      "MATH-ISSUE-001"
+    ]
+  },
+  "proposals": {
+    "directory": "docs/proposals",
+    "index": "docs/proposals/README.md",
+    "template": "docs/templates/PROPOSAL.md",
+    "recordSurface": "proposal",
+    "oneRecordPerFile": true,
+    "promotionAuthority": "TODO.md",
+    "promotionSourceExclusive": false
+  },
+  "evidence": {
+    "tests": [
+      "cpp/tests",
+      "dotnet/PixieLib.Tests"
+    ],
+    "ci": ".github/workflows/ci.yml",
+    "rule": "Tests and CI runs demonstrate bounded claims; they never define behavior."
+  },
+  "commits": {
+    "prefixes": [
+      "(feat)",
+      "(fix)",
+      "(refactor)",
+      "(docs)"
+    ],
+    "identity": "Rafael Sakamoto <rafael.sakamoto1@hotmail.com>, as author and committer, with no co-author or tool lines",
+    "branch": "main; a session that can push only to its own branch pushes there, fast-forwards main to the same commit, and deletes its branch",
+    "rule": "Code and documentation in separate commits; the documentation commit cites the code commit hashes."
+  },
+  "release": {
+    "version": "dotnet/PixieLib/PixieLib.csproj Version",
+    "publish": ".github/workflows/publish.yml, run by the owner",
+    "tags": "created by the publish workflow, never by a session"
+  },
+  "archive": {
+    "directory": "docs/archive",
+    "index": "docs/archive/README.md",
+    "indexRole": "router: one table row per record, in Archive ID order, with enough to find the record",
+    "indexColumns": [
+      "ID",
+      "Date",
+      "Type",
+      "Origin",
+      "Author",
+      "Summary",
+      "Commits",
+      "Record"
+    ],
+    "authors": [
+      "owner",
+      "claude",
+      "codex"
+    ],
+    "template": "docs/templates/ARCHIVE-RECORD.md",
+    "recordSurface": "archive-record",
+    "oneRecordPerFile": true,
+    "idPattern": "^[A-Z][A-Z0-9.]*-ARCHIVE-[0-9]{3}$",
+    "types": [
+      "decision",
+      "promotion",
+      "completion",
+      "fix",
+      "finding",
+      "proposal",
+      "dependency",
+      "roadmap",
+      "import"
+    ],
+    "selfReferenceCommits": "with this record (parent <full hash>)",
+    "importedLanguageRule": "An imported record keeps the language of its body under an English header."
+  },
+  "local": {
+    "root": ".local",
+    "versioned": false,
+    "authority": "none",
+    "openQuestions": ".local/decisions/open-questions.md",
+    "rule": "Versioned documents never link into .local/. Answers that shape code, structure, or direction are promoted to a versioned owner."
+  },
+  "validation": {
+    "categories": [
+      "build",
+      "focused-regression",
+      "full-regression",
+      "cross-language-parity",
+      "sanitizer",
+      "api-compatibility",
+      "package",
+      "performance"
+    ],
+    "execution": [
+      "automated",
+      "manual"
+    ],
+    "boundaries": [
+      "in-process",
+      "package-feed",
+      "deployment"
+    ],
+    "evidenceLevels": [
+      "build-only",
+      "automated-runtime"
+    ],
+    "requirementStatuses": [
+      "REQUIRED",
+      "CONDITIONAL",
+      "RECOMMENDED",
+      "NOT_APPLICABLE"
+    ],
+    "evidenceStatuses": [
+      "PASS",
+      "FAIL",
+      "PARTIAL",
+      "NOT_RUN",
+      "BLOCKED",
+      "NOT_APPLICABLE",
+      "SUPERSEDED"
+    ],
+    "profiles": {},
+    "profilesRule": "Validation profiles are defined with the first module that needs one. Profiles may be combined and requirements elevated; inherited requirements must not be weakened silently."
+  }
+}

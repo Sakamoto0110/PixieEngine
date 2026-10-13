@@ -1,0 +1,76 @@
+# Builds and tests PixieLib on every push to main and on pull requests: the C++ with g++ (with the
+# address and undefined behavior sanitizers), clang++ and MSVC, and the C# on .NET 10 on Linux and on
+# Windows, where it also runs on the .NET Framework (net481). publish.yml runs it before publishing.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  cpp:
+    name: C++ (${{ matrix.name }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: g++, ASan and UBSan
+            os: ubuntu-latest
+            cxx: g++
+            flags: -fsanitize=address,undefined -fno-sanitize-recover=all
+          - name: clang++
+            os: ubuntu-latest
+            cxx: clang++
+          - name: MSVC
+            os: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Configure
+        shell: bash
+        run: |
+          args=(-S cpp -B build -DCMAKE_BUILD_TYPE=Release)
+          if [ -n "${{ matrix.cxx }}" ]; then args+=("-DCMAKE_CXX_COMPILER=${{ matrix.cxx }}"); fi
+          if [ -n "${{ matrix.flags }}" ]; then args+=("-DCMAKE_CXX_FLAGS=${{ matrix.flags }}"); fi
+          cmake "${args[@]}"
+
+      - name: Build
+        run: cmake --build build --config Release
+
+      - name: Test
+        run: ctest --test-dir build -C Release --output-on-failure
+
+  dotnet:
+    name: C# (${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Build
+        run: dotnet build dotnet/PixieLib.slnx -c Release
+
+      - name: Test on .NET 10
+        run: dotnet run --project dotnet/PixieLib.Tests -c Release -f net10.0 --no-build
+
+      - name: Test on .NET Framework 4.8.1
+        if: runner.os == 'Windows'
+        shell: bash
+        run: ./dotnet/PixieLib.Tests/bin/Release/net481/PixieLib.Tests.exe
+
+      - name: Pack
+        run: dotnet pack dotnet/PixieLib/PixieLib.csproj -c Release --no-build -o artifacts

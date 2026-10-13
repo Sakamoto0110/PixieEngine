@@ -1,0 +1,5 @@
+<Solution>
+  <Project Path="PixieLib.Generators/PixieLib.Generators.csproj" />
+  <Project Path="PixieLib.Tests/PixieLib.Tests.csproj" />
+  <Project Path="PixieLib/PixieLib.csproj" />
+</Solution>
