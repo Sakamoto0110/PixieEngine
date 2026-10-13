@@ -44,14 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-007` — Anchor 1: boids steered by the user
-
-**Parent:** [PIXIE-TODO-007](TODO.md#pixie-todo-007--anchor-1-boids-steered-by-the-user)
-
-- `PIXIE-TASK-033` — **Status:** open — `boids` sample: the `Boid` Behaviour steering toward or away from the mouse within a radius, with maximum speed and force, wrapping at the view edges.
-- `PIXIE-TASK-034` — **Status:** open — Keys for attract or repel and for the count; triangles oriented by velocity; its `README.md`.
-- `PIXIE-TASK-035` — **Status:** open — Verification: 1,000 boids at 60 updates per second, measured and recorded, and the steering checked against the README.
-
 ## `PIXIE-TODO-008` — Spatial grid and anchor 2: flocks
 
 **Parent:** [PIXIE-TODO-008](TODO.md#pixie-todo-008--spatial-grid-and-anchor-2-flocks)

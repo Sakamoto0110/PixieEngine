@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-007` — Anchor 1: boids steered by the user
-
-**Status:** promoted
-
-**Source:** [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), anchor 1
-
-**Accepted scope:** a `boids` sample. Each boid is an entity with a `Boid` Behaviour that steers toward or away from the mouse within a radius, with a maximum speed and force, and wraps at the view edges. Boids are drawn as triangles oriented by their velocity, interpolated. Keys switch between attracting and repelling and change the count.
-
-**Dependencies and gates:** 1. PIXIE-TODO-006
-
-**Completion criteria:** (1) 1,000 boids at 60 updates per second, measured and recorded; (2) the steering responds to the mouse as the `README.md` describes; (3) zero warnings in Debug and Release.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-007--anchor-1-boids-steered-by-the-user)
-
 ### `PIXIE-TODO-008` — Spatial grid and anchor 2: flocks
 
 **Status:** promoted
@@ -148,3 +134,7 @@ breakdown, and verification are preserved in the
 `PIXIE-TODO-006` (runtime module: World, entities, Behaviours, and phases)
 completed on 2026-10-13. Its entry, breakdown, and verification are preserved
 in the [archive record](docs/archive/todo-006-runtime-module-2026-10-13.md).
+
+`PIXIE-TODO-007` (anchor 1: boids steered by the user) completed on
+2026-10-13. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-007-anchor-1-boids-2026-10-13.md).
