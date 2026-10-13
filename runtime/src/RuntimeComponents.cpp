@@ -54,10 +54,18 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Tooltip("Distance below which the pull stops growing, in world units.")
         .Range(0.0, 500.0)
         .Scrub(0.5)
-        .Field<&Attractor::radius>("radius")
+        .Field<&Attractor::size>("size")
+        .Tooltip("Radius of the body, in world units, before the transform's scale. It does not change "
+                 "the pull; with die on contact, particles that come within it are removed.")
+        .Range(0.0, 10000.0)
+        .Scrub(0.5)
+        .Field<&Attractor::reach>("reach")
         .Tooltip("Particles farther than this, in world units, feel nothing; 0 means no limit.")
         .Range(0.0, 100000.0)
-        .Scrub(1.0);
+        .Scrub(1.0)
+        .Field<&Attractor::killOnContact>("killOnContact")
+        .Label("die on contact")
+        .Tooltip("Remove a particle that comes within the body. Off, particles pass through it.");
     types.Add<ParticleEmitter>("ParticleEmitter")
         .Field<&ParticleEmitter::rate>("rate")
         .Tooltip("Particles emitted per second at the entity; 0 emits nothing.")

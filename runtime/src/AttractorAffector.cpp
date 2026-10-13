@@ -4,6 +4,7 @@
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
+#include <algorithm>
 #include <cmath>
 
 namespace pixie {
@@ -13,12 +14,14 @@ void AttractorAffector::Apply(World& world, Entity, std::span<Particle> particle
     sources_.clear();
     for (auto [id, transform, attractor] :
          world.Registry().view<const Transform2D, const Attractor>().each()) {
-        const double radiusSquared = attractor.radius > 0.0 ? attractor.radius * attractor.radius : 0.0;
+        const double reachSquared = attractor.reach > 0.0 ? attractor.reach * attractor.reach : 0.0;
+        const double body = attractor.size * std::max(std::abs(transform.scale.x), std::abs(transform.scale.y));
         sources_.push_back({static_cast<float>(transform.position.x),
                             static_cast<float>(transform.position.y),
                             static_cast<float>(attractor.strength),
                             static_cast<float>(attractor.softening * attractor.softening),
-                            static_cast<float>(radiusSquared)});
+                            static_cast<float>(reachSquared),
+                            attractor.killOnContact ? static_cast<float>(body * body) : -1.0f});
     }
     if (sources_.empty()) {
         return;
@@ -31,7 +34,11 @@ void AttractorAffector::Apply(World& world, Entity, std::span<Particle> particle
             const float dx = source.x - particle.position.x;
             const float dy = source.y - particle.position.y;
             const float distanceSquared = dx * dx + dy * dy;
-            if (source.radiusSquared > 0.0f && distanceSquared > source.radiusSquared) {
+            if (distanceSquared < source.killSquared) {
+                KillParticle(particle);
+                break;
+            }
+            if (source.reachSquared > 0.0f && distanceSquared > source.reachSquared) {
                 continue;
             }
             const float softened = distanceSquared + source.softeningSquared;

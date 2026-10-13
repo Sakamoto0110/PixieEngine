@@ -5,13 +5,21 @@ namespace pixie {
 // Marks an entity with a Transform2D as a point that pulls particles, through an AttractorAffector.
 // The pull falls with the square of the distance, softened near the center, so particles moving
 // sideways fall into orbits: a circular orbit at distance r has speed sqrt(strength / r).
+//
+// How hard it pulls (strength) and how big it is (size) are separate: the size does not change the
+// pull. It only matters when killOnContact is set: a particle that comes within the body (size
+// times the transform's larger scale) is removed.
 struct Attractor {
     // In world units cubed per second squared; negative pushes away.
     double strength = 4.0e6;
     // Distance below which the pull stops growing, in world units.
     double softening = 12.0;
-    // Particles farther than this feel nothing; 0 means no limit.
-    double radius = 0.0;
+    // Radius of the body, in world units, before the transform's scale.
+    double size = 10.0;
+    // Particles farther than this, in world units, feel nothing; 0 means no limit.
+    double reach = 0.0;
+    // Remove a particle that comes within the body.
+    bool killOnContact = false;
 };
 
 } // namespace pixie

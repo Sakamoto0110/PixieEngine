@@ -25,6 +25,20 @@ void Age(ParticleEmitter& emitter, float dt) {
     }
 }
 
+// Removes the particles an affector killed during this step (KillParticle).
+void RemoveExpired(ParticleEmitter& emitter) {
+    auto& particles = emitter.particles;
+    for (std::size_t i = 0; i < particles.size();) {
+        const Particle& particle = particles[i];
+        if (particle.lifetime > 0.0f && particle.age >= particle.lifetime) {
+            particles[i] = particles.back();
+            particles.pop_back();
+            continue;
+        }
+        ++i;
+    }
+}
+
 void EmitAtRate(World& world, Entity entity, ParticleEmitter& emitter, double dt) {
     if (emitter.rate <= 0.0) {
         return;
@@ -59,6 +73,7 @@ void StepParticles(World& world, const FrameTime& time, const Input&) {
                 affector->Apply(world, entity, emitter.particles, time);
             }
         }
+        RemoveExpired(emitter);
         for (Particle& particle : emitter.particles) {
             particle.position = particle.position + particle.velocity * dt;
         }

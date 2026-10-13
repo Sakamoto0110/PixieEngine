@@ -7,6 +7,7 @@
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleEmitter.hpp"
+#include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
@@ -160,6 +161,12 @@ void ParticlesProject::HandleKeys(pixie::World& world, const pixie::Input& input
 void ParticlesProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) {
     HandleMouse(world, camera, input);
     HandleKeys(world, input);
+    // An attractor's ring is its body.
+    world.Each<pixie::Shape, const pixie::Attractor>(
+        [](pixie::Entity, pixie::Shape& shape, const pixie::Attractor& attractor) {
+            shape.size = pxVec2(attractor.size, attractor.size);
+        });
+
     // The controls are the source of truth; the affector follows them.
     const ParticleControls& controls = emitter_.Get<ParticleControls>();
     auto* interaction = emitter_.Get<pixie::ParticleEmitter>().FindAffector<pixie::InteractionAffector>();

@@ -140,3 +140,63 @@ TEST(InteractionPushesOverlappingParticlesApartWhateverTheirOrder) {
     const float dy = forward[1].y - forward[0].y;
     CHECK(std::sqrt(dx * dx + dy * dy) > 4.0f);
 }
+
+namespace {
+
+// A World with an attractor of body `size` at the origin, scaled by `scale`, that does not pull,
+// and one particle at rest at `distance` from it; returns how many particles are left after a step.
+std::size_t ParticlesLeft(bool killOnContact, double size, double scale, float distance) {
+    World world;
+    AddParticleSystem(world);
+    Entity attractor = world.Create();
+    attractor.Add<Transform2D>(Transform2D{pxPoint(0.0, 0.0), 0.0, pxVec2(scale, scale)});
+    Attractor& a = attractor.Add<Attractor>();
+    a.strength = 0.0;
+    a.size = size;
+    a.killOnContact = killOnContact;
+    Entity e = world.Create();
+    ParticleEmitter& emitter = e.Add<ParticleEmitter>();
+    emitter.AddAffector<AttractorAffector>();
+    emitter.Emit(pxPointf(distance, 0.0f), pxVec2f(0.0f), 0.0f);
+    world.Step(kStep, kNoInput);
+    return e.Get<ParticleEmitter>().particles.size();
+}
+
+} // namespace
+
+TEST(ContactKillsOnlyWithTheFlag) {
+    CHECK(ParticlesLeft(true, 20.0, 1.0, 10.0f) == 0);
+    CHECK(ParticlesLeft(false, 20.0, 1.0, 10.0f) == 1);
+    CHECK(ParticlesLeft(true, 20.0, 1.0, 30.0f) == 1);
+}
+
+TEST(TheBodyGrowsWithTheTransformScale) {
+    CHECK(ParticlesLeft(true, 20.0, 1.0, 30.0f) == 1);
+    CHECK(ParticlesLeft(true, 20.0, 2.0, 30.0f) == 0);
+}
+
+TEST(AParticleFlyingIntoTheBodyIsRemovedThatStep) {
+    // Pulled straight in from 100 units, the particle reaches a 15-unit body and is removed, before it
+    // could be drawn inside it.
+    World world;
+    AddParticleSystem(world);
+    Entity sun = world.Create();
+    sun.Add<Transform2D>();
+    Attractor& a = sun.Add<Attractor>();
+    a.size = 15.0;
+    a.killOnContact = true;
+    Entity e = world.Create();
+    ParticleEmitter& emitter = e.Add<ParticleEmitter>();
+    emitter.AddAffector<AttractorAffector>();
+    emitter.Emit(pxPointf(100.0f, 0.0f), pxVec2f(0.0f), 0.0f);
+    bool reached = false;
+    for (int i = 0; i < 600 && !reached; ++i) {
+        world.Step(kStep, kNoInput);
+        const auto& particles = e.Get<ParticleEmitter>().particles;
+        reached = particles.empty();
+        if (!reached) {
+            CHECK(Length(particles[0].position) >= 15.0 * 0.5);
+        }
+    }
+    CHECK(reached);
+}
