@@ -1,0 +1,128 @@
+# Runtime Technical Reference
+
+**Document ID:** RUNTIME-REFERENCE
+
+**Schema version:** 1
+
+**Kind:** reference
+
+**Lifecycle:** current
+
+**Subject:** the contract of the runtime module: World, Entity, Behaviour, systems, phases, time, randomness, and the built-in components
+
+**Surface:** technical-reference
+
+**Boundary:** runtime
+
+**Authority role:** normative
+
+**Mutation:** authored
+
+**Indexing:** include
+
+## Mental model
+
+The object model is an EC-style API over ECS storage
+([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). Components are data-only structs, each
+type in its own contiguous EnTT storage. Game logic is a `Behaviour`: a class with `Update()` that
+is itself a component, so every Behaviour class also has contiguous storage. Work shared by many
+entities (integration, and later spatial queries) is a system: a function over the whole World.
+
+## Public entry points
+
+All under `runtime/include/pixie/runtime/`:
+
+| Header | Provides |
+|---|---|
+| `World.hpp` | `World`, `SystemPhase`, `System`, and the template members of `Entity` |
+| `Entity.hpp` | `Entity`, a handle (World pointer and EnTT entity) |
+| `Behaviour.hpp` | `Behaviour`, the base of logic classes |
+| `Random.hpp` | `Random`, the seeded generator |
+| `Transform2D.hpp` | `Transform2D` and `PreviousTransform2D` |
+| `Velocity2D.hpp` | `Velocity2D` |
+| `Shape.hpp` | `Shape`, an entity's look |
+| `Name.hpp` | `Name`, an optional label |
+| `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
+
+Use `Entity`'s templates through `World.hpp`, which defines them.
+
+## The step
+
+`World::Step(delta, input)` advances the World by `delta` seconds:
+
+1. `PreUpdate` systems, in the order added. The first is the World's own: it copies every
+   `Transform2D` into the entity's `PreviousTransform2D`.
+2. Behaviours: for each Behaviour class, in the order the classes were first added to the World,
+   every instance in its storage's order. An instance's `Start` runs right before its first
+   `Update`. A class first added during a step is updated from the next step on.
+3. `PostUpdate` systems, in the order added. The first is the World's own: it integrates
+   `Velocity2D` into `Transform2D` (`position += linear * delta`, `rotation += angular * delta`).
+4. The destructions requested during the step, then the deferred actions, in request order.
+
+Each system and Behaviour receives the World's `FrameTime`: `delta`, `elapsed` (the World's
+simulated seconds before this step), and `index` (the World's step count before this step); `alpha`
+is 0. `Steps()` and `Elapsed()` report the totals. The World's time is its own: two Worlds, or a
+paused one, keep separate clocks.
+
+## Behaviours
+
+- A Behaviour derives from `Behaviour` and overrides any of `Start`, `Update(time, input)`, and
+  `Stop`. `Self()` is its entity; `GetWorld()` its World.
+- `Entity::AddBehaviour<T>(args...)` constructs it in place, replacing a `T` already there.
+- `Stop` runs once, if `Start` ran, when the Behaviour leaves: removed with `Remove<T>()`, its
+  entity destroyed, or the World destroyed. At World destruction, Behaviours stop class by class
+  before any other component is removed, so `Stop` can still read its entity.
+- `Update` should write only its own entity's components and read the rest. Shared results come
+  from systems; that keeps a step independent of update order.
+- Behaviours move when their storage grows or shrinks. Keep `Entity` handles, not pointers or
+  references to Behaviours or components, across steps.
+
+## Structural changes and destruction
+
+- `World::Destroy(entity)` and `Entity::Destroy()` take effect at the end of the step when called
+  during one, and immediately otherwise. Until then the entity stays alive and readable.
+- Creating entities, or adding and removing components, while a step runs may move storage that a
+  system or a Behaviour class is iterating. Do it through `World::Defer(action)`, which runs
+  `action` at the end of the step (immediately outside a step).
+- `Entity::Add<T>` replaces an existing `T`. An `Entity` stays valid to copy after its entity is
+  gone; `IsAlive()` tells.
+
+## Built-in components
+
+- `Transform2D`: `position` (`pxPoint`, world units), `rotation` (radians, from +X toward +Y, so
+  clockwise on screen, since Y points down), `scale` (`pxVec2`).
+- `PreviousTransform2D`: added with every `Transform2D` and refreshed at each step's start;
+  `World::ResetInterpolation(entity)` makes it equal the current transform, so a jump is not
+  drawn as motion.
+- `Velocity2D`: `linear` (`pxVec2`, units per second) and `angular` (radians per second).
+- `Shape`: a `ShapeKind`, a half extent `size` before the transform's scale, and a `pxColorRgba`.
+- `Name`: a string, added by `World::Create(name)` when the name is not empty.
+
+## Drawing
+
+`SubmitShapes(world, renderer, alpha)` submits each entity with `Transform2D` and `Shape` to a
+`ShapeRenderer`, at the transform interpolated `alpha` of the way from `PreviousTransform2D`:
+position and scale linearly, rotation the short way around. The caller flushes the renderer with
+its camera. It needs the GL context current, as the renderer does.
+
+## Randomness
+
+`World(seed)` seeds the World's `Random`. `Random` is xoshiro256** seeded through splitmix64; its
+sequences depend only on the seed, on every compiler and platform. The first value for seed 0 is
+pinned by a test, so a change to the generator does not go unnoticed.
+
+## Threading
+
+None. A World and its Behaviours are used from one thread at a time.
+
+## Non-goals
+
+No saving or loading (serialization is postponed), no prefabs or hierarchy, no physics, no
+multithreaded systems.
+
+## Validation
+
+`tests/runtime/` (CTest `runtime-tests`) covers the phase order, the Behaviour lifecycle,
+deferred destruction and actions, the World's time, velocity integration with the previous
+transform, the Entity handle, and the generator's determinism. `SubmitShapes` is exercised by the
+samples that draw a World.

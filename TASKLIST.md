@@ -44,18 +44,6 @@ their parents. Completed breakdowns are in their archive records, as the one of
 PIXIE-TODO-002 is in its
 [archive record](docs/archive/todo-002-main-loop-hello-gl-2026-10-11.md).
 
-## `PIXIE-TODO-006` — Runtime module: World, entities, Behaviours, and phases
-
-**Parent:** [PIXIE-TODO-006](TODO.md#pixie-todo-006--runtime-module-world-entities-behaviours-and-phases)
-
-- `PIXIE-TASK-026` — **Status:** open — Create the `runtime` module: the `runtime/` library target and `docs/modules/runtime/` with `MANIFEST.md`, `README.md`, and `REFERENCE.md`.
-- `PIXIE-TASK-027` — **Status:** open — `World` over an EnTT registry and an `Entity` handle: create, destroy, and add, get, has, and remove components.
-- `PIXIE-TASK-028` — **Status:** open — Update phases: engine systems registered for `PreUpdate` and `PostUpdate`, Behaviours run in `Update`, and destruction deferred to the end of the step.
-- `PIXIE-TASK-029` — **Status:** open — `Behaviour`: a base class with `Start`, `Update`, and `Stop`, stored as a component, with access to its entity and World.
-- `PIXIE-TASK-030` — **Status:** open — Time and randomness: the World counts its own steps and simulated time, and owns a random number generator created from a seed.
-- `PIXIE-TASK-031` — **Status:** open — Built-in components `Transform2D`, `Velocity2D`, and `Shape`; the previous transform kept each step; integration in `PostUpdate`; a render system that draws interpolated shapes.
-- `PIXIE-TASK-032` — **Status:** open — CTest tests for phase order, Behaviour lifecycle, deferred destruction, and identical sequences from one seed, each seen failing on a broken copy.
-
 ## `PIXIE-TODO-007` — Anchor 1: boids steered by the user
 
 **Parent:** [PIXIE-TODO-007](TODO.md#pixie-todo-007--anchor-1-boids-steered-by-the-user)

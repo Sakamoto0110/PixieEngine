@@ -36,4 +36,5 @@ owns the authority table: which document owns which kind of fact.
 | [`proposals/`](proposals/README.md) | Unpromoted ideas |
 | [`archive/`](archive/README.md) | Chronology, completed work, dated rationale |
 | `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
-| `modules/` | One directory per engine boundary; created when its code exists (none yet) |
+| [`modules/runtime/`](modules/runtime/README.md) | The `runtime` module: World, entities, Behaviours, and update phases |
+| `modules/` | One directory per decided engine boundary |

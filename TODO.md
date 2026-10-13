@@ -53,20 +53,6 @@ serialization and the `scene` boundary, stable entity IDs, play mode as a copy
 of a Scene into a World, hot reload, C# scripting, sprites loaded from image
 files, audio, and physics.
 
-### `PIXIE-TODO-006` — Runtime module: World, entities, Behaviours, and phases
-
-**Status:** promoted
-
-**Source:** [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md), part 1; the `runtime` boundary of [PIXIE-PROPOSAL-001](docs/proposals/engine-module-boundaries.md)
-
-**Accepted scope:** the `runtime` module, with its `MANIFEST.md`, `README.md`, and `REFERENCE.md`: a World over an EnTT registry, with its own time and a seeded random number generator; an EC-style entity handle (create, destroy, and add, get, has, and remove components); `Behaviour` classes with `Update()`, stored as components; the update phases `PreUpdate`, `Update` (Behaviours), and `PostUpdate`, with engine systems registered per phase; destruction deferred to the end of a step; the built-in components `Transform2D`, `Velocity2D`, and `Shape`, with the previous transform kept for render interpolation; and a render system that draws shapes through the instanced renderer. Tests run through CTest.
-
-**Dependencies and gates:** 1. PIXIE-TODO-003 (EnTT, PixieLib); 2. PIXIE-TODO-005 (renderer)
-
-**Completion criteria:** (1) Debug and Release build with zero warnings; (2) tests pass for phase order, Behaviour lifecycle, deferred destruction, and identical random sequences from the same seed, and a deliberately broken copy of each makes its test fail; (3) the module's documents exist and match the public headers.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-006--runtime-module-world-entities-behaviours-and-phases)
-
 ### `PIXIE-TODO-007` — Anchor 1: boids steered by the user
 
 **Status:** promoted
@@ -158,3 +144,7 @@ breakdown, and verification are preserved in the
 `PIXIE-TODO-005` (input, 2D camera, and instanced shapes) completed on
 2026-10-13. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-005-input-camera-shapes-2026-10-13.md).
+
+`PIXIE-TODO-006` (runtime module: World, entities, Behaviours, and phases)
+completed on 2026-10-13. Its entry, breakdown, and verification are preserved
+in the [archive record](docs/archive/todo-006-runtime-module-2026-10-13.md).
