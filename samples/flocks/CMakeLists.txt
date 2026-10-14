@@ -14,7 +14,7 @@ pixie_target_defaults(flocks-game)
 # The player: the game in its own window.
 add_executable(flocks src/player/main.cpp)
 set_target_properties(flocks PROPERTIES FOLDER samples/flocks)
-target_link_libraries(flocks PRIVATE flocks-game pixie_sample_common)
+target_link_libraries(flocks PRIVATE flocks-game)
 pixie_target_defaults(flocks)
 
 # The game for hosts that drive it through the C API, such as the editor: bin/<config>/flocks-capi.

@@ -1,15 +1,15 @@
-#include "SampleOptions.hpp"
+#include "pixie/RunOptions.hpp"
 
 #include <charconv>
 #include <cstdio>
 #include <format>
 #include <string>
 
-namespace sample {
+namespace pixie {
 
 namespace {
 
-void PrintUsage(std::string_view program, std::span<const Option> extra) {
+void PrintUsage(std::string_view program, std::span<const RunOption> extra) {
     std::string usage = std::format("usage: {} [options]\n", program);
     const auto line = [&usage](std::string_view name, std::string_view argument,
                                std::string_view help) {
@@ -20,13 +20,13 @@ void PrintUsage(std::string_view program, std::span<const Option> extra) {
     line("--vsync", "on|off", "vertical sync (default on)");
     line("--quit-after", "<seconds>", "close after this long; 0 means never (default 0)");
     line("--screenshot", "<file.png>", "with --quit-after, save the last frame as a PNG");
-    for (const Option& option : extra) {
+    for (const RunOption& option : extra) {
         line(option.name, option.argument, option.help);
     }
     std::fputs(usage.c_str(), stderr);
 }
 
-bool ParseCommon(std::string_view option, std::string_view value, pixie::RunConfig& config,
+bool ParseCommon(std::string_view option, std::string_view value, RunConfig& config,
                  bool& known) {
     known = true;
     if (option == "--ups") {
@@ -69,8 +69,8 @@ bool ParseCount(std::string_view text, int& value, int min, int max) {
     return true;
 }
 
-bool ParseOptions(int argc, char** argv, std::string_view program, pixie::RunConfig& config,
-                  std::span<const Option> extra) {
+bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig& config,
+                     std::span<const RunOption> extra) {
     for (int i = 1; i < argc; ++i) {
         const std::string_view option = argv[i];
         if (i + 1 >= argc) {
@@ -81,7 +81,7 @@ bool ParseOptions(int argc, char** argv, std::string_view program, pixie::RunCon
         bool known = false;
         bool ok = ParseCommon(option, value, config, known);
         if (!known) {
-            for (const Option& candidate : extra) {
+            for (const RunOption& candidate : extra) {
                 if (candidate.name == option) {
                     known = true;
                     ok = candidate.parse(value);
@@ -97,4 +97,4 @@ bool ParseOptions(int argc, char** argv, std::string_view program, pixie::RunCon
     return true;
 }
 
-} // namespace sample
+} // namespace pixie

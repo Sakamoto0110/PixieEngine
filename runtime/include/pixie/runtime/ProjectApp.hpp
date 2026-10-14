@@ -9,7 +9,8 @@
 namespace pixie {
 
 // Runs a Project in pixie::Run's window: the player side of a game. Each fixed update is one step of
-// the project's session; each frame draws it. Once per second it logs how long the steps took.
+// the project's session; each frame draws it. Once per second it logs how long the steps took. With a
+// project folder open in the session (OpenProject, before Run), it plays the start scene.
 class ProjectApp final : public App {
 public:
     ProjectApp(std::unique_ptr<Project> project, SessionSettings settings)

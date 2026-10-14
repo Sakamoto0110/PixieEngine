@@ -23,6 +23,10 @@ internal sealed class SessionPanel(EngineSession session, string game)
             {
                 ImGui.TextUnformatted($"Project: {session.ProjectName}{(session.Unsaved ? " (not saved)" : "")}");
                 ImGui.TextDisabled(project);
+                var library = Path.GetFileName(GameLibrary.Loaded);
+                ImGui.TextUnformatted(!ProjectBuild.HasCode(project) ? "No code of its own (Code, Add code)."
+                    : library.StartsWith(GameLibrary.SceneGame, StringComparison.Ordinal) ? "Its code is not loaded: opened without it."
+                    : $"Code: {library}");
                 ImGui.TextUnformatted(editing ? "Editing: time stands still." : "Playing.");
             }
             else

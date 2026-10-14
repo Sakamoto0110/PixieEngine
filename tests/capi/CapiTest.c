@@ -4,9 +4,10 @@
  * Written in C and including only pixie_capi.h from the engine, so it proves the API is C.
  *
  * usage: capi-test <path to a game's capi library>
- *        capi-test <path to the generic library> --project <folder>
+ *        capi-test <path to a capi library> --project <folder> [--expect-type <name>]
  * The second form creates a project in <folder> (removed before and after) and drives it through
- * editing, saving, playing, and stopping. Exits 0 when every check passes, 1 otherwise.
+ * editing, saving, playing, and stopping; with --expect-type, it also checks the library describes
+ * that component type, such as a game's own. Exits 0 when every check passes, 1 otherwise.
  */
 #include "pixie_capi.h"
 
@@ -461,7 +462,7 @@ static void Cleanup(const char* folder) {
 
 /* A whole project through the generic library: created, opened in edit mode, authored, saved,
  * played, stopped, and opened again. */
-static void ExerciseProject(const char* folder) {
+static void ExerciseProject(const char* folder, const char* expectedType) {
     Cleanup(folder);
     CHECK(api.project_create(folder) == PIXIE_OK);
     CHECK(api.project_create(folder) == PIXIE_ERROR_IO);
@@ -475,6 +476,11 @@ static void ExerciseProject(const char* folder) {
     char name[128];
     CHECK(api.project_name(s, name, (int32_t)sizeof name) == PIXIE_OK && strcmp(name, BaseName(folder)) == 0);
     CHECK(api.session_mode(s) == PIXIE_MODE_EDIT && api.project_unsaved(s) == 0);
+    if (expectedType != NULL) {
+        int32_t expected = -1;
+        CHECK(api.type_find(s, expectedType, &expected) == PIXIE_OK);
+        printf("type %s: %d\n", expectedType, expected);
+    }
     int32_t count = 0;
     CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 1);
     FindEntity(s, "shape");
@@ -553,9 +559,10 @@ static void ExerciseProject(const char* folder) {
 }
 
 int main(int argc, char** argv) {
-    const int project = argc == 4 && strcmp(argv[2], "--project") == 0;
-    if (argc != 2 && !project) {
-        fprintf(stderr, "usage: capi-test <library> [--project <folder>]\n");
+    const int project = (argc == 4 || argc == 6) && strcmp(argv[2], "--project") == 0;
+    const char* expectedType = argc == 6 && strcmp(argv[4], "--expect-type") == 0 ? argv[5] : NULL;
+    if (argc != 2 && !(project && (argc == 4 || expectedType != NULL))) {
+        fprintf(stderr, "usage: capi-test <library> [--project <folder> [--expect-type <name>]]\n");
         return 2;
     }
     Library library = OpenLibrary(argv[1]);
@@ -586,7 +593,7 @@ int main(int argc, char** argv) {
     glfwMakeContextCurrent(window);
 
     if (project) {
-        ExerciseProject(argv[3]);
+        ExerciseProject(argv[3], expectedType);
     } else {
         PixieSession* session = NULL;
         CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);

@@ -12,7 +12,12 @@ bool ProjectApp::Start(Window& window) {
     if (!session_.Start(window.GetFramebufferSize())) {
         return false;
     }
-    LogInfo(std::format("{}: started", session_.GetProject().Name()));
+    // A player plays: a project opens in edit mode, for an editor.
+    if (session_.HasProject() && !session_.Play()) {
+        LogError(std::format("{}: {}", session_.ProjectName(), session_.Error()));
+        return false;
+    }
+    LogInfo(std::format("{}: started", session_.ProjectName()));
     return true;
 }
 
@@ -27,7 +32,7 @@ void ProjectApp::Update(const FrameTime& time, const Input& input) {
     const auto now = std::chrono::steady_clock::now();
     if (now - windowStart_ >= std::chrono::seconds(1)) {
         LogInfo(std::format("{} step: {} steps, {:.3f} ms average, {:.3f} ms slowest",
-                            session_.GetProject().Name(), steps_, totalMilliseconds_ / steps_,
+                            session_.ProjectName(), steps_, totalMilliseconds_ / steps_,
                             slowestMilliseconds_));
         windowStart_ = now;
         totalMilliseconds_ = 0.0;

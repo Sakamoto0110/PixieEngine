@@ -1,9 +1,8 @@
 #include "ParticlesProject.hpp"
 #include "ParticlesScene.hpp"
 
-#include "SampleOptions.hpp"
-
 #include "pixie/Run.hpp"
+#include "pixie/RunOptions.hpp"
 #include "pixie/runtime/ProjectApp.hpp"
 
 #include <array>
@@ -14,21 +13,21 @@ int main(int argc, char** argv) {
     ParticlesScenario scenario;
     int seed = 1;
     const std::array extra = {
-        sample::Option{"--count", "<n>", "particles at the start, 0 to 200000 (default 10000)",
-                       [&](std::string_view v) { return sample::ParseCount(v, scenario.count, 0, 200000); }},
-        sample::Option{"--attractors", "<n>", "attractors at the start, 0 to 16 (default 1)",
+        pixie::RunOption{"--count", "<n>", "particles at the start, 0 to 200000 (default 10000)",
+                       [&](std::string_view v) { return pixie::ParseCount(v, scenario.count, 0, 200000); }},
+        pixie::RunOption{"--attractors", "<n>", "attractors at the start, 0 to 16 (default 1)",
                        [&](std::string_view v) {
-                           return sample::ParseCount(v, scenario.attractors, 0, kMaxAttractors);
+                           return pixie::ParseCount(v, scenario.attractors, 0, kMaxAttractors);
                        }},
-        sample::Option{"--interaction", "on|off", "particle-to-particle interaction (default on)",
+        pixie::RunOption{"--interaction", "on|off", "particle-to-particle interaction (default on)",
                        [&](std::string_view v) {
                            scenario.interaction = v == "on";
                            return v == "on" || v == "off";
                        }},
-        sample::Option{"--seed", "<n>", "seed of the World's random numbers (default 1)",
-                       [&](std::string_view v) { return sample::ParseCount(v, seed, 0, 1 << 30); }},
+        pixie::RunOption{"--seed", "<n>", "seed of the World's random numbers (default 1)",
+                       [&](std::string_view v) { return pixie::ParseCount(v, seed, 0, 1 << 30); }},
     };
-    if (!sample::ParseOptions(argc, argv, "particles", config, extra)) {
+    if (!pixie::ParseRunOptions(argc, argv, "particles", config, extra)) {
         return 2;
     }
     pixie::SessionSettings session;

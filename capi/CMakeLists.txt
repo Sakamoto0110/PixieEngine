@@ -17,7 +17,8 @@ pixie_target_defaults(pixie_capi_objects)
 function(pixie_add_capi_library name game)
     add_library(${name} SHARED $<TARGET_OBJECTS:pixie_capi_objects>)
     set_target_properties(${name} PROPERTIES FOLDER capi)
-    target_include_directories(${name} PUBLIC ${PROJECT_SOURCE_DIR}/capi/include)
+    # This file's directory, also when a game's project calls the function.
+    target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/include)
     target_link_libraries(${name} PRIVATE ${game} Pixie::Runtime)
     pixie_target_defaults(${name})
     if(TARGET capi-test)
@@ -26,9 +27,12 @@ function(pixie_add_capi_library name game)
 endfunction()
 
 # The generic library, bin/<config>/pixie-scene-capi: it runs a project folder that has no code, whose
-# World is only its scene. Its test (in tests/) drives a whole project through it.
-add_library(pixie-scene-game STATIC src/SceneGame.cpp)
-set_target_properties(pixie-scene-game PROPERTIES FOLDER capi)
-target_link_libraries(pixie-scene-game PUBLIC Pixie::Runtime)
-pixie_target_defaults(pixie-scene-game)
-pixie_add_capi_library(pixie-scene-capi pixie-scene-game)
+# World is only its scene. Its test (in tests/) drives a whole project through it. A game's project
+# does not build it: the editor runs from the engine's own.
+if(PROJECT_IS_TOP_LEVEL)
+    add_library(pixie-scene-game STATIC src/SceneGame.cpp)
+    set_target_properties(pixie-scene-game PROPERTIES FOLDER capi)
+    target_link_libraries(pixie-scene-game PUBLIC Pixie::Runtime)
+    pixie_target_defaults(pixie-scene-game)
+    pixie_add_capi_library(pixie-scene-capi pixie-scene-game)
+endif()

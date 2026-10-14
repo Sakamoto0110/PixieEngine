@@ -13,7 +13,7 @@ pixie_target_defaults(particles-game)
 # The player: the game in its own window.
 add_executable(particles src/player/main.cpp)
 set_target_properties(particles PROPERTIES FOLDER samples/particles)
-target_link_libraries(particles PRIVATE particles-game pixie_sample_common)
+target_link_libraries(particles PRIVATE particles-game)
 pixie_target_defaults(particles)
 
 # The game for hosts that drive it through the C API, such as the editor: bin/<config>/particles-capi.

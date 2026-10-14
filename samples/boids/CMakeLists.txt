@@ -14,7 +14,7 @@ pixie_target_defaults(boids-game)
 # The player: the game in its own window.
 add_executable(boids src/player/main.cpp)
 set_target_properties(boids PROPERTIES FOLDER samples/boids)
-target_link_libraries(boids PRIVATE boids-game pixie_sample_common)
+target_link_libraries(boids PRIVATE boids-game)
 pixie_target_defaults(boids)
 
 # The game for hosts that drive it through the C API, such as the editor: bin/<config>/boids-capi.

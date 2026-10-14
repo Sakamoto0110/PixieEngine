@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.25)
+
+project(@PIXIE_ID@ LANGUAGES C CXX)
+
+# The engine comes from PIXIE_ENGINE_DIR, which the editor passes when it builds this project, with
+# the engine it runs from; this project never records where the engine is. Its binaries go to bin/.
+if(NOT IS_DIRECTORY "${PIXIE_ENGINE_DIR}")
+    message(FATAL_ERROR "PIXIE_ENGINE_DIR must name PixieEngine's folder; the editor passes it when it builds this project.")
+endif()
+include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
+
+# The game: bin/<config>/@PIXIE_ID@.exe plays it, and the editor opens it through @PIXIE_ID@-capi.
+# Add each new .cpp file here.
+pixie_game(@PIXIE_ID@ SOURCES
+    src/@PIXIE_ID@Project.cpp
+)

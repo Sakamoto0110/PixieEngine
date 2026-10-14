@@ -1,0 +1,25 @@
+#pragma once
+
+#include "pixie/runtime/Behaviour.hpp"
+#include "pixie/runtime/SceneProject.hpp"
+
+// @PIXIE_NAME_LITERAL@ as the engine sees it. The scene's entities are loaded first; then Build adds
+// what the scene does not save, such as systems. The editor shows and saves every component type
+// Describe adds.
+class @PIXIE_ID@Project final : public pixie::SceneProject {
+public:
+    std::string_view Name() const override { return "@PIXIE_NAME_LITERAL@"; }
+
+    void Describe(pixie::ComponentTypes& types) const override;
+    void Build(pixie::World& world, pixie::Camera2D& camera) override;
+};
+
+// An example of game logic: turns its entity at `speed`. In the editor, select an entity, Add
+// component, Spinner, and press Play; a triangle or a quad shows the turn better than a circle.
+// Delete it, or keep it as the start of your own Behaviours.
+struct Spinner : pixie::Behaviour {
+    // Radians per second; the editor shows it in degrees.
+    double speed = 1.5;
+
+    void Update(const pixie::FrameTime& time, const pixie::Input& input) override;
+};

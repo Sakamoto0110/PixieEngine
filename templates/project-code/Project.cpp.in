@@ -1,0 +1,31 @@
+#include "@PIXIE_ID@Project.hpp"
+
+#include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/Transform2D.hpp"
+#include "pixie/runtime/World.hpp"
+
+#include <memory>
+
+void @PIXIE_ID@Project::Describe(pixie::ComponentTypes& types) const {
+    types.Add<Spinner>("Spinner")
+        .Field<&Spinner::speed>("speed")
+        .Tooltip("How fast the entity turns; negative turns the other way.")
+        .Degrees("°/s")
+        .Scrub(1.0);
+}
+
+void @PIXIE_ID@Project::Build(pixie::World& world, pixie::Camera2D& camera) {
+    // The scene's entities are in the World already. Add systems and generated entities here.
+    pixie::SceneProject::Build(world, camera);
+}
+
+void Spinner::Update(const pixie::FrameTime& time, const pixie::Input&) {
+    if (auto* transform = Self().TryGet<pixie::Transform2D>()) {
+        transform->rotation += speed * time.delta;
+    }
+}
+
+// The engine's player and the editor create the game through this.
+std::unique_ptr<pixie::Project> pixie::CreateProject() {
+    return std::make_unique<@PIXIE_ID@Project>();
+}

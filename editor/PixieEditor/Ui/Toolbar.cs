@@ -18,6 +18,8 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
     private static readonly Vector4 InfoText = new(0.6f, 0.85f, 0.6f, 1.0f);
 
     public Action Save { get; init; } = () => { };
+    public Action AddCode { get; init; } = () => { };
+    public Action BuildAndReopen { get; init; } = () => { };
     public Action OtherProject { get; init; } = () => { };
 
     public void Draw()
@@ -34,6 +36,22 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
                 Save();
             if (ImGui.MenuItem("New or open project..."))
                 OtherProject();
+            ImGui.EndMenu();
+        }
+
+        if (project && ImGui.BeginMenu("Code"))
+        {
+            var hasCode = Native.ProjectBuild.HasCode(session.ProjectFolder!);
+            if (ImGui.MenuItem("Add code", "", false, !hasCode))
+                AddCode();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip(hasCode
+                    ? "The project has code: CMakeLists.txt and src/."
+                    : "Writes CMakeLists.txt and src/ with a Project and an example Behaviour, then builds and reopens.");
+            if (ImGui.MenuItem("Build and reopen", "", false, hasCode))
+                BuildAndReopen();
+            if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip("Builds the project's code and opens it again with it; the editor restarts to load it.");
             ImGui.EndMenu();
         }
 

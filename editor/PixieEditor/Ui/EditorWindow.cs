@@ -18,7 +18,7 @@ namespace PixieEditor.Ui;
 internal sealed class EditorWindow(EditorOptions options)
 {
     // What closing the window, or opening another project, waits on when the scene is not saved.
-    private enum Leaving { None, Close, OtherProject }
+    private enum Leaving { None, Close, OtherProject, Reopen }
 
     private const int ViewWidth = 800;
     private const int ViewHeight = 600;
@@ -89,16 +89,14 @@ internal sealed class EditorWindow(EditorOptions options)
     }
 
     // The session the command line asks for, or the one chosen on the start screen; null when the
-    // window was closed there.
+    // window was closed first.
     private EngineSession? Open(GLFWwindowPtr window)
     {
+        if (options.After is { } pid)
+            WaitForExit(pid);
+
         if (options.Project is { } folder)
-        {
-            GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
-            var session = EngineSession.OpenProject(ViewWidth, ViewHeight, folder);
-            Settings.Remember(folder);
-            return session;
-        }
+            return OpenProject(window, folder);
 
         if (options.Game is { } game)
         {
@@ -116,33 +114,96 @@ internal sealed class EditorWindow(EditorOptions options)
         {
             GLFW.PollEvents();
             BeginFrame();
-            EngineSession? session = null;
-            if (screen.Draw() is { } choice)
-            {
-                try
-                {
-                    if (!GameLibrary.IsLoaded)
-                        GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
-                    if (choice.Create)
-                        EngineSession.CreateProject(choice.Folder);
-                    session = EngineSession.OpenProject(ViewWidth, ViewHeight, choice.Folder);
-                    Settings.Remember(choice.Folder);
-                    Console.Error.WriteLine($"[info] {(choice.Create ? "Created" : "Opened")} {choice.Folder}");
-                }
-                catch (Exception e) when (e is EngineException or FileNotFoundException or DllNotFoundException)
-                {
-                    screen.Error = e.Message;
-                }
-            }
-
+            var choice = screen.Draw();
             // Keys typed on the start screen are not for the game.
             KeyEvents.Pending.Clear();
             EndFrame(window, GLFW.GetTime());
-            if (session != null)
-                return session;
+            if (choice == null)
+                continue;
+
+            try
+            {
+                if (choice.Create)
+                {
+                    // Creating needs a library: the generic one, which a new project opens with.
+                    if (!GameLibrary.IsLoaded)
+                        GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
+                    EngineSession.CreateProject(choice.Folder);
+                    Console.Error.WriteLine($"[info] Created {choice.Folder}");
+                }
+
+                return OpenProject(window, choice.Folder);
+            }
+            catch (Exception e) when (e is EngineException or FileNotFoundException or DllNotFoundException)
+            {
+                screen.Error = e.Message;
+            }
         }
 
         return null;
+    }
+
+    // Opens a project: its code, if it has any, is built first on the build screen. Null when the
+    // window was closed, or when another editor opens the project instead (below).
+    private EngineSession? OpenProject(GLFWwindowPtr window, string folder)
+    {
+        var library = GameLibrary.Find(GameLibrary.SceneGame);
+        if (ProjectBuild.HasCode(folder))
+        {
+            if (BuildProject(window, folder) is not { } outcome)
+                return null;
+            library = outcome.Library ?? library;
+        }
+
+        // P/Invoke binds one library per process: if another is bound already (the generic one, after
+        // creating a project on the start screen), a new editor opens this project.
+        if (GameLibrary.IsLoaded && !string.Equals(GameLibrary.Loaded, Path.GetFullPath(library), StringComparison.OrdinalIgnoreCase))
+        {
+            Relaunch(["--project", folder]);
+            return null;
+        }
+
+        if (!GameLibrary.IsLoaded)
+            GameLibrary.Use(library);
+        var session = EngineSession.OpenProject(ViewWidth, ViewHeight, folder);
+        Settings.Remember(folder);
+        Console.Error.WriteLine($"[info] Opened {folder} with {Path.GetFileName(library)}");
+        return session;
+    }
+
+    // The build screen until the build succeeds, or the user opens the project without its code; null
+    // when the window was closed.
+    private unsafe BuildOutcome? BuildProject(GLFWwindowPtr window, string folder)
+    {
+        using var screen = new BuildScreen(folder);
+        screen.Start();
+        while (GLFW.WindowShouldClose(window) == 0)
+        {
+            GLFW.PollEvents();
+            BeginFrame();
+            var outcome = screen.Draw();
+            KeyEvents.Pending.Clear();
+            EndFrame(window, GLFW.GetTime());
+            if (outcome != null)
+                return outcome;
+        }
+
+        return null;
+    }
+
+    // Waits for an earlier editor to exit, so the game library it held can be built again.
+    private static void WaitForExit(int pid)
+    {
+        try
+        {
+            using var earlier = Process.GetProcessById(pid);
+            if (!earlier.WaitForExit(TimeSpan.FromSeconds(15)))
+                Console.Error.WriteLine($"[warning] The editor {pid} is still running; its game library may be in use.");
+        }
+        catch (ArgumentException)
+        {
+            // It has exited already.
+        }
     }
 
     private unsafe int Edit(GLFWwindowPtr window, EngineSession session)
@@ -170,6 +231,33 @@ internal sealed class EditorWindow(EditorOptions options)
         var toolbar = new Toolbar(session, viewport)
         {
             Save = () => Save(session),
+            AddCode = () =>
+            {
+                try
+                {
+                    ProjectBuild.AddCode(session.ProjectFolder!);
+                    Status.Show($"Added code to {session.ProjectName}; building it");
+                }
+                catch (EngineException e)
+                {
+                    Status.Show(e.Message, error: true);
+                    return;
+                }
+
+                leaving = Leaving.Reopen;
+                if (session.Unsaved)
+                    askToSave = true;
+                else
+                    confirmed = true;
+            },
+            BuildAndReopen = () =>
+            {
+                leaving = Leaving.Reopen;
+                if (session.Unsaved)
+                    askToSave = true;
+                else
+                    confirmed = true;
+            },
             OtherProject = () =>
             {
                 if (project && session.Unsaved)
@@ -252,6 +340,15 @@ internal sealed class EditorWindow(EditorOptions options)
                     GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
                 }
 
+                if (leaving != Leaving.Reopen || !leave)
+                    leaving = Leaving.None;
+            }
+
+            // Code is built by a new editor, once this one has let go of the game's library.
+            if (leaving == Leaving.Reopen && confirmed)
+            {
+                Relaunch(["--project", session.ProjectFolder!]);
+                GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
                 leaving = Leaving.None;
             }
 
@@ -298,7 +395,11 @@ internal sealed class EditorWindow(EditorOptions options)
     }
 
     // A new editor at the start screen; this one closes.
-    private static void OpenStartScreen() => Process.Start(Environment.ProcessPath!);
+    private static void OpenStartScreen() => Relaunch([]);
+
+    // A new editor with these options, which waits for this one to exit; this one closes.
+    private static void Relaunch(string[] arguments) =>
+        Process.Start(Environment.ProcessPath!, [.. arguments, "--after", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
 
     // Asks what to do with unsaved changes; true to go on leaving, false to stay, null while open.
     private static bool? DrawUnsavedPrompt(EngineSession session)

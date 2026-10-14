@@ -52,3 +52,10 @@ if(TARGET pixie-scene-capi)
     add_test(NAME pixie-scene-capi
              COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --project ${CMAKE_CURRENT_BINARY_DIR}/capi-project)
 endif()
+
+# A project with code made from the templates, built as a project of its own against this engine, and
+# its library driven by capi-test (see the script). It builds the engine again, so it is the slowest.
+add_test(NAME project-code
+         COMMAND ${CMAKE_COMMAND} -DENGINE=${PROJECT_SOURCE_DIR} -DWORK=${CMAKE_CURRENT_BINARY_DIR}/project-code
+                 -DCONFIG=$<CONFIG> "-DGENERATOR=${CMAKE_GENERATOR}" "-DPLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+                 -DCAPI_TEST=$<TARGET_FILE:capi-test> -P ${CMAKE_CURRENT_SOURCE_DIR}/project-code/ProjectCodeTest.cmake)

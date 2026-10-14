@@ -23,6 +23,8 @@ internal sealed record EditorOptions
     // What the mouse does at the start; Game for a game, Select for a project, which opens in edit mode.
     public ViewportMode? Mode { get; init; }
     public bool Paused { get; init; }
+    // An earlier editor to wait for, so a game library it held can be built again.
+    public int? After { get; init; }
 }
 
 internal static class Program
@@ -30,7 +32,7 @@ internal static class Program
     private const string Usage = """
         usage: PixieEditor [options]
           With neither --game nor --project, the editor opens its start screen: new project, open project, recent ones.
-          --project <folder>       open the project in this folder, in edit mode
+          --project <folder>       open the project in this folder, in edit mode; its code, if any, is built first
           --game <name|path>       open a game built in code: boids, flocks, particles, or a path to its capi library
           --seed <n>               seed of the World (default 1)
           --select <name>          select the entity with this name at the start
@@ -107,6 +109,9 @@ internal static class Program
                     break;
                 case "--paused" when value is "on" or "off":
                     options = options with { Paused = value == "on" };
+                    break;
+                case "--after" when int.TryParse(value, CultureInfo.InvariantCulture, out var pid):
+                    options = options with { After = pid };
                     break;
                 case "--screenshot":
                     options = options with { Screenshot = value };

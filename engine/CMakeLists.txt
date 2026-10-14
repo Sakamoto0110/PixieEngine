@@ -14,6 +14,7 @@ add_library(pixie_engine STATIC
     src/ParticleRenderer.cpp
     src/RateMeter.cpp
     src/RenderTarget.cpp
+    src/RunOptions.cpp
     src/Run.cpp
     src/Screenshot.cpp
     src/ShaderProgram.cpp

@@ -1,8 +1,7 @@
 #include "FlocksProject.hpp"
 
-#include "SampleOptions.hpp"
-
 #include "pixie/Run.hpp"
+#include "pixie/RunOptions.hpp"
 #include "pixie/runtime/ProjectApp.hpp"
 
 #include <array>
@@ -13,12 +12,12 @@ int main(int argc, char** argv) {
     FlocksScenario scenario;
     int seed = 1;
     const std::array options = {
-        sample::Option{"--count", "<n>", "number of boids, 0 to 100000 (default 5000)",
-                       [&scenario](std::string_view v) { return sample::ParseCount(v, scenario.count, 0, 100000); }},
-        sample::Option{"--seed", "<n>", "seed of the World's random numbers (default 1)",
-                       [&seed](std::string_view v) { return sample::ParseCount(v, seed, 0, 1 << 30); }},
+        pixie::RunOption{"--count", "<n>", "number of boids, 0 to 100000 (default 5000)",
+                       [&scenario](std::string_view v) { return pixie::ParseCount(v, scenario.count, 0, 100000); }},
+        pixie::RunOption{"--seed", "<n>", "seed of the World's random numbers (default 1)",
+                       [&seed](std::string_view v) { return pixie::ParseCount(v, seed, 0, 1 << 30); }},
     };
-    if (!sample::ParseOptions(argc, argv, "flocks", config, options)) {
+    if (!pixie::ParseRunOptions(argc, argv, "flocks", config, options)) {
         return 2;
     }
     pixie::SessionSettings settings;
