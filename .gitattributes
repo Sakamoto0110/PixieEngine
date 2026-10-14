@@ -7,3 +7,4 @@ external/stb/** -text
 external/pixielib/** -text
 external/glm/** -text
 external/entt/** -text
+external/nlohmann_json/** -text

@@ -34,6 +34,11 @@ add_library(EnTT::EnTT ALIAS entt)
 target_include_directories(entt SYSTEM INTERFACE entt/src)
 target_compile_features(entt INTERFACE cxx_std_20)
 
+# nlohmann/json: the release's single header, used straight from it.
+add_library(nlohmann_json INTERFACE)
+add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
+target_include_directories(nlohmann_json SYSTEM INTERFACE nlohmann_json/single_include)
+
 foreach(target glew glfw update_mappings pixie_math)
     if(TARGET ${target})
         set_target_properties(${target} PROPERTIES FOLDER external)
