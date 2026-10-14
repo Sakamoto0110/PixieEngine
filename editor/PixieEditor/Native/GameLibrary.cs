@@ -9,7 +9,11 @@ internal static class GameLibrary
 {
     private static string? Path;
 
+    // The engine's library for a project without code.
+    public const string SceneGame = "pixie-scene";
+
     public static string Loaded => Path ?? throw new InvalidOperationException("No game library is loaded.");
+    public static bool IsLoaded => Path != null;
 
     public static void Use(string path)
     {
@@ -41,13 +45,15 @@ internal static class GameLibrary
         throw new FileNotFoundException($"No library for the game '{game}' ({file}); build the engine first.");
     }
 
-    // The games built next to the loaded one: every "<name>-capi" library in its directory.
+    // The games built next to the loaded one: every "<name>-capi" library in its directory, but the
+    // engine's own library for projects, which is not a game.
     public static IReadOnlyList<string> Siblings()
     {
         var directory = System.IO.Path.GetDirectoryName(Loaded)!;
         var pattern = OperatingSystem.IsWindows() ? "*-capi.dll" : "lib*-capi.so";
         return Directory.GetFiles(directory, pattern)
             .Select(GameName)
+            .Where(name => name != SceneGame)
             .Order()
             .ToList();
     }

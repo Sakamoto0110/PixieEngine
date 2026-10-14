@@ -23,12 +23,52 @@ public sealed unsafe class EngineSession : IDisposable
 
     public static EngineSession Create(int width, int height, ulong seed)
     {
-        if (PixieCapi.ApiVersion() != PixieCapi.Version)
-            throw new EngineException($"The game's library has C API version {PixieCapi.ApiVersion()}; the editor needs {PixieCapi.Version}.");
-
+        CheckVersion();
         Check(PixieCapi.SessionCreate(width, height, seed, out var handle), "create the session");
         return new EngineSession(handle);
     }
+
+    // A session for the project in `folder`, which starts in edit mode.
+    public static EngineSession OpenProject(int width, int height, string folder)
+    {
+        CheckVersion();
+        Check(PixieCapi.SessionOpenProject(width, height, folder, out var handle), "open the project");
+        return new EngineSession(handle) { ProjectFolder = folder };
+    }
+
+    // Makes a new project in `folder`, which must be empty or not exist yet; needs no session.
+    public static void CreateProject(string folder)
+    {
+        CheckVersion();
+        Check(PixieCapi.ProjectCreate(folder), "create the project");
+    }
+
+    private static void CheckVersion()
+    {
+        if (PixieCapi.ApiVersion() != PixieCapi.Version)
+            throw new EngineException($"The game's library has C API version {PixieCapi.ApiVersion()}; the editor needs {PixieCapi.Version}.");
+    }
+
+    // The folder of the open project, or null for a game opened without one.
+    public string? ProjectFolder { get; private init; }
+
+    public PixieMode Mode => (PixieMode)PixieCapi.SessionMode(Handle);
+    public bool Editing => Mode == PixieMode.Edit;
+    public bool Unsaved => PixieCapi.ProjectUnsaved(Handle) != 0;
+
+    public void Play() => Check(PixieCapi.SessionPlay(Handle), "play");
+    public void Stop() => Check(PixieCapi.SessionStop(Handle), "stop");
+    public void Save() => Check(PixieCapi.ProjectSave(Handle), "save the scene");
+
+    // A new entity of the scene, named `name`.
+    public uint CreateEntity(string name)
+    {
+        Check(PixieCapi.EntityCreate(Handle, name, out var entity), "create an entity");
+        return entity;
+    }
+
+    public void AddComponent(uint entity, int type) => Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
+    public void RemoveComponent(uint entity, int type) => Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
 
     public void Dispose()
     {

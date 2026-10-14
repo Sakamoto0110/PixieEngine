@@ -13,6 +13,13 @@ public enum PixieResult
     ErrorGl = 3,
     ErrorBuffer = 4,
     ErrorInternal = 5,
+    ErrorIo = 6,
+}
+
+public enum PixieMode
+{
+    Play = 0,
+    Edit = 1,
 }
 
 public enum PixieFieldKind
@@ -217,4 +224,34 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_spawn_at")]
     internal static partial PixieResult SpawnAt(nint session, double x, double y, out int created);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_create", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult ProjectCreate(string folder);
+
+    [LibraryImport(Library, EntryPoint = "pixie_session_open_project", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult SessionOpenProject(int width, int height, string folder, out nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_save")]
+    internal static partial PixieResult ProjectSave(nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_unsaved")]
+    internal static partial int ProjectUnsaved(nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_session_mode")]
+    internal static partial int SessionMode(nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_session_play")]
+    internal static partial PixieResult SessionPlay(nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_session_stop")]
+    internal static partial PixieResult SessionStop(nint session);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_create", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult EntityCreate(nint session, string? name, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_component_add")]
+    internal static partial PixieResult ComponentAdd(nint session, uint entity, int type);
+
+    [LibraryImport(Library, EntryPoint = "pixie_component_remove")]
+    internal static partial PixieResult ComponentRemove(nint session, uint entity, int type);
 }

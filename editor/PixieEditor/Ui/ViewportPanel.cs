@@ -33,6 +33,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
     private static readonly uint OutlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.78f, 0.25f, 1.0f));
     private static readonly uint BoxColor = ImGui.ColorConvertFloat4ToU32(new Vector4(0.45f, 0.75f, 1.0f, 1.0f));
     private static readonly uint BoxFill = ImGui.ColorConvertFloat4ToU32(new Vector4(0.45f, 0.75f, 1.0f, 0.12f));
+    private static readonly uint PlayingFrame = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.65f, 0.3f, 1.0f));
 
     public ViewportMode Mode { get; set; } = ViewportMode.Game;
 
@@ -90,6 +91,9 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             // GL's first row is the bottom of the image; ImGui draws top down, so flip the coordinates.
             ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
             DrawSelection();
+            // A project at play is framed, so it is never mistaken for the scene being edited.
+            if (session.ProjectFolder != null && !session.Editing)
+                ImGui.GetWindowDrawList().AddRect(ImageOrigin, ImageOrigin + size, PlayingFrame, 0f, ImDrawFlags.None, 3f);
         }
         else
         {

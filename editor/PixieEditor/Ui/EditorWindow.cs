@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Hexa.NET.GLFW;
 using Hexa.NET.ImGui;
 using Hexa.NET.ImGui.Backends.GLFW;
@@ -11,9 +12,24 @@ using GLFWwindowPtr = Hexa.NET.GLFW.GLFWwindowPtr;
 namespace PixieEditor.Ui;
 
 // The editor's window: GLFW with an OpenGL 4.5 core context, which the engine shares, Dear ImGui with
-// docking through its GLFW and OpenGL3 backends, and the four panels. One game per window.
+// docking through its GLFW and OpenGL3 backends, and the four panels. Without a game or a project on
+// the command line, it shows the start screen first. One game or project per window: P/Invoke binds
+// one library per process, so another one opens in a new editor.
 internal sealed class EditorWindow(EditorOptions options)
 {
+    // What closing the window, or opening another project, waits on when the scene is not saved.
+    private enum Leaving { None, Close, OtherProject }
+
+    private const int ViewWidth = 800;
+    private const int ViewHeight = 600;
+    private const string UnsavedPopup = "Unsaved changes";
+
+    private readonly EditorSettings Settings = EditorSettings.Load();
+    private double Start;
+    // Whether there was no saved dock layout when the editor started; ImGui writes one while the start
+    // screen shows, so it is decided before the first frame.
+    private bool FirstLayout;
+
     public unsafe int Run()
     {
         if (GLFW.Init() == 0)
@@ -24,7 +40,7 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.WindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         GLFW.WindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 
-        var window = GLFW.CreateWindow(1600, 900, $"PixieEditor - {options.Game}", default(GLFWmonitorPtr), default(GLFWwindowPtr));
+        var window = GLFW.CreateWindow(1600, 900, "PixieEditor", default(GLFWmonitorPtr), default(GLFWwindowPtr));
         if (window.Handle == null)
         {
             GLFW.Terminate();
@@ -35,9 +51,9 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.SwapInterval(1);
         Gl.Load();
 
+        FirstLayout = !File.Exists("imgui.ini");
         var context = ImGui.CreateContext();
         ImGui.SetCurrentContext(context);
-        var firstLayout = !File.Exists("imgui.ini");
         var io = ImGui.GetIO();
         // No keyboard navigation: the arrows belong to the game while the viewport has focus.
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
@@ -47,89 +63,14 @@ internal sealed class EditorWindow(EditorOptions options)
         ImGuiImplOpenGL3.SetCurrentContext(context);
         ImGuiImplOpenGL3.Init("#version 450");
 
+        Start = GLFW.GetTime();
         var exitCode = 0;
-        using (var session = EngineSession.Create(800, 600, options.Seed))
-        using (var inspector = new InspectorPanel(session))
+        var session = Open(window);
+        if (session != null)
         {
-            var selection = new Selection();
-            var viewport = new ViewportPanel(session, selection).Started();
-            viewport.Mode = options.Mode;
-            var entities = new EntitiesPanel(session, selection);
-            var controls = new SessionPanel(session, options.Game);
-            if (options.Select != null && entities.Find(options.Select) is { } chosen)
-                selection.Set(chosen);
-
-            if (options.TimeScale is { } scale)
-                session.TimeScale = scale;
-            if (options.Paused)
-                session.Paused = true;
-            var toolbar = new Toolbar(session, viewport);
-
-            var previous = GLFW.GetTime();
-            var start = previous;
-            var editsApplied = false;
-            while (GLFW.WindowShouldClose(window) == 0 && !controls.CloseRequested)
+            using (session)
             {
-                GLFW.PollEvents();
-                var now = GLFW.GetTime();
-                var frameDelta = now - previous;
-                previous = now;
-
-                ImGuiImplOpenGL3.NewFrame();
-                ImGuiImplGLFW.NewFrame();
-                ImGui.NewFrame();
-
-                if (inspector.RebuildRequested)
-                {
-                    inspector.RebuildRequested = false;
-                    session.Reset();
-                }
-
-                // A rebuild, a deletion in the viewport, or the game itself may have taken entities away.
-                selection.Prune(session);
-
-                var dockspace = ImGui.GetID("dockspace");
-                if (firstLayout)
-                {
-                    DockDefaultLayout(dockspace);
-                    firstLayout = false;
-                }
-
-                toolbar.Draw();
-                ImGui.DockSpaceOverViewport(dockspace);
-                controls.Draw();
-                entities.Draw();
-                inspector.Draw(selection.Items);
-                viewport.Draw(frameDelta);
-
-                // The command line's edits go through the inspectors, once they exist.
-                if (!editsApplied && now - start >= options.EditAfter)
-                {
-                    exitCode = ApplyEdits(inspector) ? exitCode : 3;
-                    editsApplied = true;
-                }
-
-                ImGui.Render();
-                ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
-
-                var quitting = options.QuitAfter > 0 && now - start >= options.QuitAfter;
-                if (quitting)
-                {
-                    var stats = session.Stats;
-                    Console.Error.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
-                        $"[info] Simulated {stats.Elapsed:F3} s in {stats.Steps} steps over {now - start:F3} s of wall time, at {stats.TimeScale:0.##}x"));
-                }
-                if (quitting && options.Screenshot != null)
-                {
-                    int width, height;
-                    GLFW.GetFramebufferSize(window, &width, &height);
-                    Screenshot.Save(options.Screenshot, width, height);
-                    Console.Error.WriteLine($"[info] Screenshot: {options.Screenshot} ({width}x{height})");
-                }
-
-                GLFW.SwapBuffers(window);
-                if (quitting)
-                    GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+                exitCode = Edit(window, session);
             }
         }
 
@@ -144,6 +85,274 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.DestroyWindow(window);
         GLFW.Terminate();
         return exitCode;
+    }
+
+    // The session the command line asks for, or the one chosen on the start screen; null when the
+    // window was closed there.
+    private EngineSession? Open(GLFWwindowPtr window)
+    {
+        if (options.Project is { } folder)
+        {
+            GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
+            var session = EngineSession.OpenProject(ViewWidth, ViewHeight, folder);
+            Settings.Remember(folder);
+            return session;
+        }
+
+        if (options.Game is { } game)
+        {
+            GameLibrary.Use(GameLibrary.Find(game));
+            return EngineSession.Create(ViewWidth, ViewHeight, options.Seed);
+        }
+
+        return ChooseProject(window);
+    }
+
+    private unsafe EngineSession? ChooseProject(GLFWwindowPtr window)
+    {
+        var screen = new StartScreen(Settings);
+        while (GLFW.WindowShouldClose(window) == 0)
+        {
+            GLFW.PollEvents();
+            BeginFrame();
+            EngineSession? session = null;
+            if (screen.Draw() is { } choice)
+            {
+                try
+                {
+                    if (!GameLibrary.IsLoaded)
+                        GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
+                    if (choice.Create)
+                        EngineSession.CreateProject(choice.Folder);
+                    session = EngineSession.OpenProject(ViewWidth, ViewHeight, choice.Folder);
+                    Settings.Remember(choice.Folder);
+                    Console.Error.WriteLine($"[info] {(choice.Create ? "Created" : "Opened")} {choice.Folder}");
+                }
+                catch (Exception e) when (e is EngineException or FileNotFoundException or DllNotFoundException)
+                {
+                    screen.Error = e.Message;
+                }
+            }
+
+            // Keys typed on the start screen are not for the game.
+            KeyEvents.Pending.Clear();
+            EndFrame(window, GLFW.GetTime());
+            if (session != null)
+                return session;
+        }
+
+        return null;
+    }
+
+    private unsafe int Edit(GLFWwindowPtr window, EngineSession session)
+    {
+        var project = session.ProjectFolder != null;
+        var firstLayout = FirstLayout;
+        var gameName = options.Game is { } game ? Program.GameName(game) : GameLibrary.SceneGame;
+        using var inspector = new InspectorPanel(session);
+        var selection = new Selection();
+        var viewport = new ViewportPanel(session, selection).Started();
+        viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
+        var entities = new EntitiesPanel(session, selection);
+        var controls = new SessionPanel(session, gameName);
+        if (options.Select != null && entities.Find(options.Select) is { } chosen)
+            selection.Set(chosen);
+
+        if (options.TimeScale is { } scale)
+            session.TimeScale = scale;
+        if (options.Paused)
+            session.Paused = true;
+
+        var leaving = Leaving.None;
+        var askToSave = false;
+        var confirmed = false;
+        var toolbar = new Toolbar(session, viewport)
+        {
+            Save = () => Save(session),
+            OtherProject = () =>
+            {
+                if (project && session.Unsaved)
+                {
+                    leaving = Leaving.OtherProject;
+                    askToSave = true;
+                }
+                else
+                {
+                    OpenStartScreen();
+                    confirmed = true;
+                    GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+                }
+            },
+        };
+
+        var title = "";
+        var exitCode = 0;
+        var previous = GLFW.GetTime();
+        var editsApplied = false;
+        while (!controls.CloseRequested)
+        {
+            if (GLFW.WindowShouldClose(window) != 0)
+            {
+                if (confirmed || !project || !session.Unsaved)
+                    break;
+                // The scene has changes: ask first.
+                GLFW.SetWindowShouldClose(window, GLFW.GLFW_FALSE);
+                leaving = Leaving.Close;
+                askToSave = true;
+            }
+
+            GLFW.PollEvents();
+            var now = GLFW.GetTime();
+            var frameDelta = now - previous;
+            previous = now;
+            BeginFrame();
+
+            if (inspector.RebuildRequested)
+            {
+                inspector.RebuildRequested = false;
+                session.Reset();
+            }
+
+            var io = ImGui.GetIO();
+            if (project && io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
+                Save(session);
+
+            // A rebuild, a deletion in the viewport, play, stop, or the game itself may have taken
+            // entities away.
+            selection.Prune(session);
+
+            var dockspace = ImGui.GetID("dockspace");
+            if (firstLayout)
+            {
+                DockDefaultLayout(dockspace);
+                firstLayout = false;
+            }
+
+            toolbar.Draw();
+            ImGui.DockSpaceOverViewport(dockspace);
+            controls.Draw();
+            entities.Draw();
+            inspector.Draw(selection.Items);
+            viewport.Draw(frameDelta);
+
+            if (askToSave)
+            {
+                ImGui.OpenPopup(UnsavedPopup);
+                askToSave = false;
+            }
+
+            if (DrawUnsavedPrompt(session) is { } leave)
+            {
+                if (leave)
+                {
+                    if (leaving == Leaving.OtherProject)
+                        OpenStartScreen();
+                    confirmed = true;
+                    GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+                }
+
+                leaving = Leaving.None;
+            }
+
+            // The command line's edits go through the inspectors, once they exist.
+            if (!editsApplied && now - Start >= options.EditAfter)
+            {
+                exitCode = ApplyEdits(inspector) ? exitCode : 3;
+                editsApplied = true;
+            }
+
+            var name = project ? session.ProjectName : gameName;
+            var current = $"PixieEditor - {name}{(project && session.Unsaved ? " *" : "")}{(project && !session.Editing ? " - playing" : "")}";
+            if (current != title)
+            {
+                GLFW.SetWindowTitle(window, current);
+                title = current;
+            }
+
+            if (options.QuitAfter > 0 && now - Start >= options.QuitAfter)
+            {
+                var stats = session.Stats;
+                Console.Error.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
+                    $"[info] Simulated {stats.Elapsed:F3} s in {stats.Steps} steps over {now - Start:F3} s of wall time, at {stats.TimeScale:0.##}x"));
+                confirmed = true;
+            }
+
+            EndFrame(window, now);
+        }
+
+        return exitCode;
+    }
+
+    private static void Save(EngineSession session)
+    {
+        try
+        {
+            session.Save();
+            Status.Show($"Saved {session.ProjectName}");
+        }
+        catch (EngineException e)
+        {
+            Status.Show(e.Message, error: true);
+        }
+    }
+
+    // A new editor at the start screen; this one closes.
+    private static void OpenStartScreen() => Process.Start(Environment.ProcessPath!);
+
+    // Asks what to do with unsaved changes; true to go on leaving, false to stay, null while open.
+    private static bool? DrawUnsavedPrompt(EngineSession session)
+    {
+        bool? answer = null;
+        if (!ImGui.BeginPopupModal(UnsavedPopup, ImGuiWindowFlags.AlwaysAutoResize))
+            return null;
+
+        ImGui.TextUnformatted($"{session.ProjectName} has changes that are not saved.");
+        ImGui.Spacing();
+        if (ImGui.Button("Save", new System.Numerics.Vector2(120, 0)))
+        {
+            Save(session);
+            answer = !session.Unsaved;
+            if (answer == false)
+                answer = null;
+        }
+
+        ImGui.SameLine();
+        if (ImGui.Button("Don't save", new System.Numerics.Vector2(120, 0)))
+            answer = true;
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel", new System.Numerics.Vector2(120, 0)) || ImGui.IsKeyPressed(ImGuiKey.Escape))
+            answer = false;
+        if (answer != null)
+            ImGui.CloseCurrentPopup();
+        ImGui.EndPopup();
+        return answer;
+    }
+
+    private static void BeginFrame()
+    {
+        ImGuiImplOpenGL3.NewFrame();
+        ImGuiImplGLFW.NewFrame();
+        ImGui.NewFrame();
+    }
+
+    // Draws the frame; with --quit-after, saves the screenshot and closes once the time is up.
+    private unsafe void EndFrame(GLFWwindowPtr window, double now)
+    {
+        ImGui.Render();
+        ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+
+        var quitting = options.QuitAfter > 0 && now - Start >= options.QuitAfter;
+        if (quitting && options.Screenshot != null)
+        {
+            int width, height;
+            GLFW.GetFramebufferSize(window, &width, &height);
+            Screenshot.Save(options.Screenshot, width, height);
+            Console.Error.WriteLine($"[info] Screenshot: {options.Screenshot} ({width}x{height})");
+        }
+
+        GLFW.SwapBuffers(window);
+        if (quitting)
+            GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
     }
 
     private bool ApplyEdits(InspectorPanel inspector)

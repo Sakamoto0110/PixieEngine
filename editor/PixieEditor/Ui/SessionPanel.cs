@@ -4,8 +4,9 @@ using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
-// The session's controls and numbers: a single step while paused, reset, the World's time and size,
-// the cost of a step, and the other games built next to this one, each opened in a new editor.
+// The session's controls and numbers: the project and its folder, or the game; a single step while
+// paused, reset, the World's time and size, the cost of a step; and, for a game, the other games built
+// next to this one, each opened in a new editor.
 internal sealed class SessionPanel(EngineSession session, string game)
 {
     // Set when another game was opened, so the editor closes.
@@ -16,17 +17,32 @@ internal sealed class SessionPanel(EngineSession session, string game)
         if (ImGui.Begin("Session"))
         {
             var stats = session.Stats;
-            ImGui.TextUnformatted($"Game: {session.ProjectName}");
+            var project = session.ProjectFolder;
+            var editing = project != null && session.Editing;
+            if (project != null)
+            {
+                ImGui.TextUnformatted($"Project: {session.ProjectName}{(session.Unsaved ? " (not saved)" : "")}");
+                ImGui.TextDisabled(project);
+                ImGui.TextUnformatted(editing ? "Editing: time stands still." : "Playing.");
+            }
+            else
+            {
+                ImGui.TextUnformatted($"Game: {session.ProjectName}");
+            }
 
             // Pause and the speed of time are on the toolbar above.
-            ImGui.BeginDisabled(stats.Paused == 0);
+            ImGui.BeginDisabled(stats.Paused == 0 || editing);
             if (ImGui.Button("Step"))
                 session.Step();
             ImGui.EndDisabled();
 
             ImGui.SameLine();
-            if (ImGui.Button("Reset"))
+            if (ImGui.Button(project != null ? "Rebuild" : "Reset"))
                 session.Reset();
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip(project != null
+                    ? "Builds the World again from the scene's entities as they are now."
+                    : "Builds the World again from the game.");
 
             ImGui.Separator();
             ImGui.TextUnformatted($"Steps: {stats.Steps}");
@@ -34,6 +50,12 @@ internal sealed class SessionPanel(EngineSession session, string game)
             ImGui.TextUnformatted($"Entities: {stats.Entities}");
             ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
             ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+
+            if (project != null)
+            {
+                ImGui.End();
+                return;
+            }
 
             ImGui.Separator();
             ImGui.TextUnformatted("Open another game:");

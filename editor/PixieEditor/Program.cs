@@ -7,7 +7,10 @@ namespace PixieEditor;
 // What the command line asks for.
 internal sealed record EditorOptions
 {
-    public string Game { get; init; } = "boids";
+    // A game built in code, by name or library path; or a project folder; with neither, the start
+    // screen.
+    public string? Game { get; init; }
+    public string? Project { get; init; }
     public ulong Seed { get; init; } = 1;
     // The entity, by name, selected at the start.
     public string? Select { get; init; }
@@ -17,7 +20,8 @@ internal sealed record EditorOptions
     public double QuitAfter { get; init; }
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
-    public ViewportMode Mode { get; init; } = ViewportMode.Game;
+    // What the mouse does at the start; Game for a game, Select for a project, which opens in edit mode.
+    public ViewportMode? Mode { get; init; }
     public bool Paused { get; init; }
 }
 
@@ -25,7 +29,9 @@ internal static class Program
 {
     private const string Usage = """
         usage: PixieEditor [options]
-          --game <name|path>       the game: boids, flocks, particles, or a path to its capi library (default boids)
+          With neither --game nor --project, the editor opens its start screen: new project, open project, recent ones.
+          --project <folder>       open the project in this folder, in edit mode
+          --game <name|path>       open a game built in code: boids, flocks, particles, or a path to its capi library
           --seed <n>               seed of the World (default 1)
           --select <name>          select the entity with this name at the start
           --set <Type.Property=v>  after --edit-after seconds, set a property of the selected entity through its inspector; repeatable
@@ -33,7 +39,7 @@ internal static class Program
           --quit-after <seconds>   close after this long; 0 means never (default 0)
           --screenshot <file.png>  with --quit-after, save the last frame of the window
           --time-scale <x>         start with simulated time at this speed (default 1)
-          --mode <game|select>     what the mouse does in the viewport at the start (default game)
+          --mode <game|select>     what the mouse does in the viewport at the start (default game; select for a project)
           --paused <on|off>        start with time paused (default off)
         """;
 
@@ -48,8 +54,7 @@ internal static class Program
 
         try
         {
-            GameLibrary.Use(GameLibrary.Find(options.Game));
-            return new EditorWindow(options with { Game = GameName(options.Game) }).Run();
+            return new EditorWindow(options).Run();
         }
         catch (Exception e) when (e is EngineException or FileNotFoundException or InvalidOperationException or DllNotFoundException)
         {
@@ -58,7 +63,8 @@ internal static class Program
         }
     }
 
-    private static string GameName(string game) =>
+    // A game's name, from its name or its library's path.
+    public static string GameName(string game) =>
         File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-capi", "") : game;
 
     private static bool TryParse(string[] args, out EditorOptions options)
@@ -72,8 +78,11 @@ internal static class Program
             var value = args[++i];
             switch (args[i - 1])
             {
-                case "--game":
+                case "--game" when options.Project == null:
                     options = options with { Game = value };
+                    break;
+                case "--project" when options.Game == null:
+                    options = options with { Project = value };
                     break;
                 case "--seed" when ulong.TryParse(value, CultureInfo.InvariantCulture, out var seed):
                     options = options with { Seed = seed };

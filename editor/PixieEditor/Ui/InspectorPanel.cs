@@ -47,17 +47,64 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
                 if (Entities.Length > 1 && Types.Length == 0)
                     ImGui.TextDisabled("They share no component.");
                 ImGui.Separator();
+                int? remove = null;
                 foreach (var section in Sections)
                 {
                     ImGui.PushID(section.Type);
-                    if (ImGui.CollapsingHeader(section.Name, ImGuiTreeNodeFlags.DefaultOpen))
+                    // The header's close button removes the component from every selected entity.
+                    var keep = true;
+                    if (ImGui.CollapsingHeader(section.Name, ref keep, ImGuiTreeNodeFlags.DefaultOpen))
                         section.View.Draw();
+                    if (!keep)
+                        remove = section.Type;
                     ImGui.PopID();
                 }
+
+                ImGui.Spacing();
+                DrawAddComponent();
+                // After drawing, so no inspector of the removed component is in use; the sections are
+                // made again on the next frame.
+                if (remove is { } type)
+                    Change(Entities, id => session.RemoveComponent(id, type));
             }
         }
 
         ImGui.End();
+    }
+
+    // A button with the component types not every selected entity has; choosing one adds it to all.
+    private void DrawAddComponent()
+    {
+        if (ImGui.Button("Add component"))
+            ImGui.OpenPopup("add-component");
+        if (!ImGui.BeginPopup("add-component"))
+            return;
+
+        for (var type = 0; type < session.TypeCount; type++)
+        {
+            if (Types.Contains(type))
+                continue;
+            if (ImGui.Selectable(session.TypeName(type)))
+            {
+                var chosen = type;
+                Change(Entities, id => session.AddComponent(id, chosen));
+            }
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private static void Change(uint[] entities, Action<uint> change)
+    {
+        try
+        {
+            foreach (var id in entities)
+                change(id);
+        }
+        catch (EngineException e)
+        {
+            Status.Show(e.Message, error: true);
+        }
     }
 
     private string Describe(uint entity)
