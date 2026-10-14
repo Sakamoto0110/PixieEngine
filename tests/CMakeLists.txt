@@ -22,12 +22,13 @@ add_executable(runtime-tests
     runtime/ParticleTests.cpp
     runtime/PickingTests.cpp
     runtime/RandomTests.cpp
+    runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
     runtime/WorldTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)
 target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
-target_link_libraries(runtime-tests PRIVATE Pixie::Runtime)
+target_link_libraries(runtime-tests PRIVATE Pixie::Runtime nlohmann_json::nlohmann_json)
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 

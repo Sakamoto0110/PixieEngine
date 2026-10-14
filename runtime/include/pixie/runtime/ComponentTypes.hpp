@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/World.hpp"
+
 #include <entt/entity/registry.hpp>
 
 #include <pixie/math/pxVec.hpp>
@@ -7,6 +9,7 @@
 #include <pixie/pxPoint.hpp>
 #include <pixie/pxRect.hpp>
 
+#include <concepts>
 #include <cstdint>
 #include <string>
 #include <string_view>
@@ -85,16 +88,26 @@ struct FieldDescriptor {
     FieldMetadata metadata;
 };
 
-// One reflected component type: its name, its fields, and how to find it on an entity.
+// One reflected component type: its name, its fields, and how to find, add, and remove it on an
+// entity.
 struct ComponentDescriptor {
     std::string name;
     entt::id_type type = 0;
     std::vector<FieldDescriptor> fields;
+    // The version of the type's fields, saved with every instance in a scene; raise it when a field
+    // changes meaning.
+    int version = 1;
     // A scenario holds the values a scene is built from, rather than live state; a tool offers to
     // rebuild the scene after editing one.
     bool scenario = false;
     // The component of `entity`, or null when it has none.
     void* (*find)(entt::registry& registry, entt::entity entity) = nullptr;
+    // The component of `entity`, added with its defaults when it has none; a Behaviour is added as
+    // Entity::AddBehaviour adds it. Null for a type that is not default-constructible. Not during a
+    // step.
+    void* (*add)(World& world, entt::entity entity) = nullptr;
+    // Removes the component from `entity`, if it has one. Not during a step.
+    void (*remove)(World& world, entt::entity entity) = nullptr;
 };
 
 template<typename T>
@@ -220,6 +233,29 @@ void* Find(entt::registry& registry, entt::entity entity) {
     return registry.valid(entity) ? registry.try_get<T>(entity) : nullptr;
 }
 
+template<typename T>
+void* AddTo(World& world, entt::entity entity) {
+    if (!world.Registry().valid(entity)) {
+        return nullptr;
+    }
+    const Entity handle = world.Wrap(entity);
+    if (T* existing = handle.TryGet<T>()) {
+        return existing;
+    }
+    if constexpr (std::derived_from<T, Behaviour>) {
+        return &handle.AddBehaviour<T>();
+    } else {
+        return &handle.Add<T>();
+    }
+}
+
+template<typename T>
+void RemoveFrom(World& world, entt::entity entity) {
+    if (world.Registry().valid(entity)) {
+        world.Wrap(entity).Remove<T>();
+    }
+}
+
 } // namespace detail
 
 // Adds the fields of one component type to its ComponentTypes.
@@ -248,6 +284,12 @@ public:
     // Marks the type as a scenario: values the scene is built from (see ComponentDescriptor).
     ComponentBuilder& Scenario() {
         types_.types_[index_].scenario = true;
+        return *this;
+    }
+
+    // The version of the type's fields (see ComponentDescriptor); 1 when not given.
+    ComponentBuilder& Version(int version) {
+        types_.types_[index_].version = version;
         return *this;
     }
 
@@ -340,6 +382,10 @@ ComponentBuilder<T> ComponentTypes::Add(std::string name) {
     descriptor.name = std::move(name);
     descriptor.type = entt::type_hash<T>::value();
     descriptor.find = &detail::Find<T>;
+    if constexpr (std::is_default_constructible_v<T>) {
+        descriptor.add = &detail::AddTo<T>;
+    }
+    descriptor.remove = &detail::RemoveFrom<T>;
     types_.push_back(std::move(descriptor));
     return ComponentBuilder<T>(*this, types_.size() - 1);
 }
