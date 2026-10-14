@@ -1,9 +1,39 @@
 # PixieEditor
 
-The C# editor of PixieEngine, first as a Dear ImGui application: it runs one game through the
-game's [C API library](../docs/modules/capi/README.md), shows the game in a docked viewport, lists
-its entities, and inspects and edits their components with
+The C# editor of PixieEngine, first as a Dear ImGui application: it makes and opens projects, or
+runs a game built in code, through a [C API library](../docs/modules/capi/README.md); it shows the
+World in a docked viewport, lists its entities, and inspects and edits their components with
 [PixieInspector](https://github.com/Sakamoto0110/PixieInspector).
+
+## Projects
+
+A project is a folder with one `<Name>.pixie` file and its scenes
+([runtime reference](../docs/modules/runtime/REFERENCE.md#project-folders)). It holds no path to
+the engine or to anything outside it, so it can be copied, versioned, or opened on another machine
+as it is. The editor creates no version-control files.
+
+- **Start screen.** Without `--game` or `--project`, the editor opens on New project, Open project,
+  and the recent projects (a click opens one; a missing one is marked, with Forget).
+  - **New project** takes a location, chosen in a folder picker drawn in ImGui (Up, the drives,
+    the folders inside, and a path to type and confirm with Enter), and a name; it makes the folder
+    `<location>/<name>`, which must not exist or be empty, and says why before Create can be
+    pressed. The project takes the folder's name, and its scene starts with one shape.
+  - **Open project** takes a folder that holds a `.pixie` file; project folders are marked in the
+    picker, and Open waits until the current folder is one.
+- A project runs on the engine's generic library, `pixie-scene-capi`, so it opens without a
+  compiler. The recent projects and the place of the last one are kept in the user's settings
+  (`PixieEditor/settings.json` under the application data folder), never in a project.
+- **Edit and play.** A project opens in edit mode: time stands still, the time bar and Game wait,
+  and the mouse selects. Edits change the World; **Save** (Ctrl + S, or File) writes the scene, and
+  the window's title marks unsaved changes with `*`. **Play** builds the World again from the scene
+  and runs it, with the mouse on Game; while playing, the title says so, the toolbar shows
+  "PLAYING - changes are not kept", and the viewport is framed in orange. **Stop** goes back to the
+  scene as it was at Play. Closing the window, or File, New or open project (a new editor on the
+  start screen), with unsaved changes asks first: Save, Don't save, or Cancel.
+- **Authoring.** Create entity, in the Entities panel, adds an entity named `entity <n>` to the
+  scene, with a transform and a 24-unit circle, and selects it. In the inspector, Add component
+  lists the types the selected entities do not all have, and a component's header has a close
+  button that removes it from all of them.
 
 - **Viewport.** The engine draws the World into a texture of the editor's own OpenGL 4.5 core
   context (`pixie_session_render`); the window shows it with `ImGui.Image`, flipped, since GL's
@@ -41,8 +71,10 @@ its entities, and inspects and edits their components with
 - **Scenario.** Each game's starting values (counts, attractors) live in a scenario component on
   the `scenario` entity; its inspector has a "Rebuild the scene" button that builds the World again
   from the edited values.
-- **Session.** A single step while paused, reset, the World's time, entity count, and step cost, and buttons that open the other games built next to this one in a new editor
-  (P/Invoke binds the library once, so one process hosts one game).
+- **Session.** The project and its folder, or the game; a single step while paused, Rebuild (for a
+  project, from the scene's entities as they are) or Reset; the World's time, entity count, and step
+  cost; and, for a game, buttons that open the other games built next to this one in a new editor
+  (P/Invoke binds the library once, so one process hosts one game or project).
 
 The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings Hexa.NET.ImGui
 2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
@@ -50,13 +82,16 @@ The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings 
 
 ## Build and run
 
-Build the engine first: the editor looks for `<game>-capi.dll` in `bin/Release`, then `bin/Debug`,
-above the directory it runs from. Then, with the .NET 10 SDK:
+Build the engine first: the editor looks for `<game>-capi.dll`, and for a project
+`pixie-scene-capi.dll`, in `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
+with the .NET 10 SDK:
 
 ```bash
 dotnet build editor/PixieEditor.slnx -c Release
-editor/PixieEditor/bin/Release/net10.0/PixieEditor --game flocks
+editor/PixieEditor/bin/Release/net10.0/PixieEditor
 ```
+
+That opens the start screen; `--project <folder>` opens a project and `--game flocks` a game.
 
 The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 
@@ -64,15 +99,16 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--game <name\|path>` | `boids` | `boids`, `flocks`, `particles`, or the path to a game's C API library |
-| `--seed <n>` | `1` | Seed of the World |
+| `--project <folder>` | none | Opens the project in this folder, in edit mode |
+| `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a game's C API library; with neither option, the start screen |
+| `--seed <n>` | `1` | Seed of a game's World; a project's comes from its scene |
 | `--select <name>` | none | Selects the entity with this name at the start |
 | `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`); repeatable |
 | `--edit-after <seconds>` | `1` | When the `--set` edits happen |
 | `--quit-after <seconds>` | `0` | Closes the editor after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame of the window |
 | `--time-scale <x>` | `1` | Starts with simulated time at this speed; with `--quit-after`, the simulated time is logged at the end |
-| `--mode <game\|select>` | `game` | What the mouse does in the viewport at the start |
+| `--mode <game\|select>` | `game`; `select` for a project | What the mouse does in the viewport at the start |
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
 
 A `--set` on a button presses it: `--select scenario --set BoidsScenario.count=300 --set

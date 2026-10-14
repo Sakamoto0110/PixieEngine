@@ -43,21 +43,7 @@ Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
 in the editor, with scene serialization), in this order
 ([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-PIXIE-TODO-018 and PIXIE-TODO-019 are completed; see below.
-
-### `PIXIE-TODO-020` — New and open projects in the editor
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md), parts 1, 5, and 6
-
-**Accepted scope:** the editor started without `--game` or `--project` opens a start screen with New project, Open project, and the recent projects (kept in the editor's per-user settings, never in a project). New project asks for a folder, empty or not yet existing, names the project after it, creates it through the C API, and opens it; Open project asks for a folder with a `.pixie` file. The folder picker is drawn in ImGui, so it works on every editor host. `--project <dir>` opens a project directly; `--game` keeps working. In a project: Save (Ctrl + S), the project's name and an unsaved mark in the window's title, Play and Stop with the play state shown plainly, the time bar active in play, creating an entity, and adding or removing a component in the inspector from the descriptors' list. The editor creates no version-control files. Out: native dialogs, undo, code (PIXIE-TODO-021).
-
-**Dependencies and gates:** 1. PIXIE-TODO-019
-
-**Completion criteria:** (1) with real input: New project in a new folder, add an entity with a shape, save, close, reopen it from the recent list, and find it; (2) Play moves things and Stop restores the scene; (3) the same folder, copied to another path, opens and shows the same scene; (4) the editor's README describes the start screen, the modes, and the new options; (5) zero warnings.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-020--new-and-open-projects-in-the-editor)
+PIXIE-TODO-018 to PIXIE-TODO-020 are completed; see below.
 
 ### `PIXIE-TODO-021` — Code in a project
 
@@ -165,3 +151,7 @@ breakdown, and verification are preserved in the
 `PIXIE-TODO-019` (projects, edit mode, and play mode in the engine) completed
 on 2026-10-14. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-019-projects-2026-10-14.md).
+
+`PIXIE-TODO-020` (new and open projects in the editor) completed on
+2026-10-14. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-020-editor-projects-2026-10-14.md).

@@ -40,18 +40,8 @@ and the section shape is in the
 ## Open breakdowns
 
 Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022; the breakdowns
-of PIXIE-TODO-018 and PIXIE-TODO-019 are in their archive records. Earlier breakdowns are in their archive records, routed from the
+of PIXIE-TODO-018 to PIXIE-TODO-020 are in their archive records. Earlier breakdowns are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-020` — New and open projects in the editor
-
-**Parent:** PIXIE-TODO-020
-
-- `PIXIE-TASK-090` — **Status:** open — The start screen with New project, Open project, and the recent projects, kept in the editor's per-user settings; `--project <dir>`.
-- `PIXIE-TASK-091` — **Status:** open — A folder picker drawn in ImGui; New project in an empty or new folder, named after it; Open project on a folder with a `.pixie` file, with a plain message when there is none.
-- `PIXIE-TASK-092` — **Status:** open — Save with Ctrl + S, the project's name and an unsaved mark in the title; Play and Stop, with the play state shown plainly and the time bar active in play.
-- `PIXIE-TASK-093` — **Status:** open — Creating an entity, and adding or removing a component in the inspector from the descriptors' list.
-- `PIXIE-TASK-094` — **Status:** open — Verification with real input (new, edit, save, reopen, play, stop, a copied folder) and the editor's README.
 
 ## `PIXIE-TODO-021` — Code in a project
 
