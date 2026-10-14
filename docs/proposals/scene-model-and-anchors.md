@@ -65,17 +65,19 @@ style the owner wants from EC. The anchors span the model: anchor 1 is
 per-entity logic, anchor 2 needs an engine service (neighbour queries) and an
 order-independent step, and anchor 3 needs batch processing over a pool.
 
-**Constraints:** Serialization is postponed by the owner (2026-10-13); until
-it is promoted, Worlds are built in code and nothing is saved. The stable
-entity ID, the `scene` boundary, and the adoption of nlohmann/json wait with
-it.
+**Constraints:** Serialization was postponed by the owner on 2026-10-13 and
+promoted on 2026-10-14 through PIXIE-PROPOSAL-005, which adopts nlohmann/json,
+gives the stable entity ID a `SceneId` component, and keeps serialization in
+the `runtime` module rather than a `scene` boundary.
 
 **Promotion target:** parts 1 and 2 promoted to `TODO.md` on 2026-10-13
-(PIXIE-TODO-005 to PIXIE-TODO-011); part 3 requires an owner decision.
+(PIXIE-TODO-005 to PIXIE-TODO-011); part 3 promoted on 2026-10-14 as
+PIXIE-TODO-018, through PIXIE-PROPOSAL-005.
 
 **Source:** [decision record](../archive/object-model-and-editor-decisions-2026-10-13.md)
 
 **Outcome:** parts 1 and 2 promoted on 2026-10-13 into
 [`TODO.md`](../../TODO.md), as recorded in the
 [promotion record](../archive/anchors-promotion-2026-10-13.md). Part 3
-postponed.
+postponed, then promoted on 2026-10-14 as part of
+[PIXIE-PROPOSAL-005](projects-and-scenes.md), which adds to its format.

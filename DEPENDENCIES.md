@@ -106,4 +106,4 @@ adopts it.
 | glad 2 | GL function loader, if GLEW is replaced | v2.0.8 (2024-09-29); `glad2` branch active (2026-09-28) | Generated for exactly `gl:core=4.5`, so a call outside 4.5 core fails to compile; takes any loader callback, independent of who created the context. |
 | stb_image (`nothings/stb`) | Image loading | No releases; pin a commit | Single header, public domain; covers PNG for sprites. |
 | miniaudio | Audio | 0.11.25 (2026-03-03) | Single header; no shared library to ship. |
-| nlohmann/json | Scene and project serialization | v3.12.0 (2025-04-11) | Readable text scenes for diffs and debugging. A binary format can come later for the player. Recommended for the scene format of PIXIE-PROPOSAL-004, whose serialization the owner postponed on 2026-10-13. |
+| nlohmann/json | Scene and project serialization | v3.12.0 (2025-04-11) | Readable text scenes for diffs and debugging. A binary format can come later for the player. Adopted by the owner on 2026-10-14 for the scene format (PIXIE-PROPOSAL-005, PIXIE-TODO-018); it moves to the runtime table when PIXIE-TASK-080 vendors it. |

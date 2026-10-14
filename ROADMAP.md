@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-13
+**Direction decision date:** 2026-10-14
 
 ## Purpose
 
@@ -84,8 +84,20 @@ added five more blocks
 14. Selection and editing in the viewport (PIXIE-TODO-016).
 15. Spawners placed by hand in the particles game (PIXIE-TODO-017), asked for
     by the owner after the review.
- Scene serialization is postponed: until the
-owner promotes it, Worlds are built in code and nothing is saved. These blocks supersede the vertical slice
+
+Blocks 10 to 15 were completed on 2026-10-13. On 2026-10-14 the owner chose
+the next phase
+([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)):
+games as project folders created and opened from the editor, together with
+scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)):
+
+16. Saving and loading scenes (PIXIE-TODO-018).
+17. Projects, edit mode, and play mode in the engine (PIXIE-TODO-019).
+18. New and open projects in the editor (PIXIE-TODO-020).
+19. Code in a project (PIXIE-TODO-021).
+20. Samples as projects (PIXIE-TODO-022).
+
+Until block 16 lands, Worlds are built in code and nothing is saved. The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
 code grows in the provisional engine library until they are.
@@ -127,6 +139,18 @@ code grows in the provisional engine library until they are.
   on them, with no per-component class on the tool side. C++26 reflection may
   generate the same descriptors once MSVC supports it; until then the project
   stays on C++20. Accepted 2026-10-13.
+- **The scene is the document; the World is the instance.** A scene file
+  holds the entities that belong to the scene, written through the field
+  descriptors; the World is built from it. In the editor, edits change the
+  World, Save writes it back, and Stop builds the World again from the scene
+  as it was at Play. Accepted 2026-10-14.
+- **Projects are portable folders, created and opened from the editor.** A
+  project holds only paths relative to its folder and never records where the
+  engine is; the editor that opens it supplies its own engine. Making or
+  opening a project needs no command-line tool, `PATH` change, or environment
+  variable, and a project without code needs no compiler. The editor creates
+  no version-control files: versioning belongs to the user. Accepted
+  2026-10-14.
 - **Time is passed explicitly.** `Update` and `Render` receive a `FrameTime`
   struct (the step or frame delta, the render interpolation alpha, simulated
   elapsed time, and the call index); there is no global timestep. Time belongs to a World, not to the
