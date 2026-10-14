@@ -39,19 +39,9 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022; the breakdown
-of PIXIE-TODO-018 is in its archive record. Earlier breakdowns are in their archive records, routed from the
+Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022; the breakdowns
+of PIXIE-TODO-018 and PIXIE-TODO-019 are in their archive records. Earlier breakdowns are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-019` — Projects, edit mode, and play mode in the engine
-
-**Parent:** PIXIE-TODO-019
-
-- `PIXIE-TASK-085` — **Status:** open — The project file: reading and writing `<Name>.pixie` with relative paths only, and creating a new project's folder contents (the project file and `scenes/main.scene` with one shape at the origin).
-- `PIXIE-TASK-086` — **Status:** open — A `ProjectSession` built from a scene: the scene's entities first, then the project's code; an edit mode that does not step; Play with the scene entities kept in memory, Stop and Rebuild that build the World again; an unsaved-changes flag.
-- `PIXIE-TASK-087` — **Status:** open — The generic C API library, whose project only loads the scene with the engine's component types.
-- `PIXIE-TASK-088` — **Status:** open — The C API, version 4: create, open, and save a project; play, stop, and the mode; unsaved changes; create an entity; add and remove a component by type name. The C API test drives a whole project through the generic library.
-- `PIXIE-TASK-089` — **Status:** open — The project file and the modes in the `runtime` and `capi` modules' `REFERENCE.md`.
 
 ## `PIXIE-TODO-020` — New and open projects in the editor
 

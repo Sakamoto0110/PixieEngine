@@ -57,7 +57,8 @@
   exact declarations.
 - Build: the object library `pixie_capi_objects` and the CMake function `pixie_add_capi_library`
   in `capi/CMakeLists.txt`. Each game calls it once: `boids-capi`, `flocks-capi`, and
-  `particles-capi` under `samples/`.
+  `particles-capi` under `samples/`, and the engine's generic `pixie-scene-capi` in
+  `capi/CMakeLists.txt`, for project folders without code.
 - Tests: `capi-test` (`tests/capi/CapiTest.c`), registered in CTest once per game library.
 - Distribution: the libraries serve hosts such as the editor; the players do not use them. They
   are still general (tools and tests use them too), as the guardrail on the editor asks.

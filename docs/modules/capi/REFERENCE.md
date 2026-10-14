@@ -33,6 +33,10 @@ are not dropped by the linker. On Windows the functions are exported with `__dec
 (`PIXIE_CAPI_BUILD`); elsewhere with default visibility. The library links the C++ runtime
 statically, like every target, so a host needs no Visual C++ Redistributable.
 
+The engine builds one library of its own, `pixie-scene-capi`, from the game `pixie-scene-game`,
+whose project is the runtime's `SceneProject`: a World that is only its scene. It runs a project
+folder that has no code.
+
 ## Rules for every function
 
 - The OpenGL 4.5 core context the session was created with must be current on the calling thread.
@@ -43,9 +47,12 @@ statically, like every target, so a host needs no Visual C++ Redistributable.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (3), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (4), raised when a function's meaning or a
   struct's layout changes. Version 2 added the field metadata, version 3 picking, destruction, and
-  spawning; a host checks the version and does not load a library of another one.
+  spawning, version 4 projects, modes, and authoring; a host checks the version and does not load a
+  library of another one.
+- A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
+  UTF-8.
 
 ## Session
 
@@ -62,12 +69,37 @@ returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be made.
 | `pixie_session_step` | Runs one fixed step now, paused or not |
 | `pixie_session_set_paused` | Pauses or resumes; resuming drops the leftover fraction of a step |
 | `pixie_session_set_time_scale` | Simulated seconds per wall second given to advance, from 0.01 to 8 (clamped); not positive is an argument error |
-| `pixie_session_reset` | Rebuilds the World from the game with the same seed, after the game reads back its scenario; steps start over |
+| `pixie_session_reset` | Rebuilds the World from the game with the same seed, after the game reads back its scenario; with a project open, from the scene's entities as they are now; steps start over |
 | `pixie_session_stats` | Steps, simulated seconds, last step's wall time, entity count, paused, time scale |
-| `pixie_project_name` | The game's name |
+| `pixie_project_name` | The project file's name when a project is open, else the game's |
 
 Before each step the session calls the project's `BeforeStep` with the session's input, then
 steps the World; after each step it forgets the step's presses, releases, scroll, and movement.
+
+## Projects and modes
+
+A project is a folder with one `<Name>.pixie` file and its scenes
+([runtime projects](../runtime/REFERENCE.md#projects-and-sessions)).
+
+- `pixie_project_create(folder)` makes a new project in a folder that is empty or does not exist
+  yet: the project takes the folder's name, and its start scene holds one shape at the origin. It
+  needs no session and no GL context. A folder that is not empty returns `PIXIE_ERROR_IO`.
+- `pixie_session_open_project(width, height, folder, &session)` is `pixie_session_create` for the
+  project in `folder`, with the game's library: the World is built from the start scene (its
+  entities, then the game's `Build`), seeded with the scene's seed, and the session starts in edit
+  mode. A folder that is not a project, or whose scene cannot be read, returns `PIXIE_ERROR_IO` and
+  no session.
+- `pixie_session_mode` returns `PIXIE_MODE_PLAY` or `PIXIE_MODE_EDIT`. A session without a project
+  always plays. In edit mode, advance and step run no step, the game sees no input, and the middle
+  button and the wheel pan and zoom the camera.
+- `pixie_session_play` keeps the scene's entities and builds the World again from them, playing
+  and unpaused; `pixie_session_stop` builds it again from what play kept, in edit mode, so nothing
+  done in play stays. The camera is kept. Without a project both return `PIXIE_ERROR_ARGUMENT`.
+- `pixie_project_save` writes the scene's entities to the start scene's file, through a temporary
+  file; while playing, it writes the ones play kept. `pixie_project_unsaved` returns 1 when the
+  scene was edited since it was opened or saved: in edit mode, creating an entity, adding or
+  removing a component of a scene entity, writing one of its fields, and destroying it are edits;
+  changes to entities the game generates, and anything done in play, are not.
 
 ## Rendering
 
@@ -92,10 +124,17 @@ Events are kept until the next step reads them.
   bits (index and version); a destroyed entity's handle is reported as not found, never confused
   with a newer entity in the same slot.
 - `pixie_entity_name` gives the entity's `Name`, or an empty string.
+- `pixie_entity_create(name, &entity)` creates an entity that belongs to the scene (it gets a
+  `SceneId`), named `name`, or unnamed for null or an empty string.
 - Component types are indexed from 0 to `pixie_type_count` - 1: the runtime's own
   (`DescribeRuntimeComponents`), then the game's (`Project::Describe`). `pixie_type_name`,
   `pixie_field_count`, `pixie_field_name`, `pixie_field_kind`, `pixie_field_enum_count`, and
-  `pixie_field_enum_name` describe them; `pixie_entity_has` tells whether an entity has one.
+  `pixie_field_enum_name` describe them; `pixie_type_find` gives the index of a type by name, or
+  `PIXIE_ERROR_NOT_FOUND`; `pixie_entity_has` tells whether an entity has one.
+  `pixie_component_add` adds a component of a type with its default values, or keeps the one the
+  entity has (a type without a default value is an argument error), and `pixie_component_remove`
+  removes it; both return `PIXIE_ERROR_NOT_FOUND` for a destroyed entity, and remove does for an
+  entity without the component.
   `pixie_type_flags` returns `PIXIE_TYPE_SCENARIO` for a type that holds a scenario: values the
   scene is built from, which a host offers to rebuild with after an edit.
 - `pixie_field_info` fills a `PixieFieldInfo` (72 bytes): the kind, the editor
@@ -134,8 +173,8 @@ entities.
 
 ## Non-goals
 
-No saving or loading, no entity creation or destruction through the API, no Name editing, and no
-fields of nested structs (such as a particle pool's style) yet.
+No Name editing, no choice of scene other than the start scene, and no fields of nested structs
+(such as a particle pool's style) yet.
 
 ## Validation
 
@@ -145,4 +184,14 @@ window with an OpenGL 4.5 core context, and checks: the version; type and field 
 metadata of a field shown in degrees, and a tooltip on every field; the entity
 list and the oldest entity's name; writing a field and reading it back; time, the 0.25 s clamp,
 pause, and single steps; a key press; rendering into a texture at a new size, with content; errors
-for a bad type and a short buffer; and reset. CTest runs it once per game library.
+for a bad type and a short buffer; finding a type by name; that a session without a project
+plays and refuses play, stop, and save; creating an entity, adding and removing a component, and
+destroying it; and reset. CTest runs it once per game library.
+
+With `--project <folder>`, on `pixie-scene-capi`, it drives a whole project instead: it creates one
+(and fails to create it again in the same folder), opens it in edit mode with its one shape drawn
+and no step run, creates an entity with a transform and a velocity, saves, plays 24 steps and finds
+the entity moved 40 units without marking the scene unsaved, stops and finds it back at the origin,
+opens the project again and finds the saved velocity, checks that the project file names its scene
+relatively and holds no absolute path, and fails to open a folder that is not a project. CTest runs
+it as the test `pixie-scene-capi`, in a folder of the build tree that it removes before and after.

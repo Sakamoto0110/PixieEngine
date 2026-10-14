@@ -53,7 +53,9 @@ All under `runtime/include/pixie/runtime/`:
 | `Scene.hpp` | `SceneId`, `AddToScene`, and reading and writing scene files |
 | `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
-| `ProjectSession.hpp` | `ProjectSession`, a running project, and `SessionSettings` |
+| `ProjectFile.hpp` | Project folders: `ProjectFile`, `OpenProjectFolder`, `CreateProjectFolder`, `WriteProjectFile` |
+| `SceneProject.hpp` | `SceneProject`, a project whose World is only its scene, and `PanAndZoom` |
+| `ProjectSession.hpp` | `ProjectSession`, a running project, `SessionSettings`, and `SessionMode` |
 | `ProjectApp.hpp` | `ProjectApp`, which runs a project in `pixie::Run`'s window |
 | `Shape.hpp` | `Shape`, an entity's look |
 | `Name.hpp` | `Name`, an optional label |
@@ -340,6 +342,57 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   overlay, into the bound framebuffer; `RenderToTarget()` does it into the session's own
   `RenderTarget`, sized to the viewport, and returns its texture.
 
+### Project folders
+
+A project is a folder that holds one `<Name>.pixie` file, the project file, and its scenes. The
+project file is JSON:
+
+```json
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "My Game",
+  "startScene": "scenes/main.scene"
+}
+```
+
+Its paths are relative to the folder, with forward slashes and no `.` or `..` part
+(`IsProjectRelativePath`), so a project never depends on the machine it is on or on where the
+engine is ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). `OpenProjectFolder(folder)`
+reads it and fails when the folder holds no `.pixie` file or more than one, when the format or a
+newer version does not match, or when the start scene is not such a path; a missing `name` is the
+file's own name, and a missing `startScene` is `scenes/main.scene`. Keys it does not know are kept
+in `ProjectFile::extras` and written back by `WriteProjectFile`. `CreateProjectFolder(folder)`
+makes a new project in a folder that is empty or does not exist yet: the project takes the
+folder's name, and gets its project file and a start scene whose one entity, `shape`, is a circle
+at the origin.
+
+### Edit and play
+
+`OpenProject(folder)`, before or after `Start`, opens a project folder in a session; it fails, with
+`Error()`, when the project or its start scene cannot be read. From then on the World is built
+from a scene: `ReadScene` adds the scene's entities and reseeds the World's `Random` with the
+scene's seed, then the project's `Build` adds what is not saved (systems, pools, generated
+entities) and may read the scene's entities, such as a scenario. Warnings are logged.
+
+A session with a project has two modes (`SessionMode`):
+
+- `Edit`, where it starts: `Advance`, `StepOnce`, and `Update` run no step and the project's
+  `BeforeStep` is not called; `Advance` pans and zooms the camera (`PanAndZoom`: middle button and
+  wheel). Edits change the World, which stays the only copy of the state.
+- `Play`: `Play()` writes the scene's entities to memory and builds the World again from them,
+  unpaused; `StopPlaying()` builds it again from that copy and returns to `Edit`, so nothing done in
+  play stays. The camera is kept across both.
+
+`Reset` builds the World again from the scene's entities as they are now. `Save()` writes the
+scene's entities to the start scene's file through `SaveTextFile`; in `Play`, it writes the ones
+`Play` kept. `MarkChanged()` notes an edit, and is ignored outside `Edit`; `HasUnsavedChanges()`
+reports it until the next save. `ProjectName()` is the project file's name, or the `Project`'s
+without a project. A session without a project always plays, as before.
+
+`SceneProject` is a `Project` whose `Build` adds nothing and whose `BeforeStep` pans and zooms: a
+project folder without code runs as one, and a game with code can start from it.
+
 `ProjectApp` is the player side: an `App` whose fixed updates call `Update` with `pixie::Run`'s
 time and input and whose frames call `Render`. It logs the step cost once per second.
 
@@ -362,7 +415,7 @@ None. A World and its Behaviours are used from one thread at a time.
 
 ## Non-goals
 
-No prefabs, nested scenes, or hierarchy, no binary scene format, no physics, no multithreaded
+No prefabs, nested scenes, or hierarchy, no binary scene format, no undo, no physics, no multithreaded
 systems, no long-range all-pairs forces between particles.
 
 ## Validation
@@ -379,6 +432,9 @@ built-in component, a Behaviour, and an entity reference that writes back the sa
 Behaviour that runs; generated entities left out; the values as written; unknown components,
 fields, and keys written back unchanged; files that cannot be read adding nothing; wrong values
 warned about and left at their defaults; a reference outside the scene saved as none; and saving
-and loading a file). Sessions are
-exercised by the samples and, through the C API, by `capi-test`. `SubmitShapes` is exercised by the
+and loading a file), and project folders (a new project named after its folder, with its one
+shape and no path outside it; a folder that is not empty refused; only a folder with one valid
+project file opening; unknown keys written back; and which paths count as inside the folder).
+Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
+which drives a whole project through `pixie-scene-capi`. `SubmitShapes` is exercised by the
 samples that draw a World.

@@ -43,21 +43,7 @@ Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
 in the editor, with scene serialization), in this order
 ([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-The first of them, PIXIE-TODO-018, is completed; see below.
-
-### `PIXIE-TODO-019` — Projects, edit mode, and play mode in the engine
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md), parts 2, 5, and 6
-
-**Accepted scope:** the project file (`<Name>.pixie`: `format` `"pixie-project"`, `version`, `name`, and a start scene, with paths relative to the project's folder and nothing specific to a machine), read and written by the `runtime` module. A `ProjectSession` built from a scene: it loads the scene's entities, then the project's code builds what is not saved (systems, pools, generated entities), and may read the scene's entities, such as a scenario. An edit mode where the World does not step; Play keeps the scene entities in memory, and Stop builds the World again from them; Rebuild builds it again from the current scene entities. A generic C API library whose project only loads the scene, with the engine's own component types, and the contents of a new project (one shape at the origin in `scenes/main.scene`). The C API, version 4: create a project in a folder, open a project, save, play, stop, the current mode, unsaved changes, create an entity, and add or remove a component by type name. Out: the editor's screens (PIXIE-TODO-020), code in a project (PIXIE-TODO-021).
-
-**Dependencies and gates:** 1. PIXIE-TODO-018
-
-**Completion criteria:** (1) the C API test creates a project in a temporary folder through the generic library, adds an entity and a component, saves, opens it again, and finds them; (2) it plays, steps, stops, and finds the World as it was before Play; (3) a project file holds no absolute path; (4) the project file and the session's modes are described in the `runtime` and `capi` modules' `REFERENCE.md`; (5) zero warnings, and `ctest` passes.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-019--projects-edit-mode-and-play-mode-in-the-engine)
+PIXIE-TODO-018 and PIXIE-TODO-019 are completed; see below.
 
 ### `PIXIE-TODO-020` — New and open projects in the editor
 
@@ -175,3 +161,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-018` (save and load scenes) completed on 2026-10-14. Its entry,
 breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-018-scenes-2026-10-14.md).
+
+`PIXIE-TODO-019` (projects, edit mode, and play mode in the engine) completed
+on 2026-10-14. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-019-projects-2026-10-14.md).
