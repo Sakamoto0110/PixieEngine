@@ -47,6 +47,7 @@ internal sealed class EditorWindow(EditorOptions options)
             throw new InvalidOperationException("GLFW could not open a window with an OpenGL 4.5 core context.");
         }
 
+        WindowIcon.Apply(window);
         GLFW.MakeContextCurrent(window);
         GLFW.SwapInterval(1);
         Gl.Load();

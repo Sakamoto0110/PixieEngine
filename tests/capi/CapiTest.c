@@ -86,6 +86,8 @@ static struct {
     PixieResult (*type_find)(PixieSession*, const char*, int32_t*);
     PixieResult (*component_add)(PixieSession*, uint32_t, int32_t);
     PixieResult (*component_remove)(PixieSession*, uint32_t, int32_t);
+    PixieResult (*view_to_world)(PixieSession*, double, double, double*, double*);
+    PixieResult (*world_to_view)(PixieSession*, double, double, double*, double*);
 } api;
 
 static int failures = 0;
@@ -158,6 +160,8 @@ static int Load(Library library) {
     LOAD(type_find, "pixie_type_find")
     LOAD(component_add, "pixie_component_add")
     LOAD(component_remove, "pixie_component_remove")
+    LOAD(view_to_world, "pixie_view_to_world")
+    LOAD(world_to_view, "pixie_world_to_view")
 #undef LOAD
     return !missing;
 }
@@ -391,6 +395,14 @@ static void Exercise(PixieSession* s) {
     CHECK(pickableFound && pr > 0.0);
     uint32_t picked = 0;
     CHECK(api.pick(s, px, py, 0.0, &picked) == PIXIE_OK && picked == pickable);
+    /* The view's point turned into world units lands on the entity's transform, and back. */
+    double wx = 0.0, wy = 0.0, vx = 0.0, vy = 0.0;
+    PixieValue at;
+    CHECK(api.view_to_world(s, px, py, &wx, &wy) == PIXIE_OK);
+    CHECK(api.field_get(s, pickable, transform, position, &at) == PIXIE_OK);
+    CHECK(fabs(wx - at.x) < 1e-6 && fabs(wy - at.y) < 1e-6);
+    CHECK(api.world_to_view(s, wx, wy, &vx, &vy) == PIXIE_OK && fabs(vx - px) < 1e-6 && fabs(vy - py) < 1e-6);
+    CHECK(api.view_to_world(s, px, py, NULL, &wy) == PIXIE_ERROR_ARGUMENT);
     CHECK(api.pick(s, -100000.0, -100000.0, 0.0, &picked) == PIXIE_ERROR_NOT_FOUND);
     CHECK(api.pick(s, px, py, 0.0, NULL) == PIXIE_ERROR_ARGUMENT);
     uint32_t boxed[64];

@@ -9,7 +9,14 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>PixieEditor</RootNamespace>
+    <!-- The neko mark from the shared asset store (vdr: neko-purple-light), copied by vdr cp. -->
+    <ApplicationIcon>assets/neko-purple-light.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- The same icon for the window, which GLFW takes as pixels (Ui/WindowIcon.cs). -->
+    <EmbeddedResource Include="assets/neko-purple-light.ico" LogicalName="PixieEditor.assets.neko-purple-light.ico" />
+  </ItemGroup>
 
   <ItemGroup>
     <!-- The inspector and its Dear ImGui view, which bring the core, PixieLib, and Hexa.NET.ImGui 2.2.9;

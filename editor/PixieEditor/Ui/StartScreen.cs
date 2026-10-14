@@ -16,7 +16,14 @@ internal sealed class StartScreen(EditorSettings settings)
     private static readonly Vector4 ErrorColor = new(1.0f, 0.45f, 0.4f, 1.0f);
     private static readonly Vector4 DimColor = new(0.6f, 0.6f, 0.6f, 1.0f);
 
+    private const float MaxWidth = 760f;
+    private const float Margin = 40f;
+    private const float ButtonWidth = 180f;
+    private const float ButtonGap = 8f;
+
     private Page Showing = Page.Home;
+    // The column's height on the last frame, to center it in the window on this one.
+    private float ContentHeight = 300f;
     private FolderBrowser? Browser;
     private string NewName = "";
 
@@ -33,12 +40,17 @@ internal sealed class StartScreen(EditorSettings settings)
                                        ImGuiWindowFlags.NoSavedSettings | ImGuiWindowFlags.NoBringToFrontOnFocus;
         if (ImGui.Begin("Start", flags))
         {
-            var width = Math.Min(760f, viewport.WorkSize.X - 40f);
-            ImGui.SetCursorPos(new Vector2((viewport.WorkSize.X - width) / 2f, 40f));
-            if (ImGui.BeginChild("##start", new Vector2(width, 0)))
+            // A column centered in the window, both ways, with a margin all around.
+            var width = Math.Max(1f, Math.Min(MaxWidth, viewport.WorkSize.X - 2f * Margin));
+            var top = Math.Max(Margin, (viewport.WorkSize.Y - ContentHeight) / 2f);
+            ImGui.SetCursorPos(new Vector2((viewport.WorkSize.X - width) / 2f, top));
+            if (ImGui.BeginChild("##start", new Vector2(width, 0), ImGuiChildFlags.AutoResizeY))
             {
-                ImGui.TextUnformatted("PixieEditor");
-                ImGui.TextColored(DimColor, "A project is a folder: copy it, version it, or open it on another machine as it is.");
+                ImGui.PushFont(ImGui.GetFont(), ImGui.GetFontSize() * 1.6f);
+                Centered("PixieEditor");
+                ImGui.PopFont();
+                Centered("A project is a folder: copy it, version it, or open it on another machine as it is.", DimColor);
+                ImGui.Spacing();
                 ImGui.Spacing();
                 choice = Showing switch
                 {
@@ -54,10 +66,26 @@ internal sealed class StartScreen(EditorSettings settings)
             }
 
             ImGui.EndChild();
+            ContentHeight = ImGui.GetItemRectSize().Y;
         }
 
         ImGui.End();
         return choice;
+    }
+
+    // A line of text in the middle of the column; wrapped when the column is narrower than it.
+    private static void Centered(string text, Vector4? color = null)
+    {
+        var room = ImGui.GetContentRegionAvail().X;
+        var size = ImGui.CalcTextSize(text).X;
+        if (size < room)
+            ImGui.SetCursorPosX(ImGui.GetCursorPosX() + (room - size) / 2f);
+        ImGui.PushStyleColor(ImGuiCol.Text, color ?? ImGui.GetStyle().Colors[(int)ImGuiCol.Text]);
+        if (size < room)
+            ImGui.TextUnformatted(text);
+        else
+            ImGui.TextWrapped(text);
+        ImGui.PopStyleColor();
     }
 
     private string Location => settings.LastLocation is { } last && Directory.Exists(last)
@@ -66,7 +94,12 @@ internal sealed class StartScreen(EditorSettings settings)
 
     private ProjectChoice? DrawHome()
     {
-        if (ImGui.Button("New project", new Vector2(180, 40)))
+        // The two buttons side by side in the middle, or one above the other when they do not fit.
+        var room = ImGui.GetContentRegionAvail().X;
+        var sideBySide = room >= 2f * ButtonWidth + ButtonGap;
+        var buttonsX = ImGui.GetCursorPosX() + Math.Max(0f, (room - (sideBySide ? 2f * ButtonWidth + ButtonGap : ButtonWidth)) / 2f);
+        ImGui.SetCursorPosX(buttonsX);
+        if (ImGui.Button("New project", new Vector2(ButtonWidth, 40)))
         {
             Showing = Page.New;
             Browser = new FolderBrowser(Location);
@@ -74,8 +107,11 @@ internal sealed class StartScreen(EditorSettings settings)
             Error = null;
         }
 
-        ImGui.SameLine();
-        if (ImGui.Button("Open project", new Vector2(180, 40)))
+        if (sideBySide)
+            ImGui.SameLine(0f, ButtonGap);
+        else
+            ImGui.SetCursorPosX(buttonsX);
+        if (ImGui.Button("Open project", new Vector2(ButtonWidth, 40)))
         {
             Showing = Page.Open;
             Browser = new FolderBrowser(Location);
@@ -84,9 +120,9 @@ internal sealed class StartScreen(EditorSettings settings)
 
         ImGui.Spacing();
         ImGui.Separator();
-        ImGui.TextUnformatted("Recent projects");
+        Centered("Recent projects");
         if (settings.RecentProjects.Count == 0)
-            ImGui.TextColored(DimColor, "None yet.");
+            Centered("None yet.", DimColor);
 
         string? forget = null;
         ProjectChoice? choice = null;

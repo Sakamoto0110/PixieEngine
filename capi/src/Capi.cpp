@@ -374,6 +374,28 @@ PixieResult pixie_entity_destroy(PixieSession* s, uint32_t entity) {
     });
 }
 
+PixieResult pixie_view_to_world(PixieSession* s, double x, double y, double* worldX, double* worldY) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (worldX == nullptr || worldY == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    const pxPoint world = ToWorld(s, x, y);
+    *worldX = world.x;
+    *worldY = world.y;
+    return PIXIE_OK;
+}
+
+PixieResult pixie_world_to_view(PixieSession* s, double worldX, double worldY, double* x, double* y) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (x == nullptr || y == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    const pxPoint view = s->session.GetCamera().WorldToScreen(pxPoint(worldX, worldY));
+    *x = view.x;
+    *y = view.y;
+    return PIXIE_OK;
+}
+
 PixieResult pixie_pick(PixieSession* s, double x, double y, double tolerance, uint32_t* entity) {
     PIXIE_REQUIRE_SESSION(s);
     if (entity == nullptr || tolerance < 0.0) {

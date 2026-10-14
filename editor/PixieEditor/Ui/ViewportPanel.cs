@@ -10,9 +10,9 @@ internal enum ViewportMode
     // The mouse goes to the game, as in its player.
     Game,
     // The mouse selects: a click chooses an entity, Shift + click adds or takes out one, a drag on
-    // empty space chooses by box, and Ctrl + click deletes the boid, attractor, spawner, or particle
-    // under the cursor, or asks the game to create one on empty space. The middle button and the wheel
-    // still go to the game, to pan and zoom.
+    // empty space chooses by box, and a right click opens a menu of what can be done there: delete
+    // the entities, or, on empty space, create an entity, ask the game to create one, or delete a
+    // particle. The middle button and the wheel still go to the game, to pan and zoom.
     Select,
 }
 
@@ -27,7 +27,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
     // How far, in pixels, a click may miss a shape, and how far the mouse moves before a press is a drag.
     private const float PickTolerance = 3f;
     private const float DragThreshold = 4f;
-    // How close, in pixels, a Ctrl + click must be to a particle to delete it.
+    // How close, in pixels, the menu's point must be to a particle to delete it.
     private const float ParticleReach = 6f;
 
     private static readonly uint OutlineColor = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.78f, 0.25f, 1.0f));
@@ -49,6 +49,12 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
 
     // A left press in Select mode, in view pixels, until it is released.
     private Vector2? PressedAt;
+
+    // Where the menu was opened, in view pixels, and what it was opened on.
+    private const string MenuId = "viewport-menu";
+    private Vector2 MenuAt;
+    private uint? MenuTarget;
+    private bool MenuParticles;
     private bool PressShift;
     private bool Boxing;
 
@@ -91,6 +97,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             // GL's first row is the bottom of the image; ImGui draws top down, so flip the coordinates.
             ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
             DrawSelection();
+            DrawMenu();
             // A project at play is framed, so it is never mistaken for the scene being edited.
             if (session.ProjectFolder != null && !session.Editing)
                 ImGui.GetWindowDrawList().AddRect(ImageOrigin, ImageOrigin + size, PlayingFrame, 0f, ImDrawFlags.None, 3f);
@@ -179,16 +186,13 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         var mouse = MouseInView();
         if (Hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))
         {
-            if (io.KeyCtrl)
-            {
-                DeleteOrCreate(mouse);
-                return;
-            }
-
             PressedAt = mouse;
             PressShift = io.KeyShift;
             Boxing = false;
         }
+
+        if (Hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
+            OpenMenu(mouse);
 
         if (PressedAt is not { } start)
             return;
@@ -226,25 +230,87 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         }
     }
 
-    // Ctrl + click: delete what is under the cursor, an entity first, then a particle; on empty space,
-    // ask the game to create something.
-    private void DeleteOrCreate(Vector2 at)
+    // A right click: on an entity, it joins the selection if it was not in it, and the menu offers to
+    // delete the selection; on empty space, to create there.
+    private void OpenMenu(Vector2 at)
     {
-        if (session.Pick(at.X, at.Y, PickTolerance * Scale.X) is { } picked)
+        MenuAt = at;
+        MenuTarget = session.Pick(at.X, at.Y, PickTolerance * Scale.X);
+        if (MenuTarget is { } target && !selection.Contains(target))
+            selection.Set(target);
+        var particleSystem = session.TypeIndex("ParticleSystem");
+        MenuParticles = MenuTarget == null && particleSystem >= 0 && session.Entities().Any(id => session.Has(id, particleSystem));
+        ImGui.OpenPopup(MenuId);
+    }
+
+    private void DrawMenu()
+    {
+        if (!ImGui.BeginPopup(MenuId))
+            return;
+
+        // A menu action the engine refuses is reported, never fatal.
+        try
         {
-            var name = session.EntityName(picked);
-            session.Destroy(picked);
-            selection.Prune(session);
-            Log($"Deleted {(name.Length > 0 ? name + " " : "")}#{picked & 0xFFFFF}");
+            DrawMenuItems();
         }
-        else if (session.RemoveParticleAt(at.X, at.Y, ParticleReach * Scale.X))
+        catch (EngineException e)
         {
-            Log("Deleted a particle");
+            Status.Show(e.Message, error: true);
+        }
+
+        ImGui.EndPopup();
+    }
+
+    private void DrawMenuItems()
+    {
+        if (MenuTarget != null)
+        {
+            var chosen = selection.Items.ToArray();
+            if (chosen.Length == 0)
+            {
+                // What the menu was for is gone.
+                ImGui.CloseCurrentPopup();
+                return;
+            }
+
+            ImGui.TextDisabled(chosen.Length == 1 ? Describe(chosen[0]) : $"{chosen.Length} entities");
+            ImGui.Separator();
+            if (ImGui.MenuItem(chosen.Length == 1 ? "Delete" : $"Delete {chosen.Length} entities"))
+            {
+                // Named before it is gone.
+                var what = chosen.Length == 1 ? Describe(chosen[0]) : $"{chosen.Length} entities";
+                foreach (var entity in chosen)
+                    session.Destroy(entity);
+                selection.Prune(session);
+                Log($"Deleted {what}");
+            }
         }
         else
         {
-            Log(session.SpawnAt(at.X, at.Y) ? $"Created one at ({at.X:0}, {at.Y:0})" : "The game creates nothing there");
+            if (ImGui.MenuItem("Create entity here"))
+            {
+                if (Authoring.CreateEntity(session, selection, session.ViewToWorld(MenuAt.X, MenuAt.Y)) is { } created)
+                    Log($"Created {Describe(created)} at ({MenuAt.X:0}, {MenuAt.Y:0})");
+            }
+
+            // A project's own scene has nothing to ask the game for.
+            if (session.ProjectFolder == null && ImGui.MenuItem("Ask the game to create one here"))
+                Log(session.SpawnAt(MenuAt.X, MenuAt.Y) ? $"The game created one at ({MenuAt.X:0}, {MenuAt.Y:0})" : "The game creates nothing there");
+
+            if (MenuParticles && ImGui.MenuItem("Delete the particle here"))
+            {
+                if (session.RemoveParticleAt(MenuAt.X, MenuAt.Y, ParticleReach * Scale.X))
+                    Log("Deleted a particle");
+                else
+                    Status.Show($"No particle within {ParticleReach:0} pixels.");
+            }
         }
+    }
+
+    private string Describe(uint entity)
+    {
+        var name = session.EntityName(entity);
+        return name.Length > 0 ? $"{name} #{entity & 0xFFFFF}" : $"#{entity & 0xFFFFF}";
     }
 
     // Outlines the selected entities where the last render drew them, and the box being dragged.

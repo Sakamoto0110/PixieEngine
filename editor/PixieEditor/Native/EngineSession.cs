@@ -139,6 +139,19 @@ public sealed unsafe class EngineSession : IDisposable
     // Destroys an entity at once; false when it was already gone.
     public bool Destroy(uint entity) => Found(PixieCapi.EntityDestroy(Handle, entity), "destroy an entity");
 
+    // The camera: a point in view pixels in world units, and back.
+    public (double X, double Y) ViewToWorld(double x, double y)
+    {
+        Check(PixieCapi.ViewToWorld(Handle, x, y, out var worldX, out var worldY), "turn a view point into world units");
+        return (worldX, worldY);
+    }
+
+    public (double X, double Y) WorldToView(double x, double y)
+    {
+        Check(PixieCapi.WorldToView(Handle, x, y, out var viewX, out var viewY), "turn a world point into the view");
+        return (viewX, viewY);
+    }
+
     // Picking, in view pixels: the entity drawn under a point (widened by `tolerance` pixels), or null.
     public uint? Pick(double x, double y, double tolerance) =>
         Found(PixieCapi.Pick(Handle, x, y, tolerance, out var entity), "pick") ? entity : null;

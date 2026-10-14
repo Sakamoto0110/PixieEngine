@@ -6,7 +6,7 @@ namespace PixieEditor.Ui;
 // The World's entities, oldest first, by name or number. A click chooses one, Ctrl + click adds or
 // takes out one, and Shift + click chooses the range from the last one clicked. Only the rows in view
 // ask the engine for a name, so a World of thousands stays cheap to list. Create entity adds one to
-// the scene, with a transform and a shape so it shows, and chooses it.
+// the scene at the origin, with a transform and a circle so it shows, and chooses it.
 internal sealed class EntitiesPanel(EngineSession session, Selection selection)
 {
     // EnTT's 32-bit entity: the low 20 bits are the index, the rest the version.
@@ -17,7 +17,7 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection)
         if (ImGui.Begin("Entities"))
         {
             if (ImGui.Button("Create entity"))
-                Create();
+                Authoring.CreateEntity(session, selection);
             var entities = session.Entities();
             ImGui.SameLine();
             ImGui.TextUnformatted(selection.Items.Count > 1
@@ -48,31 +48,6 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection)
         }
 
         ImGui.End();
-    }
-
-    private void Create()
-    {
-        try
-        {
-            // "entity N", with the first N no entity has.
-            var names = session.Entities().Select(session.EntityName).ToHashSet();
-            var number = Enumerable.Range(1, names.Count + 1).First(n => !names.Contains($"entity {n}"));
-            var entity = session.CreateEntity($"entity {number}");
-            if (session.TypeIndex("Transform2D") is var transform and >= 0)
-                session.AddComponent(entity, transform);
-            if (session.TypeIndex("Shape") is var shape and >= 0)
-            {
-                session.AddComponent(entity, shape);
-                // A shape's default size is one unit: too small to see or click.
-                session.Set(entity, shape, session.FieldIndex(shape, "size"), new PixieValue { X = 24, Y = 24 });
-            }
-
-            selection.Set(entity);
-        }
-        catch (EngineException e)
-        {
-            Status.Show(e.Message, error: true);
-        }
     }
 
     private void Click(uint[] entities, uint id)

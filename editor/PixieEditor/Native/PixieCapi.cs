@@ -109,7 +109,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 4;
+    internal const int Version = 5;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
@@ -224,6 +224,12 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_spawn_at")]
     internal static partial PixieResult SpawnAt(nint session, double x, double y, out int created);
+
+    [LibraryImport(Library, EntryPoint = "pixie_view_to_world")]
+    internal static partial PixieResult ViewToWorld(nint session, double x, double y, out double worldX, out double worldY);
+
+    [LibraryImport(Library, EntryPoint = "pixie_world_to_view")]
+    internal static partial PixieResult WorldToView(nint session, double worldX, double worldY, out double x, out double y);
 
     [LibraryImport(Library, EntryPoint = "pixie_project_create", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult ProjectCreate(string folder);

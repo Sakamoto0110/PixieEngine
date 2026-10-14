@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 4
+#define PIXIE_CAPI_VERSION 5
 
 typedef struct PixieSession PixieSession;
 
@@ -202,6 +202,12 @@ PIXIE_API int32_t pixie_entity_alive(PixieSession* session, uint32_t entity);
 /* Destroys the entity at once. Meant for what a host can pick: destroying an entity the game itself
  * holds on to, such as its controls, is the host's risk. */
 PIXIE_API PixieResult pixie_entity_destroy(PixieSession* session, uint32_t entity);
+
+/* The camera, as of now: a point in view pixels (origin at the top-left) in world units, and back. */
+PIXIE_API PixieResult pixie_view_to_world(PixieSession* session, double x, double y, double* worldX,
+                                          double* worldY);
+PIXIE_API PixieResult pixie_world_to_view(PixieSession* session, double worldX, double worldY,
+                                          double* x, double* y);
 
 /* Picking, in view pixels. Only entities with a Transform2D and a Shape can be picked; particles are
  * not entities. pixie_pick finds the entity whose shape covers (x, y), widened by `tolerance`

@@ -57,7 +57,7 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
             ImGui.EndDisabled();
             if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
                 ImGui.SetTooltip(mode == ViewportMode.Select
-                    ? "Click selects, Shift + click adds, drag selects by box, Ctrl + click deletes or creates."
+                    ? "Click selects, Shift + click adds, drag selects by box, right click opens a menu to delete or create."
                     : editing ? "The mouse plays the game in Play." : "The mouse plays the game.");
         }
 
