@@ -540,9 +540,8 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
     return report;
 }
 
-SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path) {
+SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& path) {
     SceneReport report;
-    const std::string text = WriteScene(world, types, &report.warnings);
     std::filesystem::path temporary = path;
     temporary += ".saving";
     {
@@ -565,6 +564,13 @@ SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::
         report.ok = false;
         report.error = std::format("could not replace {}: {}", PathText(path), error.message());
     }
+    return report;
+}
+
+SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path) {
+    std::vector<std::string> warnings;
+    SceneReport report = SaveTextFile(WriteScene(world, types, &warnings), path);
+    report.warnings = std::move(warnings);
     return report;
 }
 

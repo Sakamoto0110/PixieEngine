@@ -24,3 +24,11 @@ function(pixie_add_capi_library name game)
         add_test(NAME ${name} COMMAND capi-test $<TARGET_FILE:${name}>)
     endif()
 endfunction()
+
+# The generic library, bin/<config>/pixie-scene-capi: it runs a project folder that has no code, whose
+# World is only its scene. Its test (in tests/) drives a whole project through it.
+add_library(pixie-scene-game STATIC src/SceneGame.cpp)
+set_target_properties(pixie-scene-game PROPERTIES FOLDER capi)
+target_link_libraries(pixie-scene-game PUBLIC Pixie::Runtime)
+pixie_target_defaults(pixie-scene-game)
+pixie_add_capi_library(pixie-scene-capi pixie-scene-game)

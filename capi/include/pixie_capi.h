@@ -1,7 +1,9 @@
 /*
  * The C API of PixieEngine: a shared library, one per game, whose interface is C only, so any
  * language that calls C (the C# editor through P/Invoke, tools, tests) can run the game, draw it
- * into a texture, feed it input, and read and write its components.
+ * into a texture, feed it input, and read and write its components. A game's library can also open
+ * a project folder and edit, play, and save its scene; the engine's generic library,
+ * pixie-scene-capi, runs a project folder that has no code.
  *
  * Rules for every function:
  * - The OpenGL 4.5 core context the session was created with must be current on the calling
@@ -33,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 3
+#define PIXIE_CAPI_VERSION 4
 
 typedef struct PixieSession PixieSession;
 
@@ -43,8 +45,15 @@ typedef enum PixieResult {
     PIXIE_ERROR_NOT_FOUND = 2, /* the entity is gone, or lacks the component */
     PIXIE_ERROR_GL = 3,        /* OpenGL could not be loaded, or a GL object could not be made */
     PIXIE_ERROR_BUFFER = 4,    /* the string did not fit; it was truncated */
-    PIXIE_ERROR_INTERNAL = 5   /* an unexpected failure inside the engine */
+    PIXIE_ERROR_INTERNAL = 5,  /* an unexpected failure inside the engine */
+    PIXIE_ERROR_IO = 6         /* a project or scene could not be read or written */
 } PixieResult;
+
+/* What a session does with time, for pixie_session_mode. */
+typedef enum PixieMode {
+    PIXIE_MODE_PLAY = 0, /* the World steps */
+    PIXIE_MODE_EDIT = 1  /* the World stays as built while its scene is edited */
+} PixieMode;
 
 /* What a field holds, and which members of PixieValue carry it. */
 typedef enum PixieFieldKind {
@@ -133,6 +142,7 @@ PIXIE_API PixieResult pixie_session_create(int32_t width, int32_t height, uint64
                                            PixieSession** session);
 /* Releases the session and its GL objects; the same context must be current. Null is ignored. */
 PIXIE_API void pixie_session_destroy(PixieSession* session);
+/* The project's name: the project file's when a project folder is open, else the game's. */
 PIXIE_API PixieResult pixie_project_name(PixieSession* session, char* buffer, int32_t capacity);
 PIXIE_API PixieResult pixie_session_resize(PixieSession* session, int32_t width, int32_t height);
 /* Adds `seconds` of wall time and runs the fixed steps it makes due, unless paused. */
@@ -142,12 +152,38 @@ PIXIE_API PixieResult pixie_session_step(PixieSession* session);
 PIXIE_API PixieResult pixie_session_set_paused(PixieSession* session, int32_t paused);
 /* How fast simulated time runs against the wall time given to advance, from 0.01 to 8 (clamped). */
 PIXIE_API PixieResult pixie_session_set_time_scale(PixieSession* session, double scale);
-/* Rebuilds the World from the game, with the same seed; the game first reads back its scenario. */
+/* Rebuilds the World from the game, with the same seed; the game first reads back its scenario. With
+ * a project open, the World is built again from the scene's entities as they are now. */
 PIXIE_API PixieResult pixie_session_reset(PixieSession* session);
 /* Draws the World into the session's own texture (RGBA8, view-sized, first row at the bottom) and
  * returns the GL texture name. The texture stays valid until the next render, resize, or destroy. */
 PIXIE_API PixieResult pixie_session_render(PixieSession* session, uint32_t* texture);
 PIXIE_API PixieResult pixie_session_stats(PixieSession* session, PixieStats* stats);
+
+/* Projects: a folder with one <Name>.pixie file and its scenes. Folders are UTF-8 paths.
+ * pixie_project_create makes a new project in `folder`, which must be empty or not exist yet: the
+ * project takes the folder's name, and its start scene holds one shape. It needs no session and no
+ * GL context.
+ * pixie_session_open_project is pixie_session_create for the project in `folder`: the World is
+ * built from the start scene (its entities, then the game's code), with the scene's seed, and the
+ * session starts in PIXIE_MODE_EDIT. */
+PIXIE_API PixieResult pixie_project_create(const char* folder);
+PIXIE_API PixieResult pixie_session_open_project(int32_t width, int32_t height, const char* folder,
+                                                 PixieSession** session);
+/* Writes the scene's entities to the start scene's file; while playing, the ones kept by play. */
+PIXIE_API PixieResult pixie_project_save(PixieSession* session);
+/* 1 when the scene was edited since it was opened or saved, else 0. Creating an entity, adding or
+ * removing a component, writing a field of a scene entity, and destroying one, in edit mode, edit
+ * it. */
+PIXIE_API int32_t pixie_project_unsaved(PixieSession* session);
+
+/* Modes. A session without a project always plays. In edit mode, advance and step run no step;
+ * the middle button and the wheel move the camera. Play keeps the scene's entities and builds the
+ * World again from them, playing and unpaused; stop builds it again from what play kept, in edit
+ * mode, so nothing done in play stays. Both need a project. */
+PIXIE_API int32_t pixie_session_mode(PixieSession* session);
+PIXIE_API PixieResult pixie_session_play(PixieSession* session);
+PIXIE_API PixieResult pixie_session_stop(PixieSession* session);
 
 /* Input, in view pixels with the origin at the top-left; key and button codes are GLFW's. */
 PIXIE_API PixieResult pixie_input_cursor(PixieSession* session, double x, double y);
@@ -189,14 +225,23 @@ PIXIE_API PixieResult pixie_particle_remove_at(PixieSession* session, double x, 
  * (which may be null) is set to 1 when it did, 0 when the game creates nothing. */
 PIXIE_API PixieResult pixie_spawn_at(PixieSession* session, double x, double y, int32_t* created);
 
+/* Creates an entity that belongs to the scene, named `name` (UTF-8; null or empty for none). */
+PIXIE_API PixieResult pixie_entity_create(PixieSession* session, const char* name, uint32_t* entity);
+
 /* Component types that can be inspected, by index from 0 to pixie_type_count - 1. */
 PIXIE_API int32_t pixie_type_count(PixieSession* session);
+/* The index of the type named `name`, or PIXIE_ERROR_NOT_FOUND. */
+PIXIE_API PixieResult pixie_type_find(PixieSession* session, const char* name, int32_t* type);
 PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char* buffer,
                                       int32_t capacity);
 /* PIXIE_TYPE_* flags of a component type. */
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */
 PIXIE_API int32_t pixie_entity_has(PixieSession* session, uint32_t entity, int32_t type);
+/* Adds a component of the type with its default values, or keeps the one the entity has; removes
+ * it. A type that has no default value cannot be added (PIXIE_ERROR_ARGUMENT). */
+PIXIE_API PixieResult pixie_component_add(PixieSession* session, uint32_t entity, int32_t type);
+PIXIE_API PixieResult pixie_component_remove(PixieSession* session, uint32_t entity, int32_t type);
 PIXIE_API int32_t pixie_field_count(PixieSession* session, int32_t type);
 PIXIE_API PixieResult pixie_field_name(PixieSession* session, int32_t type, int32_t field,
                                        char* buffer, int32_t capacity);

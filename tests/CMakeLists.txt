@@ -21,6 +21,7 @@ add_executable(runtime-tests
     runtime/OrderIndependenceTests.cpp
     runtime/ParticleTests.cpp
     runtime/PickingTests.cpp
+    runtime/ProjectFileTests.cpp
     runtime/RandomTests.cpp
     runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
@@ -43,4 +44,11 @@ if(MSVC)
 else()
     target_compile_options(capi-test PRIVATE -Wall -Wextra -Werror)
     target_link_libraries(capi-test PRIVATE ${CMAKE_DL_LIBS})
+endif()
+
+# The generic library runs no game of its own: its test creates a project in a folder of the build
+# tree and drives it through creating, editing, saving, playing, and stopping.
+if(TARGET pixie-scene-capi)
+    add_test(NAME pixie-scene-capi
+             COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --project ${CMAKE_CURRENT_BINARY_DIR}/capi-project)
 endif()

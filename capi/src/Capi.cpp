@@ -7,6 +7,7 @@
 #include "pixie/GlLoader.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/Picking.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
@@ -14,6 +15,7 @@
 #include <algorithm>
 #include <cstring>
 #include <exception>
+#include <filesystem>
 #include <format>
 #include <memory>
 #include <string>
@@ -23,6 +25,7 @@
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
 static_assert(static_cast<int>(pixie::FieldKind::Entity) == PIXIE_FIELD_ENTITY);
+static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
     pixie::ProjectSession session;
@@ -96,6 +99,39 @@ void* ComponentOf(PixieSession* s, uint32_t entity, int32_t type, PixieResult& r
     return component;
 }
 
+std::filesystem::path FromUtf8(const char* text) {
+    return std::filesystem::path(std::u8string(reinterpret_cast<const char8_t*>(text)));
+}
+
+// Whether the entity belongs to the scene, so changing it is an edit to save.
+bool InScene(PixieSession* s, uint32_t entity) {
+    const entt::registry& registry = s->session.GetWorld().Registry();
+    return registry.valid(ToEntity(entity)) && registry.all_of<pixie::SceneId>(ToEntity(entity));
+}
+
+// Creates a session for the game, with the project in `folder` open when it is not null.
+PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folder, PixieSession** session) {
+    if (session == nullptr || width <= 0 || height <= 0) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output or empty view");
+    }
+    *session = nullptr;
+    if (!pixie::LoadGl()) {
+        return Fail(PIXIE_ERROR_GL, "OpenGL 4.5 core functions could not be loaded for the current context");
+    }
+    pixie::SessionSettings settings;
+    settings.seed = seed;
+    auto created = std::make_unique<PixieSession>(pixie::CreateProject(), settings);
+    if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
+        return Fail(PIXIE_ERROR_IO, created->session.Error());
+    }
+    if (!created->session.Start({width, height})) {
+        created->session.Stop();
+        return Fail(PIXIE_ERROR_GL, "the renderers could not be created");
+    }
+    *session = created.release();
+    return PIXIE_OK;
+}
+
 // A point in view pixels, in world units.
 pxPoint ToWorld(PixieSession* s, double x, double y) {
     return s->session.GetCamera().ScreenToWorld(pxPoint(x, y));
@@ -129,24 +165,53 @@ int32_t pixie_last_error(char* buffer, int32_t capacity) {
 }
 
 PixieResult pixie_session_create(int32_t width, int32_t height, uint64_t seed, PixieSession** session) {
+    return Guard([&] { return Open(width, height, seed, nullptr, session); });
+}
+
+PixieResult pixie_project_create(const char* folder) {
+    if (folder == nullptr || folder[0] == '\0') {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null or empty folder");
+    }
     return Guard([&] {
-        if (session == nullptr || width <= 0 || height <= 0) {
-            return Fail(PIXIE_ERROR_ARGUMENT, "null output or empty view");
-        }
-        *session = nullptr;
-        if (!pixie::LoadGl()) {
-            return Fail(PIXIE_ERROR_GL, "OpenGL 4.5 core functions could not be loaded for the current context");
-        }
-        pixie::SessionSettings settings;
-        settings.seed = seed;
-        auto created = std::make_unique<PixieSession>(pixie::CreateProject(), settings);
-        if (!created->session.Start({width, height})) {
-            created->session.Stop();
-            return Fail(PIXIE_ERROR_GL, "the renderers could not be created");
-        }
-        *session = created.release();
-        return PIXIE_OK;
+        const pixie::OpenedProject created = pixie::CreateProjectFolder(FromUtf8(folder));
+        return created.ok ? PIXIE_OK : Fail(PIXIE_ERROR_IO, created.error);
     });
+}
+
+PixieResult pixie_session_open_project(int32_t width, int32_t height, const char* folder, PixieSession** session) {
+    if (folder == nullptr || folder[0] == '\0') {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null or empty folder");
+    }
+    return Guard([&] { return Open(width, height, 1, folder, session); });
+}
+
+PixieResult pixie_project_save(PixieSession* s) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] {
+        if (!s->session.HasProject()) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "no project is open");
+        }
+        return s->session.Save() ? PIXIE_OK : Fail(PIXIE_ERROR_IO, s->session.Error());
+    });
+}
+
+int32_t pixie_project_unsaved(PixieSession* s) {
+    return s != nullptr && s->session.HasUnsavedChanges() ? 1 : 0;
+}
+
+int32_t pixie_session_mode(PixieSession* s) {
+    return s != nullptr ? static_cast<int32_t>(s->session.Mode()) : PIXIE_MODE_PLAY;
+}
+
+PixieResult pixie_session_play(PixieSession* s) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] { return s->session.Play() ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, s->session.Error()); });
+}
+
+PixieResult pixie_session_stop(PixieSession* s) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard(
+        [&] { return s->session.StopPlaying() ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, s->session.Error()); });
 }
 
 void pixie_session_destroy(PixieSession* session) {
@@ -162,7 +227,7 @@ void pixie_session_destroy(PixieSession* session) {
 
 PixieResult pixie_project_name(PixieSession* s, char* buffer, int32_t capacity) {
     PIXIE_REQUIRE_SESSION(s);
-    return Guard([&] { return Copy(s->session.GetProject().Name(), buffer, capacity); });
+    return Guard([&] { return Copy(s->session.ProjectName(), buffer, capacity); });
 }
 
 PixieResult pixie_session_resize(PixieSession* s, int32_t width, int32_t height) {
@@ -301,6 +366,9 @@ PixieResult pixie_entity_destroy(PixieSession* s, uint32_t entity) {
         if (!world.Registry().valid(ToEntity(entity))) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
         }
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
         world.Destroy(world.Wrap(ToEntity(entity)));
         return PIXIE_OK;
     });
@@ -405,6 +473,21 @@ PixieResult pixie_entity_name(PixieSession* s, uint32_t entity, char* buffer, in
     });
 }
 
+PixieResult pixie_entity_create(PixieSession* s, const char* name, uint32_t* entity) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (entity == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    return Guard([&] {
+        pixie::World& world = s->session.GetWorld();
+        const pixie::Entity created = world.Create(name != nullptr ? std::string_view(name) : std::string_view());
+        pixie::AddToScene(created);
+        s->session.MarkChanged();
+        *entity = created.Number();
+        return PIXIE_OK;
+    });
+}
+
 int32_t pixie_entity_alive(PixieSession* s, uint32_t entity) {
     return s != nullptr && s->session.GetWorld().Registry().valid(ToEntity(entity)) ? 1 : 0;
 }
@@ -422,6 +505,19 @@ PixieResult pixie_type_name(PixieSession* s, int32_t type, char* buffer, int32_t
     return Copy(descriptor->name, buffer, capacity);
 }
 
+PixieResult pixie_type_find(PixieSession* s, const char* name, int32_t* type) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (name == nullptr || type == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null name or output");
+    }
+    const int index = s->session.Types().IndexOf(name);
+    if (index < 0) {
+        return Fail(PIXIE_ERROR_NOT_FOUND, std::format("no component type named {}", name));
+    }
+    *type = index;
+    return PIXIE_OK;
+}
+
 uint32_t pixie_type_flags(PixieSession* s, int32_t type) {
     const pixie::ComponentDescriptor* descriptor = s != nullptr ? TypeAt(s, type) : nullptr;
     return descriptor != nullptr && descriptor->scenario ? PIXIE_TYPE_SCENARIO : 0u;
@@ -436,6 +532,44 @@ int32_t pixie_entity_has(PixieSession* s, uint32_t entity, int32_t type) {
                    descriptor->find(s->session.GetWorld().Registry(), ToEntity(entity)) != nullptr
                ? 1
                : 0;
+}
+
+PixieResult pixie_component_add(PixieSession* s, uint32_t entity, int32_t type) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::ComponentDescriptor* descriptor = TypeAt(s, type);
+    if (descriptor == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no component type {}", type));
+    }
+    if (descriptor->add == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("{} has no default value to add", descriptor->name));
+    }
+    return Guard([&] {
+        if (descriptor->add(s->session.GetWorld(), ToEntity(entity)) == nullptr) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
+        }
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_component_remove(PixieSession* s, uint32_t entity, int32_t type) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::ComponentDescriptor* descriptor = TypeAt(s, type);
+    if (descriptor == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no component type {}", type));
+    }
+    return Guard([&] {
+        if (descriptor->find(s->session.GetWorld().Registry(), ToEntity(entity)) == nullptr) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no {}", entity, descriptor->name));
+        }
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
+        descriptor->remove(s->session.GetWorld(), ToEntity(entity));
+        return PIXIE_OK;
+    });
 }
 
 int32_t pixie_field_count(PixieSession* s, int32_t type) {
@@ -559,6 +693,9 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
             return result;
         }
         descriptor->write(component, pixie::FieldValue{value->x, value->y, value->z, value->w});
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
         return PIXIE_OK;
     });
 }

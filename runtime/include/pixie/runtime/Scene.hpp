@@ -49,7 +49,11 @@ std::string WriteScene(World& world, const ComponentTypes& types, std::vector<st
 // in the World. Not during a step.
 SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_view text);
 
-// WriteScene to a file, through a temporary file beside it, so a failed save leaves the old file.
+// Writes `text` to a file through a temporary file beside it (`<file>.saving`), which then replaces
+// the file, so a failed write leaves the old one.
+SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& path);
+
+// WriteScene to a file, through SaveTextFile.
 SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);
 // ReadScene from a file.
 SceneReport LoadSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);

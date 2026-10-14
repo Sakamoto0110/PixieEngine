@@ -4,7 +4,9 @@
  * Written in C and including only pixie_capi.h from the engine, so it proves the API is C.
  *
  * usage: capi-test <path to a game's capi library>
- * Exits 0 when every check passes, 1 otherwise.
+ *        capi-test <path to the generic library> --project <folder>
+ * The second form creates a project in <folder> (removed before and after) and drives it through
+ * editing, saving, playing, and stopping. Exits 0 when every check passes, 1 otherwise.
  */
 #include "pixie_capi.h"
 
@@ -15,13 +17,17 @@
 
 #if defined(_WIN32)
 #define WIN32_LEAN_AND_MEAN
+#include <direct.h>
 #include <windows.h>
+#define RemoveFolder _rmdir
 typedef HMODULE Library;
 static Library OpenLibrary(const char* path) { return LoadLibraryA(path); }
 static void* Symbol(Library library, const char* name) { return (void*)GetProcAddress(library, name); }
 static void CloseLibrary(Library library) { FreeLibrary(library); }
 #else
 #include <dlfcn.h>
+#include <unistd.h>
+#define RemoveFolder rmdir
 typedef void* Library;
 static Library OpenLibrary(const char* path) { return dlopen(path, RTLD_NOW); }
 static void* Symbol(Library library, const char* name) { return dlsym(library, name); }
@@ -69,6 +75,17 @@ static struct {
     PixieResult (*entity_view_bounds)(PixieSession*, uint32_t, double*, double*, double*);
     PixieResult (*particle_remove_at)(PixieSession*, double, double, double);
     PixieResult (*spawn_at)(PixieSession*, double, double, int32_t*);
+    PixieResult (*project_create)(const char*);
+    PixieResult (*session_open_project)(int32_t, int32_t, const char*, PixieSession**);
+    PixieResult (*project_save)(PixieSession*);
+    int32_t (*project_unsaved)(PixieSession*);
+    int32_t (*session_mode)(PixieSession*);
+    PixieResult (*session_play)(PixieSession*);
+    PixieResult (*session_stop)(PixieSession*);
+    PixieResult (*entity_create)(PixieSession*, const char*, uint32_t*);
+    PixieResult (*type_find)(PixieSession*, const char*, int32_t*);
+    PixieResult (*component_add)(PixieSession*, uint32_t, int32_t);
+    PixieResult (*component_remove)(PixieSession*, uint32_t, int32_t);
 } api;
 
 static int failures = 0;
@@ -130,6 +147,17 @@ static int Load(Library library) {
     LOAD(entity_view_bounds, "pixie_entity_view_bounds")
     LOAD(particle_remove_at, "pixie_particle_remove_at")
     LOAD(spawn_at, "pixie_spawn_at")
+    LOAD(project_create, "pixie_project_create")
+    LOAD(session_open_project, "pixie_session_open_project")
+    LOAD(project_save, "pixie_project_save")
+    LOAD(project_unsaved, "pixie_project_unsaved")
+    LOAD(session_mode, "pixie_session_mode")
+    LOAD(session_play, "pixie_session_play")
+    LOAD(session_stop, "pixie_session_stop")
+    LOAD(entity_create, "pixie_entity_create")
+    LOAD(type_find, "pixie_type_find")
+    LOAD(component_add, "pixie_component_add")
+    LOAD(component_remove, "pixie_component_remove")
 #undef LOAD
     return !missing;
 }
@@ -152,6 +180,21 @@ static int32_t FindField(PixieSession* s, int32_t type, const char* name) {
         }
     }
     return -1;
+}
+
+/* The entity named `name`, or 0 after a failed check. */
+static uint32_t FindEntity(PixieSession* s, const char* name) {
+    uint32_t ids[256];
+    int32_t count = 0;
+    char buffer[128];
+    CHECK(api.entities(s, ids, 256, &count) == PIXIE_OK && count <= 256);
+    for (int32_t i = 0; i < count && i < 256; ++i) {
+        if (api.entity_name(s, ids[i], buffer, (int32_t)sizeof buffer) == PIXIE_OK && strcmp(buffer, name) == 0) {
+            return ids[i];
+        }
+    }
+    CHECK(!"entity found by name");
+    return 0;
 }
 
 /* The one GL function the test calls itself, loaded through GLFW, with the constants it needs. */
@@ -197,6 +240,14 @@ static void Exercise(PixieSession* s) {
     int32_t kind = -1;
     CHECK(api.field_kind(s, transform, position, &kind) == PIXIE_OK && kind == PIXIE_FIELD_POINT);
     printf("component types: %d\n", api.type_count(s));
+    int32_t foundType = -1;
+    CHECK(api.type_find(s, "Transform2D", &foundType) == PIXIE_OK && foundType == transform);
+    CHECK(api.type_find(s, "NoSuchType", &foundType) == PIXIE_ERROR_NOT_FOUND);
+
+    /* Without a project the session plays, and there is no scene to play, stop, or save. */
+    CHECK(api.session_mode(s) == PIXIE_MODE_PLAY);
+    CHECK(api.session_play(s) == PIXIE_ERROR_ARGUMENT && api.session_stop(s) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_save(s) == PIXIE_ERROR_ARGUMENT && api.project_unsaved(s) == 0);
 
     /* Metadata: Transform2D.rotation is shown in degrees, with a range and scrubbing. */
     const int32_t rotation = FindField(s, transform, "rotation");
@@ -243,6 +294,18 @@ static void Exercise(PixieSession* s) {
     CHECK(found);
     CHECK(api.entity_name(s, ids[0], name, (int32_t)sizeof name) == PIXIE_OK);
     printf("entities: %d, first named \"%s\"\n", count, name);
+
+    /* Create an entity, add and remove a component, and destroy it. */
+    int32_t shapeType = -1;
+    CHECK(api.type_find(s, "Shape", &shapeType) == PIXIE_OK);
+    uint32_t made = 0;
+    CHECK(api.entity_create(s, "made", &made) == PIXIE_OK && api.entity_alive(s, made) == 1);
+    CHECK(api.component_add(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 1);
+    CHECK(api.component_remove(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 0);
+    CHECK(api.component_remove(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
+    CHECK(api.component_add(s, made, 9999) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entity_destroy(s, made) == PIXIE_OK);
+    CHECK(api.component_add(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
 
     /* Write a field and read it back. */
     const PixieValue target = {12.5, -3.25, 0.0, 0.0};
@@ -359,9 +422,128 @@ static void Exercise(PixieSession* s) {
     free(ids);
 }
 
+/* The last part of a folder's path: a new project's name. */
+static const char* BaseName(const char* folder) {
+    const char* name = folder;
+    for (const char* c = folder; *c != '\0'; ++c) {
+        if (*c == '/' || *c == '\\') {
+            name = c + 1;
+        }
+    }
+    return name;
+}
+
+static void Cleanup(const char* folder) {
+    char path[1024];
+    const char* name = BaseName(folder);
+    snprintf(path, sizeof path, "%s/scenes/main.scene", folder);
+    remove(path);
+    snprintf(path, sizeof path, "%s/scenes/main.scene.saving", folder);
+    remove(path);
+    snprintf(path, sizeof path, "%s/scenes", folder);
+    RemoveFolder(path);
+    snprintf(path, sizeof path, "%s/%s.pixie", folder, name);
+    remove(path);
+    RemoveFolder(folder);
+}
+
+/* A whole project through the generic library: created, opened in edit mode, authored, saved,
+ * played, stopped, and opened again. */
+static void ExerciseProject(const char* folder) {
+    Cleanup(folder);
+    CHECK(api.project_create(folder) == PIXIE_OK);
+    CHECK(api.project_create(folder) == PIXIE_ERROR_IO);
+    CHECK(api.project_create(NULL) == PIXIE_ERROR_ARGUMENT);
+
+    PixieSession* s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s == NULL) {
+        return;
+    }
+    char name[128];
+    CHECK(api.project_name(s, name, (int32_t)sizeof name) == PIXIE_OK && strcmp(name, BaseName(folder)) == 0);
+    CHECK(api.session_mode(s) == PIXIE_MODE_EDIT && api.project_unsaved(s) == 0);
+    int32_t count = 0;
+    CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 1);
+    FindEntity(s, "shape");
+
+    /* Edit mode runs no step, and the new project's shape is drawn. */
+    PixieStats stats;
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK && api.session_step(s) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 0);
+    uint32_t texture = 0;
+    CHECK(api.session_render(s, &texture) == PIXIE_OK && TextureHasContent(texture, 640, 360));
+
+    /* An entity that moves, made by hand. */
+    int32_t transform = -1, velocity = -1, shape = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK);
+    CHECK(api.type_find(s, "Velocity2D", &velocity) == PIXIE_OK);
+    CHECK(api.type_find(s, "Shape", &shape) == PIXIE_OK);
+    const int32_t position = FindField(s, transform, "position");
+    const int32_t linear = FindField(s, velocity, "linear");
+    uint32_t mover = 0;
+    CHECK(api.entity_create(s, "mover", &mover) == PIXIE_OK && api.project_unsaved(s) == 1);
+    CHECK(api.component_add(s, mover, transform) == PIXIE_OK && api.component_add(s, mover, velocity) == PIXIE_OK);
+    const PixieValue speed = {100.0, 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, mover, velocity, linear, &speed) == PIXIE_OK);
+    CHECK(api.component_add(s, mover, velocity) == PIXIE_OK);
+    PixieValue read;
+    CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
+    CHECK(api.component_add(s, mover, shape) == PIXIE_OK && api.component_remove(s, mover, shape) == PIXIE_OK);
+    CHECK(api.project_save(s) == PIXIE_OK && api.project_unsaved(s) == 0);
+
+    /* Play: built again from the scene, and stepping. Edits in play mark nothing. */
+    CHECK(api.session_play(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_PLAY);
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK && api.session_advance(s, 0.2) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 24);
+    mover = FindEntity(s, "mover");
+    CHECK(api.field_get(s, mover, transform, position, &read) == PIXIE_OK && fabs(read.x - 40.0) < 1e-6);
+    const PixieValue away = {999.0, 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, mover, transform, position, &away) == PIXIE_OK && api.project_unsaved(s) == 0);
+
+    /* Stop: back to the scene as it was at play. */
+    CHECK(api.session_stop(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_EDIT);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 0 && stats.entities == 2);
+    mover = FindEntity(s, "mover");
+    CHECK(api.field_get(s, mover, transform, position, &read) == PIXIE_OK && read.x == 0.0);
+    api.session_destroy(s);
+
+    /* Opened again, the scene holds what was saved. */
+    s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s != NULL) {
+        CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 2);
+        mover = FindEntity(s, "mover");
+        CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
+        api.session_destroy(s);
+    }
+
+    /* The project file names its scene relative to the folder, and holds no absolute path. */
+    char path[1024];
+    snprintf(path, sizeof path, "%s/%s.pixie", folder, BaseName(folder));
+    FILE* file = fopen(path, "rb");
+    CHECK(file != NULL);
+    if (file != NULL) {
+        char text[2048];
+        const size_t length = fread(text, 1, sizeof text - 1, file);
+        text[length] = '\0';
+        fclose(file);
+        CHECK(strstr(text, "\"startScene\": \"scenes/main.scene\"") != NULL);
+        CHECK(strstr(text, ":/") == NULL && strstr(text, ":\\\\") == NULL);
+        printf("%s", text);
+    }
+
+    /* A folder that is not a project opens nothing. */
+    snprintf(path, sizeof path, "%s/scenes", folder);
+    s = NULL;
+    CHECK(api.session_open_project(640, 360, path, &s) == PIXIE_ERROR_IO && s == NULL);
+    Cleanup(folder);
+}
+
 int main(int argc, char** argv) {
-    if (argc != 2) {
-        fprintf(stderr, "usage: capi-test <library>\n");
+    const int project = argc == 4 && strcmp(argv[2], "--project") == 0;
+    if (argc != 2 && !project) {
+        fprintf(stderr, "usage: capi-test <library> [--project <folder>]\n");
         return 2;
     }
     Library library = OpenLibrary(argv[1]);
@@ -391,12 +573,16 @@ int main(int argc, char** argv) {
     }
     glfwMakeContextCurrent(window);
 
-    PixieSession* session = NULL;
-    CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);
-    CHECK(api.session_create(640, 360, 7, &session) == PIXIE_OK && session != NULL);
-    if (session != NULL) {
-        Exercise(session);
-        api.session_destroy(session);
+    if (project) {
+        ExerciseProject(argv[3]);
+    } else {
+        PixieSession* session = NULL;
+        CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);
+        CHECK(api.session_create(640, 360, 7, &session) == PIXIE_OK && session != NULL);
+        if (session != NULL) {
+            Exercise(session);
+            api.session_destroy(session);
+        }
     }
 
     glfwDestroyWindow(window);
