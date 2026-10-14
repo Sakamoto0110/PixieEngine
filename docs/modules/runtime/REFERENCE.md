@@ -321,7 +321,7 @@ A `Project` is a game as the engine sees it: `Name`, `Background` (the clear col
 scenario component),
 `BeforeStep` (outside the step: copy the host's view and input into the World, react to keys, move
 the camera; structural changes are allowed), `SpawnAt` (a tool asks for something at a point, such
-as an editor's Ctrl + click on empty space: a boid in boids and flocks, a particle at rest in
+as an editor's "Ask the game to create one here" on empty space: a boid in boids and flocks, a particle at rest in
 particles; false when the game creates nothing), and `DrawOverlay` (shapes drawn over the World). Every
 game library defines `pixie::CreateProject()`, which returns the project with its defaults; one
 binary links one game.

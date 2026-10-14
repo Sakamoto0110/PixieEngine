@@ -96,6 +96,8 @@ scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)
 18. New and open projects in the editor (PIXIE-TODO-020).
 19. Code in a project (PIXIE-TODO-021).
 20. Samples as projects (PIXIE-TODO-022).
+21. A centered start screen, the editor's icon, a viewport menu, and view-to-world conversion
+    (PIXIE-TODO-023), asked for by the owner after seeing the editor.
 
 Blocks 16 to 18 were completed on 2026-10-14: scene entities are saved and loaded, the engine opens
 project folders and edits and plays their scenes, and the editor makes and opens projects. Projects

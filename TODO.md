@@ -43,7 +43,8 @@ Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
 in the editor, with scene serialization), in this order
 ([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-PIXIE-TODO-018 to PIXIE-TODO-020 are completed; see below.
+PIXIE-TODO-018 to PIXIE-TODO-020 are completed, as is PIXIE-TODO-023, which the owner asked for
+after seeing the editor; see below.
 
 ### `PIXIE-TODO-021` — Code in a project
 
@@ -155,3 +156,8 @@ on 2026-10-14. Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-020` (new and open projects in the editor) completed on
 2026-10-14. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-020-editor-projects-2026-10-14.md).
+
+`PIXIE-TODO-023` (editor polish, the editor's icon, and a viewport menu) was
+promoted and completed on 2026-10-14. Its entry, breakdown, and verification
+are preserved in the
+[archive record](docs/archive/todo-023-editor-polish-2026-10-14.md).

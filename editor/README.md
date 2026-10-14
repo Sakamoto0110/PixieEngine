@@ -43,10 +43,13 @@ as it is. The editor creates no version-control files.
   - **Game**: the mouse over the image goes to the game, in the image's pixels, as in its player.
   - **Select**: a click on a boid, an attractor, or a spawner selects it; Shift + click adds it to
     the selection or takes it out; a drag selects every entity whose center is in the box (Shift
-    keeps the rest); a click on empty space clears the selection. Ctrl + click deletes the entity
-    under the cursor, or else the particle within 6 pixels, and on empty space asks the game to
-    create something there: a boid heading somewhere at random in boids and flocks, a particle at
-    rest in particles. Particles are never selected. The middle button and the wheel still go to the
+    keeps the rest); a click on empty space clears the selection. A right click opens a menu of
+    what can be done at that point. On an entity, it joins the selection if it was not in it, and
+    the menu deletes the selection. On empty space, the menu offers Create entity here (a scene
+    entity with a circle, at that point in world units); for a game, Ask the game to create one
+    here (a boid heading somewhere at random in boids and flocks, a particle at rest in particles);
+    and, where a particle system exists, Delete the particle here (the nearest within 6 pixels).
+    What the menu does is logged. Particles are never selected. The middle button and the wheel still go to the
     game, to pan and zoom; otherwise the game sees no pointer, so boids do not chase the cursor
     while you pick them. Selected entities are outlined.
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
@@ -75,6 +78,10 @@ as it is. The editor creates no version-control files.
   project, from the scene's entities as they are) or Reset; the World's time, entity count, and step
   cost; and, for a game, buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game or project).
+
+The editor's icon, on its executable and its window, is the neko mark of the shared asset store
+(`vdr` alias `neko-purple-light`), copied into `PixieEditor/assets/` with `vdr cp` under its curated
+name. The window takes its 32-bit frames as pixels through GLFW, so it shows on every host.
 
 The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings Hexa.NET.ImGui
 2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
@@ -115,4 +122,4 @@ A `--set` on a button presses it: `--select scenario --set BoidsScenario.count=3
 BoidsScenario.rebuild=go` rebuilds the boids with 300. For example, `--game boids --select controls --set BoidControls.mode=Repel --set
 BoidControls.radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
 hand in the inspector. With several entities selected, a `--set` changes all of them. Selection
-gestures and Ctrl + click actions are logged.
+gestures and the viewport menu's actions are logged.

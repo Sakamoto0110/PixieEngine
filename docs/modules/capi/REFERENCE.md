@@ -47,9 +47,10 @@ folder that has no code.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (4), raised when a function's meaning or a
-  struct's layout changes. Version 2 added the field metadata, version 3 picking, destruction, and
-  spawning, version 4 projects, modes, and authoring; a host checks the version and does not load a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (5), raised when a function's meaning or a
+  struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
+  picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
+  conversion between view pixels and world units; a host checks the version and does not load a
   library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
@@ -153,6 +154,10 @@ Events are kept until the next step reads them.
 
 ## Picking, destruction, and spawning
 
+`pixie_view_to_world(x, y, &worldX, &worldY)` turns a point in view pixels (origin at the
+top-left) into world units through the session's camera as it is now, and `pixie_world_to_view`
+turns it back, so a host can place things where the user points.
+
 For a host's selection, in view pixels like the input. Only entities with a `Transform2D` and a
 `Shape` can be picked ([runtime picking](../runtime/REFERENCE.md#picking)); particles are not
 entities.
@@ -184,7 +189,8 @@ window with an OpenGL 4.5 core context, and checks: the version; type and field 
 metadata of a field shown in degrees, and a tooltip on every field; the entity
 list and the oldest entity's name; writing a field and reading it back; time, the 0.25 s clamp,
 pause, and single steps; a key press; rendering into a texture at a new size, with content; errors
-for a bad type and a short buffer; finding a type by name; that a session without a project
+for a bad type and a short buffer; finding a type by name; the view point of an entity turned
+into its transform's position and back; that a session without a project
 plays and refuses play, stop, and save; creating an entity, adding and removing a component, and
 destroying it; and reset. CTest runs it once per game library.
 
