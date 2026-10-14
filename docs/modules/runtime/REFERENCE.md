@@ -8,7 +8,7 @@
 
 **Lifecycle:** current
 
-**Subject:** the contract of the runtime module: World, Entity, Behaviour, systems, phases, time, randomness, and the built-in components
+**Subject:** the contract of the runtime module: World, Entity, Behaviour, systems, phases, time, randomness, the built-in components, and scenes
 
 **Surface:** technical-reference
 
@@ -50,6 +50,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
+| `Scene.hpp` | `SceneId`, `AddToScene`, and reading and writing scene files |
 | `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
 | `ProjectSession.hpp` | `ProjectSession`, a running project, and `SessionSettings` |
@@ -203,9 +204,13 @@ Positions are the current ones, in world units.
 ## Reflection
 
 `ComponentTypes` lists the component types a tool may inspect and edit, each a
-`ComponentDescriptor`: a name, the EnTT type hash, its fields, and a `find` function that returns
-the component of an entity or null (null for a destroyed entity too). A type is described in code,
-once:
+`ComponentDescriptor`: a name, the EnTT type hash, its fields, a version (1 unless `Version(n)`
+sets it; saved with every instance in a scene), a `find` function that returns the component of an
+entity or null (null for a destroyed entity too), an `add` function that returns the component,
+added with its defaults when the entity has none (a Behaviour is added as `AddBehaviour` adds it;
+null for a type that is not default-constructible, and the result is null for a destroyed entity),
+and a `remove` function. `add` and `remove` are not for use during a step. A type is described in
+code, once:
 
 ```cpp
 types.Add<Transform2D>("Transform2D")
@@ -238,8 +243,73 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Attractor`, `ParticleSystem` (its capacity), and `ParticleSpawner`. The C API reads and writes fields only
-through these descriptors; serialization is meant to use them too, once promoted.
+`Attractor`, `ParticleSystem` (its capacity), and `ParticleSpawner`. The C API and scenes read and
+write fields only through these descriptors.
+
+A Behaviour can be described like any component (`types.Add<Spinner>("Spinner").Field<...>`); it is
+then saved in scenes and added back as a Behaviour.
+
+## Scenes
+
+A scene is the document saved to disk; the World is the live instance built from it
+([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). An entity belongs to the scene when it has
+a `SceneId`: a random 64-bit ID, never 0, that stays the same through saving and loading.
+`AddToScene(entity)` gives an entity one if it has none and returns it; `NewSceneId()` makes one
+from its own generator, so a World's `Random` is not touched. Entities without a `SceneId`, such as
+those project code generates from a count, are not saved.
+
+`WriteScene(world, types)` returns the scene as JSON text; `ReadScene(world, types, text)` adds its
+entities to a World and returns a `SceneReport` (`ok`, `error`, and `warnings`).
+`SaveSceneFile` writes through a temporary file beside the target (`<file>.saving`) and then
+replaces it, so a failed save leaves the old file; `LoadSceneFile` reads one. Reading is not
+allowed during a step.
+
+The format, version 1 (`kSceneFormat`, `kSceneVersion`):
+
+```json
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "e1749eb32e65f035",
+      "name": "pool",
+      "components": {
+        "Transform2D": {"v": 1, "position": [12.5, -3.0], "rotation": 0.75, "scale": [2.0, 0.5]},
+        "ParticleSystem": {"v": 1, "capacity": 5000}
+      }
+    }
+  ]
+}
+```
+
+- `seed` is the World's seed; reading a scene reseeds the World's `Random` with it.
+- `entities` lists the scene's entities oldest first, each with its `id` (16 hexadecimal digits;
+  reading accepts 1 to 16), its `name` when it has a non-empty `Name`, and its `components` by type
+  name, in the order of `ComponentTypes`. `parent` is not written: there is no hierarchy yet.
+- Each component holds its descriptor's version as `v`, then its fields in declaration order. A
+  bool is `true` or `false`; an integer, float, or double is a number (a float as the shortest
+  decimal that reads back as the same float); an enum is the name of its value (a number when it
+  has none); a point or a vector is `[x, y]`; a rectangle is `[x, y, width, height]`; a color is
+  `[red, green, blue, alpha]`; an entity is the referenced entity's `id`, or `null` for none or
+  for an entity outside the scene (which also adds a warning).
+- Arrays of plain values stay on one line; everything else is indented by two spaces.
+
+Reading checks the format, the version (a newer one is refused), the list, and every ID (present,
+not repeated, not already in the World) before adding anything, so a file that cannot be read adds
+nothing. Then, per value:
+
+- A field missing from the file keeps its default; a value of the wrong type, an unknown enum name,
+  or a reference to an ID that is not in the file adds a warning and keeps the default.
+- A component saved at a newer `v` than the descriptor's is read field by field, with a warning.
+- Nothing the build does not know is lost: unknown components, unknown fields of known
+  components, unknown keys of an entity (such as `parent`), and unknown keys of the document are
+  kept, and written back unchanged by the next `WriteScene` of that World. A component that cannot
+  be added (not default-constructible, or not an object in the file) is kept the same way.
+
+Particle pools' contents, affectors, systems, and anything else without a descriptor are not
+saved; project code builds them.
 
 ## Projects and sessions
 
@@ -292,8 +362,8 @@ None. A World and its Behaviours are used from one thread at a time.
 
 ## Non-goals
 
-No saving or loading (serialization is postponed), no prefabs or hierarchy, no physics, no
-multithreaded systems, no long-range all-pairs forces between particles.
+No prefabs, nested scenes, or hierarchy, no binary scene format, no physics, no multithreaded
+systems, no long-range all-pairs forces between particles.
 
 ## Validation
 
@@ -303,7 +373,12 @@ transform, the Entity handle, the generator's determinism, the spatial grid agai
 search, a step's independence from the Behaviours' update order (with a negative control that
 breaks the rule and is caught), particle emission, aging, expiry, and capacity, a circular orbit
 that keeps its radius, the interaction's independence from particle order, and the field
-descriptors (kinds, round trips, color clamping, finding components on entities, metadata, and a
-tooltip on every runtime field). Sessions are
+descriptors (kinds, round trips, color clamping, finding, adding, and removing components on
+entities, metadata, and a tooltip on every runtime field), and scenes (a round trip over every
+built-in component, a Behaviour, and an entity reference that writes back the same text; a loaded
+Behaviour that runs; generated entities left out; the values as written; unknown components,
+fields, and keys written back unchanged; files that cannot be read adding nothing; wrong values
+warned about and left at their defaults; a reference outside the scene saved as none; and saving
+and loading a file). Sessions are
 exercised by the samples and, through the C API, by `capi-test`. `SubmitShapes` is exercised by the
 samples that draw a World.

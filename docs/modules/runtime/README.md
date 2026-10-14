@@ -28,9 +28,9 @@ Start with `pixie/runtime/World.hpp`: create a World, create entities, add compo
 `Entity::Add<T>()` and logic with `Entity::AddBehaviour<T>()`, and call `World::Step` from the
 App's fixed update. Draw entities that have a `Shape` with `SubmitShapes`.
 
-The module does not save or load anything: scene serialization is postponed, so Worlds are built in
-code. It does not own the window, input, or rendering either; it uses the provisional engine
-library for those.
+Entities marked with `AddToScene` are saved to and loaded from scene files
+(`pixie/runtime/Scene.hpp`), through the same field descriptors the C API uses. The module does not
+own the window, input, or rendering; it uses the provisional engine library for those.
 
 - [Manifest](MANIFEST.md): build target, dependencies, and routes.
 - [Technical reference](REFERENCE.md): the contract.

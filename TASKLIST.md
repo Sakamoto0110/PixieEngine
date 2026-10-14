@@ -39,19 +39,9 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022. Earlier
-breakdowns are in their archive records, routed from the
+Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022; the breakdown
+of PIXIE-TODO-018 is in its archive record. Earlier breakdowns are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-018` — Save and load scenes
-
-**Parent:** PIXIE-TODO-018
-
-- `PIXIE-TASK-080` — **Status:** open — Vendor nlohmann/json 3.12.0 unmodified under `external/`, in its own commit, with its hash, and move it in `DEPENDENCIES.md` from the candidates to the runtime table as `ok`.
-- `PIXIE-TASK-081` — **Status:** open — A `SceneId` component with a random u64; field descriptors that add and remove their component on an entity by type name; Behaviours declared with fields included.
-- `PIXIE-TASK-082` — **Status:** open — Writing and reading a scene: format, version, seed, entities with their stable IDs, names, and components with `v`; `Entity` fields by stable ID; unknown components and fields kept and written back; missing fields at their defaults; entities without a `SceneId` left out.
-- `PIXIE-TASK-083` — **Status:** open — Tests: the round trip over every built-in component, a Behaviour with fields, and an `Entity` field; an unknown component and field kept unchanged; generated entities left out.
-- `PIXIE-TASK-084` — **Status:** open — The scene format in the `runtime` module's `REFERENCE.md`.
 
 ## `PIXIE-TODO-019` — Projects, edit mode, and play mode in the engine
 

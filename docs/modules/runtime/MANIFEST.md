@@ -30,7 +30,7 @@
 
 **Module dependencies:** none
 
-**Third-party dependencies:** EnTT, PixieLib
+**Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes only)
 
 **Distribution:** shipped-runtime
 

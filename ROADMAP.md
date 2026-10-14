@@ -97,7 +97,8 @@ scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)
 19. Code in a project (PIXIE-TODO-021).
 20. Samples as projects (PIXIE-TODO-022).
 
-Until block 16 lands, Worlds are built in code and nothing is saved. The anchor blocks supersede the vertical slice
+Block 16 was completed on 2026-10-14: scene entities are saved and loaded. Until block 17 lands,
+the samples and the editor still build their Worlds in code. The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
 code grows in the provisional engine library until they are.

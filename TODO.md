@@ -43,20 +43,7 @@ Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
 in the editor, with scene serialization), in this order
 ([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-
-### `PIXIE-TODO-018` — Save and load scenes
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md), part 4, which carries part 3 of [PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md)
-
-**Accepted scope:** in the `runtime` module, a World's scene entities written to and read from a JSON scene file through nlohmann/json 3.12.0 (vendored): `format`, `version`, the World's seed, and a flat `entities` list with a stable ID (random u64 as a hex string, held in a `SceneId` component), `name`, `parent` (absent until a hierarchy exists), and `components` by type name, each with its own `v`. Components are read and written through the field descriptors, which gain adding and removing their component on an entity by type name; a Behaviour declared with fields is saved like a component. `Entity` fields are written as the referenced entity's stable ID. Entities without a `SceneId` are not saved. Unknown components and unknown fields are kept and written back unchanged; a missing field keeps its default. Out: hierarchy, prefabs, nested scenes, a binary format, the C API and the editor (PIXIE-TODO-019 and PIXIE-TODO-020).
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) nlohmann/json is vendored unmodified, in its own commit, and recorded in `DEPENDENCIES.md` as `ok`; (2) tests show a round trip of a World with every built-in component, a Behaviour with fields, and an `Entity` field gives the same components and values; (3) a test shows a file with an unknown component and an unknown field is written back with both unchanged; (4) entities without a `SceneId` are not written; (5) the scene format is described in the `runtime` module's `REFERENCE.md`; (6) zero warnings in Debug and Release, and `ctest` passes.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-018--save-and-load-scenes)
+The first of them, PIXIE-TODO-018, is completed; see below.
 
 ### `PIXIE-TODO-019` — Projects, edit mode, and play mode in the engine
 
@@ -184,3 +171,7 @@ Its entry, breakdown, and verification are preserved in the
 `PIXIE-TODO-016` (selection and editing in the viewport) completed on 2026-10-13.
 Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-016-viewport-selection-2026-10-13.md).
+
+`PIXIE-TODO-018` (save and load scenes) completed on 2026-10-14. Its entry,
+breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-018-scenes-2026-10-14.md).
