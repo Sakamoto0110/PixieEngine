@@ -394,7 +394,44 @@ without a project. A session without a project always plays, as before.
 project folder without code runs as one, and a game with code can start from it.
 
 `ProjectApp` is the player side: an `App` whose fixed updates call `Update` with `pixie::Run`'s
-time and input and whose frames call `Render`. It logs the step cost once per second.
+time and input and whose frames call `Render`. It logs the step cost once per second. With a
+project folder open in its session (`OpenProject`, before `Run`), it plays the start scene.
+
+### Projects with code
+
+A project folder gets code of its own from the engine's templates (`templates/project-code/`),
+written by `cmake -DPIXIE_PROJECT_DIR=<folder> -P cmake/PixieAddCode.cmake`, which the editor's
+Add code runs:
+
+- `CMakeLists.txt`, which includes `${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake` and calls
+  `pixie_game`;
+- `src/<Id>Project.hpp` and `.cpp`, where `<Id>` is the project's name as a C++ identifier (its
+  letters and digits, each word capitalized: "my game" is `MyGame`): a `SceneProject` that adds
+  nothing yet, and `Spinner`, an example Behaviour that turns its entity, declared with its `speed`
+  field so the editor can add and edit it.
+
+The script reads the name from the folder's `.pixie` file, and refuses a folder that is not a
+project or that already has a `CMakeLists.txt`.
+
+`cmake/PixieProject.cmake`, included after `project()`, adds the engine found at
+`PIXIE_ENGINE_DIR` with `add_subdirectory`, and puts every binary of the project in
+`<project>/bin/<config>/`. A project never records where the engine is: whoever builds it passes
+`PIXIE_ENGINE_DIR`, and the editor passes the engine it runs from. The engine, when it is not the
+top-level project, builds neither its samples nor its tests, does not write to its own `bin/`, and
+does not build `pixie-scene-capi`.
+
+`pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...])` (in `cmake/PixieGame.cmake`) makes
+three targets: `<name>-game`, a static library with the game's code, which defines
+`pixie::CreateProject()` (its public include directories are `INCLUDE_DIRS`, `src/` by default);
+`<name>`, its player; and `<name>-capi`, its C API library. The player is the Visual Studio startup
+project of the calling directory. Every target links the C++ runtime statically, as the engine's do.
+
+The player's `main` is the engine's (`runtime/player/PlayerMain.cpp`, compiled into each player,
+not into the runtime library). It opens the project folder given with `--project`, or else the
+first folder above the executable that holds a `.pixie` file, and plays its start scene with
+`ProjectApp`, titled with the project's name. It takes the options every player takes
+(`pixie/RunOptions.hpp` in the engine library: `--ups`, `--fps`, `--vsync`, `--quit-after`,
+`--screenshot`).
 
 ## Drawing
 

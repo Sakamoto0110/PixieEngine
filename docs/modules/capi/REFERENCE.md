@@ -31,9 +31,12 @@ define `pixie::CreateProject()` (see the runtime's `Project.hpp`). The API's cod
 library rather than a static one, so the exported functions, which nothing in the library calls,
 are not dropped by the linker. On Windows the functions are exported with `__declspec(dllexport)`
 (`PIXIE_CAPI_BUILD`); elsewhere with default visibility. The library links the C++ runtime
-statically, like every target, so a host needs no Visual C++ Redistributable.
+statically, like every target, so a host needs no Visual C++ Redistributable. A game's project calls
+it through `pixie_game` ([runtime reference](../runtime/REFERENCE.md#projects-with-code)); it works
+from outside the engine's tree, and the library then lands in that project's `bin/<config>/`.
 
-The engine builds one library of its own, `pixie-scene-capi`, from the game `pixie-scene-game`,
+When it is the top-level project, the engine builds one library of its own, `pixie-scene-capi`, from
+the game `pixie-scene-game`,
 whose project is the runtime's `SceneProject`: a World that is only its scene. It runs a project
 folder that has no code.
 
@@ -201,3 +204,11 @@ the entity moved 40 units without marking the scene unsaved, stops and finds it 
 opens the project again and finds the saved velocity, checks that the project file names its scene
 relatively and holds no absolute path, and fails to open a folder that is not a project. CTest runs
 it as the test `pixie-scene-capi`, in a folder of the build tree that it removes before and after.
+`--expect-type <name>` adds a check that the library describes that type.
+
+The test `project-code` (`tests/project-code/ProjectCodeTest.cmake`) makes a project named "Code
+Test" with code from the templates, refuses to add code twice, configures and builds it as a
+project of its own against this engine (with the same generator and configuration), checks that its
+`bin/<config>/` holds the player, one C API library, and not the generic one, and runs `capi-test`
+on that library with `--project` and `--expect-type Spinner`. It builds the engine again, so it
+takes a minute or two.

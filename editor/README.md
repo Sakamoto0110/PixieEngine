@@ -30,6 +30,22 @@ as it is. The editor creates no version-control files.
   "PLAYING - changes are not kept", and the viewport is framed in orange. **Stop** goes back to the
   scene as it was at Play. Closing the window, or File, New or open project (a new editor on the
   start screen), with unsaved changes asks first: Save, Don't save, or Cancel.
+- **Code.** A project can have C++ code of its own. **Code, Add code** writes `CMakeLists.txt` and
+  `src/<Id>Project.{hpp,cpp}` into the project from the engine's templates, with an example
+  Behaviour, `Spinner`, then restarts the editor on the project. Opening a project that has code
+  builds it first, on a build screen that shows CMake's output as it comes: CMake configures
+  `<project>/build` with the engine the editor runs from (`PIXIE_ENGINE_DIR`) and builds the
+  editor's own configuration, leaving the game's player and C API library in `<project>/bin/<config>/`.
+  The first build compiles the engine too, which takes a few minutes. CMake is taken from `PATH`,
+  or else from Visual Studio, found through `vswhere`; a missing CMake or compiler is named, with
+  what to install. When the build fails, the errors are shown in red, with **Try again** and **Open
+  without code**, which opens the scene with the engine's own components; what the code adds stays
+  in the file, untouched. The editor then runs on the game's library, so the game's components
+  show in Add component and play in Play; the Session panel says which library is loaded.
+  **Code, Build and reopen** builds again after changes to the code: P/Invoke binds one library per
+  process, so the editor restarts, and the new one waits for the old to exit before building over
+  its library. The game's player, `<project>/bin/<config>/<Id>.exe`, plays the project's start
+  scene on its own.
 - **Authoring.** Create entity, in the Entities panel, adds an entity named `entity <n>` to the
   scene, with a transform and a 24-unit circle, and selects it. In the inspector, Add component
   lists the types the selected entities do not all have, and a component's header has a close
@@ -106,7 +122,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--project <folder>` | none | Opens the project in this folder, in edit mode |
+| `--project <folder>` | none | Opens the project in this folder, in edit mode; its code, if it has any, is built first |
 | `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a game's C API library; with neither option, the start screen |
 | `--seed <n>` | `1` | Seed of a game's World; a project's comes from its scene |
 | `--select <name>` | none | Selects the entity with this name at the start |
@@ -117,6 +133,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--time-scale <x>` | `1` | Starts with simulated time at this speed; with `--quit-after`, the simulated time is logged at the end |
 | `--mode <game\|select>` | `game`; `select` for a project | What the mouse does in the viewport at the start |
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
+| `--after <process id>` | none | Waits, up to 15 seconds, for that editor to exit before opening; the editor passes it when it restarts itself |
 
 A `--set` on a button presses it: `--select scenario --set BoidsScenario.count=300 --set
 BoidsScenario.rebuild=go` rebuilds the boids with 300. For example, `--game boids --select controls --set BoidControls.mode=Repel --set

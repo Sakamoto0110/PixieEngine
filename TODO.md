@@ -43,22 +43,8 @@ Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
 in the editor, with scene serialization), in this order
 ([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-PIXIE-TODO-018 to PIXIE-TODO-020 are completed, as is PIXIE-TODO-023, which the owner asked for
+PIXIE-TODO-018 to PIXIE-TODO-021 are completed, as is PIXIE-TODO-023, which the owner asked for
 after seeing the editor; see below.
-
-### `PIXIE-TODO-021` — Code in a project
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md), parts 3 and 7
-
-**Accepted scope:** the engine consumable through `add_subdirectory` from a CMake project outside its repository, given as `PIXIE_ENGINE_DIR`, without its samples or tests, with the consumer's binaries in the consumer's `bin/`. `pixie_game(<name> SOURCES ...)` creating a game's library, player, and C API library; the player's `main` owned by the engine, with the standard options now in `samples/common`, starting the project's start scene. Templates in the engine's repository for `CMakeLists.txt` and `src/<Name>Project.{hpp,cpp}`: a Project whose build loads the scene, and one example Behaviour declared with a field. In the editor, Project, Add code, which writes the templates into the project; building, which calls CMake (on `PATH`, or through `vswhere`) with the engine the editor runs from, into `<project>/build/`, and shows the output; and reopening on the project's library. A missing CMake or compiler is reported by name. The project never records the engine's location. Out: reloading code without restarting the editor, exporting a standalone build.
-
-**Dependencies and gates:** 1. PIXIE-TODO-020
-
-**Completion criteria:** (1) a project outside the repository gets code from the editor, builds, reopens, and its example Behaviour can be added to an entity, edited, saved, and played; (2) its player starts the saved scene; (3) a CTest test generates a project with code from the templates, builds it, and runs the C API test on its library; (4) the project folder holds no path to the engine; (5) the editor's README and the `runtime` module's `REFERENCE.md` describe code in a project and `pixie_game`; (6) zero warnings, and `ctest` passes.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-021--code-in-a-project)
 
 ### `PIXIE-TODO-022` — Samples as projects
 
@@ -161,3 +147,7 @@ on 2026-10-14. Its entry, breakdown, and verification are preserved in the
 promoted and completed on 2026-10-14. Its entry, breakdown, and verification
 are preserved in the
 [archive record](docs/archive/todo-023-editor-polish-2026-10-14.md).
+
+`PIXIE-TODO-021` (code in a project) completed on 2026-10-14. Its entry,
+breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-021-project-code-2026-10-14.md).

@@ -99,9 +99,9 @@ scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)
 21. A centered start screen, the editor's icon, a viewport menu, and view-to-world conversion
     (PIXIE-TODO-023), asked for by the owner after seeing the editor.
 
-Blocks 16 to 18 were completed on 2026-10-14: scene entities are saved and loaded, the engine opens
-project folders and edits and plays their scenes, and the editor makes and opens projects. Projects
-do not have code of their own until block 19. The anchor blocks supersede the vertical slice
+Blocks 16 to 19 were completed on 2026-10-14: scene entities are saved and loaded, the engine opens
+project folders and edits and plays their scenes, the editor makes and opens projects, and a project
+can have code of its own, which the editor builds against its engine. The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
 code grows in the provisional engine library until they are.
