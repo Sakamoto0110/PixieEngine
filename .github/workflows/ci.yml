@@ -84,6 +84,10 @@ jobs:
             Copy-Item "$env:RUNNER_TEMP\mesa\x64\*.dll" "bin\$config\" -Force
           }
 
+      - name: Show the OpenGL renderer the tests get
+        shell: pwsh
+        run: bin\Release\capi-test.exe bin\Release\boids-capi.dll 2>&1 | Select-String "GL_VERSION|GL_RENDERER"
+
       - name: Test Debug
         run: ctest --preset ci-debug
 
