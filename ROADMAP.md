@@ -102,7 +102,16 @@ scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)
 Blocks 16 to 21 were completed on 2026-10-14: scene entities are saved and loaded, the engine opens
 project folders and edits and plays their scenes, the editor makes and opens projects, a project can
 have code of its own, which the editor builds against its engine, and the three anchor samples are
-projects of that kind. The anchor blocks supersede the vertical slice
+projects of that kind.
+
+Next, the owner chose authoring in the viewport, before sprites and exporting a game
+([PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md),
+[decision record](docs/archive/authoring-decisions-2026-10-14.md)):
+
+22. Entity snapshots, scene-ID lookup, and names in the engine (PIXIE-TODO-024).
+23. Moving, undo and redo, duplicating, deleting, and renaming in the editor (PIXIE-TODO-025).
+
+The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
 code grows in the provisional engine library until they are.
