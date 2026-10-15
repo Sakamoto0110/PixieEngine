@@ -1,6 +1,8 @@
 #include "pixie/runtime/Picking.hpp"
 
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/Path.hpp"
+#include "pixie/runtime/PathDrawing.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
@@ -29,16 +31,30 @@ entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages*
             bestDistance = distance;
         }
     }
-    if (best != entt::null || sprites == nullptr) {
+    if (best != entt::null) {
         return best;
     }
-    // The last sprite drawn over the point is the one seen there.
-    ForEachSpriteInDrawOrder(world, [&](entt::entity id, const Transform2D& transform, const Sprite& sprite) {
-        if (SpriteContains(sprite, transform, SpritePixelSize(sprite, *sprites), point, tolerance)) {
-            best = id;
+    // The last sprite drawn over the point is the one seen there; paths lie between the sprites of
+    // negative layers and the rest.
+    entt::entity background = entt::null;
+    if (sprites != nullptr) {
+        ForEachSpriteInDrawOrder(world, [&](entt::entity id, const Transform2D& transform, const Sprite& sprite) {
+            if (SpriteContains(sprite, transform, SpritePixelSize(sprite, *sprites), point, tolerance)) {
+                (sprite.layer < 0 ? background : best) = id;
+            }
+        });
+    }
+    if (best != entt::null) {
+        return best;
+    }
+    std::vector<entt::entity> paths;
+    for (auto [id, transform, path] : world.Registry().view<const Transform2D, const Path>().each()) {
+        if (PathContains(path, transform, point, tolerance)) {
+            paths.push_back(id);
         }
-    });
-    return best;
+    }
+    // EnTT iterates newest first, and the newest path is drawn last.
+    return !paths.empty() ? paths.front() : background;
 }
 
 std::vector<entt::entity> PickIn(World& world, const pxRect& box) {
@@ -46,9 +62,16 @@ std::vector<entt::entity> PickIn(World& world, const pxRect& box) {
     const entt::registry& registry = world.Registry();
     for (auto [id, transform] : registry.view<const Transform2D>().each()) {
         const pxPoint p = transform.position;
-        if (registry.any_of<Shape, Sprite>(id) && p.x >= box.x && p.x <= box.Right() && p.y >= box.y &&
-            p.y <= box.Bottom()) {
+        const auto inside = [&](pxPoint q) {
+            return q.x >= box.x && q.x <= box.Right() && q.y >= box.y && q.y <= box.Bottom();
+        };
+        if (registry.any_of<Shape, Sprite>(id) && inside(p)) {
             picked.push_back(id);
+        } else if (const Path* path = registry.try_get<Path>(id)) {
+            const std::vector<pxPoint> line = PathLine(*path, transform);
+            if (!line.empty() && std::all_of(line.begin(), line.end(), inside)) {
+                picked.push_back(id);
+            }
         }
     }
     // EnTT iterates newest first.

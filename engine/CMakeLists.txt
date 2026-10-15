@@ -1,5 +1,5 @@
 # Provisional engine library: window, GL context, main loop, input, 2D camera, and shape, particle,
-# and sprite rendering, with PNG images.
+# sprite, and path rendering, with PNG images.
 # Its layout changes when the module split (PIXIE-PROPOSAL-001) is decided.
 
 add_library(pixie_engine STATIC
@@ -14,6 +14,7 @@ add_library(pixie_engine STATIC
     src/LibraryCheck.cpp
     src/Log.cpp
     src/ParticleRenderer.cpp
+    src/PathRenderer.cpp
     src/RateMeter.cpp
     src/RenderTarget.cpp
     src/RunOptions.cpp

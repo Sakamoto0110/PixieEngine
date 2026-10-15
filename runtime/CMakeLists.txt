@@ -6,6 +6,7 @@ add_library(pixie_runtime STATIC
     src/ParticleSpawner.cpp
     src/Picking.cpp
     src/ParticleStep.cpp
+    src/PathDrawing.cpp
     src/ProjectApp.cpp
     src/ProjectFile.cpp
     src/ProjectSession.cpp

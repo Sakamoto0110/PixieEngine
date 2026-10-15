@@ -3,6 +3,7 @@
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -69,6 +70,28 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Scrub(0.1)
         .Field<&Sprite::filter>("filter", {"Smooth", "Pixel"})
         .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.");
+    types.Add<Path>("Path")
+        .Field<&Path::points>("points")
+        .Tooltip("The line's points, in the entity's space: moved, turned, and scaled with its transform.")
+        .Field<&Path::width>("width")
+        .Tooltip("Width of the line, in world units; never thinner than a pixel on screen.")
+        .Range(0.0, 1000.0)
+        .Scrub(0.25)
+        .Field<&Path::cornerRadius>("cornerRadius")
+        .Label("corner radius")
+        .Tooltip("Radius of the arc that rounds each inner corner, in world units; less where the segments "
+                 "beside it are too short. 0 keeps sharp corners.")
+        .Range(0.0, 1000.0)
+        .Scrub(0.5)
+        .Field<&Path::color>("color")
+        .Tooltip("The line's color after the fill.")
+        .Field<&Path::fillColor>("fillColor")
+        .Label("fill color")
+        .Tooltip("The line's color from its first point up to the fill.")
+        .Field<&Path::fill>("fill")
+        .Tooltip("How much of the line, from its first point, is drawn in the fill color: 0 none, 1 all.")
+        .Range(0.0, 1.0, 0.01)
+        .Scrub(0.005);
     types.Add<Attractor>("Attractor")
         .Field<&Attractor::strength>("strength")
         .Tooltip("How hard it pulls, in world units cubed per second squared; negative pushes away. A "

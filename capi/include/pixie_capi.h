@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 7
+#define PIXIE_CAPI_VERSION 8
 
 typedef struct PixieSession PixieSession;
 
@@ -67,7 +67,8 @@ typedef enum PixieFieldKind {
     PIXIE_FIELD_RECT = 7,   /* x, y, z: width, w: height */
     PIXIE_FIELD_COLOR = 8,  /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
     PIXIE_FIELD_ENTITY = 9, /* x: an entity handle; 4294967295 is none */
-    PIXIE_FIELD_TEXT = 10   /* none: UTF-8 text, through pixie_field_get_text and pixie_field_set_text */
+    PIXIE_FIELD_TEXT = 10,  /* none: UTF-8 text, through pixie_field_get_text and pixie_field_set_text */
+    PIXIE_FIELD_POINT_LIST = 11 /* none: points, through pixie_field_get_points and pixie_field_set_points */
 } PixieFieldKind;
 
 /* The editor a tool should use for a field; AUTO lets it choose from the kind. */
@@ -212,26 +213,34 @@ PIXIE_API PixieResult pixie_view_to_world(PixieSession* session, double x, doubl
 PIXIE_API PixieResult pixie_world_to_view(PixieSession* session, double worldX, double worldY,
                                           double* x, double* y);
 
-/* Picking, in view pixels. Only entities with a Transform2D and a Shape or a Sprite can be picked;
- * particles are not entities. pixie_pick finds the entity under (x, y), widened by `tolerance`
- * pixels: a shape whose radius covers it, nearest center first, else the sprite drawn on top there;
- * or it returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities whose position lies in the
- * box with corners (x0, y0) and (x1, y1), in any order of the corners, oldest first, filling and
- * counting as pixie_entities does. */
+/* Picking, in view pixels. Only entities with a Transform2D and a Shape, a Sprite, or a Path can be
+ * picked; particles are not entities. pixie_pick finds the entity under (x, y), widened by
+ * `tolerance` pixels, the one drawn on top first: a shape whose radius covers it, nearest center
+ * first; else a sprite of a layer of 0 or more; else a path within half its width; else a sprite of
+ * a negative layer; or it returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities whose
+ * position lies in the box with corners (x0, y0) and (x1, y1), in any order of the corners, and the
+ * paths whose whole line does, oldest first, filling and counting as pixie_entities does. */
 PIXIE_API PixieResult pixie_pick(PixieSession* session, double x, double y, double tolerance,
                                  uint32_t* entity);
 PIXIE_API PixieResult pixie_pick_box(PixieSession* session, double x0, double y0, double x1,
                                      double y1, uint32_t* entities, int32_t capacity,
                                      int32_t* count);
-/* Where an entity with a Transform2D and a Shape or a Sprite appears in the view, as of the last
- * render: its center and a radius around it, in view pixels; for a shape, the radius it can be
- * picked within; for a sprite, half its rectangle's diagonal. */
+/* Where an entity with a Transform2D and a Shape, a Sprite, or a Path appears in the view, as of the
+ * last render: its center and a radius around it, in view pixels; for a shape, the radius it can be
+ * picked within; for a sprite, half its rectangle's diagonal; for a path, half the diagonal of the
+ * box around its line. */
 PIXIE_API PixieResult pixie_entity_view_bounds(PixieSession* session, uint32_t entity, double* x,
                                                double* y, double* radius);
 /* The rectangle an entity's Sprite covers in the view, as of the last render: four corners (x, y)
  * in view pixels, in `corners[0..7]`, the image's top-left, top-right, bottom-right, and
  * bottom-left. PIXIE_ERROR_NOT_FOUND for an entity without a Transform2D and a Sprite. */
 PIXIE_API PixieResult pixie_entity_view_quad(PixieSession* session, uint32_t entity, double* corners);
+/* The line an entity's Path draws in the view, as of the last render, corners rounded: up to
+ * `capacity` points (x, y) in view pixels into `xy` (2 * capacity doubles), and `count` set to how
+ * many there are, as pixie_entities fills and counts. PIXIE_ERROR_NOT_FOUND for an entity without a
+ * Transform2D and a Path. */
+PIXIE_API PixieResult pixie_entity_view_path(PixieSession* session, uint32_t entity, double* xy,
+                                             int32_t capacity, int32_t* count);
 /* Removes the particle nearest (x, y) within `radius` pixels, from any particle system; returns
  * PIXIE_ERROR_NOT_FOUND when none is that close. */
 PIXIE_API PixieResult pixie_particle_remove_at(PixieSession* session, double x, double y,
@@ -310,6 +319,15 @@ PIXIE_API PixieResult pixie_field_get_text(PixieSession* session, uint32_t entit
                                            int32_t* length);
 PIXIE_API PixieResult pixie_field_set_text(PixieSession* session, uint32_t entity, int32_t type,
                                            int32_t field, const char* text);
+/* A POINT_LIST field, such as a path's points: pixie_field_get_points fills up to `capacity` points
+ * (x, y) into `xy` (2 * capacity doubles) and sets `count` to how many there are, so a call with
+ * capacity 0 asks for the count; pixie_field_set_points replaces them with `count` points from
+ * `xy`. They refuse other kinds with PIXIE_ERROR_ARGUMENT, as pixie_field_get and pixie_field_set
+ * refuse POINT_LIST. */
+PIXIE_API PixieResult pixie_field_get_points(PixieSession* session, uint32_t entity, int32_t type,
+                                             int32_t field, double* xy, int32_t capacity, int32_t* count);
+PIXIE_API PixieResult pixie_field_set_points(PixieSession* session, uint32_t entity, int32_t type,
+                                             int32_t field, const double* xy, int32_t count);
 
 /* An image of the session, as a Sprite names it (relative to the project folder): its GL texture,
  * owned by the session (RGBA8, premultiplied alpha, first row at the top, valid until the image

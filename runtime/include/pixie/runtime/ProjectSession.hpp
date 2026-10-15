@@ -4,6 +4,7 @@
 #include "pixie/FixedStepper.hpp"
 #include "pixie/Input.hpp"
 #include "pixie/ParticleRenderer.hpp"
+#include "pixie/PathRenderer.hpp"
 #include "pixie/RenderTarget.hpp"
 #include "pixie/ShapeRenderer.hpp"
 #include "pixie/SpriteRenderer.hpp"
@@ -111,7 +112,8 @@ public:
     void Update(double delta, const Input& input);
 
     // Draws the World into the bound framebuffer, interpolated `alpha` of the way between steps:
-    // sprites, then particles, then shapes, then the project's overlay. Images whose files changed
+    // sprites of negative layers, then paths, then the other sprites, then particles, then shapes,
+    // then the project's overlay. Images whose files changed
     // are read again first, checked at most every SpriteImages::kCheckInterval seconds.
     void Render(double alpha);
     // Draws into the session's own render target, sized to the viewport, and returns its texture.
@@ -142,6 +144,7 @@ private:
     FixedStepper stepper_;
     ShapeRenderer shapes_;
     SpriteRenderer sprites_;
+    PathRenderer paths_;
     SpriteImages images_;
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;

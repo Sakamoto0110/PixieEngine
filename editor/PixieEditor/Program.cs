@@ -55,7 +55,9 @@ internal static class Program
                                    select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,
                                    add=<Type>, remove=<Type>, save, play, stop,
                                    drop=<file>[;<file>...]@<x>,<y> (as files dropped at a point of the view, in pixels),
-                                   image=<file> (as chosen for the selected sprites' image); repeatable
+                                   image=<file> (as chosen for the selected sprites' image),
+                                   addpoint=<Type.field>, removepoint=<Type.field>@<index> (as the inspector's
+                                   buttons on a list of points); repeatable
         """;
 
     [STAThread]

@@ -18,6 +18,8 @@ namespace PixieEditor.Ui;
 // Text fields are drawn here, above the component's inspector: a text box whose edit is one step when
 // it lets go of the keyboard, and, for a field that names an image, a "..." button that picks a PNG
 // (copying one from outside the project into it) and a preview of the image, or why it cannot be read.
+// So are lists of points: a row of X and Y per point, each edit one step when it lets go, with buttons
+// to remove a point and to add one.
 internal sealed class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder, ImageChooser images) : IDisposable
 {
     private static readonly Vector4 ProblemColor = new(1.0f, 0.45f, 0.4f, 1.0f);
@@ -27,7 +29,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
     // while an inspector is drawing.
     public bool RebuildRequested { get; set; }
 
-    private sealed record TextField(int Field, string Name, string Label, string Tooltip, string Asset);
+    private sealed record TextField(int Field, string Name, string Label, string Tooltip, string Asset, PixieFieldKind Kind);
 
     private sealed record Section(int Type, string Name, Inspector Inspector, ImGuiInspectorView View, TextField[] Texts);
 
@@ -39,6 +41,8 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
     private bool NameActive;
     // A text field's text while it has the keyboard.
     private readonly Dictionary<(int Type, int Field), string> Typing = [];
+    // A point being typed, while its row has the keyboard.
+    private readonly Dictionary<(int Type, int Field, int Index), Vector2> PointTyping = [];
 
     public void Draw(IReadOnlyList<uint> selected)
     {
@@ -72,7 +76,12 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
                     if (ImGui.CollapsingHeader(section.Name, ref keep, ImGuiTreeNodeFlags.DefaultOpen))
                     {
                         foreach (var text in section.Texts)
-                            DrawText(section.Type, text);
+                        {
+                            if (text.Kind == PixieFieldKind.PointList)
+                                DrawPoints(section.Type, text);
+                            else
+                                DrawText(section.Type, text);
+                        }
                         section.View.Draw();
                     }
                     if (!keep)
@@ -179,6 +188,60 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         ImGui.PopID();
     }
 
+    // A list of points of the selected entities: a row per point, its X and Y typed over, with a
+    // button that removes it, and a button that adds one after the last.
+    private void DrawPoints(int type, TextField field)
+    {
+        ImGui.PushID(field.Field);
+        var lists = Entities.Select(e => session.GetPoints(e, type, field.Field)).ToArray();
+        var mixed = lists.Skip(1).Any(l => !l.SequenceEqual(lists[0]));
+        ImGui.TextUnformatted(mixed ? $"{field.Label} (mixed)" : $"{field.Label} ({lists[0].Length})");
+        if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
+            ImGui.SetTooltip(field.Tooltip);
+        if (mixed)
+        {
+            ImGui.TextDisabled("The selected entities differ; select one to edit its points.");
+            ImGui.PopID();
+            return;
+        }
+
+        var points = lists[0];
+        int? remove = null;
+        for (var i = 0; i < points.Length; i++)
+        {
+            ImGui.PushID(i);
+            var key = (type, field.Field, i);
+            if (!PointTyping.TryGetValue(key, out var value))
+                value = new Vector2((float)points[i].X, (float)points[i].Y);
+            ImGui.SetNextItemWidth(-40);
+            ImGui.InputFloat2("##point", ref value);
+            if (ImGui.IsItemActive())
+                PointTyping[key] = value;
+            else
+                PointTyping.Remove(key);
+            if (ImGui.IsItemDeactivatedAfterEdit())
+            {
+                var changed = points.ToArray();
+                changed[i] = (value.X, value.Y);
+                authoring.SetPoints(Entities, type, field.Field, changed);
+            }
+
+            ImGui.SameLine();
+            if (ImGui.Button("-", new Vector2(-1, 0)))
+                remove = i;
+            if (ImGui.IsItemHovered())
+                ImGui.SetTooltip("Remove this point.");
+            ImGui.PopID();
+        }
+
+        if (ImGui.Button("Add point"))
+            authoring.AddPoint(Entities, type, field.Field);
+        if (remove is { } index)
+            authoring.RemovePoint(Entities, type, field.Field, index);
+        ImGui.Spacing();
+        ImGui.PopID();
+    }
+
     // The image a sprite names, fitted in a square, with its size; or why it cannot be read.
     private unsafe void DrawPreview(string path)
     {
@@ -223,7 +286,10 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
 
         if (section.Texts.FirstOrDefault(t => t.Name == property) is { } textField)
         {
-            authoring.SetText(Entities, section.Type, textField.Field, text);
+            if (textField.Kind == PixieFieldKind.PointList)
+                authoring.SetPoints(Entities, section.Type, textField.Field, ParsePoints(text));
+            else
+                authoring.SetText(Entities, section.Type, textField.Field, text);
             return true;
         }
 
@@ -246,6 +312,13 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         return true;
     }
 
+    // "x,y;x,y;...", as --set writes a list of points.
+    private static (double X, double Y)[] ParsePoints(string text) =>
+        text.Split(';', StringSplitOptions.RemoveEmptyEntries)
+            .Select(p => p.Split(','))
+            .Select(p => (double.Parse(p[0], CultureInfo.InvariantCulture), double.Parse(p[1], CultureInfo.InvariantCulture)))
+            .ToArray();
+
     private static PxColorRgba ParseColor(string text)
     {
         var parts = text.Split(',').Select(p => byte.Parse(p.Trim(), CultureInfo.InvariantCulture)).ToArray();
@@ -256,6 +329,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
     {
         Release();
         Typing.Clear();
+        PointTyping.Clear();
         Entities = entities;
         Types = types;
         foreach (var type in types)
@@ -263,9 +337,10 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
             var handles = entities.Select(id => new ComponentHandle(session, id, type, recorder)).ToArray();
             var inspector = InspectorFactory.Build(session, type, handles, () => RebuildRequested = true);
             var texts = Enumerable.Range(0, session.FieldCount(type))
-                .Where(f => session.FieldInfo(type, f).Kind == PixieFieldKind.Text)
-                .Select(f => new TextField(f, session.FieldName(type, f), session.FieldText(type, f, PixieFieldText.Label),
-                    session.FieldText(type, f, PixieFieldText.Tooltip), session.FieldText(type, f, PixieFieldText.Asset)))
+                .Select(f => (Field: f, Kind: session.FieldInfo(type, f).Kind))
+                .Where(f => f.Kind is PixieFieldKind.Text or PixieFieldKind.PointList)
+                .Select(f => new TextField(f.Field, session.FieldName(type, f.Field), session.FieldText(type, f.Field, PixieFieldText.Label),
+                    session.FieldText(type, f.Field, PixieFieldText.Tooltip), session.FieldText(type, f.Field, PixieFieldText.Asset), f.Kind))
                 .ToArray();
             Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView(), texts));
         }

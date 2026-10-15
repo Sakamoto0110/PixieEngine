@@ -423,11 +423,22 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         var draw = ImGui.GetWindowDrawList();
         foreach (var entity in selection.Items)
         {
-            // A sprite is outlined by its rectangle, turned as it is drawn; anything else by a circle.
+            // A sprite is outlined by its rectangle, turned as it is drawn; a path along its line; anything
+            // else by a circle.
             if (session.ViewQuad(entity) is { } quad)
             {
                 var corners = quad.Select(c => ImageOrigin + new Vector2((float)c.X, (float)c.Y) / Scale).ToArray();
                 draw.AddQuad(corners[0], corners[1], corners[2], corners[3], OutlineColor, 1.5f);
+                continue;
+            }
+
+            if (session.ViewPath(entity) is { Length: > 1 } line)
+            {
+                var points = line.Select(c => ImageOrigin + new Vector2((float)c.X, (float)c.Y) / Scale).ToArray();
+                for (var i = 1; i < points.Length; i++)
+                    draw.AddLine(points[i - 1], points[i], OutlineColor, 1.5f);
+                foreach (var point in new[] { points[0], points[^1] })
+                    draw.AddCircle(point, 4f, OutlineColor, 0, 1.5f);
                 continue;
             }
 

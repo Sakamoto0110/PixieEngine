@@ -553,6 +553,14 @@ internal sealed class EditorWindow(EditorOptions options)
                 else
                     ok = false;
                 break;
+            case "addpoint" when chosen.Length > 0 && FieldOf(session, argument) is { } list:
+                authoring.AddPoint(chosen, list.Type, list.Field);
+                break;
+            case "removepoint" when chosen.Length > 0 && argument.Split('@') is [var listName, var indexText]
+                                     && FieldOf(session, listName) is { } named
+                                     && int.TryParse(indexText, System.Globalization.CultureInfo.InvariantCulture, out var pointIndex):
+                authoring.RemovePoint(chosen, named.Type, named.Field, pointIndex);
+                break;
             case "move" when chosen.Length > 0 && argument.Split(',') is [var x, var y]
                              && double.TryParse(x, System.Globalization.CultureInfo.InvariantCulture, out var dx)
                              && double.TryParse(y, System.Globalization.CultureInfo.InvariantCulture, out var dy):
@@ -580,16 +588,37 @@ internal sealed class EditorWindow(EditorOptions options)
         return ok;
     }
 
-    // Entities, the selection with names, positions, and images, and what undo and redo would do.
+    // "Type.field" as a type and a field index; null when either is unknown.
+    private static (int Type, int Field)? FieldOf(EngineSession session, string name)
+    {
+        var dot = name.IndexOf('.');
+        if (dot < 0 || session.TypeIndex(name[..dot]) is not (var type and >= 0))
+            return null;
+        try
+        {
+            return (type, session.FieldIndex(type, name[(dot + 1)..]));
+        }
+        catch (EngineException)
+        {
+            return null;
+        }
+    }
+
+    // Entities, the selection with names, positions, images, and path points, and what undo and redo
+    // would do.
     private static string Describe(EngineSession session, Authoring authoring, Selection selection)
     {
         var transform = session.TypeIndex("Transform2D");
         var sprite = session.TypeIndex("Sprite");
+        var path = session.TypeIndex("Path");
         var chosen = selection.Items.Select(e =>
         {
             var name = authoring.Describe(e);
             if (sprite >= 0 && session.Has(e, sprite))
                 name += $" [{session.GetText(e, sprite, session.FieldIndex(sprite, "image"))}]";
+            if (path >= 0 && session.Has(e, path))
+                name += " <" + string.Join("; ", session.GetPoints(e, path, session.FieldIndex(path, "points"))
+                    .Select(p => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{p.X:0.##},{p.Y:0.##}"))) + ">";
             if (transform < 0 || !session.Has(e, transform))
                 return name;
             var at = session.Get(e, transform, session.FieldIndex(transform, "position"));

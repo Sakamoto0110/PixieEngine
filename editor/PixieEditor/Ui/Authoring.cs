@@ -117,6 +117,36 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
         Change(entities, $"edit of {session.TypeName(type)}.{session.FieldName(type, field)}", e => session.SetText(e, type, field, text));
     }
 
+    // Replaces a list of points of the entities' component `type`, as one step.
+    public void SetPoints(IReadOnlyList<uint> entities, int type, int field, IReadOnlyList<(double X, double Y)> points)
+    {
+        if (entities.All(e => session.GetPoints(e, type, field).SequenceEqual(points)))
+            return;
+        Change(entities, $"edit of {session.TypeName(type)}.{session.FieldName(type, field)}", e => session.SetPoints(e, type, field, points));
+    }
+
+    // Adds a point after the last, 32 units to the right of it (at the origin for an empty list); one step.
+    public void AddPoint(IReadOnlyList<uint> entities, int type, int field)
+    {
+        if (entities.Count == 0)
+            return;
+        var points = session.GetPoints(entities[0], type, field).ToList();
+        points.Add(points.Count == 0 ? (0, 0) : (points[^1].X + 32, points[^1].Y));
+        SetPoints(entities, type, field, points);
+    }
+
+    // Removes the point at `index`; one step.
+    public void RemovePoint(IReadOnlyList<uint> entities, int type, int field, int index)
+    {
+        if (entities.Count == 0)
+            return;
+        var points = session.GetPoints(entities[0], type, field).ToList();
+        if (index < 0 || index >= points.Count)
+            return;
+        points.RemoveAt(index);
+        SetPoints(entities, type, field, points);
+    }
+
     // The path a sprite names for an image file, copying it into the project when it is outside; null,
     // with the reason shown, when it cannot be used.
     public string? ImportImage(string file)

@@ -47,12 +47,31 @@ pxVec2 SpritePixelSize(const Sprite& sprite, SpriteImages& images) {
     return pxVec2(SpriteImages::kMissingSize, SpriteImages::kMissingSize);
 }
 
-std::array<pxPoint, 4> SpriteCorners(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize) {
+pxPoint SpritePoint(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint uv) {
     const LocalRect rect = Local(sprite, transform, pixelSize);
-    const pxVec2 a = rect.topLeft;
-    const pxVec2 b = rect.topLeft + rect.size;
-    return {ToWorld(transform, a), ToWorld(transform, pxVec2(b.x, a.y)), ToWorld(transform, b),
-            ToWorld(transform, pxVec2(a.x, b.y))};
+    return ToWorld(transform, rect.topLeft + pxVec2(uv.x, uv.y) * rect.size);
+}
+
+std::optional<pxPoint> SpriteLocal(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize,
+                                   pxPoint world) {
+    const LocalRect rect = Local(sprite, transform, pixelSize);
+    if (rect.size.x == 0.0 || rect.size.y == 0.0) {
+        return std::nullopt;
+    }
+    const double dx = world.x - transform.position.x;
+    const double dy = world.y - transform.position.y;
+    const double c = std::cos(transform.rotation);
+    const double s = std::sin(transform.rotation);
+    const double x = c * dx + s * dy;
+    const double y = -s * dx + c * dy;
+    return pxPoint((x - rect.topLeft.x) / rect.size.x, (y - rect.topLeft.y) / rect.size.y);
+}
+
+std::array<pxPoint, 4> SpriteCorners(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize) {
+    return {SpritePoint(sprite, transform, pixelSize, pxPoint(0.0, 0.0)),
+            SpritePoint(sprite, transform, pixelSize, pxPoint(1.0, 0.0)),
+            SpritePoint(sprite, transform, pixelSize, pxPoint(1.0, 1.0)),
+            SpritePoint(sprite, transform, pixelSize, pxPoint(0.0, 1.0))};
 }
 
 bool SpriteContains(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint point,

@@ -35,6 +35,7 @@ public enum PixieFieldKind
     Color = 8,
     Entity = 9,
     Text = 10,
+    PointList = 11,
 }
 
 public enum PixieEditorKind
@@ -111,7 +112,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 7;
+    internal const int Version = 8;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
@@ -286,6 +287,15 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_field_set_text", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult FieldSetText(nint session, uint entity, int type, int field, string text);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_view_path")]
+    internal static partial PixieResult EntityViewPath(nint session, uint entity, double* xy, int capacity, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_get_points")]
+    internal static partial PixieResult FieldGetPoints(nint session, uint entity, int type, int field, double* xy, int capacity, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_set_points")]
+    internal static partial PixieResult FieldSetPoints(nint session, uint entity, int type, int field, double* xy, int count);
 
     [LibraryImport(Library, EntryPoint = "pixie_image", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult Image(nint session, string path, out uint texture, out int width, out int height);

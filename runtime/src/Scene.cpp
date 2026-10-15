@@ -150,7 +150,8 @@ Json Encode(const FieldDescriptor& field, const FieldValue& v, entt::registry& r
         return nullptr;
     }
     case FieldKind::Text:
-        // Written through readText; never a FieldValue.
+    case FieldKind::PointList:
+        // Written through readText or readPoints; never a FieldValue.
         return nullptr;
     }
     return nullptr;
@@ -214,6 +215,8 @@ std::string Decode(const FieldDescriptor& field, const Json& value,
     }
     case FieldKind::Text:
         return "expected text";
+    case FieldKind::PointList:
+        return "expected [[x, y], ...]";
     }
     return "unknown field kind";
 }
@@ -336,9 +339,17 @@ Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::en
         fields["v"] = type.version;
         const std::string where = std::format("{} of entity {}", type.name, hex);
         for (const FieldDescriptor& field : type.fields) {
-            fields[field.name] = field.kind == FieldKind::Text
-                                     ? Json(field.readText(component))
-                                     : Encode(field, field.read(component), registry, where, warnings);
+            if (field.kind == FieldKind::Text) {
+                fields[field.name] = field.readText(component);
+            } else if (field.kind == FieldKind::PointList) {
+                Json points = Json::array();
+                for (const pxPoint& p : field.readPoints(component)) {
+                    points.push_back(Json::array({p.x, p.y}));
+                }
+                fields[field.name] = std::move(points);
+            } else {
+                fields[field.name] = Encode(field, field.read(component), registry, where, warnings);
+            }
         }
         if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
             Merge(fields, extras["fields"][type.name]);
@@ -501,6 +512,23 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
                         known->writeText(component, field.value().get_ref<const std::string&>());
                     } else {
                         problem = "expected text";
+                    }
+                } else if (known->kind == FieldKind::PointList) {
+                    std::vector<pxPoint> points;
+                    if (field.value().is_array()) {
+                        for (const Json& item : field.value()) {
+                            double xy[2];
+                            if (!Numbers(item, 2, xy)) {
+                                problem = "expected [[x, y], ...]";
+                                break;
+                            }
+                            points.emplace_back(xy[0], xy[1]);
+                        }
+                    } else {
+                        problem = "expected [[x, y], ...]";
+                    }
+                    if (problem.empty()) {
+                        known->writePoints(component, points);
                     }
                 } else {
                     FieldValue value;

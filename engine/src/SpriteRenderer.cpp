@@ -99,16 +99,19 @@ void SpriteRenderer::Submit(unsigned texture, SpriteFilter filter, int layer, co
     pending_.push_back({layer, texture, filter, instance});
 }
 
-void SpriteRenderer::Flush(const Camera2D& camera) {
+void SpriteRenderer::Flush(const Camera2D& camera, int belowLayer) {
     lastDrawCalls_ = 0;
-    if (pending_.empty()) {
-        return;
-    }
     std::stable_sort(pending_.begin(), pending_.end(),
                      [](const Pending& a, const Pending& b) { return a.layer < b.layer; });
+    const auto drawn = static_cast<std::size_t>(
+        std::partition_point(pending_.begin(), pending_.end(), [&](const Pending& p) { return p.layer < belowLayer; }) -
+        pending_.begin());
+    if (drawn == 0) {
+        return;
+    }
     ordered_.clear();
-    for (const Pending& sprite : pending_) {
-        ordered_.push_back(sprite.instance);
+    for (std::size_t i = 0; i < drawn; ++i) {
+        ordered_.push_back(pending_[i].instance);
     }
     instances_.Upload(std::span<const SpriteInstance>(ordered_));
 
@@ -120,9 +123,9 @@ void SpriteRenderer::Flush(const Camera2D& camera) {
     glBindVertexArray(vertexArray_.Id());
 
     std::size_t first = 0;
-    while (first < pending_.size()) {
+    while (first < drawn) {
         std::size_t end = first + 1;
-        while (end < pending_.size() && pending_[end].texture == pending_[first].texture &&
+        while (end < drawn && pending_[end].texture == pending_[first].texture &&
                pending_[end].filter == pending_[first].filter) {
             ++end;
         }
@@ -137,7 +140,7 @@ void SpriteRenderer::Flush(const Camera2D& camera) {
     // Leave texture unit 0 as others expect it: no sampler, and the usual blending.
     glBindSampler(0, 0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    pending_.clear();
+    pending_.erase(pending_.begin(), pending_.begin() + static_cast<std::ptrdiff_t>(drawn));
 }
 
 } // namespace pixie

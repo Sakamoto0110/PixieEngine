@@ -10,6 +10,7 @@
 #include <pixie/pxPoint.hpp>
 
 #include <array>
+#include <climits>
 #include <cstdint>
 #include <type_traits>
 #include <vector>
@@ -54,8 +55,10 @@ public:
     void Destroy();
 
     void Submit(unsigned texture, SpriteFilter filter, int layer, const SpriteInstance& instance);
-    // Draws what was submitted since the last flush, seen through `camera`, then forgets it.
-    void Flush(const Camera2D& camera);
+    // Draws what was submitted since the last flush on layers below `belowLayer`, seen through
+    // `camera`, and forgets it; the rest stays for a later flush. With no limit, draws everything.
+    // Something else can be drawn between two flushes, such as paths over backgrounds.
+    void Flush(const Camera2D& camera, int belowLayer = INT_MAX);
 
     // Draw calls made by the last Flush.
     int LastDrawCalls() const { return lastDrawCalls_; }

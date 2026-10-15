@@ -6,6 +6,8 @@
 
 #include "pixie/GlLoader.hpp"
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/Path.hpp"
+#include "pixie/runtime/PathDrawing.hpp"
 #include "pixie/runtime/Picking.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
@@ -29,6 +31,7 @@ static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of 
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
 static_assert(static_cast<int>(pixie::FieldKind::Entity) == PIXIE_FIELD_ENTITY);
 static_assert(static_cast<int>(pixie::FieldKind::Text) == PIXIE_FIELD_TEXT);
+static_assert(static_cast<int>(pixie::FieldKind::PointList) == PIXIE_FIELD_POINT_LIST);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
@@ -454,9 +457,10 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
         const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
         const auto* shape = registry.valid(id) ? registry.try_get<pixie::Shape>(id) : nullptr;
         const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
-        if (transform == nullptr || (shape == nullptr && sprite == nullptr)) {
+        const auto* path = registry.valid(id) ? registry.try_get<pixie::Path>(id) : nullptr;
+        if (transform == nullptr || (shape == nullptr && sprite == nullptr && path == nullptr)) {
             return Fail(PIXIE_ERROR_NOT_FOUND,
-                        std::format("entity {} is gone or has no Transform2D and Shape or Sprite", entity));
+                        std::format("entity {} is gone or has no Transform2D and Shape, Sprite, or Path", entity));
         }
         const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
         const pixie::Camera2D& camera = s->session.GetCamera();
@@ -465,6 +469,20 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
             *x = screen.x;
             *y = screen.y;
             *radius = pixie::PickRadius(*shape, *transform) * camera.Zoom();
+            return PIXIE_OK;
+        }
+        if (sprite == nullptr) {
+            const std::vector<pxPoint> line = pixie::PathLine(*path, drawn);
+            pxPoint low = line.empty() ? drawn.position : line.front();
+            pxPoint high = low;
+            for (const pxPoint& p : line) {
+                low = pxPoint(std::min(low.x, p.x), std::min(low.y, p.y));
+                high = pxPoint(std::max(high.x, p.x), std::max(high.y, p.y));
+            }
+            const pxPoint screen = camera.WorldToScreen(pxPoint::Lerp(low, high, 0.5));
+            *x = screen.x;
+            *y = screen.y;
+            *radius = std::hypot(high.x - low.x, high.y - low.y) * 0.5 * camera.Zoom();
             return PIXIE_OK;
         }
         const auto corners =
@@ -498,6 +516,31 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
             corners[i * 2] = view.x;
             corners[i * 2 + 1] = view.y;
         }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entity_view_path(PixieSession* s, uint32_t entity, double* xy, int32_t capacity, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (count == nullptr || capacity < 0 || (xy == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output or negative capacity");
+    }
+    return Guard([&] {
+        entt::registry& registry = s->session.GetWorld().Registry();
+        const entt::entity id = ToEntity(entity);
+        const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
+        const auto* path = registry.valid(id) ? registry.try_get<pixie::Path>(id) : nullptr;
+        if (transform == nullptr || path == nullptr) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no Transform2D and Path", entity));
+        }
+        const std::vector<pxPoint> line = pixie::PathLine(*path, DrawnTransform(s, id, *transform));
+        const auto n = static_cast<int32_t>(line.size());
+        for (int32_t i = 0; i < n && i < capacity; ++i) {
+            const pxPoint view = s->session.GetCamera().WorldToScreen(line[static_cast<std::size_t>(i)]);
+            xy[i * 2] = view.x;
+            xy[i * 2 + 1] = view.y;
+        }
+        *count = n;
         return PIXIE_OK;
     });
 }
@@ -829,9 +872,10 @@ PixieResult pixie_field_get(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null output", field, type));
     }
     return Guard([&] {
-        if (descriptor->kind == pixie::FieldKind::Text) {
+        if (descriptor->kind == pixie::FieldKind::Text || descriptor->kind == pixie::FieldKind::PointList) {
             return Fail(PIXIE_ERROR_ARGUMENT,
-                        std::format("{} is text; read it with pixie_field_get_text", descriptor->name));
+                        std::format("{} is not a value; read it with pixie_field_get_text or pixie_field_get_points",
+                                    descriptor->name));
         }
         PixieResult result = PIXIE_OK;
         void* component = ComponentOf(s, entity, type, result);
@@ -852,9 +896,10 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null value", field, type));
     }
     return Guard([&] {
-        if (descriptor->kind == pixie::FieldKind::Text) {
+        if (descriptor->kind == pixie::FieldKind::Text || descriptor->kind == pixie::FieldKind::PointList) {
             return Fail(PIXIE_ERROR_ARGUMENT,
-                        std::format("{} is text; write it with pixie_field_set_text", descriptor->name));
+                        std::format("{} is not a value; write it with pixie_field_set_text or pixie_field_set_points",
+                                    descriptor->name));
         }
         PixieResult result = PIXIE_OK;
         void* component = ComponentOf(s, entity, type, result);
@@ -910,6 +955,63 @@ PixieResult pixie_field_set_text(PixieSession* s, uint32_t entity, int32_t type,
             return result;
         }
         descriptor->writeText(component, text);
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_field_get_points(PixieSession* s, uint32_t entity, int32_t type, int32_t field, double* xy,
+                                   int32_t capacity, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr || count == nullptr || capacity < 0 || (xy == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT,
+                    std::format("no field {} in type {}, a null output, or a negative capacity", field, type));
+    }
+    return Guard([&] {
+        if (descriptor->kind != pixie::FieldKind::PointList) {
+            return Fail(PIXIE_ERROR_ARGUMENT, std::format("{} is not a list of points", descriptor->name));
+        }
+        PixieResult result = PIXIE_OK;
+        void* component = ComponentOf(s, entity, type, result);
+        if (component == nullptr) {
+            return result;
+        }
+        const std::vector<pxPoint> points = descriptor->readPoints(component);
+        const auto n = static_cast<int32_t>(points.size());
+        for (int32_t i = 0; i < n && i < capacity; ++i) {
+            xy[i * 2] = points[static_cast<std::size_t>(i)].x;
+            xy[i * 2 + 1] = points[static_cast<std::size_t>(i)].y;
+        }
+        *count = n;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_field_set_points(PixieSession* s, uint32_t entity, int32_t type, int32_t field, const double* xy,
+                                   int32_t count) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr || count < 0 || (xy == nullptr && count > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, null points, or a negative count", field, type));
+    }
+    return Guard([&] {
+        if (descriptor->kind != pixie::FieldKind::PointList) {
+            return Fail(PIXIE_ERROR_ARGUMENT, std::format("{} is not a list of points", descriptor->name));
+        }
+        PixieResult result = PIXIE_OK;
+        void* component = ComponentOf(s, entity, type, result);
+        if (component == nullptr) {
+            return result;
+        }
+        std::vector<pxPoint> points;
+        points.reserve(static_cast<std::size_t>(count));
+        for (int32_t i = 0; i < count; ++i) {
+            points.emplace_back(xy[i * 2], xy[i * 2 + 1]);
+        }
+        descriptor->writePoints(component, points);
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }

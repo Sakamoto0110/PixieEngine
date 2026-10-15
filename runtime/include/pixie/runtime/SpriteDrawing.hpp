@@ -9,6 +9,7 @@
 
 #include <array>
 #include <functional>
+#include <optional>
 
 namespace pixie {
 
@@ -20,6 +21,17 @@ struct Transform2D;
 // The size of what a sprite draws, in image pixels, before the transform's scale: its region's when
 // it has one, else its image's, else SpriteImages::kMissingSize on both axes.
 pxVec2 SpritePixelSize(const Sprite& sprite, SpriteImages& images);
+
+// A point of a sprite of `pixelSize` at `transform`, given in the sprite's own units (0 to 1 across
+// the drawn rectangle, Y down: (0, 0) its top-left, (1, 1) its bottom-right), in world units. It
+// follows the transform's rotation and mirroring, so an anchor drawn on the image (a pin of a logic
+// gate) stays on it however the entity is turned.
+pxPoint SpritePoint(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint uv);
+
+// The inverse: a world point in the sprite's own units; nothing when the sprite has no area (a
+// scale of 0 on an axis).
+std::optional<pxPoint> SpriteLocal(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize,
+                                   pxPoint world);
 
 // The corners of the rectangle a sprite of `pixelSize` covers at `transform`, in world units: the
 // image's top-left, top-right, bottom-right, and bottom-left, in that order.

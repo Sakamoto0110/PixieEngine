@@ -101,6 +101,9 @@ static struct {
     PixieResult (*field_get_text)(PixieSession*, uint32_t, int32_t, int32_t, char*, int32_t, int32_t*);
     PixieResult (*field_set_text)(PixieSession*, uint32_t, int32_t, int32_t, const char*);
     PixieResult (*image)(PixieSession*, const char*, uint32_t*, int32_t*, int32_t*);
+    PixieResult (*entity_view_path)(PixieSession*, uint32_t, double*, int32_t, int32_t*);
+    PixieResult (*field_get_points)(PixieSession*, uint32_t, int32_t, int32_t, double*, int32_t, int32_t*);
+    PixieResult (*field_set_points)(PixieSession*, uint32_t, int32_t, int32_t, const double*, int32_t);
 } api;
 
 static int failures = 0;
@@ -184,6 +187,9 @@ static int Load(Library library) {
     LOAD(field_get_text, "pixie_field_get_text")
     LOAD(field_set_text, "pixie_field_set_text")
     LOAD(image, "pixie_image")
+    LOAD(entity_view_path, "pixie_entity_view_path")
+    LOAD(field_get_points, "pixie_field_get_points")
+    LOAD(field_set_points, "pixie_field_set_points")
 #undef LOAD
     return !missing;
 }
@@ -550,6 +556,107 @@ static void Cleanup(const char* folder) {
     RemoveFolder(folder);
 }
 
+static int SameColor(const unsigned char* rgba, int r, int g, int b) {
+    return abs(rgba[0] - r) <= 2 && abs(rgba[1] - g) <= 2 && abs(rgba[2] - b) <= 2;
+}
+
+/* A path in the project, after ExerciseSprite wrote green.png: its points are a list field; it is
+ * drawn in its fill color up to the fill and in its color after it, over a sprite of a negative layer
+ * and under one of layer 0; it is picked along its line, outlined, saved, and opened again. */
+static void ExercisePath(const char* folder) {
+    PixieSession* s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s == NULL) {
+        return;
+    }
+    int32_t transform = -1, pathType = -1, spriteType = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK && api.type_find(s, "Path", &pathType) == PIXIE_OK &&
+          api.type_find(s, "Sprite", &spriteType) == PIXIE_OK);
+    const int32_t points = FindField(s, pathType, "points");
+    int32_t kind = -1;
+    CHECK(api.field_kind(s, pathType, points, &kind) == PIXIE_OK && kind == PIXIE_FIELD_POINT_LIST);
+
+    uint32_t wire = 0;
+    CHECK(api.entity_create(s, "wire", &wire) == PIXIE_OK);
+    CHECK(api.component_add(s, wire, transform) == PIXIE_OK && api.component_add(s, wire, pathType) == PIXIE_OK);
+    PixieValue value;
+    CHECK(api.field_get(s, wire, pathType, points, &value) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_get_points(s, wire, transform, FindField(s, transform, "position"), NULL, 0, &kind) ==
+          PIXIE_ERROR_ARGUMENT);
+
+    /* 200 units long, at y = 120, filled up to its middle (world x = -200). The view shows world (x, y)
+     * at (x + 320, y + 180). */
+    const double line[] = {-300.0, 120.0, -100.0, 120.0};
+    CHECK(api.field_set_points(s, wire, pathType, points, line, 2) == PIXIE_OK);
+    int32_t count = 0;
+    double read[4] = {0.0, 0.0, 0.0, 0.0};
+    CHECK(api.field_get_points(s, wire, pathType, points, NULL, 0, &count) == PIXIE_OK && count == 2);
+    CHECK(api.field_get_points(s, wire, pathType, points, read, 1, &count) == PIXIE_OK && count == 2 &&
+          read[0] == -300.0 && read[1] == 120.0 && read[2] == 0.0);
+    const PixieValue width = {10.0, 0.0, 0.0, 0.0};
+    const PixieValue blue = {0.0, 0.0, 255.0, 255.0};
+    const PixieValue red = {255.0, 0.0, 0.0, 255.0};
+    const PixieValue half = {0.5, 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, wire, pathType, FindField(s, pathType, "width"), &width) == PIXIE_OK);
+    CHECK(api.field_set(s, wire, pathType, FindField(s, pathType, "color"), &blue) == PIXIE_OK);
+    CHECK(api.field_set(s, wire, pathType, FindField(s, pathType, "fillColor"), &red) == PIXIE_OK);
+    CHECK(api.field_set(s, wire, pathType, FindField(s, pathType, "fill"), &half) == PIXIE_OK);
+
+    uint32_t texture = 0;
+    unsigned char rgba[4];
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, 70, 300, rgba);
+    CHECK(SameColor(rgba, 255, 0, 0));
+    TexturePixel(texture, 640, 360, 170, 300, rgba);
+    CHECK(SameColor(rgba, 0, 0, 255));
+    TexturePixel(texture, 640, 360, 170, 310, rgba);
+    CHECK(!SameColor(rgba, 0, 0, 255));
+
+    uint32_t picked = 0;
+    CHECK(api.pick(s, 120.0, 303.0, 0.0, &picked) == PIXIE_OK && picked == wire);
+    CHECK(api.pick(s, 120.0, 310.0, 0.0, &picked) == PIXIE_ERROR_NOT_FOUND);
+    double outline[8];
+    CHECK(api.entity_view_path(s, wire, outline, 4, &count) == PIXIE_OK && count == 2 && fabs(outline[0] - 20.0) < 1e-6 &&
+          fabs(outline[1] - 300.0) < 1e-6 && fabs(outline[2] - 220.0) < 1e-6);
+    double x = 0.0, y = 0.0, radius = 0.0;
+    CHECK(api.entity_view_bounds(s, wire, &x, &y, &radius) == PIXIE_OK && fabs(x - 120.0) < 1e-6 &&
+          fabs(radius - 100.0) < 1e-6);
+
+    /* A sprite on a negative layer is drawn under the path; on layer 0, over it. */
+    uint32_t sprite = 0;
+    CHECK(api.entity_create(s, "under", &sprite) == PIXIE_OK && api.component_add(s, sprite, transform) == PIXIE_OK &&
+          api.component_add(s, sprite, spriteType) == PIXIE_OK);
+    CHECK(api.field_set_text(s, sprite, spriteType, FindField(s, spriteType, "image"), "green.png") == PIXIE_OK);
+    const PixieValue at = {-150.0, 120.0, 0.0, 0.0};
+    const PixieValue scale = {5.0, 5.0, 0.0, 0.0};
+    const PixieValue below = {-1.0, 0.0, 0.0, 0.0};
+    const PixieValue above = {0.0, 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "position"), &at) == PIXIE_OK);
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "scale"), &scale) == PIXIE_OK);
+    CHECK(api.field_set(s, sprite, spriteType, FindField(s, spriteType, "layer"), &below) == PIXIE_OK);
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, 170, 300, rgba);
+    CHECK(SameColor(rgba, 0, 0, 255));
+    TexturePixel(texture, 640, 360, 170, 308, rgba);
+    CHECK(SameColor(rgba, 40, 200, 120));
+    CHECK(api.field_set(s, sprite, spriteType, FindField(s, spriteType, "layer"), &above) == PIXIE_OK);
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, 170, 300, rgba);
+    CHECK(SameColor(rgba, 40, 200, 120));
+    printf("path pixels: fill, color, and sprite over it as expected\n");
+
+    CHECK(api.project_save(s) == PIXIE_OK);
+    api.session_destroy(s);
+    s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s != NULL) {
+        wire = FindEntity(s, "wire");
+        CHECK(api.field_get_points(s, wire, pathType, points, read, 2, &count) == PIXIE_OK && count == 2 &&
+              read[2] == -100.0 && read[3] == 120.0);
+        api.session_destroy(s);
+    }
+}
+
 /* A sprite in the project: its image is a text field naming a PNG in the project folder; it is
  * drawn in the image's color, picked by its rectangle, saved, and opened again. */
 static void ExerciseSprite(const char* folder) {
@@ -739,6 +846,7 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     }
 
     ExerciseSprite(folder);
+    ExercisePath(folder);
 
     /* The project file names its scene relative to the folder, and holds no absolute path. */
     char path[1024];

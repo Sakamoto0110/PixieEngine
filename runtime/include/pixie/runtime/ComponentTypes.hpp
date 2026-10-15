@@ -11,6 +11,7 @@
 
 #include <concepts>
 #include <cstdint>
+#include <span>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -31,9 +32,11 @@ enum class FieldKind : std::uint8_t {
     Color,   // x, y, z, w: red, green, blue, alpha, 0 to 255
     Entity,  // x: the entity as its 32-bit number (index and version); 4294967295 is none
     Text,    // none: a std::string, read and written with FieldDescriptor::readText and writeText
+    PointList, // none: a std::vector<pxPoint>, read and written with readPoints and writePoints
 };
 
-// A field's value, whatever its kind but Text, in doubles; see FieldKind for which members are used.
+// A field's value, whatever its kind but Text and PointList, in doubles; see FieldKind for which
+// members are used.
 struct FieldValue {
     double x = 0.0;
     double y = 0.0;
@@ -82,8 +85,8 @@ struct FieldMetadata {
 };
 
 // One reflected field: a name, a kind, how to read and write it in a component instance, and how a
-// tool should show it. A Text field is read and written as text, the others as a FieldValue; the
-// other pair of functions is null.
+// tool should show it. A Text field is read and written as text, a PointList field as points, the
+// others as a FieldValue; the other pairs of functions are null.
 struct FieldDescriptor {
     std::string name;
     FieldKind kind = FieldKind::Double;
@@ -92,6 +95,8 @@ struct FieldDescriptor {
     void (*write)(void* component, const FieldValue& value) = nullptr;
     std::string (*readText)(const void* component) = nullptr;
     void (*writeText)(void* component, std::string_view text) = nullptr;
+    std::vector<pxPoint> (*readPoints)(const void* component) = nullptr;
+    void (*writePoints)(void* component, std::span<const pxPoint> points) = nullptr;
     FieldMetadata metadata;
 };
 
@@ -178,6 +183,8 @@ constexpr FieldKind KindOf() {
         return FieldKind::Color;
     } else if constexpr (std::is_same_v<M, std::string>) {
         return FieldKind::Text;
+    } else if constexpr (std::is_same_v<M, std::vector<pxPoint>>) {
+        return FieldKind::PointList;
     } else {
         static_assert(sizeof(M) == 0, "this field type cannot be reflected");
     }
@@ -249,6 +256,18 @@ void WriteText(void* component, std::string_view text) {
     static_cast<Class*>(component)->*Member = std::string(text);
 }
 
+template<auto Member>
+std::vector<pxPoint> ReadPoints(const void* component) {
+    using Class = typename MemberTraits<decltype(Member)>::Class;
+    return static_cast<const Class*>(component)->*Member;
+}
+
+template<auto Member>
+void WritePoints(void* component, std::span<const pxPoint> points) {
+    using Class = typename MemberTraits<decltype(Member)>::Class;
+    static_cast<Class*>(component)->*Member = std::vector<pxPoint>(points.begin(), points.end());
+}
+
 template<typename T>
 void* Find(entt::registry& registry, entt::entity entity) {
     return registry.valid(entity) ? registry.try_get<T>(entity) : nullptr;
@@ -297,6 +316,9 @@ public:
         if constexpr (std::is_same_v<typename Traits::Type, std::string>) {
             field.readText = &detail::ReadText<Member>;
             field.writeText = &detail::WriteText<Member>;
+        } else if constexpr (std::is_same_v<typename Traits::Type, std::vector<pxPoint>>) {
+            field.readPoints = &detail::ReadPoints<Member>;
+            field.writePoints = &detail::WritePoints<Member>;
         } else {
             field.read = &detail::Read<Member>;
             field.write = &detail::Write<Member>;
@@ -431,7 +453,7 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
 }
 
 // Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
-// Acceleration2D, Shape, Sprite, Attractor, ParticleSystem, and ParticleSpawner.
+// Acceleration2D, Shape, Sprite, Path, Attractor, ParticleSystem, and ParticleSpawner.
 void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

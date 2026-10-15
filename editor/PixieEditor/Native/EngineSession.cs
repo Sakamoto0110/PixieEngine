@@ -291,6 +291,42 @@ public sealed unsafe class EngineSession : IDisposable
     public void SetText(uint entity, int type, int field, string text) =>
         Check(PixieCapi.FieldSetText(Handle, entity, type, field, text), "write a text field");
 
+    // A list of points, such as a path's.
+    public (double X, double Y)[] GetPoints(uint entity, int type, int field)
+    {
+        Check(PixieCapi.FieldGetPoints(Handle, entity, type, field, null, 0, out var count), "count the points of a field");
+        var xy = new double[count * 2];
+        fixed (double* buffer = xy)
+        {
+            Check(PixieCapi.FieldGetPoints(Handle, entity, type, field, buffer, count, out _), "read the points of a field");
+        }
+
+        return Enumerable.Range(0, count).Select(i => (xy[i * 2], xy[i * 2 + 1])).ToArray();
+    }
+
+    public void SetPoints(uint entity, int type, int field, IReadOnlyList<(double X, double Y)> points)
+    {
+        var xy = points.SelectMany(p => new[] { p.X, p.Y }).ToArray();
+        fixed (double* buffer = xy)
+        {
+            Check(PixieCapi.FieldSetPoints(Handle, entity, type, field, buffer, points.Count), "write the points of a field");
+        }
+    }
+
+    // The line a path was last drawn along, in view pixels; null for an entity without a path.
+    public (double X, double Y)[]? ViewPath(uint entity)
+    {
+        if (!Found(PixieCapi.EntityViewPath(Handle, entity, null, 0, out var count), "read a path's line"))
+            return null;
+        var xy = new double[count * 2];
+        fixed (double* buffer = xy)
+        {
+            Check(PixieCapi.EntityViewPath(Handle, entity, buffer, count, out _), "read a path's line");
+        }
+
+        return Enumerable.Range(0, count).Select(i => (xy[i * 2], xy[i * 2 + 1])).ToArray();
+    }
+
     // The four corners of a sprite's rectangle as last drawn, in view pixels (the image's top-left,
     // top-right, bottom-right, bottom-left); null for an entity without a sprite.
     public (double X, double Y)[]? ViewQuad(uint entity)

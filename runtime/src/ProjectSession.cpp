@@ -5,6 +5,7 @@
 #include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
+#include "pixie/runtime/PathDrawing.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 
@@ -64,7 +65,7 @@ std::string_view ProjectSession::ProjectName() const {
 }
 
 bool ProjectSession::Start(FramebufferSize size) {
-    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create()) {
+    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create()) {
         return false;
     }
     camera_.SetViewport(size);
@@ -77,6 +78,7 @@ void ProjectSession::Stop() {
     world_.reset();
     target_.Destroy();
     images_.Destroy();
+    paths_.Destroy();
     sprites_.Destroy();
     particles_.Destroy();
     shapes_.Destroy();
@@ -231,6 +233,9 @@ void ProjectSession::Render(double alpha) {
                                     std::chrono::duration<double>(SpriteImages::kCheckInterval));
     }
     SubmitSprites(*world_, sprites_, images_, alpha);
+    sprites_.Flush(camera_, 0);
+    SubmitPaths(*world_, paths_, alpha);
+    paths_.Flush(camera_);
     sprites_.Flush(camera_);
     DrawParticles(*world_, particles_, camera_, alpha);
     SubmitShapes(*world_, shapes_, alpha);
