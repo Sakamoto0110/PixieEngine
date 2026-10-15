@@ -10,9 +10,8 @@
     },
     {
       "name": "ci",
-      "displayName": "CI: Visual Studio 2022, x64 (the GitHub runners have no Visual Studio 2026)",
-      "generator": "Visual Studio 17 2022",
-      "architecture": "x64",
+      "displayName": "CI: Ninja Multi-Config, with the compiler of the developer environment it runs in",
+      "generator": "Ninja Multi-Config",
       "binaryDir": "${sourceDir}/build-ci"
     }
   ],

@@ -52,6 +52,21 @@ jobs:
           7z x $archive "-o$env:RUNNER_TEMP\mesa" -y | Out-Null
           Get-ChildItem "$env:RUNNER_TEMP\mesa\x64" -Filter *.dll | Select-Object Name, Length
 
+      # Whichever Visual Studio the runner has: its developer environment (the compiler and Ninja) for
+      # every later step, through GITHUB_ENV.
+      - name: Enter the Visual Studio developer environment
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw "No Visual Studio with the C++ tools on this runner" }
+          Write-Output "Visual Studio: $vs ($(& $vswhere -latest -products * -property catalog_productDisplayVersion))"
+          Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments "-arch=x64 -host_arch=x64" | Out-Null
+          Get-ChildItem env: | ForEach-Object { "$($_.Name)=$($_.Value)" } | Out-File $env:GITHUB_ENV -Append -Encoding utf8
+          cl 2>&1 | Select-Object -First 1
+          cmake --version | Select-Object -First 1
+
       - name: Configure
         run: cmake --preset ci
 
