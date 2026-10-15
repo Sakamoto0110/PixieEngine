@@ -34,6 +34,7 @@ public enum PixieFieldKind
     Rect = 7,
     Color = 8,
     Entity = 9,
+    Text = 10,
 }
 
 public enum PixieEditorKind
@@ -64,6 +65,7 @@ public enum PixieFieldText
     UnitSuffix = 3,
     ArcSpread = 4,
     References = 5,
+    Asset = 6,
 }
 
 // How a tool shows and edits a field (pixie_capi.h, PixieFieldInfo; 72 bytes).
@@ -109,7 +111,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 6;
+    internal const int Version = 7;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();

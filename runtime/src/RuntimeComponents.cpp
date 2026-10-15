@@ -4,6 +4,7 @@
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Shape.hpp"
+#include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
 
@@ -46,6 +47,28 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Scrub(0.5)
         .Field<&Shape::color>("color")
         .Tooltip("Red, green, blue, and alpha.");
+    types.Add<Sprite>("Sprite")
+        .Field<&Sprite::image>("image")
+        .Asset("png")
+        .Tooltip("The PNG drawn, relative to the project folder. One image pixel is one world unit, times "
+                 "the transform's scale.")
+        .Field<&Sprite::region>("region")
+        .Tooltip("The part of the image drawn, in pixels from its top-left: x, y, width, height. Zero width "
+                 "or height draws the whole image.")
+        .Scrub(1.0)
+        .Field<&Sprite::pivot>("pivot")
+        .Tooltip("Where the position falls in the sprite, and what it turns around: (0, 0) is its top-left, "
+                 "(1, 1) its bottom-right, (0.5, 0.5) its center.")
+        .Range(0.0, 1.0)
+        .Scrub(0.01)
+        .Field<&Sprite::color>("color")
+        .Tooltip("Multiplies the image: red, green, blue, and alpha. White draws it as it is.")
+        .Field<&Sprite::layer>("layer")
+        .Tooltip("Drawing order: higher layers are drawn on top; within a layer, older entities first. "
+                 "Sprites are drawn under particles and shapes.")
+        .Scrub(0.1)
+        .Field<&Sprite::filter>("filter", {"Smooth", "Pixel"})
+        .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.");
     types.Add<Attractor>("Attractor")
         .Field<&Attractor::strength>("strength")
         .Tooltip("How hard it pulls, in world units cubed per second squared; negative pushes away. A "

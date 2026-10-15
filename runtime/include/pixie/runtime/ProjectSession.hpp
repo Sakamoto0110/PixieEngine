@@ -6,11 +6,14 @@
 #include "pixie/ParticleRenderer.hpp"
 #include "pixie/RenderTarget.hpp"
 #include "pixie/ShapeRenderer.hpp"
+#include "pixie/SpriteRenderer.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
+#include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/World.hpp"
 
+#include <chrono>
 #include <cstdint>
 #include <filesystem>
 #include <memory>
@@ -107,7 +110,9 @@ public:
     // nothing in Edit.
     void Update(double delta, const Input& input);
 
-    // Draws the World into the bound framebuffer, interpolated `alpha` of the way between steps.
+    // Draws the World into the bound framebuffer, interpolated `alpha` of the way between steps:
+    // sprites, then particles, then shapes, then the project's overlay. Images whose files changed
+    // are read again first, checked at most every SpriteImages::kCheckInterval seconds.
     void Render(double alpha);
     // Draws into the session's own render target, sized to the viewport, and returns its texture.
     unsigned RenderToTarget();
@@ -118,6 +123,9 @@ public:
     Camera2D& GetCamera() { return camera_; }
     Project& GetProject() { return *project_; }
     const ComponentTypes& Types() const { return types_; }
+    // The images of the World's sprites, resolved against the project folder (the working
+    // directory without a project).
+    SpriteImages& Images() { return images_; }
 
     // Duration of the last step, in milliseconds.
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
@@ -133,6 +141,9 @@ private:
     Input input_;
     FixedStepper stepper_;
     ShapeRenderer shapes_;
+    SpriteRenderer sprites_;
+    SpriteImages images_;
+    std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
     RenderTarget target_;
     bool started_ = false;

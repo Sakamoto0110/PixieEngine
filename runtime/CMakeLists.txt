@@ -14,6 +14,8 @@ add_library(pixie_runtime STATIC
     src/Scene.cpp
     src/SceneProject.cpp
     src/ShapeDrawing.cpp
+    src/SpriteDrawing.cpp
+    src/SpriteImages.cpp
     src/SpatialGrid.cpp
     src/World.cpp
 )

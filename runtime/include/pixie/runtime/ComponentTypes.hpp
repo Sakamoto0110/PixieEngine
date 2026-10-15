@@ -30,9 +30,10 @@ enum class FieldKind : std::uint8_t {
     Rect,    // x, y, z: width, w: height
     Color,   // x, y, z, w: red, green, blue, alpha, 0 to 255
     Entity,  // x: the entity as its 32-bit number (index and version); 4294967295 is none
+    Text,    // none: a std::string, read and written with FieldDescriptor::readText and writeText
 };
 
-// A field's value, whatever its kind, in doubles; see FieldKind for which members are used.
+// A field's value, whatever its kind but Text, in doubles; see FieldKind for which members are used.
 struct FieldValue {
     double x = 0.0;
     double y = 0.0;
@@ -75,16 +76,22 @@ struct FieldMetadata {
     std::string arcSpread;
     // For an Entity field: the component type an entity needs to be a valid choice.
     std::string references;
+    // For a Text field that names a file: the file's kind, as its extension without the dot
+    // ("png"); the path is relative to the project folder. Empty for plain text.
+    std::string asset;
 };
 
 // One reflected field: a name, a kind, how to read and write it in a component instance, and how a
-// tool should show it.
+// tool should show it. A Text field is read and written as text, the others as a FieldValue; the
+// other pair of functions is null.
 struct FieldDescriptor {
     std::string name;
     FieldKind kind = FieldKind::Double;
     std::vector<std::string> enumNames;
     FieldValue (*read)(const void* component) = nullptr;
     void (*write)(void* component, const FieldValue& value) = nullptr;
+    std::string (*readText)(const void* component) = nullptr;
+    void (*writeText)(void* component, std::string_view text) = nullptr;
     FieldMetadata metadata;
 };
 
@@ -169,6 +176,8 @@ constexpr FieldKind KindOf() {
         return FieldKind::Rect;
     } else if constexpr (std::is_same_v<M, pxColorRgba>) {
         return FieldKind::Color;
+    } else if constexpr (std::is_same_v<M, std::string>) {
+        return FieldKind::Text;
     } else {
         static_assert(sizeof(M) == 0, "this field type cannot be reflected");
     }
@@ -228,6 +237,18 @@ void Write(void* component, const FieldValue& value) {
     FromValue(static_cast<Class*>(component)->*Member, value);
 }
 
+template<auto Member>
+std::string ReadText(const void* component) {
+    using Class = typename MemberTraits<decltype(Member)>::Class;
+    return static_cast<const Class*>(component)->*Member;
+}
+
+template<auto Member>
+void WriteText(void* component, std::string_view text) {
+    using Class = typename MemberTraits<decltype(Member)>::Class;
+    static_cast<Class*>(component)->*Member = std::string(text);
+}
+
 template<typename T>
 void* Find(entt::registry& registry, entt::entity entity) {
     return registry.valid(entity) ? registry.try_get<T>(entity) : nullptr;
@@ -273,8 +294,13 @@ public:
         field.name = std::move(name);
         field.kind = detail::KindOf<typename Traits::Type>();
         field.enumNames = std::move(enumNames);
-        field.read = &detail::Read<Member>;
-        field.write = &detail::Write<Member>;
+        if constexpr (std::is_same_v<typename Traits::Type, std::string>) {
+            field.readText = &detail::ReadText<Member>;
+            field.writeText = &detail::WriteText<Member>;
+        } else {
+            field.read = &detail::Read<Member>;
+            field.write = &detail::Write<Member>;
+        }
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));
@@ -351,6 +377,11 @@ public:
         return Last([&](FieldMetadata& m) { m.references = std::move(type); });
     }
 
+    // A Text field naming a file of kind `extension` ("png"), relative to the project folder.
+    ComponentBuilder& Asset(std::string extension) {
+        return Last([&](FieldMetadata& m) { m.asset = std::move(extension); });
+    }
+
     // This angle is the center of an arc whose width is the sibling field `spread`.
     ComponentBuilder& Arc(std::string spread) {
         return Last([&](FieldMetadata& m) {
@@ -400,7 +431,7 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
 }
 
 // Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
-// Acceleration2D, Shape, Attractor, ParticleSystem, and ParticleSpawner.
+// Acceleration2D, Shape, Sprite, Attractor, ParticleSystem, and ParticleSpawner.
 void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

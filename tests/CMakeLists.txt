@@ -25,6 +25,7 @@ add_executable(runtime-tests
     runtime/RandomTests.cpp
     runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
+    runtime/SpriteTests.cpp
     runtime/WorldTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)

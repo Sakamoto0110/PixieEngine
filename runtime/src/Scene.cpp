@@ -149,6 +149,9 @@ Json Encode(const FieldDescriptor& field, const FieldValue& v, entt::registry& r
         }
         return nullptr;
     }
+    case FieldKind::Text:
+        // Written through readText; never a FieldValue.
+        return nullptr;
     }
     return nullptr;
 }
@@ -209,6 +212,8 @@ std::string Decode(const FieldDescriptor& field, const Json& value,
         out.x = static_cast<double>(static_cast<std::uint32_t>(found->second));
         return {};
     }
+    case FieldKind::Text:
+        return "expected text";
     }
     return "unknown field kind";
 }
@@ -331,7 +336,9 @@ Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::en
         fields["v"] = type.version;
         const std::string where = std::format("{} of entity {}", type.name, hex);
         for (const FieldDescriptor& field : type.fields) {
-            fields[field.name] = Encode(field, field.read(component), registry, where, warnings);
+            fields[field.name] = field.kind == FieldKind::Text
+                                     ? Json(field.readText(component))
+                                     : Encode(field, field.read(component), registry, where, warnings);
         }
         if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
             Merge(fields, extras["fields"][type.name]);
@@ -488,11 +495,21 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
                     keptFields[typeName][field.key()] = field.value();
                     continue;
                 }
-                FieldValue value;
-                const std::string problem = Decode(*known, field.value(), ids, value);
-                if (problem.empty()) {
-                    known->write(component, value);
+                std::string problem;
+                if (known->kind == FieldKind::Text) {
+                    if (field.value().is_string()) {
+                        known->writeText(component, field.value().get_ref<const std::string&>());
+                    } else {
+                        problem = "expected text";
+                    }
                 } else {
+                    FieldValue value;
+                    problem = Decode(*known, field.value(), ids, value);
+                    if (problem.empty()) {
+                        known->write(component, value);
+                    }
+                }
+                if (!problem.empty()) {
                     report.warnings.push_back(std::format("{}.{} of entity {}: {}; left at its default", typeName,
                                                           field.key(), hex, problem));
                 }

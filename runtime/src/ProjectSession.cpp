@@ -6,6 +6,7 @@
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
+#include "pixie/runtime/SpriteDrawing.hpp"
 
 #include <algorithm>
 #include <chrono>
@@ -46,6 +47,7 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
         error_ = std::format("{}: {}", opened.file.startScene, report.error);
         return false;
     }
+    images_.SetFolder(opened.folder);
     opened_ = std::move(opened);
     sceneText_ = text.str();
     playedFrom_.clear();
@@ -62,7 +64,7 @@ std::string_view ProjectSession::ProjectName() const {
 }
 
 bool ProjectSession::Start(FramebufferSize size) {
-    if (!shapes_.Create() || !particles_.Create()) {
+    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create()) {
         return false;
     }
     camera_.SetViewport(size);
@@ -74,6 +76,8 @@ bool ProjectSession::Start(FramebufferSize size) {
 void ProjectSession::Stop() {
     world_.reset();
     target_.Destroy();
+    images_.Destroy();
+    sprites_.Destroy();
     particles_.Destroy();
     shapes_.Destroy();
     started_ = false;
@@ -221,6 +225,13 @@ void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
     glClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
+    if (const auto now = std::chrono::steady_clock::now(); now >= nextImageCheck_) {
+        images_.CheckForChanges();
+        nextImageCheck_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
+                                    std::chrono::duration<double>(SpriteImages::kCheckInterval));
+    }
+    SubmitSprites(*world_, sprites_, images_, alpha);
+    sprites_.Flush(camera_);
     DrawParticles(*world_, particles_, camera_, alpha);
     SubmitShapes(*world_, shapes_, alpha);
     project_->DrawOverlay(*world_, shapes_, camera_);

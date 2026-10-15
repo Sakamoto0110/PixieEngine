@@ -3,6 +3,9 @@
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxPoint.hpp>
 
+#include <cmath>
+#include <numbers>
+
 namespace pixie {
 
 // Where an entity is, in world units, Y down. Rotation is in radians, from +X toward +Y.
@@ -18,5 +21,13 @@ struct Transform2D {
 struct PreviousTransform2D {
     Transform2D value;
 };
+
+// The transform `alpha` of the way from `from` to `to`, as rendering draws it between two steps; the
+// rotation turns the short way round, so a turn across ±pi does not spin backwards.
+inline Transform2D Interpolate(const Transform2D& from, const Transform2D& to, double alpha) {
+    const double turn = std::remainder(to.rotation - from.rotation, 2.0 * std::numbers::pi);
+    return {pxPoint::Lerp(from.position, to.position, alpha), from.rotation + turn * alpha,
+            from.scale + (to.scale - from.scale) * alpha};
+}
 
 } // namespace pixie

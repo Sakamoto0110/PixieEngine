@@ -9,10 +9,13 @@
 #include "pixie/runtime/Picking.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
+#include "pixie/runtime/Sprite.hpp"
+#include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 
 #include <algorithm>
+#include <cmath>
 #include <cstring>
 #include <exception>
 #include <filesystem>
@@ -25,6 +28,7 @@
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
 static_assert(static_cast<int>(pixie::FieldKind::Entity) == PIXIE_FIELD_ENTITY);
+static_assert(static_cast<int>(pixie::FieldKind::Text) == PIXIE_FIELD_TEXT);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
@@ -107,6 +111,12 @@ std::filesystem::path FromUtf8(const char* text) {
 bool InScene(PixieSession* s, uint32_t entity) {
     const entt::registry& registry = s->session.GetWorld().Registry();
     return registry.valid(ToEntity(entity)) && registry.all_of<pixie::SceneId>(ToEntity(entity));
+}
+
+// Where the last render drew the entity: between the previous step and this one.
+pixie::Transform2D DrawnTransform(PixieSession* s, entt::entity id, const pixie::Transform2D& transform) {
+    const auto* previous = s->session.GetWorld().Registry().try_get<pixie::PreviousTransform2D>(id);
+    return previous != nullptr ? pixie::Interpolate(previous->value, transform, s->session.Alpha()) : transform;
 }
 
 // Creates a session for the game, with the project in `folder` open when it is not null.
@@ -403,7 +413,8 @@ PixieResult pixie_pick(PixieSession* s, double x, double y, double tolerance, ui
     }
     return Guard([&] {
         const entt::entity picked =
-            pixie::PickAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance));
+            pixie::PickAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance),
+                          &s->session.Images());
         if (picked == entt::null) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("nothing to pick at ({}, {})", x, y));
         }
@@ -442,19 +453,51 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
         const entt::entity id = ToEntity(entity);
         const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
         const auto* shape = registry.valid(id) ? registry.try_get<pixie::Shape>(id) : nullptr;
-        if (transform == nullptr || shape == nullptr) {
-            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no Transform2D and Shape", entity));
+        const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
+        if (transform == nullptr || (shape == nullptr && sprite == nullptr)) {
+            return Fail(PIXIE_ERROR_NOT_FOUND,
+                        std::format("entity {} is gone or has no Transform2D and Shape or Sprite", entity));
         }
-        // Where the last render drew it: between the previous step and this one.
-        pxPoint position = transform->position;
-        if (const auto* previous = registry.try_get<pixie::PreviousTransform2D>(id)) {
-            position = pxPoint::Lerp(previous->value.position, transform->position, s->session.Alpha());
-        }
+        const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
         const pixie::Camera2D& camera = s->session.GetCamera();
-        const pxPoint screen = camera.WorldToScreen(position);
+        if (shape != nullptr) {
+            const pxPoint screen = camera.WorldToScreen(drawn.position);
+            *x = screen.x;
+            *y = screen.y;
+            *radius = pixie::PickRadius(*shape, *transform) * camera.Zoom();
+            return PIXIE_OK;
+        }
+        const auto corners =
+            pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()));
+        const pxPoint screen = camera.WorldToScreen(pxPoint::Lerp(corners[0], corners[2], 0.5));
         *x = screen.x;
         *y = screen.y;
-        *radius = pixie::PickRadius(*shape, *transform) * camera.Zoom();
+        *radius = std::hypot(corners[2].x - corners[0].x, corners[2].y - corners[0].y) * 0.5 * camera.Zoom();
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* corners) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (corners == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    return Guard([&] {
+        entt::registry& registry = s->session.GetWorld().Registry();
+        const entt::entity id = ToEntity(entity);
+        const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
+        const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
+        if (transform == nullptr || sprite == nullptr) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no Transform2D and Sprite", entity));
+        }
+        const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
+        const auto world =
+            pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()));
+        for (std::size_t i = 0; i < world.size(); ++i) {
+            const pxPoint view = s->session.GetCamera().WorldToScreen(world[i]);
+            corners[i * 2] = view.x;
+            corners[i * 2 + 1] = view.y;
+        }
         return PIXIE_OK;
     });
 }
@@ -757,6 +800,8 @@ PixieResult pixie_field_text(PixieSession* s, int32_t type, int32_t field, int32
         return Copy(m.arcSpread, buffer, capacity);
     case PIXIE_TEXT_REFERENCES:
         return Copy(m.references, buffer, capacity);
+    case PIXIE_TEXT_ASSET:
+        return Copy(m.asset, buffer, capacity);
     default:
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field text {}", which));
     }
@@ -784,6 +829,10 @@ PixieResult pixie_field_get(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null output", field, type));
     }
     return Guard([&] {
+        if (descriptor->kind == pixie::FieldKind::Text) {
+            return Fail(PIXIE_ERROR_ARGUMENT,
+                        std::format("{} is text; read it with pixie_field_get_text", descriptor->name));
+        }
         PixieResult result = PIXIE_OK;
         void* component = ComponentOf(s, entity, type, result);
         if (component == nullptr) {
@@ -803,6 +852,10 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null value", field, type));
     }
     return Guard([&] {
+        if (descriptor->kind == pixie::FieldKind::Text) {
+            return Fail(PIXIE_ERROR_ARGUMENT,
+                        std::format("{} is text; write it with pixie_field_set_text", descriptor->name));
+        }
         PixieResult result = PIXIE_OK;
         void* component = ComponentOf(s, entity, type, result);
         if (component == nullptr) {
@@ -812,6 +865,72 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_field_get_text(PixieSession* s, uint32_t entity, int32_t type, int32_t field, char* buffer,
+                                 int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr || length == nullptr || capacity < 0 || (buffer == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT,
+                    std::format("no field {} in type {}, a null output, or a negative capacity", field, type));
+    }
+    return Guard([&] {
+        if (descriptor->kind != pixie::FieldKind::Text) {
+            return Fail(PIXIE_ERROR_ARGUMENT,
+                        std::format("{} is not text; read it with pixie_field_get", descriptor->name));
+        }
+        PixieResult result = PIXIE_OK;
+        void* component = ComponentOf(s, entity, type, result);
+        if (component == nullptr) {
+            return result;
+        }
+        const std::string text = descriptor->readText(component);
+        *length = static_cast<int32_t>(text.size());
+        return capacity == 0 ? PIXIE_OK : Copy(text, buffer, capacity);
+    });
+}
+
+PixieResult pixie_field_set_text(PixieSession* s, uint32_t entity, int32_t type, int32_t field, const char* text) {
+    PIXIE_REQUIRE_SESSION(s);
+    const pixie::FieldDescriptor* descriptor = FieldAt(s, type, field);
+    if (descriptor == nullptr || text == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null text", field, type));
+    }
+    return Guard([&] {
+        if (descriptor->kind != pixie::FieldKind::Text) {
+            return Fail(PIXIE_ERROR_ARGUMENT,
+                        std::format("{} is not text; write it with pixie_field_set", descriptor->name));
+        }
+        PixieResult result = PIXIE_OK;
+        void* component = ComponentOf(s, entity, type, result);
+        if (component == nullptr) {
+            return result;
+        }
+        descriptor->writeText(component, text);
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_image(PixieSession* s, const char* path, uint32_t* texture, int32_t* width, int32_t* height) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (path == nullptr || texture == nullptr || width == nullptr || height == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null path or output");
+    }
+    return Guard([&] {
+        pixie::SpriteImages& images = s->session.Images();
+        const auto size = images.Size(path);
+        if (!size) {
+            return Fail(PIXIE_ERROR_IO, std::format("{}: {}", path, images.Problem(path)));
+        }
+        *texture = images.TextureOf(path).Id();
+        *width = static_cast<int32_t>(size->x);
+        *height = static_cast<int32_t>(size->y);
         return PIXIE_OK;
     });
 }

@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 6
+#define PIXIE_CAPI_VERSION 7
 
 typedef struct PixieSession PixieSession;
 
@@ -66,7 +66,8 @@ typedef enum PixieFieldKind {
     PIXIE_FIELD_VECTOR = 6, /* x, y */
     PIXIE_FIELD_RECT = 7,   /* x, y, z: width, w: height */
     PIXIE_FIELD_COLOR = 8,  /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
-    PIXIE_FIELD_ENTITY = 9  /* x: an entity handle; 4294967295 is none */
+    PIXIE_FIELD_ENTITY = 9, /* x: an entity handle; 4294967295 is none */
+    PIXIE_FIELD_TEXT = 10   /* none: UTF-8 text, through pixie_field_get_text and pixie_field_set_text */
 } PixieFieldKind;
 
 /* The editor a tool should use for a field; AUTO lets it choose from the kind. */
@@ -109,7 +110,9 @@ typedef enum PixieFieldText {
     PIXIE_TEXT_HELP = 2,
     PIXIE_TEXT_UNIT_SUFFIX = 3,
     PIXIE_TEXT_ARC_SPREAD = 4,  /* for an ARC field, the name of the field with the arc's width */
-    PIXIE_TEXT_REFERENCES = 5   /* for an ENTITY field, the component type a valid entity has */
+    PIXIE_TEXT_REFERENCES = 5,  /* for an ENTITY field, the component type a valid entity has */
+    PIXIE_TEXT_ASSET = 6        /* for a TEXT field naming a file, its kind as an extension ("png");
+                                 * the path is relative to the project folder */
 } PixieFieldText;
 
 typedef struct PixieValue {
@@ -209,20 +212,26 @@ PIXIE_API PixieResult pixie_view_to_world(PixieSession* session, double x, doubl
 PIXIE_API PixieResult pixie_world_to_view(PixieSession* session, double worldX, double worldY,
                                           double* x, double* y);
 
-/* Picking, in view pixels. Only entities with a Transform2D and a Shape can be picked; particles are
- * not entities. pixie_pick finds the entity whose shape covers (x, y), widened by `tolerance`
- * pixels, nearest center first, or returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities
- * whose center lies in the box with corners (x0, y0) and (x1, y1), in any order of the corners,
- * oldest first, filling and counting as pixie_entities does. */
+/* Picking, in view pixels. Only entities with a Transform2D and a Shape or a Sprite can be picked;
+ * particles are not entities. pixie_pick finds the entity under (x, y), widened by `tolerance`
+ * pixels: a shape whose radius covers it, nearest center first, else the sprite drawn on top there;
+ * or it returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities whose position lies in the
+ * box with corners (x0, y0) and (x1, y1), in any order of the corners, oldest first, filling and
+ * counting as pixie_entities does. */
 PIXIE_API PixieResult pixie_pick(PixieSession* session, double x, double y, double tolerance,
                                  uint32_t* entity);
 PIXIE_API PixieResult pixie_pick_box(PixieSession* session, double x0, double y0, double x1,
                                      double y1, uint32_t* entities, int32_t capacity,
                                      int32_t* count);
-/* Where an entity with a Transform2D and a Shape appears in the view, as of the last render: its
- * center and the radius it can be picked within, in view pixels. */
+/* Where an entity with a Transform2D and a Shape or a Sprite appears in the view, as of the last
+ * render: its center and a radius around it, in view pixels; for a shape, the radius it can be
+ * picked within; for a sprite, half its rectangle's diagonal. */
 PIXIE_API PixieResult pixie_entity_view_bounds(PixieSession* session, uint32_t entity, double* x,
                                                double* y, double* radius);
+/* The rectangle an entity's Sprite covers in the view, as of the last render: four corners (x, y)
+ * in view pixels, in `corners[0..7]`, the image's top-left, top-right, bottom-right, and
+ * bottom-left. PIXIE_ERROR_NOT_FOUND for an entity without a Transform2D and a Sprite. */
+PIXIE_API PixieResult pixie_entity_view_quad(PixieSession* session, uint32_t entity, double* corners);
 /* Removes the particle nearest (x, y) within `radius` pixels, from any particle system; returns
  * PIXIE_ERROR_NOT_FOUND when none is that close. */
 PIXIE_API PixieResult pixie_particle_remove_at(PixieSession* session, double x, double y,
@@ -292,6 +301,22 @@ PIXIE_API PixieResult pixie_field_get(PixieSession* session, uint32_t entity, in
                                       int32_t field, PixieValue* value);
 PIXIE_API PixieResult pixie_field_set(PixieSession* session, uint32_t entity, int32_t type,
                                       int32_t field, const PixieValue* value);
+/* A TEXT field, in UTF-8. pixie_field_get_text writes it into `buffer` with a NUL and sets `length`
+ * to its full length, as pixie_entities_snapshot does; pixie_field_set_text replaces it. Other
+ * kinds go through pixie_field_get and pixie_field_set, and these refuse them (and those refuse
+ * TEXT) with PIXIE_ERROR_ARGUMENT. */
+PIXIE_API PixieResult pixie_field_get_text(PixieSession* session, uint32_t entity, int32_t type,
+                                           int32_t field, char* buffer, int32_t capacity,
+                                           int32_t* length);
+PIXIE_API PixieResult pixie_field_set_text(PixieSession* session, uint32_t entity, int32_t type,
+                                           int32_t field, const char* text);
+
+/* An image of the session, as a Sprite names it (relative to the project folder): its GL texture,
+ * owned by the session (RGBA8, premultiplied alpha, first row at the top, valid until the image
+ * changes on disk or the session stops), and its size in pixels. An image that cannot be read
+ * gives PIXIE_ERROR_IO, with the reason in pixie_last_error. Needs the session's GL context. */
+PIXIE_API PixieResult pixie_image(PixieSession* session, const char* path, uint32_t* texture,
+                                  int32_t* width, int32_t* height);
 
 #ifdef __cplusplus
 }

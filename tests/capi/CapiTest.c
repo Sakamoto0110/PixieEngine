@@ -97,6 +97,10 @@ static struct {
     PixieResult (*entity_find)(PixieSession*, uint64_t, uint32_t*);
     PixieResult (*entities_snapshot)(PixieSession*, const uint32_t*, int32_t, char*, int32_t, int32_t*);
     PixieResult (*entities_restore)(PixieSession*, const char*, int32_t, uint32_t*, int32_t, int32_t*);
+    PixieResult (*entity_view_quad)(PixieSession*, uint32_t, double*);
+    PixieResult (*field_get_text)(PixieSession*, uint32_t, int32_t, int32_t, char*, int32_t, int32_t*);
+    PixieResult (*field_set_text)(PixieSession*, uint32_t, int32_t, int32_t, const char*);
+    PixieResult (*image)(PixieSession*, const char*, uint32_t*, int32_t*, int32_t*);
 } api;
 
 static int failures = 0;
@@ -176,6 +180,10 @@ static int Load(Library library) {
     LOAD(entity_find, "pixie_entity_find")
     LOAD(entities_snapshot, "pixie_entities_snapshot")
     LOAD(entities_restore, "pixie_entities_restore")
+    LOAD(entity_view_quad, "pixie_entity_view_quad")
+    LOAD(field_get_text, "pixie_field_get_text")
+    LOAD(field_set_text, "pixie_field_set_text")
+    LOAD(image, "pixie_image")
 #undef LOAD
     return !missing;
 }
@@ -262,6 +270,29 @@ static int TextureHasContent(uint32_t texture, int width, int height) {
     free(pixels);
     return differs;
 }
+
+/* The pixel at (x, y) of the texture, in view pixels from the top-left; the texture's first row is
+ * the bottom. */
+static void TexturePixel(uint32_t texture, int width, int height, int x, int y, unsigned char rgba[4]) {
+    memset(rgba, 0, 4);
+    GetTextureImage getTextureImage = (GetTextureImage)glfwGetProcAddress("glGetTextureImage");
+    const size_t size = (size_t)width * (size_t)height * 4;
+    unsigned char* pixels = (unsigned char*)malloc(size);
+    if (getTextureImage == NULL || pixels == NULL) {
+        free(pixels);
+        return;
+    }
+    getTextureImage(texture, 0, TEST_GL_RGBA, TEST_GL_UNSIGNED_BYTE, (int)size, pixels);
+    memcpy(rgba, pixels + ((size_t)(height - 1 - y) * (size_t)width + (size_t)x) * 4, 4);
+    free(pixels);
+}
+
+/* A 4 x 4 PNG, all of one opaque color: red 40, green 200, blue 120. */
+static const unsigned char kGreenPng[] = {
+    0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0x00, 0x00, 0x00, 0x0d, 0x49, 0x48, 0x44, 0x52, 0x00, 0x00, 0x00,
+    0x04, 0x00, 0x00, 0x00, 0x04, 0x08, 0x06, 0x00, 0x00, 0x00, 0xa9, 0xf1, 0x9e, 0x7e, 0x00, 0x00, 0x00, 0x12, 0x49,
+    0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0xd0, 0x38, 0x51, 0xf1, 0x1f, 0x19, 0x33, 0x90, 0x2e, 0x00, 0x00, 0x09, 0xc7,
+    0x26, 0x71, 0xde, 0x34, 0xac, 0x79, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
 
 static void Exercise(PixieSession* s) {
     char name[128];
@@ -514,7 +545,91 @@ static void Cleanup(const char* folder) {
     RemoveFolder(path);
     snprintf(path, sizeof path, "%s/%s.pixie", folder, name);
     remove(path);
+    snprintf(path, sizeof path, "%s/green.png", folder);
+    remove(path);
     RemoveFolder(folder);
+}
+
+/* A sprite in the project: its image is a text field naming a PNG in the project folder; it is
+ * drawn in the image's color, picked by its rectangle, saved, and opened again. */
+static void ExerciseSprite(const char* folder) {
+    char path[1024];
+    snprintf(path, sizeof path, "%s/green.png", folder);
+    FILE* file = fopen(path, "wb");
+    CHECK(file != NULL);
+    if (file == NULL) {
+        return;
+    }
+    fwrite(kGreenPng, 1, sizeof kGreenPng, file);
+    fclose(file);
+
+    PixieSession* s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s == NULL) {
+        return;
+    }
+    int32_t transform = -1, spriteType = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK && api.type_find(s, "Sprite", &spriteType) == PIXIE_OK);
+    const int32_t image = FindField(s, spriteType, "image");
+    int32_t kind = -1;
+    CHECK(api.field_kind(s, spriteType, image, &kind) == PIXIE_OK && kind == PIXIE_FIELD_TEXT);
+    char text[256];
+    CHECK(api.field_text(s, spriteType, image, PIXIE_TEXT_ASSET, text, (int32_t)sizeof text) == PIXIE_OK &&
+          strcmp(text, "png") == 0);
+
+    uint32_t sprite = 0;
+    CHECK(api.entity_create(s, "sprite", &sprite) == PIXIE_OK);
+    CHECK(api.component_add(s, sprite, transform) == PIXIE_OK && api.component_add(s, sprite, spriteType) == PIXIE_OK);
+    /* Text goes only through the text functions, and the others refuse it. */
+    PixieValue value;
+    CHECK(api.field_get(s, sprite, spriteType, image, &value) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_set_text(s, sprite, transform, FindField(s, transform, "position"), "x") == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_set_text(s, sprite, spriteType, image, "green.png") == PIXIE_OK && api.project_unsaved(s) == 1);
+    int32_t length = 0;
+    CHECK(api.field_get_text(s, sprite, spriteType, image, NULL, 0, &length) == PIXIE_OK && length == 9);
+    CHECK(api.field_get_text(s, sprite, spriteType, image, text, 4, &length) == PIXIE_ERROR_BUFFER);
+    CHECK(api.field_get_text(s, sprite, spriteType, image, text, (int32_t)sizeof text, &length) == PIXIE_OK &&
+          strcmp(text, "green.png") == 0);
+
+    /* 4 x 4 pixels scaled 25: 100 world units wide, centered at (200, 0), which the view shows at
+     * (520, 180). */
+    const PixieValue at = {200.0, 0.0, 0.0, 0.0};
+    const PixieValue scale = {25.0, 25.0, 0.0, 0.0};
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "position"), &at) == PIXIE_OK);
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "scale"), &scale) == PIXIE_OK);
+    uint32_t texture = 0;
+    unsigned char rgba[4];
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, 520, 180, rgba);
+    CHECK(rgba[0] == 40 && rgba[1] == 200 && rgba[2] == 120);
+    printf("sprite pixel: %d %d %d %d\n", rgba[0], rgba[1], rgba[2], rgba[3]);
+
+    uint32_t picked = 0;
+    CHECK(api.pick(s, 560.0, 220.0, 0.0, &picked) == PIXIE_OK && picked == sprite);
+    CHECK(api.pick(s, 580.0, 180.0, 0.0, &picked) == PIXIE_ERROR_NOT_FOUND);
+    double corners[8];
+    CHECK(api.entity_view_quad(s, sprite, corners) == PIXIE_OK);
+    CHECK(fabs(corners[0] - 470.0) < 1e-6 && fabs(corners[1] - 130.0) < 1e-6);
+    CHECK(fabs(corners[4] - 570.0) < 1e-6 && fabs(corners[5] - 230.0) < 1e-6);
+    double x = 0.0, y = 0.0, radius = 0.0;
+    CHECK(api.entity_view_bounds(s, sprite, &x, &y, &radius) == PIXIE_OK && fabs(x - 520.0) < 1e-6 &&
+          fabs(radius - 50.0 * sqrt(2.0)) < 1e-6);
+
+    /* The session's image, for a preview, and one that cannot be read. */
+    int32_t width = 0, height = 0;
+    CHECK(api.image(s, "green.png", &texture, &width, &height) == PIXIE_OK && texture != 0 && width == 4 && height == 4);
+    CHECK(api.image(s, "missing.png", &texture, &width, &height) == PIXIE_ERROR_IO);
+    CHECK(api.project_save(s) == PIXIE_OK);
+    api.session_destroy(s);
+
+    s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s != NULL) {
+        sprite = FindEntity(s, "sprite");
+        CHECK(api.field_get_text(s, sprite, spriteType, image, text, (int32_t)sizeof text, &length) == PIXIE_OK &&
+              strcmp(text, "green.png") == 0);
+        api.session_destroy(s);
+    }
 }
 
 /* A whole project through the generic library: created, opened in edit mode, authored, saved,
@@ -622,6 +737,8 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
         CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
         api.session_destroy(s);
     }
+
+    ExerciseSprite(folder);
 
     /* The project file names its scene relative to the folder, and holds no absolute path. */
     char path[1024];
