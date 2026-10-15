@@ -5,6 +5,7 @@
 /.vs/
 /.vscode/
 /build/
+/build-ci/
 /bin/
 # Generated on configure by cmake/PixieRootSolution.cmake.
 /PixieEngine.slnx

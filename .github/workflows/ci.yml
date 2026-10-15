@@ -1,0 +1,87 @@
+# PixieEngine's continuous integration: the documentation verifier, the engine built and tested in
+# Debug and Release, and the editor built. A red main comes before anything else
+# (docs/governance/documentation-policy.md#commits).
+
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  docs:
+    name: Documentation
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Verify the documentation
+        run: python scripts/check_docs.py
+
+  engine:
+    name: Engine (Debug and Release)
+    runs-on: windows-2025
+    env:
+      # Mesa's software renderer gives the tests that open a window an OpenGL 4.5 core context,
+      # since the runners have no GPU. A fixed release, checked against the hash GitHub publishes.
+      MESA_VERSION: "26.2.4"
+      MESA_SHA256: "351fc8c8b695878ffb3eaa044b3ead08672a48b1a045e3c3e3975811df0f6695"
+      GALLIUM_DRIVER: llvmpipe
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Download Mesa (llvmpipe)
+        shell: pwsh
+        run: |
+          $archive = Join-Path $env:RUNNER_TEMP "mesa.7z"
+          $url = "https://github.com/pal1000/mesa-dist-win/releases/download/$env:MESA_VERSION/mesa3d-$env:MESA_VERSION-release-msvc.7z"
+          Invoke-WebRequest -Uri $url -OutFile $archive
+          $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
+          if ($hash -ne $env:MESA_SHA256) { throw "Mesa's archive has hash $hash, not $env:MESA_SHA256" }
+          7z x $archive "-o$env:RUNNER_TEMP\mesa" -y | Out-Null
+          Get-ChildItem "$env:RUNNER_TEMP\mesa\x64" -Filter *.dll | Select-Object Name, Length
+
+      - name: Configure
+        run: cmake --preset ci
+
+      - name: Build Debug
+        run: cmake --build --preset ci-debug --parallel
+
+      - name: Build Release
+        run: cmake --build --preset ci-release --parallel
+
+      # Placed next to the test executables, Mesa's opengl32.dll is loaded instead of Windows' own.
+      - name: Put Mesa next to the tests
+        shell: pwsh
+        run: |
+          foreach ($config in "Debug", "Release") {
+            Copy-Item "$env:RUNNER_TEMP\mesa\x64\*.dll" "bin\$config\" -Force
+          }
+
+      - name: Test Debug
+        run: ctest --preset ci-debug
+
+      - name: Test Release
+        run: ctest --preset ci-release
+
+  editor:
+    name: Editor
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "10.0.x"
+      - name: Build the editor
+        run: dotnet build editor/PixieEditor.slnx -c Release
