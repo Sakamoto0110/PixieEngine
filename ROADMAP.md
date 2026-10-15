@@ -127,7 +127,11 @@ Next, the owner proposed a first game on the engine, a sandbox of logic circuits
 unpromoted proposals: what the engine needs for it
 ([PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md)), the game itself
 ([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)), and one shared engine library with
-exporting a game ([PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md)).
+exporting a game ([PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md)). The owner
+promoted the engine's part first:
+
+26. Paths, list fields, and points of a sprite (PIXIE-TODO-029).
+27. A screen layer, text, player saves, and fragment metadata (PIXIE-TODO-030).
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

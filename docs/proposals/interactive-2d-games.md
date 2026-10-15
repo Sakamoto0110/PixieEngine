@@ -22,7 +22,7 @@
 
 ## PIXIE-PROPOSAL-008
 
-**State:** idea
+**State:** promoted
 
 **Idea:** The first game the owner wants to build on the engine, a sandbox of logic circuits
 ([PIXIE-PROPOSAL-009](logic-sandbox.md)), needs things the engine does not have. Each is general,
@@ -86,4 +86,5 @@ order.
 **Source:** the owner's proposal of a logic sandbox, and the discussion recorded in the
 [decision record](../archive/logic-sandbox-decisions-2026-10-15.md).
 
-**Outcome:** none yet.
+**Outcome:** promoted on 2026-10-15 as PIXIE-TODO-029 and PIXIE-TODO-030, as recorded in the
+[promotion record](../archive/interactive-games-promotion-2026-10-15.md).

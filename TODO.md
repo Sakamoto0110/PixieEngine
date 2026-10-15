@@ -39,7 +39,38 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. PIXIE-TODO-028 and everything before it are completed; see below.
+Promoted on 2026-10-15 from [PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md) (engine
+features for interactive 2D games), in this order
+([decision record](docs/archive/logic-sandbox-decisions-2026-10-15.md)). PIXIE-TODO-028 and
+everything before it are completed; see below.
+
+### `PIXIE-TODO-029` — Paths, list fields, and points of a sprite
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md), items 1, 2, and 5
+
+**Accepted scope:** in the `engine`, a `PathRenderer`: polylines drawn as antialiased segments with round joins and caps from instanced quads, with two colors split at a length along the path. In the `runtime`, a `Path` component (points in the entity's space, width, corner radius, color, fill color, fill fraction) drawn by the session at its transform, after sprites of negative layers and before the other sprites, its corners rounded to the radius; picking within half its width (shapes, then sprites of non-negative layers, then paths, then the other sprites); `FieldKind::PointList` for `std::vector<pxPoint>` members, saved as `[[x, y], ...]`; `SpritePoint` and `SpriteLocal`. In the C API, version 8: point lists read and written, and a path's outline in the view. In the editor: point lists in the inspector (rows of X and Y, add and remove, one step per change) and paths outlined when selected. Out: routing wires, the screen layer, text (PIXIE-TODO-030).
+
+**Dependencies and gates:** none
+
+**Completion criteria:** (1) runtime tests: rounded corners and lengths; a point list through a scene and a snapshot; picking a path and the picking order; `SpritePoint` and `SpriteLocal` turned and mirrored, each the other's inverse; (2) the C API test writes a path's points, renders it, finds both colors on either side of the fill, picks it, and reads its outline; (3) in the editor, a path is added, its points edited, added, and removed, each undone and redone, verified by scripted options, without computer use; (4) the `runtime`, `capi`, and editor documents describe them; (5) zero warnings, and `ctest` passes locally and in the CI.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-029--paths-list-fields-and-points-of-a-sprite)
+
+### `PIXIE-TODO-030` — A screen layer, text, player saves, and fragment metadata
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md), items 3, 4, 6, and 7
+
+**Accepted scope:** `Project::DrawScreen(ScreenCanvas&)`, drawn after the World in view pixels with sprites, shapes, paths, and text, in the player and the editor's viewport; `stb_truetype` from the pinned `nothings/stb` commit and a `TextRenderer` (atlas per font and pixel size, UTF-8, measuring and drawing lines) in the world and on the screen; `UserDataFolder(projectName)`; an optional `meta` object in entity fragments, written by `WriteEntities`, returned by `ReadEntities`, and read alone by `ReadFragmentMeta`. Out: the logic sandbox (PIXIE-PROPOSAL-009).
+
+**Dependencies and gates:** 1. PIXIE-TODO-029; 2. a font with an open license registered in the shared resources (`vdr`)
+
+**Completion criteria:** (1) tests: text measured and drawn into a render with content where it should be; a fragment's metadata written, read back, and read alone; the user data folder made; (2) a project with code draws a screen layer with text in the player and in the editor's viewport; (3) the documents describe them, and `DEPENDENCIES.md` records `stb_truetype` and the font; (4) zero warnings, and `ctest` passes locally and in the CI.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-030--a-screen-layer-text-player-saves-and-fragment-metadata)
 
 ## Completed
 
