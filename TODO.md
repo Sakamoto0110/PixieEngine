@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-14
+**Last promotion decision:** 2026-10-15
 
 ## Purpose and admission rule
 
@@ -39,7 +39,37 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. PIXIE-TODO-026 and everything before it are completed; see below.
+Promoted on 2026-10-15 from [PIXIE-PROPOSAL-007](docs/proposals/sprites.md) (sprites), in this
+order ([decision record](docs/archive/sprites-decisions-2026-10-15.md)). PIXIE-TODO-026 and
+everything before it are completed; see below.
+
+### `PIXIE-TODO-027` — Images, sprites, and text fields in the engine
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-007](docs/proposals/sprites.md), part 1
+
+**Accepted scope:** `stb_image` vendored at the pinned `nothings/stb` commit, PNG only; in the `engine`, images decoded to premultiplied RGBA8, textures with mipmaps, and a `SpriteRenderer` (instanced quads sorted by layer, batched by texture, a sampler per filter). In the `runtime`, the `Sprite` component (`image`, `region`, `pivot`, `color`, `layer`, `filter`), drawn at one world unit per image pixel times the transform's scale, before particles, shapes, and the overlay; the session's image cache (paths against the project folder or the working directory, sizes, reloading on a changed modification time at most twice a second, a magenta checkerboard and one logged reason for a missing or broken file); picking and view bounds by the sprite's rotated rectangle; `FieldKind::Text` with `Asset` metadata, saved as a JSON string. In the C API, version 7: text fields read and written, a field's asset kind, and an image's texture and size. Out: the editor's use of them (PIXIE-TODO-028), animation, atlases, other formats.
+
+**Dependencies and gates:** none
+
+**Completion criteria:** (1) runtime tests: a PNG decodes with premultiplied alpha, a missing file gives its reason; a text field goes through a scene and a snapshot unchanged; a sprite's region, pivot, and rotated rectangle are picked as described; the cache reloads a file whose modification time changed; (2) the C API test reads and writes a text field and renders a project with a sprite, finding the image's color in the texture; (3) the `engine`, `runtime`, and `capi` documents and `DEPENDENCIES.md` describe them; (4) zero warnings, and `ctest` passes locally and in the CI.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-027--images-sprites-and-text-fields-in-the-engine)
+
+### `PIXIE-TODO-028` — Sprites in the editor, and a sprites sample
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-007](docs/proposals/sprites.md), part 2
+
+**Accepted scope:** dropping PNG files onto the viewport makes one sprite per file where they fall, named after the file, selected, as one step; a file outside the project is copied into the project's `images/` first, said in the status line. "New sprite..." in the viewport's menu picks a PNG and places it at the click. An asset field in the inspector shows its path, a `...` button picking a file of its kind from the project folder, and a preview of the image; editing it is a step. `samples/sprites`, a project with only a scene, shows the neko mark from the shared resources tinted, layered, rotated, with both filters, and with a region. Out: rotating and scaling by hand, animation.
+
+**Dependencies and gates:** 1. PIXIE-TODO-027
+
+**Completion criteria:** (1) in the editor, dropping, the menu, the asset field, and its undo work, verified through options for scripted runs, since the owner asked that computer use not be used, with what could not be run stated; (2) the sample opens in the editor and runs in the player; (3) the editor's README and the samples' documents describe them; (4) zero warnings.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-028--sprites-in-the-editor-and-a-sprites-sample)
 
 ## Completed
 

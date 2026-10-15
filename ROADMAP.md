@@ -112,7 +112,15 @@ Next, the owner chose authoring in the viewport, before sprites and exporting a 
 23. Moving, undo and redo, duplicating, deleting, and renaming in the editor (PIXIE-TODO-025).
 
 Blocks 22 and 23 were completed on 2026-10-15: a scene is built in the editor with the mouse, and
-every change to it can be undone. Recorded as next, unpromoted: sprites, then exporting a game.
+every change to it can be undone. The continuous integration followed (PIXIE-TODO-026).
+
+Next, the owner chose sprites ([PIXIE-PROPOSAL-007](docs/proposals/sprites.md),
+[decision record](docs/archive/sprites-decisions-2026-10-15.md)):
+
+24. Images, sprites, and text fields in the engine (PIXIE-TODO-027).
+25. Sprites in the editor, and a sprites sample (PIXIE-TODO-028).
+
+Recorded as next, unpromoted: exporting a game.
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
