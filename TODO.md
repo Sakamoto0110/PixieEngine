@@ -39,9 +39,19 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. PIXIE-TODO-024 and PIXIE-TODO-025, promoted on 2026-10-14 from
-[PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md), are
-completed, as is everything before them; see below.
+### `PIXIE-TODO-026` — Continuous integration
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15 ("pode fazer", to Claude's design); earlier work is completed, see below
+
+**Accepted scope:** a GitHub Actions workflow (`.github/workflows/ci.yml`) on every push to `main`, every pull request, and by hand: the documentation verifier on Linux; the engine configured with a `ci` preset (Visual Studio 2022, which the runners have), built in Debug and Release, and tested with `ctest` in both, with Mesa's llvmpipe (a pinned release of mesa-dist-win, checked by SHA-256) placed next to the tests for the OpenGL 4.5 context they open; and the editor built in Release. Warnings stay errors: what a different compiler reports is fixed in the code. If llvmpipe cannot serve the tests that open a window, those tests get a label and the CI skips them, saying so. A status badge in `README.md`. Out: a Linux build of the engine, artifacts, and releases.
+
+**Dependencies and gates:** 1. pushing the workflow to `main`, which the owner's decision covers, since a workflow runs only there
+
+**Completion criteria:** (1) the workflow's run on `main` is green, with every test run or, for those skipped, the reason stated in the log; (2) `docs/development.md` describes the CI, the `ci` preset, and the rule that a red `main` comes first; (3) the documentation policy no longer says no CI exists.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-026--continuous-integration)
 
 ## Completed
 

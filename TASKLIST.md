@@ -39,6 +39,14 @@ and the section shape is in the
 
 ## Open breakdowns
 
-None. The breakdowns of PIXIE-TODO-024 and PIXIE-TODO-025, and earlier ones,
-are in their archive records, routed from the
-[archive router](docs/archive/README.md).
+Opened on 2026-10-15 with PIXIE-TODO-026. Earlier breakdowns are in their
+archive records, routed from the [archive router](docs/archive/README.md).
+
+## `PIXIE-TODO-026` — Continuous integration
+
+**Parent:** PIXIE-TODO-026
+
+- `PIXIE-TASK-116` — **Status:** open — The `ci` presets (Visual Studio 2022) and the workflow: documentation, engine (Debug and Release, built and tested), and editor.
+- `PIXIE-TASK-117` — **Status:** open — Mesa's llvmpipe for the tests that open an OpenGL 4.5 window, pinned and checked; or, if it cannot serve them, a label that skips them in the CI with the reason in the log.
+- `PIXIE-TASK-118` — **Status:** open — Whatever the runners' compiler or environment reports, fixed in the code, until the run is green.
+- `PIXIE-TASK-119` — **Status:** open — The badge, `docs/development.md`, and the documentation policy's note on CI.
