@@ -49,7 +49,20 @@ as it is. The editor creates no version-control files.
 - **Authoring.** Create entity, in the Entities panel, adds an entity named `entity <n>` to the
   scene, with a transform and a 24-unit circle, and selects it. In the inspector, Add component
   lists the types the selected entities do not all have, and a component's header has a close
-  button that removes it from all of them.
+  button that removes it from all of them. The inspector's first line is the selected entity's
+  name, which can be typed over; Enter, or leaving the field, renames it. **Duplicate** (Ctrl + D,
+  the Edit menu, or the viewport's menu) copies the selected scene entities 16 units to the side
+  and selects the copies; references between the copies follow them, and the rest keep their
+  targets. **Delete** (the key, or the menus) deletes the selection. The keys act unless a text
+  field has the keyboard.
+- **Undo and redo.** Ctrl + Z undoes, Ctrl + Y or Ctrl + Shift + Z redo, and the Edit menu names
+  what they would undo or redo. Every change to the scene in edit mode is one step: an inspector
+  edit (a scrub, a drag on a slider, or a typed value, from press to release, over every selected
+  entity), a move, creating, deleting, duplicating, adding or removing a component, and renaming.
+  Steps name entities by scene ID, so they hold after the World is built again. The history lasts
+  the editor session, through Play, Stop, and Save; changes made while playing are not steps, since
+  Stop discards them, and undo and redo wait for Stop. Entities the game's code generates are not
+  in the scene, and not in the history. Each step is logged.
 
 - **Viewport.** The engine draws the World into a texture of the editor's own OpenGL 4.5 core
   context (`pixie_session_render`); the window shows it with `ImGui.Image`, flipped, since GL's
@@ -58,10 +71,14 @@ as it is. The editor creates no version-control files.
   the mouse does:
   - **Game**: the mouse over the image goes to the game, in the image's pixels, as in its player.
   - **Select**: a click on a boid, an attractor, or a spawner selects it; Shift + click adds it to
-    the selection or takes it out; a drag selects every entity whose center is in the box (Shift
-    keeps the rest); a click on empty space clears the selection. A right click opens a menu of
-    what can be done at that point. On an entity, it joins the selection if it was not in it, and
-    the menu deletes the selection. On empty space, the menu offers Create entity here (a scene
+    the selection or takes it out; a click on empty space clears the selection. A drag that starts
+    on an entity moves it, and the whole selection with it when it was selected (otherwise it is
+    selected first); Shift held during the drag keeps it to the axis it moved most along; with
+    **Snap** on the toolbar, the dragged entity lands on a grid of 8, 16, 32, or 64 world units and
+    the others keep their places around it. Each drag is one step of the history. A drag that
+    starts on empty space selects every entity whose center is in the box (Shift keeps the rest).
+    A right click opens a menu of what can be done at that point. On an entity, it joins the
+    selection if it was not in it, and the menu duplicates or deletes the selection. On empty space, the menu offers Create entity here (a scene
     entity with a circle, at that point in world units); for a game, Ask the game to create one
     here (a boid heading somewhere at random in boids and flocks, a particle at rest in particles);
     and, where a particle system exists, Delete the particle here (the nearest within 6 pixels).
@@ -135,6 +152,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
 | `--after <process id>` | none | Waits, up to 15 seconds, for that editor to exit before opening; the editor passes it when it restarts itself |
 | `--save-after <seconds>` | none | Saves the project after this long, after the `--set` edits |
+| `--do <command>` | none | After the `--set` edits, one per frame, as the editor's gestures would: `create`, `duplicate`, `delete`, `undo`, `redo`, `select=<name>`, `select+=<name>` (adds to the selection), `rename=<name>`, `move=<dx>,<dy>` (world units), `add=<Type>`, `remove=<Type>`, `save`, `play`, `stop`; the entities, the selection, the history, and whether the scene is saved are logged after each; repeatable |
 | `--recent <on\|off>` | `on` | Whether the project joins the recent projects; `off` for scripted runs, so they leave the user's list alone |
 
 The times of `--edit-after`, `--save-after`, and `--quit-after` count from when the game or the

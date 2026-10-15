@@ -35,4 +35,4 @@ update its state, and link the outcome.
 | [`vertical-slice.md`](vertical-slice.md) | PIXIE-PROPOSAL-003 | superseded | Superseded by PIXIE-PROPOSAL-004 (2026-10-13) |
 | [`scene-model-and-anchors.md`](scene-model-and-anchors.md) | PIXIE-PROPOSAL-004 | promoted | Object model and anchors in `ROADMAP.md` and PIXIE-TODO-005 to PIXIE-TODO-011 (2026-10-13); serialization carried by PIXIE-PROPOSAL-005 (2026-10-14) |
 | [`projects-and-scenes.md`](projects-and-scenes.md) | PIXIE-PROPOSAL-005 | promoted | Guardrails in `ROADMAP.md` and PIXIE-TODO-018 to PIXIE-TODO-022 (2026-10-14), all completed the same day |
-| [`authoring-in-the-viewport.md`](authoring-in-the-viewport.md) | PIXIE-PROPOSAL-006 | promoted | PIXIE-TODO-024 and PIXIE-TODO-025 (2026-10-14) |
+| [`authoring-in-the-viewport.md`](authoring-in-the-viewport.md) | PIXIE-PROPOSAL-006 | promoted | PIXIE-TODO-024 and PIXIE-TODO-025 (2026-10-14), completed by 2026-10-15 |

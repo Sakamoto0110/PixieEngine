@@ -80,4 +80,5 @@ portable: no gesture or shortcut assumes Windows.
 **Source:** [decision record](../archive/authoring-decisions-2026-10-14.md)
 
 **Outcome:** promoted on 2026-10-14, as recorded in the
-[promotion record](../archive/authoring-promotion-2026-10-14.md).
+[promotion record](../archive/authoring-promotion-2026-10-14.md), and carried out by 2026-10-15:
+PIXIE-TODO-024 and PIXIE-TODO-025 are completed (PIXIE-ARCHIVE-043 and 044).

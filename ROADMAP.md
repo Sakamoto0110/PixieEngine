@@ -111,6 +111,9 @@ Next, the owner chose authoring in the viewport, before sprites and exporting a 
 22. Entity snapshots, scene-ID lookup, and names in the engine (PIXIE-TODO-024).
 23. Moving, undo and redo, duplicating, deleting, and renaming in the editor (PIXIE-TODO-025).
 
+Blocks 22 and 23 were completed on 2026-10-15: a scene is built in the editor with the mouse, and
+every change to it can be undone. Recorded as next, unpromoted: sprites, then exporting a game.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their

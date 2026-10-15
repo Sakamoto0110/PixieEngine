@@ -39,24 +39,9 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-Promoted on 2026-10-14 from
-[PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md) (authoring in the viewport), in
-this order ([decision record](docs/archive/authoring-decisions-2026-10-14.md)).
-PIXIE-TODO-024 is completed, as are PIXIE-TODO-018 to PIXIE-TODO-023 before them; see below.
-
-### `PIXIE-TODO-025` — Moving, undo and redo, duplicating, deleting, and renaming in the editor
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md), part 2
-
-**Accepted scope:** in Select mode, dragging an entity moves it, and the selection with it when it was selected; Shift holds the drag to its main axis; a Snap toggle with a grid of 8, 16, 32, or 64 world units rounds positions while dragging; a click without movement still only selects. Undo (Ctrl + Z) and redo (Ctrl + Y, Ctrl + Shift + Z), with an Edit menu naming the step, over every change to the scene in edit mode: inspector edits (one step per press-to-release), moves, creating, deleting, duplicating, adding and removing components, and renaming; steps refer to entities by scene ID; the history lasts the session, through Play, Stop, and Save; nothing is recorded while playing, and undo and redo wait for Stop. Duplicate (Ctrl + D, and in the viewport's menu) copies the selection a little to the side and selects the copies; Delete deletes the selection unless a text field has the keyboard. The inspector renames the selected entity. Out: rotating and scaling by hand, history on disk, copying between projects.
-
-**Dependencies and gates:** 1. PIXIE-TODO-024
-
-**Completion criteria:** (1) in the editor, each gesture works, and each change it makes is undone and redone, also after Play and Stop and after Save; (2) the editor's README describes the gestures, the shortcuts, and the history; (3) zero warnings. The verification runs with real input where the owner allows computer use, and otherwise through options the editor gains for scripted runs, with what could not be run stated.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-025--moving-undo-and-redo-duplicating-deleting-and-renaming-in-the-editor)
+None. PIXIE-TODO-024 and PIXIE-TODO-025, promoted on 2026-10-14 from
+[PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md), are
+completed, as is everything before them; see below.
 
 ## Completed
 
@@ -157,3 +142,8 @@ breakdown, and verification are preserved in the
 `PIXIE-TODO-024` (entity snapshots, scene-ID lookup, and names in the engine)
 completed on 2026-10-14. Its entry, breakdown, and verification are preserved
 in the [archive record](docs/archive/todo-024-snapshots-2026-10-14.md).
+
+`PIXIE-TODO-025` (moving, undo and redo, duplicating, deleting, and renaming in
+the editor) completed on 2026-10-15. Its entry, breakdown, and verification
+are preserved in the
+[archive record](docs/archive/todo-025-authoring-2026-10-15.md).
