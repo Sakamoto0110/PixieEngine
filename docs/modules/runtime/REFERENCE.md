@@ -50,7 +50,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
-| `Scene.hpp` | `SceneId`, `AddToScene`, `SceneEntityWith`, and reading and writing scene files |
+| `Scene.hpp` | `SceneId`, `AddToScene`, `SceneEntityWith`, reading and writing scene files, and entity snapshots (`WriteEntities`, `ReadEntities`) |
 | `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
 | `ProjectFile.hpp` | Project folders: `ProjectFile`, `OpenProjectFolder`, `CreateProjectFolder`, `WriteProjectFile` |
@@ -318,6 +318,24 @@ nothing. Then, per value:
 Particle pools' contents, affectors, systems, and anything else without a descriptor are not
 saved; project code builds them.
 
+### Entity snapshots
+
+`WriteEntities(world, types, entities)` writes some scene entities apart from their scene, for a
+tool that brings them back or copies them: a document of the scene's form, with format
+`pixie-entities` (`kEntitiesFormat`), the scene's version, and only the list of entities, in the
+order given, each written as a scene writes it. An `Entity` field holds its target's scene ID,
+whether the target is in the set or not. An entity that is gone or has no `SceneId` is left out,
+with a warning.
+
+`ReadEntities(world, types, text, ids)` adds such a set to a World and returns an `EntitiesReport`:
+a `SceneReport` with the entities added, in the document's order. `SceneIds::Keep` gives them the
+IDs written, none of which may be in the World (bringing back entities that were destroyed);
+`SceneIds::New` gives them new IDs (a copy), and then an `Entity` field that named an entity of the
+set names its copy, while one that named another entity keeps naming it, if it is in the World.
+The checks and the kept unknown data are a scene's: a set that cannot be read, or, with `Keep`, one
+with an ID already in the World, adds nothing. The World's seed is not part of a set and is left
+alone. Not during a step.
+
 ## Projects and sessions
 
 A `Project` is a game as the engine sees it: `Name`, `Background` (the clear color), `Describe`
@@ -478,7 +496,10 @@ built-in component, a Behaviour, and an entity reference that writes back the sa
 Behaviour that runs; generated entities left out; the values as written; unknown components,
 fields, and keys written back unchanged; files that cannot be read adding nothing; wrong values
 warned about and left at their defaults; a reference outside the scene saved as none; and saving
-and loading a file), and project folders (a new project named after its folder, with its one
+and loading a file), entity snapshots (destroyed entities brought back with their IDs and values,
+copies with new IDs whose references follow the copies inside the set and keep their targets
+outside it, a copied Behaviour that runs, IDs already in the World refused, entities outside the
+scene left out, and unknown data carried along), and project folders (a new project named after its folder, with its one
 shape and no path outside it; a folder that is not empty refused; only a folder with one valid
 project file opening; unknown keys written back; and which paths count as inside the folder).
 Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,

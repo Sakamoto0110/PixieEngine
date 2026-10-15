@@ -50,10 +50,10 @@ folder that has no code.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (5), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (6), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
-  conversion between view pixels and world units; a host checks the version and does not load a
+  conversion between view pixels and world units, version 6 scene IDs, snapshots, and names; a host checks the version and does not load a
   library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
@@ -129,7 +129,21 @@ Events are kept until the next step reads them.
   with a newer entity in the same slot.
 - `pixie_entity_name` gives the entity's `Name`, or an empty string.
 - `pixie_entity_create(name, &entity)` creates an entity that belongs to the scene (it gets a
-  `SceneId`), named `name`, or unnamed for null or an empty string.
+  `SceneId`), named `name`, or unnamed for null or an empty string. `pixie_entity_set_name` writes
+  an entity's `Name`; null or an empty string removes it.
+- An entity of the scene keeps its scene ID through play, stop, reset, and restoring; its handle
+  does not. `pixie_entity_scene_id` gives the ID, or `PIXIE_ERROR_NOT_FOUND` for an entity that is
+  gone or has none; `pixie_entity_find` gives the live entity with an ID, or `PIXIE_ERROR_NOT_FOUND`.
+  A host that remembers entities across those changes, such as an editor's undo, remembers IDs.
+- `pixie_entities_snapshot(entities, count, buffer, capacity, &length)` writes scene entities as
+  text (the runtime's `WriteEntities`): `length` is the full length, a null buffer with capacity 0
+  asks for it, and a buffer too small returns `PIXIE_ERROR_BUFFER`. Entities that are gone or not in
+  the scene are left out. `pixie_entities_restore(snapshot, ids, entities, capacity, &count)` adds a
+  snapshot's entities (`ReadEntities`): `PIXIE_RESTORE_SAME_IDS` with their IDs, which must not be
+  in the World, or `PIXIE_RESTORE_NEW_IDS` with new ones, references following copies inside the
+  snapshot. It fills and counts the entities added, as `pixie_entities` does; a snapshot it cannot
+  restore returns `PIXIE_ERROR_ARGUMENT` and adds nothing. In edit mode, restoring and renaming a
+  scene entity mark the scene unsaved.
 - Component types are indexed from 0 to `pixie_type_count` - 1: the runtime's own
   (`DescribeRuntimeComponents`), then the game's (`Project::Describe`). `pixie_type_name`,
   `pixie_field_count`, `pixie_field_name`, `pixie_field_kind`, `pixie_field_enum_count`, and
@@ -193,7 +207,9 @@ metadata of a field shown in degrees, and a tooltip on every field; the entity
 list and the oldest entity's name; writing a field and reading it back; time, the 0.25 s clamp,
 pause, and single steps; a key press; rendering into a texture at a new size, with content; errors
 for a bad type and a short buffer; finding a type by name; the view point of an entity turned
-into its transform's position and back; that a session without a project
+into its transform's position and back; an entity's scene ID found again, a rename, and a snapshot
+that brings the entity back under the same ID after it is destroyed (and is refused while it
+exists); that a session without a project
 plays and refuses play, stop, and save; creating an entity, adding and removing a component, and
 destroying it; and reset. CTest runs it once per game library.
 
@@ -205,6 +221,10 @@ opens the project again and finds the saved velocity, checks that the project fi
 relatively and holds no absolute path, and fails to open a folder that is not a project. CTest runs
 it as the test `pixie-scene-capi`, in a folder of the build tree that it removes before and after.
 `--expect-type <name>` adds a check that the library describes that type.
+
+In the `--project` run it also copies a spawner together with the system it feeds, and finds the
+copied spawner feeding the copied system, then copies the spawner alone and finds the copy feeding
+the original system.
 
 With `--open <folder>`, on a game's library, it opens that existing project and changes nothing in
 it: edit mode, a `scenario` entity and one scenario type, then play for 12 steps with something

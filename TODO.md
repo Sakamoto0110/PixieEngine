@@ -42,21 +42,7 @@ entry may keep an explicit gate after promotion.
 Promoted on 2026-10-14 from
 [PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md) (authoring in the viewport), in
 this order ([decision record](docs/archive/authoring-decisions-2026-10-14.md)).
-PIXIE-TODO-018 to PIXIE-TODO-023, before them, are completed; see below.
-
-### `PIXIE-TODO-024` — Entity snapshots, scene-ID lookup, and names in the engine
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md), part 1
-
-**Accepted scope:** in the `runtime`, `WriteEntities` writes a set of scene entities as a scene fragment, in the scene format, and `ReadEntities` reads one into a World, with the same scene IDs or with new ones; read with new IDs, `Entity` fields that pointed inside the set point to the new copies and the others keep their targets; unknown components and fields travel with the fragment. In the C API, version 6: an entity's scene ID, the live entity with a scene ID, a snapshot of a set of entities as text, restoring a snapshot (same or new IDs, returning the entities made), and writing an entity's `Name`. Out: the editor's use of them (PIXIE-TODO-025).
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) runtime tests: a fragment read back with the same IDs gives the same components and values; read with new IDs, internal references follow the copies and external ones stay; unknown data survives; entities without a scene ID are refused or left out, as the reference states; (2) the C API test snapshots an entity, destroys it, restores it with its ID, and finds it by that ID; duplicates a pair whose one references the other; and renames an entity; (3) the `runtime` and `capi` references describe them; (4) zero warnings, and `ctest` passes.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-024--entity-snapshots-scene-id-lookup-and-names-in-the-engine)
+PIXIE-TODO-024 is completed, as are PIXIE-TODO-018 to PIXIE-TODO-023 before them; see below.
 
 ### `PIXIE-TODO-025` — Moving, undo and redo, duplicating, deleting, and renaming in the editor
 
@@ -167,3 +153,7 @@ breakdown, and verification are preserved in the
 `PIXIE-TODO-022` (samples as projects) completed on 2026-10-14. Its entry,
 breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-022-samples-projects-2026-10-14.md).
+
+`PIXIE-TODO-024` (entity snapshots, scene-ID lookup, and names in the engine)
+completed on 2026-10-14. Its entry, breakdown, and verification are preserved
+in the [archive record](docs/archive/todo-024-snapshots-2026-10-14.md).

@@ -39,17 +39,8 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-14 with PIXIE-TODO-024 and PIXIE-TODO-025. Earlier breakdowns are in their
-archive records, routed from the [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-024` — Entity snapshots, scene-ID lookup, and names in the engine
-
-**Parent:** PIXIE-TODO-024
-
-- `PIXIE-TASK-107` — **Status:** open — `WriteEntities` and `ReadEntities` in the `runtime`: a fragment in the scene format, read with the same or new scene IDs, internal `Entity` references following new copies, unknown data kept.
-- `PIXIE-TASK-108` — **Status:** open — Runtime tests for snapshots: same IDs, new IDs with internal and external references, unknown data, entities without a scene ID.
-- `PIXIE-TASK-109` — **Status:** open — The C API, version 6: an entity's scene ID, the entity with a scene ID, snapshot, restore, and writing a name; the C API test covers them.
-- `PIXIE-TASK-110` — **Status:** open — The `runtime` and `capi` references.
+Opened on 2026-10-14 with PIXIE-TODO-024 and PIXIE-TODO-025; the breakdown of PIXIE-TODO-024 and
+earlier ones are in their archive records, routed from the [archive router](docs/archive/README.md).
 
 ## `PIXIE-TODO-025` — Moving, undo and redo, duplicating, deleting, and renaming in the editor
 
