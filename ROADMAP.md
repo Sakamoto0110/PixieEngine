@@ -122,7 +122,12 @@ Next, the owner chose sprites ([PIXIE-PROPOSAL-007](docs/proposals/sprites.md),
 
 Blocks 24 and 25 were completed on 2026-10-15: a scene draws PNG images, placed in the editor by
 dropping them on the viewport, and a project without code plays in the engine's generic player.
-Recorded as next, unpromoted: exporting a game.
+Next, the owner proposed a first game on the engine, a sandbox of logic circuits
+([decision record](docs/archive/logic-sandbox-decisions-2026-10-15.md)), recorded as three
+unpromoted proposals: what the engine needs for it
+([PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md)), the game itself
+([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)), and one shared engine library with
+exporting a game ([PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md)).
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
