@@ -26,6 +26,11 @@ thousand. It uses the `runtime` module's particle pools
   each other trade particles, and their orbits turn chaotic.
 - Particles are drawn as additive discs straight from the pool; the GPU interpolates them between
   steps.
+- The screen layer (`DrawScreen`, see the
+  [runtime reference](../../docs/modules/runtime/REFERENCE.md#the-screen-layer)) shows a panel in the
+  top-left corner with the counts of particles, attractors, and spawners and whether the interaction
+  is on, sized to its text, and each spawner's rate below it, following the camera. It is drawn in the
+  player and in the editor's viewport, in Inter (`fonts/`).
 
 ## Mouse and keys
 
@@ -60,6 +65,8 @@ built by `pixie_game` ([runtime reference](../../docs/modules/runtime/REFERENCE.
   (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
   it finds its entities in the scene, generates the rest, handles the pointer and the keys before
   each step, and describes the game's components for tools. `pixie::CreateProject` returns it.
+- `fonts/`: Inter Regular and its license (SIL Open Font License 1.1), copied from the shared
+  resources with `vdr cp inter-regular`; the engine's text tests read it too.
 - `particles`: the player, the engine's, which opens this folder and plays its scene.
 - `particles-capi`: the same game as a shared library with the
   [C API](../../docs/modules/capi/README.md), for hosts such as the editor.

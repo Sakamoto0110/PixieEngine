@@ -56,10 +56,11 @@
 - Contract: [`REFERENCE.md`](REFERENCE.md).
 - Build target: `pixie_runtime` (alias `Pixie::Runtime`) in `runtime/CMakeLists.txt`. It links
   the provisional engine library (`Pixie::Engine`: `FrameTime`, `Input`, `ShapeRenderer`,
-  `SpriteRenderer`, `PathRenderer`, `Image`, `Texture`), which
+  `SpriteRenderer`, `PathRenderer`, `TextRenderer`, `Font`, `Image`, `Texture`), which
   belongs to no decided boundary yet, so it is not listed under module dependencies.
 - Tests: `runtime-tests`, from `tests/runtime/`, run through CTest.
 - Origin: [PIXIE-PROPOSAL-004](../../proposals/scene-model-and-anchors.md), part 1, and the
   `runtime` boundary of [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md);
   built by PIXIE-TODO-006 (see the [archive](../../archive/README.md)).
-- Platforms: built and tested on Windows only so far; nothing in it is Windows-specific.
+- Platforms: built and tested on Windows only so far; only `UserDataFolder` is Windows-specific,
+  with its other platforms' roots written and not yet run.

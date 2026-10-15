@@ -50,7 +50,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
-| `Scene.hpp` | `SceneId`, `AddToScene`, `SceneEntityWith`, reading and writing scene files, and entity snapshots (`WriteEntities`, `ReadEntities`) |
+| `Scene.hpp` | `SceneId`, `AddToScene`, `SceneEntityWith`, reading and writing scene files, and entity snapshots (`WriteEntities`, `ReadEntities`, `ReadFragmentMeta`) |
 | `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
 | `ProjectFile.hpp` | Project folders: `ProjectFile`, `OpenProjectFolder`, `CreateProjectFolder`, `WriteProjectFile` |
@@ -62,6 +62,9 @@ All under `runtime/include/pixie/runtime/`:
 | `Path.hpp` | `Path`, a line through points with rounded corners and a fill |
 | `PathDrawing.hpp` | `SubmitPaths`, `PathLine`, and `PathContains` |
 | `SpriteImages.hpp` | `SpriteImages`, the images a session's sprites draw |
+| `ScreenCanvas.hpp` | `ScreenCanvas`, what a project draws on the screen layer, and `TextStyle` |
+| `Fonts.hpp` | `Fonts`, the fonts a session's text names |
+| `UserData.hpp` | `UserDataFolder`, the folder for a game's own files, and `UserDataFolderName` |
 | `SpriteDrawing.hpp` | `SubmitSprites`, `SpritePixelSize`, `SpritePoint`, `SpriteLocal`, `SpriteCorners`, `SpriteContains`, and `ForEachSpriteInDrawOrder` |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
@@ -357,6 +360,26 @@ The checks and the kept unknown data are a scene's: a set that cannot be read, o
 with an ID already in the World, adds nothing. The World's seed is not part of a set and is left
 alone. Not during a step.
 
+A set can carry metadata: `WriteEntities(world, types, entities, meta)` takes a JSON object as text
+and writes it as `meta`, after the format and the version and before the entities, for what a game
+keeps about a saved set, such as a template's name. Meta that is not a JSON object is left out, with
+a warning. `ReadEntities` returns it in `EntitiesReport::meta`, as compact JSON text (empty when
+there is none), and `ReadFragmentMeta(text)` reads it alone, with the number of entities
+(`FragmentMeta::entityCount`), building nothing, so a list of saved sets shows their names and sizes
+quickly. A `meta` that is not an object is ignored with a warning; a document that is not a set of
+entities fails as `ReadEntities` fails.
+
+### A game's own files
+
+`UserDataFolder(projectName)` is the folder for a game's own files, such as its player's saves
+(`SaveSceneFile`, `WriteEntities`), made on first use: `%APPDATA%/<project>/` on Windows (the
+Roaming AppData known folder), `$XDG_DATA_HOME/<project>/` elsewhere, or `~/.local/share/<project>/`
+without it. The environment variable `PIXIE_USER_DATA`, when it names a folder, replaces those
+roots; tests set it so they never touch the real one. The name is made a folder name by
+`UserDataFolderName`: characters Windows refuses in a file name (`<>:"/\|?*` and control characters)
+become `_`, and trailing dots and spaces are dropped. An empty path, after logging why, means the
+name leaves no folder name or the folder cannot be made.
+
 ## Projects and sessions
 
 A `Project` is a game as the engine sees it: `Name`, `Background` (the clear color), `Describe`
@@ -366,13 +389,15 @@ scenario component),
 `BeforeStep` (outside the step: copy the host's view and input into the World, react to keys, move
 the camera; structural changes are allowed), `SpawnAt` (a tool asks for something at a point, such
 as an editor's "Ask the game to create one here" on empty space: a boid in boids and flocks, a particle at rest in
-particles; false when the game creates nothing), and `DrawOverlay` (shapes drawn over the World). Every
+particles; false when the game creates nothing), `DrawOverlay` (shapes drawn over the World), and
+`DrawScreen` (the game's interface, in pixels of the view; see [the screen layer](#the-screen-layer)). Every
 game library defines `pixie::CreateProject()`, which returns the project with its defaults; one
 binary links one game.
 
 A `ProjectSession` runs one project: its World (seeded from `SessionSettings::seed`), a
-`Camera2D`, the sprite, path, particle, and shape renderers, the sprites' images (`Images()`, resolved
-against the project folder once one is open, and against the working directory before), an
+`Camera2D`, the sprite, path, particle, shape, and text renderers, the sprites' images (`Images()`, resolved
+against the project folder once one is open, and against the working directory before), the text's
+fonts (`GetFonts()`, resolved the same way), an
 `Input`, and a `FixedStepper`. `Start(size)`
 creates the GL objects and builds the World; `Stop` releases them; both need the context current.
 
@@ -385,7 +410,8 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   faster scale runs more steps per frame); `Reset` lets the project `Capture`, then builds the World
   again with the same seed.
 - `Render(alpha)` clears to the project's background and draws sprites of negative layers, then
-  paths, then the other sprites, then particles, then shapes, then the overlay, into the bound
+  paths, then the other sprites, then particles, then shapes, then the overlay, then the project's
+  screen layer, into the bound
   framebuffer, after reading again the images whose files
   changed (checked at most every `SpriteImages::kCheckInterval`, half a second); `RenderToTarget()` does it into the session's own
   `RenderTarget`, sized to the viewport, and returns its texture.
@@ -545,6 +571,41 @@ one pixel, so it stays visible when zoomed out. Paths are drawn after the sprite
 and before the rest, so wires pass over a background and under what they connect. A path with
 translucent colors shows its joins a little stronger, where two capsules overlap.
 
+### The screen layer
+
+`Project::DrawScreen(world, screen)` draws a game's interface (a hotbar, tooltips, a menu) over
+everything else, through a `ScreenCanvas`, in pixels of the view: the origin at the top-left, Y down,
+and no camera, so it stays put however the World's camera moves. It runs in the player and in an
+editor's viewport alike, in play and in edit, after the overlay. The cursor's position (`Input`) is in
+the same pixels, so deciding what it is over stays with the game.
+
+The canvas draws rectangles (`Rect`, from the top-left), discs and rings, any `ShapeInstance`, images
+(`Sprite`, by the path a `Sprite` names, through the session's images, at a size or the image's
+own), polylines (`Path`, as a `Path` component draws them), and text (`Text`, from the top-left of
+its first line; `MeasureText` gives the size it takes). `WorldToScreen` and `ScreenToWorld` go
+through the World's camera, to pin a label to something in the World. Whatever is drawn comes out in
+a fixed order: shapes, then paths, then sprites and text together in the order they were drawn, so
+panels lie under the icons and labels on them. The session draws it through
+`ScreenCanvas::PixelCamera`, a `Camera2D` of one unit per pixel centered on the view.
+
+A `TextStyle` names the font by path (relative to the project folder, as an image's), its size in
+pixels (the em size, as CSS's `font-size`, rounded to whole pixels), and its color. Fonts are assets:
+one with an open license, from the shared resources (`vdr cp inter-regular`, which copies its license
+with it), in the project's folder. `Fonts` reads each on first use; one that cannot be read (no path,
+a missing file, not a TrueType font) draws nothing, measures zero, and is logged once.
+
+Text is drawn by the engine's `TextRenderer` from a `Font` (`Font.hpp`, `TextRenderer.hpp`): the
+font, read whole, is rasterized by `stb_truetype` into an atlas per pixel size, holding U+0020 to
+U+00FF (Latin-1) and the font's replacement glyph for every other code point, white with
+premultiplied alpha, and drawn as one sprite per glyph. Strings are UTF-8, left-aligned; a line break
+starts a new line, other control characters draw nothing, and bytes that are not UTF-8 draw the
+replacement glyph. There is no kerning. `SubmitPixels` places every glyph on whole pixels at exactly
+its size, which is what the screen layer uses; `SubmitWorld` draws text a size in world units for a
+camera's zoom, from the atlas at the next step of a fixed ladder (8, 12, 16, 24, 32, 48, 64, 96, 128,
+192, and 256 pixels), scaled to fit, so zooming makes few atlases. A `Text` component in the scene is
+not there yet: a game labels the World on its screen layer, through `WorldToScreen`, at a size that
+reads at any zoom.
+
 ## Randomness
 
 `World(seed)` seeds the World's `Random`. `Random` is xoshiro256** seeded through splitmix64; its
@@ -585,9 +646,17 @@ rectangle around the pivot, turned and mirrored; the drawing order; and picking 
 with shapes first), paths (rounded corners and their length; straight lines and short segments; the
 point list through a scene, a snapshot, and a wrong value; the line at a turned and scaled transform,
 and picking along it; the picking order of shapes, sprites, and paths; and `SpritePoint` and
-`SpriteLocal` turned and mirrored, each the other's inverse), and project folders (a new project named after its folder, with its one
+`SpriteLocal` turned and mirrored, each the other's inverse), fragment metadata (written at the top,
+read back with the entities and alone with their count, and meta that is not an object left out or
+ignored), the user data folder (names made folder names, and the folder made under
+`PIXIE_USER_DATA`), and project folders (a new project named after its folder, with its one
 shape and no path outside it; a folder that is not empty refused; only a folder with one valid
 project file opening; unknown keys written back; and which paths count as inside the folder).
 Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
 which drives a whole project through `pixie-scene-capi`, including a sprite drawn in its image's
 color, and a path drawn in its two colors, over a background sprite and under one of layer 0. `SubmitShapes` is exercised by the samples that draw a World.
+`tests/engine/TextTests.cpp` (CTest `engine-tests`) covers UTF-8 decoding, refusing what is not a
+font, measuring by advances and lines, the atlases (clamped sizes, premultiplied white glyphs, the
+replacement glyph beyond Latin-1, and the layout's pens), the ladder, and text drawn into a render
+target, in a hidden window, lit only inside its glyph's rectangle. The particles sample draws its
+counts and its spawners' rates on its screen layer.

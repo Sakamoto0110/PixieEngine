@@ -134,7 +134,10 @@ promoted the engine's part first:
 27. A screen layer, text, player saves, and fragment metadata (PIXIE-TODO-030).
 
 Block 26 was completed on 2026-10-15: the engine draws lines with rounded corners and a moving fill,
-and the editor edits lists of points.
+and the editor edits lists of points. Block 27 was completed the same day: a game draws its interface
+and text on a screen layer, keeps its own files in a user data folder, and saves sets of entities
+with metadata. PIXIE-PROPOSAL-008 is carried out; the logic sandbox
+([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)) waits on the owner's promotion.
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

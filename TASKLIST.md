@@ -39,15 +39,5 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-15 with PIXIE-TODO-029 and PIXIE-TODO-030; PIXIE-TODO-029's is in its archive
-record. Earlier breakdowns are in their archive records, routed from the
-[archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-030` — A screen layer, text, player saves, and fragment metadata
-
-**Parent:** PIXIE-TODO-030
-
-- `PIXIE-TASK-136` — **Status:** open — `Project::DrawScreen` and the `ScreenCanvas`, in the session, the player, and the editor's viewport.
-- `PIXIE-TASK-137` — **Status:** open — `stb_truetype` and the font recorded; the `TextRenderer`, in the world and on the screen.
-- `PIXIE-TASK-138` — **Status:** open — `UserDataFolder`; `meta` in entity fragments and `ReadFragmentMeta`.
-- `PIXIE-TASK-139` — **Status:** open — Tests, a project drawing text on its screen layer, and the documents.
+None. Every breakdown, up to PIXIE-TODO-030's, is in its archive record,
+routed from the [archive router](docs/archive/README.md).

@@ -87,4 +87,6 @@ order.
 [decision record](../archive/logic-sandbox-decisions-2026-10-15.md).
 
 **Outcome:** promoted on 2026-10-15 as PIXIE-TODO-029 and PIXIE-TODO-030, as recorded in the
-[promotion record](../archive/interactive-games-promotion-2026-10-15.md).
+[promotion record](../archive/interactive-games-promotion-2026-10-15.md), and carried out the same
+day: both are completed (PIXIE-ARCHIVE-052 and 053). `DrawScreen` takes the World as well as the
+canvas, and the C API does not carry fragment metadata (see PIXIE-ARCHIVE-053).
