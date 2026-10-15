@@ -21,6 +21,10 @@ add_subdirectory(glfw)
 add_library(stb_easy_font INTERFACE)
 target_include_directories(stb_easy_font SYSTEM INTERFACE stb)
 
+# stb_image: header-only; the engine compiles its implementation (PNG only) in Image.cpp.
+add_library(stb_image INTERFACE)
+target_include_directories(stb_image SYSTEM INTERFACE stb)
+
 # PixieLib: built through its own CMake project (pixie::pixie, pixie::events, pixie::math). Its math
 # fetches GLM with FetchContent; pointing that content at the vendored GLM means a configure never
 # downloads it. SYSTEM keeps warnings from PixieLib's and GLM's headers out of our /W4 /WX targets.
