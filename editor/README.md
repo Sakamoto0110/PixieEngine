@@ -96,8 +96,8 @@ as it is. The editor creates no version-control files.
     What the menu does is logged. Particles are never selected. The middle button and the wheel still go to the
     game, to pan and zoom; otherwise the game sees no pointer, so boids do not chase the cursor
     while you pick them. Selected entities are outlined: a sprite by its rectangle, turned as it is
-    drawn, anything else by a circle. A sprite is picked inside its rectangle, the one drawn on top
-    first, and shapes before sprites.
+    drawn, a path along its line with its ends circled, anything else by a circle. What is drawn on
+    top is picked first: shapes, then sprites, then paths, then sprites of negative layers.
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
   for a name. A click selects one, Ctrl + click adds or takes out one, and Shift + click selects the
   range from the last one clicked.
@@ -118,7 +118,10 @@ as it is. The editor creates no version-control files.
   selected entities differ, and, for a field that names an image, a **...** button that picks a PNG,
   starting in the project's `images/` folder (copying one from outside into it, as dropping does),
   and a preview of the image with its size, or, in red, why it cannot be read (a missing file, not a
-  PNG).
+  PNG). A list of points, such as a path's `points`, is drawn there too: its count, a row of X and Y
+  per point, typed over and written as one step when the row lets go of the keyboard, a **-** button
+  per row that removes the point, and **Add point**, which adds one 32 units right of the last; each
+  is one step. When the selected entities' lists differ, the field asks to select one.
 - **Time.** A bar at the top slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
   0.75, 1, 1.25, 1.5, 1.75, and 2 times. The fixed step stays 1/60 s; faster runs more steps per
   frame, so a heavy World (5,000 flocking boids) falls a little behind at 2 times.
@@ -161,7 +164,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a game's C API library; with neither option, the start screen |
 | `--seed <n>` | `1` | Seed of a game's World; a project's comes from its scene |
 | `--select <name>` | none | Selects the entity with this name at the start |
-| `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`); repeatable |
+| `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`; a list of points is `x,y;x,y;...`); repeatable |
 | `--edit-after <seconds>` | `1` | When the `--set` edits happen |
 | `--quit-after <seconds>` | `0` | Closes the editor after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame of the window |
@@ -170,7 +173,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
 | `--after <process id>` | none | Waits, up to 15 seconds, for that editor to exit before opening; the editor passes it when it restarts itself |
 | `--save-after <seconds>` | none | Saves the project after this long, after the `--set` edits |
-| `--do <command>` | none | After the `--set` edits, one per frame, as the editor's gestures would: `create`, `duplicate`, `delete`, `undo`, `redo`, `select=<name>`, `select+=<name>` (adds to the selection), `rename=<name>`, `move=<dx>,<dy>` (world units), `add=<Type>`, `remove=<Type>`, `save`, `play`, `stop`, `drop=<file>[;<file>...]@<x>,<y>` (as files dropped at that point of the view, in pixels), `image=<file>` (as chosen with the selected sprites' **...**); the entities, the selection with each sprite's image, the history, and whether the scene is saved are logged after each; repeatable |
+| `--do <command>` | none | After the `--set` edits, one per frame, as the editor's gestures would: `create`, `duplicate`, `delete`, `undo`, `redo`, `select=<name>`, `select+=<name>` (adds to the selection), `rename=<name>`, `move=<dx>,<dy>` (world units), `add=<Type>`, `remove=<Type>`, `save`, `play`, `stop`, `drop=<file>[;<file>...]@<x>,<y>` (as files dropped at that point of the view, in pixels), `image=<file>` (as chosen with the selected sprites' **...**), `addpoint=<Type.field>` and `removepoint=<Type.field>@<index>` (as **Add point** and **-** on a list of points); the entities, the selection with each sprite's image and each path's points, the history, and whether the scene is saved are logged after each; repeatable |
 | `--recent <on\|off>` | `on` | Whether the project joins the recent projects; `off` for scripted runs, so they leave the user's list alone |
 
 The times of `--edit-after`, `--save-after`, and `--quit-after` count from when the game or the

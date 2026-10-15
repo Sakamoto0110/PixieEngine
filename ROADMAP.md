@@ -133,6 +133,9 @@ promoted the engine's part first:
 26. Paths, list fields, and points of a sprite (PIXIE-TODO-029).
 27. A screen layer, text, player saves, and fragment metadata (PIXIE-TODO-030).
 
+Block 26 was completed on 2026-10-15: the engine draws lines with rounded corners and a moving fill,
+and the editor edits lists of points.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their

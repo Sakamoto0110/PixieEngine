@@ -52,12 +52,12 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (7), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (8), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
-  version 7 text fields, sprites' rectangles, and images; a host checks the version and does not
-  load a library of another one.
+  version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines; a
+  host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
@@ -110,7 +110,7 @@ A project is a folder with one `<Name>.pixie` file and its scenes
 
 ## Rendering
 
-`pixie_session_render(&texture)` draws the World (sprites, particles, shapes, the project's overlay) into
+`pixie_session_render(&texture)` draws the World (sprites, paths, particles, shapes, the project's overlay) into
 the session's own RGBA8 texture, sized to the view, interpolated between steps, and returns the GL
 texture name. The texture's first row is the bottom of the image, as OpenGL has it; a host that
 draws with Y down flips it with its texture coordinates (in Dear ImGui, `uv0 = (0, 1)` and
@@ -183,7 +183,12 @@ Events are kept until the next step reads them.
   `pixie_field_get_text(entity, type, field, buffer, capacity, &length)`, which fills and measures
   as `pixie_entities_snapshot` does, and `pixie_field_set_text(entity, type, field, text)`. Each
   pair refuses the other's kinds with `PIXIE_ERROR_ARGUMENT`. In edit mode, writing a scene
-  entity's field, text or not, marks the scene unsaved.
+  entity's field, of any kind, marks the scene unsaved.
+- A `PIXIE_FIELD_POINT_LIST` field holds points, such as a path's, and goes only through
+  `pixie_field_get_points(entity, type, field, xy, capacity, &count)`, which fills up to `capacity`
+  points as `x, y` pairs (`2 * capacity` doubles) and counts them as `pixie_entities` does, and
+  `pixie_field_set_points(entity, type, field, xy, count)`, which replaces them. They refuse other
+  kinds, and `pixie_field_get` and `pixie_field_set` refuse point lists, with `PIXIE_ERROR_ARGUMENT`.
 
 ## Picking, destruction, and spawning
 
@@ -192,20 +197,26 @@ top-left) into world units through the session's camera as it is now, and `pixie
 turns it back, so a host can place things where the user points.
 
 For a host's selection, in view pixels like the input. Only entities with a `Transform2D` and a
-`Shape` or a `Sprite` can be picked ([runtime picking](../runtime/REFERENCE.md#picking)); particles
-are not entities.
+`Shape`, a `Sprite`, or a `Path` can be picked ([runtime picking](../runtime/REFERENCE.md#picking));
+particles are not entities.
 
-- `pixie_pick` returns the entity under a point, widened by `tolerance` pixels: a shape whose
-  radius covers it, nearest center first, else the sprite drawn on top there; or
-  `PIXIE_ERROR_NOT_FOUND`. `pixie_pick_box` lists the entities whose position lies in a box given
-  by two corners in any order, oldest first, filling and counting as `pixie_entities` does.
+- `pixie_pick` returns the entity drawn on top under a point, widened by `tolerance` pixels: a
+  shape whose radius covers it, nearest center first; else a sprite of a layer of 0 or more; else a
+  path within half its width; else a sprite of a negative layer; or `PIXIE_ERROR_NOT_FOUND`.
+  `pixie_pick_box` lists the entities whose position lies in a box given by two corners in any
+  order, and the paths whose whole line does, oldest first, filling and counting as
+  `pixie_entities` does.
 - `pixie_entity_view_bounds` gives where an entity was drawn by the last render (between the
   previous step and this one, as drawn) and a radius, in pixels, for outlining it: for a shape, the
   radius it can be picked within, from its position; for a sprite, half its rectangle's diagonal,
-  from the rectangle's center.
+  from the rectangle's center; for a path, half the diagonal of the box around its line, from the
+  box's center.
 - `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle as the
   last render drew it, in view pixels (`corners[0..7]`: the image's top-left, top-right,
   bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND` for an entity without a sprite.
+- `pixie_entity_view_path(entity, xy, capacity, &count)` gives the line a path was last drawn along,
+  corners rounded, in view pixels, filling and counting as `pixie_entities` does, or
+  `PIXIE_ERROR_NOT_FOUND` for an entity without a path.
 - `pixie_entity_destroy` destroys an entity at once. It is meant for what a host can pick:
   destroying an entity the game holds on to, such as its controls, is the host's risk.
 - `pixie_particle_remove_at` removes the particle nearest a point within `radius` pixels, or
@@ -249,7 +260,12 @@ whose image names it, checks that the image field is text naming a `png` and tha
 value functions refuse each other's fields, renders and finds the image's exact color where the
 sprite is drawn, picks the sprite inside its rectangle and nothing outside it, checks its corners
 and bounds, reads the image's texture and size and the error of a missing one, saves, and finds
-the image's path again after opening the project anew.
+the image's path again after opening the project anew. Last, it adds a path, checks that its points
+are a point list that the value functions refuse, writes and reads the points (also into a buffer
+too small), renders it and finds its fill color before the fill and its color after it, picks it
+within its width and not beside it, reads its line and bounds in the view, finds it drawn over a
+sprite of layer -1 and under the same sprite on layer 0, saves, and reads the points again after
+opening the project anew.
 
 With `--open <folder>`, on a game's library, it opens that existing project and changes nothing in
 it: edit mode, a `scenario` entity and one scenario type, then play for 12 steps with something
