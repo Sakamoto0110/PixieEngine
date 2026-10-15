@@ -38,7 +38,9 @@ from outside the engine's tree, and the library then lands in that project's `bi
 When it is the top-level project, the engine builds one library of its own, `pixie-scene-capi`, from
 the game `pixie-scene-game`,
 whose project is the runtime's `SceneProject`: a World that is only its scene. It runs a project
-folder that has no code.
+folder that has no code. Beside it, `pixie-player` links the same game with the engine's player
+(`runtime/player/PlayerMain.cpp`), so such a project also plays on its own:
+`pixie-player --project <folder>`.
 
 ## Rules for every function
 
@@ -50,11 +52,12 @@ folder that has no code.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (6), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (7), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
-  conversion between view pixels and world units, version 6 scene IDs, snapshots, and names; a host checks the version and does not load a
-  library of another one.
+  conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
+  version 7 text fields, sprites' rectangles, and images; a host checks the version and does not
+  load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
@@ -107,12 +110,19 @@ A project is a folder with one `<Name>.pixie` file and its scenes
 
 ## Rendering
 
-`pixie_session_render(&texture)` draws the World (particles, shapes, the project's overlay) into
+`pixie_session_render(&texture)` draws the World (sprites, particles, shapes, the project's overlay) into
 the session's own RGBA8 texture, sized to the view, interpolated between steps, and returns the GL
 texture name. The texture's first row is the bottom of the image, as OpenGL has it; a host that
 draws with Y down flips it with its texture coordinates (in Dear ImGui, `uv0 = (0, 1)` and
 `uv1 = (1, 0)`). The name stays valid until the next render, resize, or destroy. The function
 leaves the default framebuffer bound.
+
+`pixie_image(path, &texture, &width, &height)` gives an image of the session as a `Sprite` names
+it, relative to the project folder: the session's own GL texture of it (RGBA8, premultiplied alpha,
+first row at the top, so a host draws it with `uv0 = (0, 0)`), valid until the image changes on
+disk or the session stops, and its size in pixels, for a preview. An image that cannot be read
+returns `PIXIE_ERROR_IO`, with the reason (a missing file, not a PNG) in `pixie_last_error`. It
+needs the session's GL context, as rendering does.
 
 ## Input
 
@@ -161,13 +171,19 @@ Events are kept until the next step reads them.
   the range and step, and the unit's factor and offset (shown = held * factor + offset). Range, step,
   and scrub are in the displayed unit. `pixie_field_text` gives the label (the field's name when none
   was set), tooltip, help, unit suffix, for an arc the name of the field with its width, or, for an
-  entity field, the component type a valid choice has (`PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
+  entity field, the component type a valid choice has, or, for a text field that names a file, its
+  kind as an extension, such as `png` (`PIXIE_TEXT_ASSET`; `PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
   them.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
   `PixieValue`; `PixieFieldKind` says which members are used. A `PIXIE_FIELD_ENTITY` field holds an
   entity handle in `x`, with 4294967295 for none. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
   `PIXIE_ERROR_NOT_FOUND`.
+- A `PIXIE_FIELD_TEXT` field holds UTF-8 text, such as a sprite's image path, and goes only through
+  `pixie_field_get_text(entity, type, field, buffer, capacity, &length)`, which fills and measures
+  as `pixie_entities_snapshot` does, and `pixie_field_set_text(entity, type, field, text)`. Each
+  pair refuses the other's kinds with `PIXIE_ERROR_ARGUMENT`. In edit mode, writing a scene
+  entity's field, text or not, marks the scene unsaved.
 
 ## Picking, destruction, and spawning
 
@@ -176,16 +192,20 @@ top-left) into world units through the session's camera as it is now, and `pixie
 turns it back, so a host can place things where the user points.
 
 For a host's selection, in view pixels like the input. Only entities with a `Transform2D` and a
-`Shape` can be picked ([runtime picking](../runtime/REFERENCE.md#picking)); particles are not
-entities.
+`Shape` or a `Sprite` can be picked ([runtime picking](../runtime/REFERENCE.md#picking)); particles
+are not entities.
 
-- `pixie_pick` returns the entity whose shape covers a point, widened by `tolerance` pixels,
-  nearest center first, or `PIXIE_ERROR_NOT_FOUND`. `pixie_pick_box` lists the entities whose
-  center lies in a box given by two corners in any order, oldest first, filling and counting as
-  `pixie_entities` does.
+- `pixie_pick` returns the entity under a point, widened by `tolerance` pixels: a shape whose
+  radius covers it, nearest center first, else the sprite drawn on top there; or
+  `PIXIE_ERROR_NOT_FOUND`. `pixie_pick_box` lists the entities whose position lies in a box given
+  by two corners in any order, oldest first, filling and counting as `pixie_entities` does.
 - `pixie_entity_view_bounds` gives where an entity was drawn by the last render (between the
-  previous step and this one, as drawn) and the radius it can be picked within, in pixels, for
-  outlining it.
+  previous step and this one, as drawn) and a radius, in pixels, for outlining it: for a shape, the
+  radius it can be picked within, from its position; for a sprite, half its rectangle's diagonal,
+  from the rectangle's center.
+- `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle as the
+  last render drew it, in view pixels (`corners[0..7]`: the image's top-left, top-right,
+  bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND` for an entity without a sprite.
 - `pixie_entity_destroy` destroys an entity at once. It is meant for what a host can pick:
   destroying an entity the game holds on to, such as its controls, is the host's risk.
 - `pixie_particle_remove_at` removes the particle nearest a point within `radius` pixels, or
@@ -224,7 +244,12 @@ it as the test `pixie-scene-capi`, in a folder of the build tree that it removes
 
 In the `--project` run it also copies a spawner together with the system it feeds, and finds the
 copied spawner feeding the copied system, then copies the spawner alone and finds the copy feeding
-the original system.
+the original system. Then it writes a 4 x 4 PNG into the project, adds an entity with a sprite
+whose image names it, checks that the image field is text naming a `png` and that the text and
+value functions refuse each other's fields, renders and finds the image's exact color where the
+sprite is drawn, picks the sprite inside its rectangle and nothing outside it, checks its corners
+and bounds, reads the image's texture and size and the error of a missing one, saves, and finds
+the image's path again after opening the project anew.
 
 With `--open <folder>`, on a game's library, it opens that existing project and changes nothing in
 it: edit mode, a `scenario` entity and one scenario type, then play for 12 steps with something

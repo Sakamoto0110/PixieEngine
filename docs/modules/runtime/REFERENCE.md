@@ -58,6 +58,9 @@ All under `runtime/include/pixie/runtime/`:
 | `ProjectSession.hpp` | `ProjectSession`, a running project, `SessionSettings`, and `SessionMode` |
 | `ProjectApp.hpp` | `ProjectApp`, which runs a project in `pixie::Run`'s window |
 | `Shape.hpp` | `Shape`, an entity's look |
+| `Sprite.hpp` | `Sprite`, an entity's look as an image |
+| `SpriteImages.hpp` | `SpriteImages`, the images a session's sprites draw |
+| `SpriteDrawing.hpp` | `SubmitSprites`, `SpritePixelSize`, `SpriteCorners`, `SpriteContains`, and `ForEachSpriteInDrawOrder` |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
 
@@ -119,6 +122,10 @@ paused one, keep separate clocks.
 - `Acceleration2D`: `linear` (`pxVec2`, units per second squared). It persists until changed; a
   steering Behaviour overwrites it every step.
 - `Shape`: a `ShapeKind`, a half extent `size` before the transform's scale, and a `pxColorRgba`.
+- `Sprite`: an image drawn at the transform (see [Sprites](#sprites)): `image` (a PNG's path,
+  relative to the project folder, with `/`), `region` (`pxRect` in image pixels; empty for the
+  whole image), `pivot` (`pxVec2`, 0 to 1 within the drawn rectangle, (0.5, 0.5) by default),
+  `color` (a tint), `layer` (`int`), and `filter` (`SpriteFilter`: `Smooth` or `Pixel`).
 - `Name`: a string, added by `World::Create(name)` when the name is not empty.
 
 ## Order independence and neighbours
@@ -195,10 +202,13 @@ the GPU.
 ## Picking
 
 `Picking.hpp` finds things by where they are, for a tool's selection. Only entities with a
-`Transform2D` and a `Shape` can be picked: what is drawn can be clicked. An entity covers
-`PickRadius`, its shape's larger half extent times the transform's larger scale.
-`PickAt(world, point, tolerance)` returns the entity whose radius plus `tolerance` covers the
-point, nearest center first, or `entt::null`; `PickIn(world, box)` lists the entities whose center
+`Transform2D` and a `Shape` or a `Sprite` can be picked: what is drawn can be clicked. A shape
+covers `PickRadius`, its larger half extent times the transform's larger scale; a sprite covers its
+rectangle, turned with the entity. `PickAt(world, point, tolerance, sprites)` returns the shape
+whose radius plus `tolerance` covers the point, nearest center first; else, when `sprites` (a
+`SpriteImages`, which knows the images' sizes) is given, the sprite whose rectangle, widened by
+`tolerance`, covers it and is drawn on top; else `entt::null`. Shapes come first because they are
+drawn over sprites. `PickIn(world, box)` lists the entities with a shape or a sprite whose position
 lies in the box, oldest first. Particles are not entities: `RemoveParticleAt(world, point, radius)`
 removes the particle nearest the point within the radius, from whichever pool holds it, at once.
 Positions are the current ones, in world units.
@@ -221,10 +231,12 @@ types.Add<Transform2D>("Transform2D")
 ```
 
 Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type (`bool`, other
-integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`, `entt::entity`; any other type
-does not compile), optional names for an enum's values 0, 1, ..., and `read` and `write` functions
-that move the value in and out of a component instance as a `FieldValue` (four doubles; the kind
-says which are used). Colors are clamped to 0 to 255 and rounded when written.
+integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`, `entt::entity`,
+`std::string`; any other type does not compile), optional names for an enum's values 0, 1, ..., and
+`read` and `write` functions that move the value in and out of a component instance as a
+`FieldValue` (four doubles; the kind says which are used). Colors are clamped to 0 to 255 and
+rounded when written. A `std::string` member is a `Text` field, the one kind that is not a
+`FieldValue`: it has `readText` and `writeText` instead, and null `read` and `write`.
 
 Each field also carries a `FieldMetadata`: how a tool shows and edits it, in the vocabulary of
 PixieInspector's node options. Builder calls chained after a `Field` set it for that field:
@@ -232,8 +244,9 @@ PixieInspector's node options. Builder calls chained after a `Field` set it for 
 (`FieldEditor`: Auto, Number, Slider, Toggle, Choice, Color, Arc), `Range(min, max, step)`,
 `Scrub(perPixel, axis)`, `Unit(suffix, factor, offset)` (shown = held * factor + offset),
 `Degrees(suffix)` (radians shown in degrees), `Arc(spread)` (this angle is the center of an
-arc whose width is the sibling field `spread`), and `References(type)` (for an entity field, the
-component type an entity needs to be a valid choice). Range, step, and scrub are in the displayed unit.
+arc whose width is the sibling field `spread`), `References(type)` (for an entity field, the
+component type an entity needs to be a valid choice), and `Asset(extension)` (for a text field, the
+kind of file it names, such as `"png"`; the path is relative to the project folder). Range, step, and scrub are in the displayed unit.
 The registry is the single source of this metadata
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)): the C API exports it and the editor builds
 its inspectors from it, so nothing about a field is written twice. Every field of the runtime and of
@@ -245,7 +258,8 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Attractor`, `ParticleSystem` (its capacity), and `ParticleSpawner`. The C API and scenes read and
+`Sprite` (its `image` a text field naming a PNG), `Attractor`, `ParticleSystem` (its capacity), and
+`ParticleSpawner`. The C API and scenes read and
 write fields only through these descriptors.
 
 A Behaviour can be described like any component (`types.Add<Spinner>("Spinner").Field<...>`); it is
@@ -300,7 +314,7 @@ The format, version 1 (`kSceneFormat`, `kSceneVersion`):
   decimal that reads back as the same float); an enum is the name of its value (a number when it
   has none); a point or a vector is `[x, y]`; a rectangle is `[x, y, width, height]`; a color is
   `[red, green, blue, alpha]`; an entity is the referenced entity's `id`, or `null` for none or
-  for an entity outside the scene (which also adds a warning).
+  for an entity outside the scene (which also adds a warning); text is a JSON string.
 - Arrays of plain values stay on one line; everything else is indented by two spaces.
 
 Reading checks the format, the version (a newer one is refused), the list, and every ID (present,
@@ -350,7 +364,9 @@ game library defines `pixie::CreateProject()`, which returns the project with it
 binary links one game.
 
 A `ProjectSession` runs one project: its World (seeded from `SessionSettings::seed`), a
-`Camera2D`, the shape and particle renderers, an `Input`, and a `FixedStepper`. `Start(size)`
+`Camera2D`, the sprite, particle, and shape renderers, the sprites' images (`Images()`, resolved
+against the project folder once one is open, and against the working directory before), an
+`Input`, and a `FixedStepper`. `Start(size)`
 creates the GL objects and builds the World; `Stop` releases them; both need the context current.
 
 - `Update(delta, input)`: the project's `BeforeStep`, then `World::Step`; it records the step's
@@ -361,8 +377,9 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   simulated time run faster or slower than wall time (0.01 to 8; the fixed step stays the same, so a
   faster scale runs more steps per frame); `Reset` lets the project `Capture`, then builds the World
   again with the same seed.
-- `Render(alpha)` clears to the project's background and draws particles, then shapes, then the
-  overlay, into the bound framebuffer; `RenderToTarget()` does it into the session's own
+- `Render(alpha)` clears to the project's background and draws sprites, then particles, then
+  shapes, then the overlay, into the bound framebuffer, after reading again the images whose files
+  changed (checked at most every `SpriteImages::kCheckInterval`, half a second); `RenderToTarget()` does it into the session's own
   `RenderTarget`, sized to the viewport, and returns its texture.
 
 ### Project folders
@@ -464,8 +481,38 @@ folder of `PROJECT_DIR`, or else the first folder above the executable that hold
 
 `SubmitShapes(world, renderer, alpha)` submits each entity with `Transform2D` and `Shape` to a
 `ShapeRenderer`, at the transform interpolated `alpha` of the way from `PreviousTransform2D`:
-position and scale linearly, rotation the short way around. The caller flushes the renderer with
-its camera. It needs the GL context current, as the renderer does.
+position and scale linearly, rotation the short way around (`Interpolate` in `Transform2D.hpp`).
+The caller flushes the renderer with its camera. It needs the GL context current, as the renderer
+does.
+
+### Sprites
+
+A `Sprite` draws a PNG, or a region of one, at its entity's transform. One image pixel is one world
+unit, times the transform's scale: a sprite has no size of its own, and at zoom 1 it appears at its
+file's size. `SpritePixelSize(sprite, images)` is the drawn size before the scale: the region's
+when it has one, else the image's, else `SpriteImages::kMissingSize` (64) on both axes. The pivot
+places the rectangle around the position, from (0, 0) at its top-left to (1, 1) at its
+bottom-right, and the entity turns around it; a negative scale mirrors the sprite.
+`SpriteCorners` gives the rectangle's corners in world units, and `SpriteContains` tests a point
+against it.
+
+`SubmitSprites(world, renderer, images, alpha)` submits each entity with a `Transform2D` and a
+`Sprite` to a `SpriteRenderer` (in the engine library), interpolated like shapes. The renderer
+draws instanced quads by layer, lower first, and in the World's order within a layer (oldest
+first, `ForEachSpriteInDrawOrder`), batching consecutive sprites that share a texture and a filter
+into one draw call. `Smooth` samples linearly between mipmaps, so a large image drawn small does not
+alias; `Pixel` samples the nearest texel. Sprites are drawn under particles and shapes, so a
+background never hides them; a layer shared with shapes is not there yet.
+
+`SpriteImages` holds the images by the path a sprite names, resolved against its folder
+(`SetFolder`; the working directory when none is set). An image is read when first used, with
+`stb_image` (PNG only), into RGBA8 with premultiplied alpha (`DecodePng` in the engine's
+`Image.hpp`), and uploaded as a `Texture` with mipmaps when first drawn. `CheckForChanges` reads
+again every image whose file changed, appeared, or disappeared, so an image saved by a painting
+program shows at once in the editor and the player. An image that cannot be read (no path, a
+missing file, not a PNG) is drawn as a magenta checkerboard, and its problem is logged once each
+time it is read; `Size` is then empty and `Problem` says why. Reading needs no GL context; textures
+do.
 
 ## Randomness
 
@@ -499,9 +546,14 @@ warned about and left at their defaults; a reference outside the scene saved as 
 and loading a file), entity snapshots (destroyed entities brought back with their IDs and values,
 copies with new IDs whose references follow the copies inside the set and keep their targets
 outside it, a copied Behaviour that runs, IDs already in the World refused, entities outside the
-scene left out, and unknown data carried along), and project folders (a new project named after its folder, with its one
+scene left out, and unknown data carried along), sprites (PNG decoding with premultiplied alpha
+and its errors; the `Sprite` descriptor's text field; text through a scene and a snapshot, and text
+of the wrong type left at its default; image sizes and problems without GL; reading a changed,
+removed, and appearing file again; sizes from the region, the image, and the missing size; the
+rectangle around the pivot, turned and mirrored; the drawing order; and picking the sprite on top,
+with shapes first), and project folders (a new project named after its folder, with its one
 shape and no path outside it; a folder that is not empty refused; only a folder with one valid
 project file opening; unknown keys written back; and which paths count as inside the folder).
 Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
-which drives a whole project through `pixie-scene-capi`. `SubmitShapes` is exercised by the
-samples that draw a World.
+which drives a whole project through `pixie-scene-capi`, including a sprite drawn in its image's
+color. `SubmitShapes` is exercised by the samples that draw a World.

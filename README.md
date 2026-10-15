@@ -8,9 +8,9 @@ executable, and a C# editor that inspects engine state through
 from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
 Early stage: a provisional engine library (window, OpenGL context, main loop,
-input, 2D camera, shapes, and particles), the `runtime` and `capi` modules, the
-samples under [`samples/`](samples/) (three of them the anchors: boids, flocks,
-and particles), and the C# ImGui editor under [`editor/`](editor/README.md),
+input, 2D camera, shapes, particles, and PNG sprites), the `runtime` and `capi`
+modules, the samples under [`samples/`](samples/) (three of them the anchors:
+boids, flocks, and particles; `sprites` a project without code), and the C# ImGui editor under [`editor/`](editor/README.md),
 which runs any of the anchors. From the Visual Studio 2026 developer prompt:
 
 ```bash

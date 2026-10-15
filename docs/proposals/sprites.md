@@ -89,4 +89,5 @@ well. A project references only files inside its folder.
 **Source:** [decision record](../archive/sprites-decisions-2026-10-15.md)
 
 **Outcome:** promoted on 2026-10-15, as recorded in the
-[promotion record](../archive/sprites-promotion-2026-10-15.md).
+[promotion record](../archive/sprites-promotion-2026-10-15.md), and carried out the same day:
+PIXIE-TODO-027 and PIXIE-TODO-028 are completed (PIXIE-ARCHIVE-048 and 049).

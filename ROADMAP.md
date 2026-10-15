@@ -120,6 +120,8 @@ Next, the owner chose sprites ([PIXIE-PROPOSAL-007](docs/proposals/sprites.md),
 24. Images, sprites, and text fields in the engine (PIXIE-TODO-027).
 25. Sprites in the editor, and a sprites sample (PIXIE-TODO-028).
 
+Blocks 24 and 25 were completed on 2026-10-15: a scene draws PNG images, placed in the editor by
+dropping them on the viewport, and a project without code plays in the engine's generic player.
 Recorded as next, unpromoted: exporting a game.
 
 The anchor blocks supersede the vertical slice

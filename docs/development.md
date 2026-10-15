@@ -87,7 +87,8 @@ It compiles with warnings as errors. Its output stays under `editor/`; see
 - **Tests:** `ctest --preset vs2026-debug` and `ctest --preset vs2026-release`
   pass. Tests live under `tests/`, with a minimal harness (`tests/Check.hpp`).
   The C API tests (`boids-capi`, `flocks-capi`, `particles-capi`,
-  `pixie-scene-capi`, `project-code`) open a hidden window, so they need a
+  `pixie-scene-capi`, the samples' `<sample>-project`, and `project-code`)
+  open a hidden window, so they need a
   desktop session with an OpenGL 4.5 driver. `project-code` builds a project
   with code, and the engine with it, in `build/tests/project-code/`, so it
   takes a minute or two.

@@ -55,6 +55,16 @@ as it is. The editor creates no version-control files.
   and selects the copies; references between the copies follow them, and the rest keep their
   targets. **Delete** (the key, or the menus) deletes the selection. The keys act unless a text
   field has the keyboard.
+- **Sprites.** PNG files dropped on the editor's window become sprites, one per file, where the
+  mouse is over the viewport (in the middle of the view when it is elsewhere), each 16 units to the
+  side of the last, named after its file, selected, and as one step; other files are left out, and
+  the status line says so. **New sprite here...**, in the viewport's menu on empty space, picks a
+  PNG and places it at the click. A sprite is drawn at one world unit per image pixel; one that
+  would be larger than half the view is given a smaller scale. An image from outside the project
+  is copied into the project's `images/` folder first (an identical one already there is used
+  instead of a second copy, and another file of the same name gets a number), and the status line
+  names what was copied, so the project stays whole on another machine. The image of an open
+  project's sprite that is saved again by a painting program shows at once.
 - **Undo and redo.** Ctrl + Z undoes, Ctrl + Y or Ctrl + Shift + Z redo, and the Edit menu names
   what they would undo or redo. Every change to the scene in edit mode is one step: an inspector
   edit (a scrub, a drag on a slider, or a typed value, from press to release, over every selected
@@ -81,10 +91,13 @@ as it is. The editor creates no version-control files.
     selection if it was not in it, and the menu duplicates or deletes the selection. On empty space, the menu offers Create entity here (a scene
     entity with a circle, at that point in world units); for a game, Ask the game to create one
     here (a boid heading somewhere at random in boids and flocks, a particle at rest in particles);
-    and, where a particle system exists, Delete the particle here (the nearest within 6 pixels).
+    and, where a particle system exists, Delete the particle here (the nearest within 6 pixels);
+    and, with a Sprite component, New sprite here... (see Sprites).
     What the menu does is logged. Particles are never selected. The middle button and the wheel still go to the
     game, to pan and zoom; otherwise the game sees no pointer, so boids do not chase the cursor
-    while you pick them. Selected entities are outlined.
+    while you pick them. Selected entities are outlined: a sprite by its rectangle, turned as it is
+    drawn, anything else by a circle. A sprite is picked inside its rectangle, the one drawn on top
+    first, and shapes before sprites.
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
   for a name. A click selects one, Ctrl + click adds or takes out one, and Shift + click selects the
   range from the last one clicked.
@@ -100,7 +113,12 @@ as it is. The editor creates no version-control files.
   entities differ. The fields read and write the
   component through the C API on every frame; the native World is the only copy of the state. No
   class per component exists in the editor: a component added to a game's library shows up without
-  rebuilding it.
+  rebuilding it. A text field, such as a sprite's `image`, is drawn above the rest of its section: a
+  text box whose edit is one step when it lets go of the keyboard, "(mixed)" in its label when the
+  selected entities differ, and, for a field that names an image, a **...** button that picks a PNG,
+  starting in the project's `images/` folder (copying one from outside into it, as dropping does),
+  and a preview of the image with its size, or, in red, why it cannot be read (a missing file, not a
+  PNG).
 - **Time.** A bar at the top slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
   0.75, 1, 1.25, 1.5, 1.75, and 2 times. The fixed step stays 1/60 s; faster runs more steps per
   frame, so a heavy World (5,000 flocking boids) falls a little behind at 2 times.
@@ -152,7 +170,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
 | `--after <process id>` | none | Waits, up to 15 seconds, for that editor to exit before opening; the editor passes it when it restarts itself |
 | `--save-after <seconds>` | none | Saves the project after this long, after the `--set` edits |
-| `--do <command>` | none | After the `--set` edits, one per frame, as the editor's gestures would: `create`, `duplicate`, `delete`, `undo`, `redo`, `select=<name>`, `select+=<name>` (adds to the selection), `rename=<name>`, `move=<dx>,<dy>` (world units), `add=<Type>`, `remove=<Type>`, `save`, `play`, `stop`; the entities, the selection, the history, and whether the scene is saved are logged after each; repeatable |
+| `--do <command>` | none | After the `--set` edits, one per frame, as the editor's gestures would: `create`, `duplicate`, `delete`, `undo`, `redo`, `select=<name>`, `select+=<name>` (adds to the selection), `rename=<name>`, `move=<dx>,<dy>` (world units), `add=<Type>`, `remove=<Type>`, `save`, `play`, `stop`, `drop=<file>[;<file>...]@<x>,<y>` (as files dropped at that point of the view, in pixels), `image=<file>` (as chosen with the selected sprites' **...**); the entities, the selection with each sprite's image, the history, and whether the scene is saved are logged after each; repeatable |
 | `--recent <on\|off>` | `on` | Whether the project joins the recent projects; `off` for scripted runs, so they leave the user's list alone |
 
 The times of `--edit-after`, `--save-after`, and `--quit-after` count from when the game or the
