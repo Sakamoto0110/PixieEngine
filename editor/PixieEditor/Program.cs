@@ -53,7 +53,9 @@ internal static class Program
           --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
           --do <command>           after the --set edits, one per frame: create, duplicate, delete, undo, redo,
                                    select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,
-                                   add=<Type>, remove=<Type>, save, play, stop; repeatable
+                                   add=<Type>, remove=<Type>, save, play, stop,
+                                   drop=<file>[;<file>...]@<x>,<y> (as files dropped at a point of the view, in pixels),
+                                   image=<file> (as chosen for the selected sprites' image); repeatable
         """;
 
     [STAThread]

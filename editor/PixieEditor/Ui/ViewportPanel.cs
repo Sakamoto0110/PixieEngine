@@ -13,16 +13,17 @@ internal enum ViewportMode
     // drag on an entity moves it (and the selection with it, when it was selected), Shift holding the
     // drag to one axis and Snap rounding it to the grid; a drag on empty space chooses by box; and a
     // right click opens a menu of what can be done there: duplicate or delete the entities, or, on
-    // empty space, create an entity, ask the game to create one, or delete a particle. The middle
-    // button and the wheel still go to the game, to pan and zoom.
+    // empty space, create an entity or a sprite, ask the game to create one, or delete a particle. The
+    // middle button and the wheel still go to the game, to pan and zoom.
     Select,
 }
 
 // The game's view: the session draws the World into its texture, sized to this window, and the window
 // shows it with ImGui.Image, with the selection outlined on top. The mouse over the image goes to the
 // session as input in the image's pixels in Game mode, and selects in Select mode; the keys go to the
-// session while the window has focus, in both.
-internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring)
+// session while the window has focus, in both. PNG files dropped on the window become sprites where
+// the mouse is, or in the middle of the view when it is elsewhere, in either mode.
+internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring, ImageChooser images)
 {
     // The grids Snap can round to, in world units.
     public static readonly double[] Grids = [8, 16, 32, 64];
@@ -104,6 +105,8 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             SendInput();
             if (Mode == ViewportMode.Select)
                 Select();
+            while (DropEvents.Pending.TryDequeue(out var dropped))
+                Drop(dropped, Hovered ? MouseInView() : null);
             session.Advance(frameDelta);
             var texture = session.Render();
 
@@ -129,6 +132,30 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
 
     // The mouse in view pixels.
     private Vector2 MouseInView() => (ImGui.GetMousePos() - ImageOrigin) * Scale;
+
+    // Makes sprites of the PNG files among `files`, at `at` in view pixels (the middle of the view when
+    // null), as one step, each at most half the view's height or width; returns them.
+    public uint[] Drop(IReadOnlyList<string> files, Vector2? at)
+    {
+        var point = at ?? new Vector2(Width / 2f, Height / 2f);
+        try
+        {
+            var corner = session.ViewToWorld(0, 0);
+            var opposite = session.ViewToWorld(Width, Height);
+            var fit = 0.5 * Math.Min(Math.Abs(opposite.X - corner.X), Math.Abs(opposite.Y - corner.Y));
+            if (!(fit > 0))
+                fit = double.PositiveInfinity;
+            var made = authoring.PlaceImages(files, session.ViewToWorld(point.X, point.Y), fit);
+            if (made.Length > 0)
+                Log($"Dropped {made.Length} image(s) at ({point.X:0}, {point.Y:0})");
+            return made;
+        }
+        catch (EngineException e)
+        {
+            Status.Show(e.Message, error: true);
+            return [];
+        }
+    }
 
     private bool GoesToGame(int button) => Mode == ViewportMode.Game || button == MiddleButton;
 
@@ -364,6 +391,12 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
                     Log($"Created {Describe(created)} at ({MenuAt.X:0}, {MenuAt.Y:0})");
             }
 
+            if (session.TypeIndex("Sprite") >= 0 && ImGui.MenuItem("New sprite here..."))
+            {
+                var at = MenuAt;
+                images.Open(file => Drop([file], at));
+            }
+
             // A project's own scene has nothing to ask the game for.
             if (session.ProjectFolder == null && ImGui.MenuItem("Ask the game to create one here"))
                 Log(session.SpawnAt(MenuAt.X, MenuAt.Y) ? $"The game created one at ({MenuAt.X:0}, {MenuAt.Y:0})" : "The game creates nothing there");
@@ -390,6 +423,14 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         var draw = ImGui.GetWindowDrawList();
         foreach (var entity in selection.Items)
         {
+            // A sprite is outlined by its rectangle, turned as it is drawn; anything else by a circle.
+            if (session.ViewQuad(entity) is { } quad)
+            {
+                var corners = quad.Select(c => ImageOrigin + new Vector2((float)c.X, (float)c.Y) / Scale).ToArray();
+                draw.AddQuad(corners[0], corners[1], corners[2], corners[3], OutlineColor, 1.5f);
+                continue;
+            }
+
             if (session.ViewBounds(entity) is not { } bounds)
                 continue;
             var center = ImageOrigin + new Vector2((float)bounds.X, (float)bounds.Y) / Scale;

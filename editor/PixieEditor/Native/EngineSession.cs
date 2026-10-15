@@ -275,6 +275,48 @@ public sealed unsafe class EngineSession : IDisposable
         Check(PixieCapi.FieldSet(Handle, entity, type, field, in value), "write a field");
     }
 
+    // A text field, such as a sprite's image path.
+    public string GetText(uint entity, int type, int field)
+    {
+        Check(PixieCapi.FieldGetText(Handle, entity, type, field, null, 0, out var length), "measure a text field");
+        var buffer = new byte[length + 1];
+        fixed (byte* text = buffer)
+        {
+            Check(PixieCapi.FieldGetText(Handle, entity, type, field, text, buffer.Length, out _), "read a text field");
+        }
+
+        return Encoding.UTF8.GetString(buffer, 0, length);
+    }
+
+    public void SetText(uint entity, int type, int field, string text) =>
+        Check(PixieCapi.FieldSetText(Handle, entity, type, field, text), "write a text field");
+
+    // The four corners of a sprite's rectangle as last drawn, in view pixels (the image's top-left,
+    // top-right, bottom-right, bottom-left); null for an entity without a sprite.
+    public (double X, double Y)[]? ViewQuad(uint entity)
+    {
+        var corners = stackalloc double[8];
+        if (!Found(PixieCapi.EntityViewQuad(Handle, entity, corners), "read a sprite's rectangle"))
+            return null;
+        return [(corners[0], corners[1]), (corners[2], corners[3]), (corners[4], corners[5]), (corners[6], corners[7])];
+    }
+
+    // An image as a sprite names it: the session's texture of it and its size, or the reason it cannot
+    // be read.
+    public (uint Texture, int Width, int Height)? Image(string path, out string? problem)
+    {
+        problem = null;
+        var result = PixieCapi.Image(Handle, path, out var texture, out var width, out var height);
+        if (result == PixieResult.ErrorIo)
+        {
+            problem = LastError();
+            return null;
+        }
+
+        Check(result, "read an image");
+        return (texture, width, height);
+    }
+
     private static string LastError()
     {
         var buffer = stackalloc byte[512];

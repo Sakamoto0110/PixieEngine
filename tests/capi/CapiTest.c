@@ -763,8 +763,10 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
 }
 
 /* An existing project, such as a sample's, opened with its game's library: it opens in edit mode
- * with a scenario, plays, and stops back to the scene as it was; nothing is saved. */
-static void ExerciseOpen(const char* folder) {
+ * with a scenario, plays, and stops back to the scene as it was; nothing is saved. A project without
+ * code (`sceneOnly`, opened with the generic library) has no scenario; instead, every image its
+ * sprites name must be readable. */
+static void ExerciseOpen(const char* folder, int sceneOnly) {
     PixieSession* s = NULL;
     CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
     if (s == NULL) {
@@ -775,12 +777,38 @@ static void ExerciseOpen(const char* folder) {
     CHECK(api.session_mode(s) == PIXIE_MODE_EDIT && api.project_unsaved(s) == 0);
     PixieStats before;
     CHECK(api.session_stats(s, &before) == PIXIE_OK && before.entities > 0 && before.steps == 0);
-    FindEntity(s, "scenario");
     int scenarios = 0;
     for (int32_t t = 0; t < api.type_count(s); ++t) {
         scenarios += (api.type_flags(s, t) & PIXIE_TYPE_SCENARIO) != 0;
     }
-    CHECK(scenarios == 1);
+    if (!sceneOnly) {
+        FindEntity(s, "scenario");
+        CHECK(scenarios == 1);
+    } else {
+        CHECK(scenarios == 0);
+        int32_t spriteType = -1;
+        CHECK(api.type_find(s, "Sprite", &spriteType) == PIXIE_OK);
+        const int32_t image = FindField(s, spriteType, "image");
+        uint32_t* ids = (uint32_t*)malloc(sizeof(uint32_t) * (size_t)before.entities);
+        int32_t filled = 0;
+        int sprites = 0;
+        CHECK(ids != NULL && api.entities(s, ids, before.entities, &filled) == PIXIE_OK);
+        for (int32_t i = 0; ids != NULL && i < filled; ++i) {
+            if (!api.entity_has(s, ids[i], spriteType)) {
+                continue;
+            }
+            char path[512];
+            int32_t length = 0;
+            uint32_t texture = 0;
+            int32_t width = 0, height = 0;
+            CHECK(api.field_get_text(s, ids[i], spriteType, image, path, (int32_t)sizeof path, &length) == PIXIE_OK);
+            CHECK(api.image(s, path, &texture, &width, &height) == PIXIE_OK && width > 0 && height > 0);
+            ++sprites;
+        }
+        free(ids);
+        CHECK(sprites > 0);
+        printf("%d sprites, every image readable\n", sprites);
+    }
 
     PixieStats stats;
     CHECK(api.session_play(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_PLAY);
@@ -798,9 +826,10 @@ static void ExerciseOpen(const char* folder) {
 int main(int argc, char** argv) {
     const int project = (argc == 4 || argc == 6) && strcmp(argv[2], "--project") == 0;
     const char* expectedType = argc == 6 && strcmp(argv[4], "--expect-type") == 0 ? argv[5] : NULL;
-    const int open = argc == 4 && strcmp(argv[2], "--open") == 0;
-    if (argc != 2 && !open && !(project && (argc == 4 || expectedType != NULL))) {
-        fprintf(stderr, "usage: capi-test <library> [--project <folder> [--expect-type <name>] | --open <folder>]\n");
+    const int open = (argc == 4 || argc == 5) && strcmp(argv[2], "--open") == 0;
+    const int sceneOnly = open && argc == 5 && strcmp(argv[4], "--scene-only") == 0;
+    if (argc != 2 && !(open && (argc == 4 || sceneOnly)) && !(project && (argc == 4 || expectedType != NULL))) {
+        fprintf(stderr, "usage: capi-test <library> [--project <folder> [--expect-type <name>] | --open <folder> [--scene-only]]\n");
         return 2;
     }
     Library library = OpenLibrary(argv[1]);
@@ -833,7 +862,7 @@ int main(int argc, char** argv) {
     if (project) {
         ExerciseProject(argv[3], expectedType);
     } else if (open) {
-        ExerciseOpen(argv[3]);
+        ExerciseOpen(argv[3], sceneOnly);
     } else {
         PixieSession* session = NULL;
         CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);

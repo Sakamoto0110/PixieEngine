@@ -46,6 +46,101 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
         });
     }
 
+    // One sprite per PNG among `files`, named after its file, placed from `at` (world units) on, each a
+    // little to the side of the one before; they become the selection, as one step. Images from outside
+    // the project are copied into it first (ProjectImages). A sprite drawn larger than `fit` world units
+    // on either side is scaled down to it, so a large image does not cover the view. Returns the
+    // sprites made.
+    public uint[] PlaceImages(IReadOnlyList<string> files, (double X, double Y) at, double fit = double.PositiveInfinity)
+    {
+        var images = files.Where(ProjectImages.IsImage).ToArray();
+        var skipped = files.Where(f => !ProjectImages.IsImage(f)).Select(Path.GetFileName).ToArray();
+        if (skipped.Length > 0)
+            Status.Show($"Only PNG images become sprites; left out: {string.Join(", ", skipped)}.", error: true);
+        if (images.Length == 0)
+            return [];
+
+        return Guard(() =>
+        {
+            var transform = session.TypeIndex("Transform2D");
+            var sprite = session.TypeIndex("Sprite");
+            if (transform < 0 || sprite < 0)
+            {
+                Status.Show("This game has no Sprite component.", error: true);
+                return Array.Empty<uint>();
+            }
+
+            var position = session.FieldIndex(transform, "position");
+            var scale = session.FieldIndex(transform, "scale");
+            var image = session.FieldIndex(sprite, "image");
+            var names = session.Entities().Select(session.EntityName).ToHashSet();
+            var made = new List<uint>();
+            var copied = new List<string>();
+            foreach (var file in images)
+            {
+                var (path, copiedTo) = ProjectImages.Import(session.ProjectFolder, file);
+                if (copiedTo != null)
+                    copied.Add(copiedTo);
+                var stem = Path.GetFileNameWithoutExtension(file);
+                var name = Enumerable.Range(1, names.Count + 1).Select(n => n == 1 ? stem : $"{stem} {n}").First(n => !names.Contains(n));
+                names.Add(name);
+
+                var entity = session.CreateEntity(name);
+                session.AddComponent(entity, transform);
+                var offset = made.Count * DuplicateOffset;
+                session.Set(entity, transform, position, new PixieValue { X = at.X + offset, Y = at.Y + offset });
+                session.AddComponent(entity, sprite);
+                session.SetText(entity, sprite, image, path);
+                if (session.Image(path, out _) is { } size && Math.Max(size.Width, size.Height) > fit)
+                {
+                    var factor = fit / Math.Max(size.Width, size.Height);
+                    session.Set(entity, transform, scale, new PixieValue { X = factor, Y = factor });
+                }
+
+                made.Add(entity);
+            }
+
+            selection.Set(made);
+            Record(made.Count == 1 ? $"creation of sprite {Describe(made[0])}" : $"creation of {made.Count} sprites", made, before: null, after: true);
+            if (copied.Count > 0)
+                Status.Show($"Copied into the project: {string.Join(", ", copied)}");
+            return made.ToArray();
+        }) ?? [];
+    }
+
+    // Writes a text field of the entities' component `type`, as one step; an image chosen for an asset
+    // field comes in through ImportImage first.
+    public void SetText(IReadOnlyList<uint> entities, int type, int field, string text)
+    {
+        if (entities.All(e => session.GetText(e, type, field) == text))
+            return;
+        Change(entities, $"edit of {session.TypeName(type)}.{session.FieldName(type, field)}", e => session.SetText(e, type, field, text));
+    }
+
+    // The path a sprite names for an image file, copying it into the project when it is outside; null,
+    // with the reason shown, when it cannot be used.
+    public string? ImportImage(string file)
+    {
+        if (!ProjectImages.IsImage(file))
+        {
+            Status.Show($"Only PNG images can be used: {Path.GetFileName(file)}.", error: true);
+            return null;
+        }
+
+        try
+        {
+            var (path, copiedTo) = ProjectImages.Import(session.ProjectFolder, file);
+            if (copiedTo != null)
+                Status.Show($"Copied into the project: {copiedTo}");
+            return path;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
+        {
+            Status.Show($"Could not copy {Path.GetFileName(file)} into the project: {e.Message}", error: true);
+            return null;
+        }
+    }
+
     public void Delete(IReadOnlyList<uint> entities)
     {
         if (entities.Count == 0)
@@ -209,6 +304,11 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
             return change();
         }
         catch (EngineException e)
+        {
+            Status.Show(e.Message, error: true);
+            return default;
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
             Status.Show(e.Message, error: true);
             return default;

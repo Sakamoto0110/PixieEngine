@@ -1,0 +1,154 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "207ce215376f0ef4",
+      "name": "backdrop",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [0.0, 0.0],
+          "rotation": 0.0,
+          "scale": [0.68, 0.68]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [255, 255, 255, 36],
+          "layer": -1,
+          "filter": "Smooth"
+        }
+      }
+    },
+    {
+      "id": "a5fbb317262c39d6",
+      "name": "neko",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [-260.0, -150.0],
+          "rotation": 0.0,
+          "scale": [0.22, 0.22]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [255, 255, 255, 255],
+          "layer": 0,
+          "filter": "Smooth"
+        }
+      }
+    },
+    {
+      "id": "120f8d224c9c725e",
+      "name": "tinted and turned",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [0.0, -150.0],
+          "rotation": 0.35,
+          "scale": [0.22, 0.22]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [110, 200, 255, 255],
+          "layer": 0,
+          "filter": "Smooth"
+        }
+      }
+    },
+    {
+      "id": "ab6065134cc50e41",
+      "name": "pixel filter",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [260.0, -150.0],
+          "rotation": 0.0,
+          "scale": [0.22, 0.22]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [255, 255, 255, 255],
+          "layer": 0,
+          "filter": "Pixel"
+        }
+      }
+    },
+    {
+      "id": "14c3cfed8f2f52d4",
+      "name": "head, a region",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [-200.0, 140.0],
+          "rotation": 0.0,
+          "scale": [0.5, 0.5]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [400.0, 20.0, 360.0, 380.0],
+          "pivot": [0.5, 0.5],
+          "color": [255, 255, 255, 255],
+          "layer": 0,
+          "filter": "Smooth"
+        }
+      }
+    },
+    {
+      "id": "5cf29ccd86ce62c3",
+      "name": "layer 1, on top",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [150.0, 130.0],
+          "rotation": 0.0,
+          "scale": [0.2, 0.2]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [255, 170, 90, 255],
+          "layer": 1,
+          "filter": "Smooth"
+        }
+      }
+    },
+    {
+      "id": "4d64ff65b137f0d0",
+      "name": "layer 0",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [210.0, 170.0],
+          "rotation": 0.0,
+          "scale": [0.2, 0.2]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/neko-purple-light.png",
+          "region": [0.0, 0.0, 0.0, 0.0],
+          "pivot": [0.5, 0.5],
+          "color": [120, 230, 140, 255],
+          "layer": 0,
+          "filter": "Smooth"
+        }
+      }
+    }
+  ]
+}

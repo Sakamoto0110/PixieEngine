@@ -35,4 +35,11 @@ if(PROJECT_IS_TOP_LEVEL)
     target_link_libraries(pixie-scene-game PUBLIC Pixie::Runtime)
     pixie_target_defaults(pixie-scene-game)
     pixie_add_capi_library(pixie-scene-capi pixie-scene-game)
+
+    # The generic player, bin/<config>/pixie-player: it plays a project folder without code, named
+    # with --project, as a game's own player plays its project.
+    add_executable(pixie-player ${PROJECT_SOURCE_DIR}/runtime/player/PlayerMain.cpp)
+    set_target_properties(pixie-player PROPERTIES FOLDER capi)
+    target_link_libraries(pixie-player PRIVATE pixie-scene-game)
+    pixie_target_defaults(pixie-player)
 endif()

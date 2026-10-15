@@ -277,4 +277,16 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_component_remove")]
     internal static partial PixieResult ComponentRemove(nint session, uint entity, int type);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_view_quad")]
+    internal static partial PixieResult EntityViewQuad(nint session, uint entity, double* corners);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_get_text")]
+    internal static partial PixieResult FieldGetText(nint session, uint entity, int type, int field, byte* buffer, int capacity, out int length);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_set_text", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult FieldSetText(nint session, uint entity, int type, int field, string text);
+
+    [LibraryImport(Library, EntryPoint = "pixie_image", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult Image(nint session, string path, out uint texture, out int width, out int height);
 }

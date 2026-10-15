@@ -59,6 +59,7 @@ internal sealed class EditorWindow(EditorOptions options)
         // No keyboard navigation: the arrows belong to the game while the viewport has focus.
         io.ConfigFlags |= ImGuiConfigFlags.DockingEnable;
         KeyEvents.Install(window);
+        DropEvents.Install(window);
         ImGuiImplGLFW.SetCurrentContext(context);
         ImGuiImplGLFW.InitForOpenGL(new BackendWindow((Hexa.NET.ImGui.Backends.GLFW.GLFWwindow*)window.Handle), true);
         ImGuiImplOpenGL3.SetCurrentContext(context);
@@ -218,8 +219,9 @@ internal sealed class EditorWindow(EditorOptions options)
         var history = new Editing.History();
         var authoring = new Authoring(session, selection, history);
         var recorder = new Editing.EditRecorder(session, history, () => authoring.Recording);
-        using var inspector = new InspectorPanel(session, authoring, recorder);
-        var viewport = new ViewportPanel(session, selection, authoring).Started();
+        var images = new ImageChooser(session.ProjectFolder);
+        using var inspector = new InspectorPanel(session, authoring, recorder, images);
+        var viewport = new ViewportPanel(session, selection, authoring, images).Started();
         viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
         var entities = new EntitiesPanel(session, selection, authoring);
         var controls = new SessionPanel(session, gameName);
@@ -343,6 +345,7 @@ internal sealed class EditorWindow(EditorOptions options)
             entities.Draw();
             inspector.Draw(selection.Items);
             viewport.Draw(frameDelta);
+            images.Draw();
 
             if (askToSave)
             {
@@ -538,6 +541,18 @@ internal sealed class EditorWindow(EditorOptions options)
             case "rename" when chosen.Length == 1:
                 authoring.Rename(chosen[0], argument);
                 break;
+            case "drop" when argument.Split('@') is [var files, var point] && point.Split(',') is [var px, var py]
+                              && double.TryParse(px, System.Globalization.CultureInfo.InvariantCulture, out var vx)
+                              && double.TryParse(py, System.Globalization.CultureInfo.InvariantCulture, out var vy):
+                ok = viewport.Drop(files.Split(';'), new System.Numerics.Vector2((float)vx, (float)vy)).Length > 0;
+                break;
+            case "image" when chosen.Length > 0 && session.TypeIndex("Sprite") is var spriteType and >= 0
+                               && chosen.All(e => session.Has(e, spriteType)):
+                if (authoring.ImportImage(argument) is { } imagePath)
+                    authoring.SetText(chosen, spriteType, session.FieldIndex(spriteType, "image"), imagePath);
+                else
+                    ok = false;
+                break;
             case "move" when chosen.Length > 0 && argument.Split(',') is [var x, var y]
                              && double.TryParse(x, System.Globalization.CultureInfo.InvariantCulture, out var dx)
                              && double.TryParse(y, System.Globalization.CultureInfo.InvariantCulture, out var dy):
@@ -565,13 +580,16 @@ internal sealed class EditorWindow(EditorOptions options)
         return ok;
     }
 
-    // Entities, the selection with names and positions, and what undo and redo would do.
+    // Entities, the selection with names, positions, and images, and what undo and redo would do.
     private static string Describe(EngineSession session, Authoring authoring, Selection selection)
     {
         var transform = session.TypeIndex("Transform2D");
+        var sprite = session.TypeIndex("Sprite");
         var chosen = selection.Items.Select(e =>
         {
             var name = authoring.Describe(e);
+            if (sprite >= 0 && session.Has(e, sprite))
+                name += $" [{session.GetText(e, sprite, session.FieldIndex(sprite, "image"))}]";
             if (transform < 0 || !session.Has(e, transform))
                 return name;
             var at = session.Get(e, transform, session.FieldIndex(transform, "position"));

@@ -1,0 +1,6 @@
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "sprites",
+  "startScene": "scenes/main.scene"
+}
