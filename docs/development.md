@@ -106,6 +106,26 @@ It compiles with warnings as errors. Its output stays under `editor/`; see
   IDs of `TODO.md` and `TASKLIST.md`, and the archive router; it needs Python 3.
 - **Whitespace:** `git diff --check` is clean, outside `external/`.
 
+## Continuous integration
+
+GitHub Actions runs `.github/workflows/ci.yml` on every push to `main`, on pull
+requests, and by hand:
+
+- **Documentation** (Linux): `python scripts/check_docs.py`.
+- **Engine** (Windows): the `ci` preset, Ninja Multi-Config with the compiler of
+  the Visual Studio the runner has (the workflow finds it with `vswhere`, enters
+  its developer environment, and logs its version), built in Debug and Release
+  and tested with `ctest --preset ci-debug` and `ci-release`. The runners have
+  no GPU, so Mesa's software renderer, llvmpipe (a pinned release of
+  mesa-dist-win, checked by SHA-256), is placed next to the tests for the
+  OpenGL 4.5 core context they open; the log shows the renderer they get.
+- **Editor** (Windows): `dotnet build editor/PixieEditor.slnx -c Release`.
+
+Warnings are errors there as here: what the runner's compiler reports is fixed
+in the code. After every push, its run is checked to the end, and a red `main`
+comes before anything else. The `ci` preset also runs locally from a developer
+prompt, into `build-ci/`.
+
 ## Dependencies
 
 Third-party code lives unmodified under `external/<name>/`, built by

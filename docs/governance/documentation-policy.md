@@ -264,8 +264,9 @@ when its result is recorded with its inputs; otherwise it is a working aid.
   decision. Nothing is pushed without an owner decision.
 - History may be rewritten only before it is pushed; afterwards, a correction
   is a new commit.
-- No continuous integration exists yet. When it does, its run is checked after
-  every push, and a red `main` comes before anything else.
+- Continuous integration runs on every push to `main`
+  ([`docs/development.md`](../development.md#continuous-integration)). Its run
+  is checked after every push, and a red `main` comes before anything else.
 
 ## Metadata
 

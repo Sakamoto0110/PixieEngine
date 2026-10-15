@@ -1,5 +1,7 @@
 # PixieEngine
 
+[![CI](https://github.com/Sakamoto0110/PixieEngine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sakamoto0110/PixieEngine/actions/workflows/ci.yml)
+
 A 2D-first game engine: a C++ runtime on OpenGL 4.5 core, a standalone player
 executable, and a C# editor that inspects engine state through
 [PixieInspector](https://github.com/Sakamoto0110/PixieInspector). Primitives come
