@@ -8,9 +8,9 @@ namespace pixie {
 class World;
 }
 
-// Builds the boids World in code: the controls entity (BoidControls, Pointer, Bounds), the system
-// that wraps boids at the bounds, and `count` boids spread over `area`. Returns the controls entity.
-pixie::Entity SetUpBoids(pixie::World& world, const pxRect& area, int count);
+// Builds what the scene does not hold: the controls' Pointer and Bounds (over `area`) when they are
+// missing, the system that wraps boids at the bounds, and `count` boids spread over `area`.
+void SetUpBoids(pixie::World& world, pixie::Entity controls, const pxRect& area, int count);
 
 // Adds or removes boids until there are `count`. Call it outside a step.
 void SetBoidCount(pixie::World& world, pixie::Entity controls, int count);

@@ -5,11 +5,11 @@
 
 #include <memory>
 
-// What the particles scene is built from: owned by the project, mirrored in a component on the
-// "scenario" entity so a tool can edit it, and read back before the scene is rebuilt.
+// What the particles scene is built from: a component on the scene's "scenario" entity, which a
+// tool edits and the scene saves. The project keeps a copy, read back before the scene is rebuilt,
+// for a World built without a scene. The attractors and spawners are entities of the scene.
 struct ParticlesScenario {
     int count = 10000;
-    int attractors = 1;
     bool interaction = true;
 };
 
@@ -23,7 +23,10 @@ struct ParticleControls {
 };
 
 // Anchor 3 as a Project: particles in orbit around attractors, and spawners feeding them, that the
-// user places, drags, and removes. The same project runs in the particles player and, through the C API, in the editor.
+// user places, drags, and removes. The scene (samples/particles/scenes/main.scene) holds the
+// scenario, the particle system with its controls, the attractors, and the spawners; the particles
+// are generated from the scenario's count. The same project runs in the particles player and,
+// through the C API, in the editor.
 class ParticlesProject final : public pixie::Project {
 public:
     explicit ParticlesProject(ParticlesScenario scenario = {}) : scenario_(scenario) {}

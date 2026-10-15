@@ -1,0 +1,6 @@
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "boids",
+  "startScene": "scenes/main.scene"
+}

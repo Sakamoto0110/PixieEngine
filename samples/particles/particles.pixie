@@ -1,0 +1,6 @@
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "particles",
+  "startScene": "scenes/main.scene"
+}

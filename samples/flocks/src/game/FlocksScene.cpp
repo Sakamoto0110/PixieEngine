@@ -80,16 +80,18 @@ void OrientAndWrap(pixie::World& world, const pixie::FrameTime&, const pixie::In
 
 } // namespace
 
-pixie::Entity SetUpFlocks(pixie::World& world, const pxRect& area, int count) {
-    pixie::Entity flock = world.Create("flock");
-    flock.Add<FlockControls>();
-    flock.Add<Pointer>();
-    flock.Add<Bounds>(Bounds{area});
+void SetUpFlocks(pixie::World& world, pixie::Entity flock, const pxRect& area, int count) {
+    if (!flock.Has<Pointer>()) {
+        flock.Add<Pointer>();
+    }
+    if (!flock.Has<Bounds>()) {
+        flock.Add<Bounds>();
+    }
+    flock.Get<Bounds>().area = area;
     pixie::AddSpatialIndex<FlockMember>(world, flock, flock.Get<FlockControls>().neighbourRadius,
                                         "flocks.grid");
     world.AddSystem(pixie::SystemPhase::PostUpdate, "flocks.orient-and-wrap", &OrientAndWrap);
     SetFlockSize(world, flock, count);
-    return flock;
 }
 
 void SetFlockSize(pixie::World& world, pixie::Entity flock, int count) {

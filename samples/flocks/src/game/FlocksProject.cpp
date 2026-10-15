@@ -5,6 +5,7 @@
 
 #include "pixie/Log.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <algorithm>
@@ -108,9 +109,9 @@ void FlocksProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void FlocksProject::Build(pixie::World& world, pixie::Camera2D& camera) {
-    scenarioEntity_ = world.Create("scenario");
-    scenarioEntity_.Add<FlocksScenario>(scenario_);
-    flock_ = SetUpFlocks(world, camera.VisibleWorld(), scenario_.count);
+    scenarioEntity_ = pixie::SceneEntityWith<FlocksScenario>(world, "scenario", scenario_);
+    flock_ = pixie::SceneEntityWith<FlockControls>(world, "flock");
+    SetUpFlocks(world, flock_, camera.VisibleWorld(), scenarioEntity_.Get<FlocksScenario>().count);
     pixie::LogInfo(std::format(
         "flocks: {} boids; Q/A separation, W/S alignment, E/D cohesion, Space attract or repel, "
         "Up and Down change the count",

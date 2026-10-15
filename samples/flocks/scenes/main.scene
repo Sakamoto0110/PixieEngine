@@ -1,0 +1,46 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "bde3faf359e8c95a",
+      "name": "scenario",
+      "components": {
+        "FlocksScenario": {
+          "v": 1,
+          "count": 5000
+        }
+      }
+    },
+    {
+      "id": "7f77e85e06bd9f83",
+      "name": "flock",
+      "components": {
+        "FlockControls": {
+          "v": 1,
+          "neighbourRadius": 46.0,
+          "separationRadius": 18.0,
+          "separationWeight": 1.8,
+          "alignmentWeight": 1.0,
+          "cohesionWeight": 0.9,
+          "pointerWeight": 1.4,
+          "pointerRadius": 170.0,
+          "pointerMode": "Attract",
+          "minSpeed": 70.0,
+          "maxSpeed": 180.0,
+          "maxForce": 320.0
+        },
+        "Pointer": {
+          "v": 1,
+          "position": [0.0, 0.0],
+          "active": false
+        },
+        "Bounds": {
+          "v": 1,
+          "area": [-400.0, -300.0, 800.0, 600.0]
+        }
+      }
+    }
+  ]
+}

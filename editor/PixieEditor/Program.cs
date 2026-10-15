@@ -25,6 +25,10 @@ internal sealed record EditorOptions
     public bool Paused { get; init; }
     // An earlier editor to wait for, so a game library it held can be built again.
     public int? After { get; init; }
+    // When a project is saved without a hand on the keyboard, after the edits.
+    public double? SaveAfter { get; init; }
+    // Whether the project goes into the user's recent projects; off for scripted runs.
+    public bool Recent { get; init; } = true;
 }
 
 internal static class Program
@@ -43,6 +47,8 @@ internal static class Program
           --time-scale <x>         start with simulated time at this speed (default 1)
           --mode <game|select>     what the mouse does in the viewport at the start (default game; select for a project)
           --paused <on|off>        start with time paused (default off)
+          --save-after <seconds>   save the project after this long (after the --set edits)
+          --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
         """;
 
     [STAThread]
@@ -109,6 +115,12 @@ internal static class Program
                     break;
                 case "--paused" when value is "on" or "off":
                     options = options with { Paused = value == "on" };
+                    break;
+                case "--save-after" when double.TryParse(value, CultureInfo.InvariantCulture, out var save):
+                    options = options with { SaveAfter = save };
+                    break;
+                case "--recent" when value is "on" or "off":
+                    options = options with { Recent = value == "on" };
                     break;
                 case "--after" when int.TryParse(value, CultureInfo.InvariantCulture, out var pid):
                     options = options with { After = pid };

@@ -5,9 +5,12 @@
  *
  * usage: capi-test <path to a game's capi library>
  *        capi-test <path to a capi library> --project <folder> [--expect-type <name>]
+ *        capi-test <path to a game's capi library> --open <folder>
  * The second form creates a project in <folder> (removed before and after) and drives it through
  * editing, saving, playing, and stopping; with --expect-type, it also checks the library describes
- * that component type, such as a game's own. Exits 0 when every check passes, 1 otherwise.
+ * that component type, such as a game's own. The third form opens an existing project with the
+ * game's library, plays it, and stops, changing nothing in the folder. Exits 0 when every check
+ * passes, 1 otherwise.
  */
 #include "pixie_capi.h"
 
@@ -187,19 +190,26 @@ static int32_t FindField(PixieSession* s, int32_t type, const char* name) {
     return -1;
 }
 
-/* The entity named `name`, or 0 after a failed check. */
+/* The entity named `name`; 0 after a failed check. */
 static uint32_t FindEntity(PixieSession* s, const char* name) {
-    uint32_t ids[256];
     int32_t count = 0;
+    CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK);
+    uint32_t* ids = (uint32_t*)malloc(sizeof(uint32_t) * (size_t)(count > 0 ? count : 1));
+    /* Handle 0 is an entity too, so whether one was found is kept apart. */
+    uint32_t entity = 0;
+    int found = 0;
     char buffer[128];
-    CHECK(api.entities(s, ids, 256, &count) == PIXIE_OK && count <= 256);
-    for (int32_t i = 0; i < count && i < 256; ++i) {
-        if (api.entity_name(s, ids[i], buffer, (int32_t)sizeof buffer) == PIXIE_OK && strcmp(buffer, name) == 0) {
-            return ids[i];
+    if (ids != NULL && api.entities(s, ids, count, &count) == PIXIE_OK) {
+        for (int32_t i = 0; i < count && !found; ++i) {
+            if (api.entity_name(s, ids[i], buffer, (int32_t)sizeof buffer) == PIXIE_OK && strcmp(buffer, name) == 0) {
+                entity = ids[i];
+                found = 1;
+            }
         }
     }
-    CHECK(!"entity found by name");
-    return 0;
+    free(ids);
+    CHECK(found);
+    return entity;
 }
 
 /* The one GL function the test calls itself, loaded through GLFW, with the constants it needs. */
@@ -558,11 +568,45 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     Cleanup(folder);
 }
 
+/* An existing project, such as a sample's, opened with its game's library: it opens in edit mode
+ * with a scenario, plays, and stops back to the scene as it was; nothing is saved. */
+static void ExerciseOpen(const char* folder) {
+    PixieSession* s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s == NULL) {
+        return;
+    }
+    char name[128];
+    CHECK(api.project_name(s, name, (int32_t)sizeof name) == PIXIE_OK);
+    CHECK(api.session_mode(s) == PIXIE_MODE_EDIT && api.project_unsaved(s) == 0);
+    PixieStats before;
+    CHECK(api.session_stats(s, &before) == PIXIE_OK && before.entities > 0 && before.steps == 0);
+    FindEntity(s, "scenario");
+    int scenarios = 0;
+    for (int32_t t = 0; t < api.type_count(s); ++t) {
+        scenarios += (api.type_flags(s, t) & PIXIE_TYPE_SCENARIO) != 0;
+    }
+    CHECK(scenarios == 1);
+
+    PixieStats stats;
+    CHECK(api.session_play(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_PLAY);
+    CHECK(api.session_advance(s, 0.2) == PIXIE_OK);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 12);
+    uint32_t texture = 0;
+    CHECK(api.session_render(s, &texture) == PIXIE_OK && TextureHasContent(texture, 640, 360));
+    CHECK(api.session_stop(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_EDIT);
+    CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 0 && stats.entities == before.entities);
+    CHECK(api.project_unsaved(s) == 0);
+    printf("%s: %d entities\n", name, before.entities);
+    api.session_destroy(s);
+}
+
 int main(int argc, char** argv) {
     const int project = (argc == 4 || argc == 6) && strcmp(argv[2], "--project") == 0;
     const char* expectedType = argc == 6 && strcmp(argv[4], "--expect-type") == 0 ? argv[5] : NULL;
-    if (argc != 2 && !(project && (argc == 4 || expectedType != NULL))) {
-        fprintf(stderr, "usage: capi-test <library> [--project <folder> [--expect-type <name>]]\n");
+    const int open = argc == 4 && strcmp(argv[2], "--open") == 0;
+    if (argc != 2 && !open && !(project && (argc == 4 || expectedType != NULL))) {
+        fprintf(stderr, "usage: capi-test <library> [--project <folder> [--expect-type <name>] | --open <folder>]\n");
         return 2;
     }
     Library library = OpenLibrary(argv[1]);
@@ -594,6 +638,8 @@ int main(int argc, char** argv) {
 
     if (project) {
         ExerciseProject(argv[3], expectedType);
+    } else if (open) {
+        ExerciseOpen(argv[3]);
     } else {
         PixieSession* session = NULL;
         CHECK(api.session_create(0, 360, 1, &session) == PIXIE_ERROR_ARGUMENT && session == NULL);

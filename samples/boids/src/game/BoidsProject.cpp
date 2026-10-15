@@ -5,6 +5,7 @@
 
 #include "pixie/Log.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <algorithm>
@@ -68,9 +69,9 @@ void BoidsProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void BoidsProject::Build(pixie::World& world, pixie::Camera2D& camera) {
-    scenarioEntity_ = world.Create("scenario");
-    scenarioEntity_.Add<BoidsScenario>(scenario_);
-    controls_ = SetUpBoids(world, camera.VisibleWorld(), scenario_.count);
+    scenarioEntity_ = pixie::SceneEntityWith<BoidsScenario>(world, "scenario", scenario_);
+    controls_ = pixie::SceneEntityWith<BoidControls>(world, "controls");
+    SetUpBoids(world, controls_, camera.VisibleWorld(), scenarioEntity_.Get<BoidsScenario>().count);
     pixie::LogInfo(std::format("boids: {} boids, attracting; Space switches, Up and Down change the count",
                                BoidCount(world)));
 }

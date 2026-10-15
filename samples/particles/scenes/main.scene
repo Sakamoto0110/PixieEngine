@@ -1,0 +1,101 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "7b7a89c8eff648f6",
+      "name": "scenario",
+      "components": {
+        "ParticlesScenario": {
+          "v": 1,
+          "count": 10000,
+          "interaction": true
+        }
+      }
+    },
+    {
+      "id": "e68ab1bc7e7fa91e",
+      "name": "particles",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [0.0, 0.0],
+          "rotation": 0.0,
+          "scale": [1.0, 1.0]
+        },
+        "ParticleSystem": {
+          "v": 1,
+          "capacity": 200000
+        },
+        "ParticleControls": {
+          "v": 1,
+          "interaction": true,
+          "interactionRadius": 4.0,
+          "stiffness": 1200.0,
+          "damping": 3.0
+        }
+      }
+    },
+    {
+      "id": "ef2a4d1fe54d5bf6",
+      "name": "spawner",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [-420.0, 0.0],
+          "rotation": 0.0,
+          "scale": [1.0, 1.0]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Ring",
+          "size": [16.0, 16.0],
+          "color": [140, 200, 255, 255]
+        },
+        "ParticleSpawner": {
+          "v": 1,
+          "system": "e68ab1bc7e7fa91e",
+          "rate": 150.0,
+          "lifetime": 8.0,
+          "speedMin": 60.0,
+          "speedMax": 110.0,
+          "shape": "Ring",
+          "radius": 16.0,
+          "size": [0.0, 0.0],
+          "segmentEnd": [0.0, 0.0],
+          "directionMode": "ShapeNormal",
+          "direction": 0.0,
+          "spread": 0.6,
+          "target": null
+        }
+      }
+    },
+    {
+      "id": "b7d471d0f1abeae1",
+      "name": "attractor",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [0.0, 0.0],
+          "rotation": 0.0,
+          "scale": [1.0, 1.0]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Ring",
+          "size": [10.0, 10.0],
+          "color": [255, 214, 120, 255]
+        },
+        "Attractor": {
+          "v": 1,
+          "strength": 4000000.0,
+          "softening": 12.0,
+          "size": 10.0,
+          "reach": 0.0,
+          "killOnContact": false
+        }
+      }
+    }
+  ]
+}

@@ -5,14 +5,17 @@
 
 #include <memory>
 
-// What the boids scene is built from: owned by the project, mirrored in a component on the
-// "scenario" entity so a tool can edit it, and read back before the scene is rebuilt.
+// What the boids scene is built from: a component on the scene's "scenario" entity, which a tool
+// edits and the scene saves. The project keeps a copy, read back before the scene is rebuilt, for a
+// World built without a scene.
 struct BoidsScenario {
     int count = 1000;
 };
 
 // Anchor 1 as a Project: boids that steer toward the pointer, or away from it, within a radius.
-// The same project runs in the boids player and, through the C API, in the editor.
+// The scene (samples/boids/scenes/main.scene) holds the scenario and the controls; the boids are
+// generated from the scenario's count. The same project runs in the boids player and, through the
+// C API, in the editor.
 class BoidsProject final : public pixie::Project {
 public:
     explicit BoidsProject(BoidsScenario scenario = {}) : scenario_(scenario) {}

@@ -5,14 +5,17 @@
 
 #include <memory>
 
-// What the flocks scene is built from: owned by the project, mirrored in a component on the
-// "scenario" entity so a tool can edit it, and read back before the scene is rebuilt.
+// What the flocks scene is built from: a component on the scene's "scenario" entity, which a tool
+// edits and the scene saves. The project keeps a copy, read back before the scene is rebuilt, for a
+// World built without a scene.
 struct FlocksScenario {
     int count = 5000;
 };
 
-// Anchor 2 as a Project: boids that flock with their neighbours and react to the pointer. The same
-// project runs in the flocks player and, through the C API, in the editor.
+// Anchor 2 as a Project: boids that flock with their neighbours and react to the pointer. The scene
+// (samples/flocks/scenes/main.scene) holds the scenario and the flock's controls; the boids are
+// generated from the scenario's count. The same project runs in the flocks player and, through the
+// C API, in the editor.
 class FlocksProject final : public pixie::Project {
 public:
     explicit FlocksProject(FlocksScenario scenario = {}) : scenario_(scenario) {}

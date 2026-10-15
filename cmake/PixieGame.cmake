@@ -1,5 +1,5 @@
-# pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...]): a game written against the engine, as
-# three targets:
+# pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...] [PROJECT_DIR <dir>]): a game written
+# against the engine, as three targets:
 #
 # - <name>-game, a static library with the game's code, which defines pixie::CreateProject();
 # - <name>, its player, whose main is the engine's (runtime/player/PlayerMain.cpp): it opens the
@@ -8,9 +8,13 @@
 #
 # INCLUDE_DIRS are the game library's public include directories; src/ when none are given. The player
 # is the Visual Studio startup project of the directory that calls this.
+#
+# PROJECT_DIR is for a game built in another tree than its project, such as the engine's samples,
+# whose players land in the engine's bin/: the player opens that folder unless --project says
+# otherwise, and a CTest test opens the project through the game's library (capi-test --open).
 
 function(pixie_game name)
-    cmake_parse_arguments(PARSE_ARGV 1 GAME "" "" "SOURCES;INCLUDE_DIRS")
+    cmake_parse_arguments(PARSE_ARGV 1 GAME "" "PROJECT_DIR" "SOURCES;INCLUDE_DIRS")
     if(NOT GAME_SOURCES)
         message(FATAL_ERROR "pixie_game(${name}) needs SOURCES: the game's .cpp files.")
     endif()
@@ -27,8 +31,14 @@ function(pixie_game name)
     add_executable(${name} ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../runtime/player/PlayerMain.cpp)
     target_link_libraries(${name} PRIVATE ${name}-game)
     pixie_target_defaults(${name})
+    if(GAME_PROJECT_DIR)
+        target_compile_definitions(${name} PRIVATE "PIXIE_PLAYER_PROJECT_DIR=\"${GAME_PROJECT_DIR}\"")
+    endif()
 
     pixie_add_capi_library(${name}-capi ${name}-game)
+    if(GAME_PROJECT_DIR AND TARGET capi-test)
+        add_test(NAME ${name}-project COMMAND capi-test $<TARGET_FILE:${name}-capi> --open ${GAME_PROJECT_DIR})
+    endif()
 
     set_target_properties(${name}-game ${name} PROPERTIES FOLDER game)
     set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT ${name})

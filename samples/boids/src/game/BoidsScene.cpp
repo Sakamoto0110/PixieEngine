@@ -60,14 +60,16 @@ void WrapAtBounds(pixie::World& world, const pixie::FrameTime&, const pixie::Inp
 
 } // namespace
 
-pixie::Entity SetUpBoids(pixie::World& world, const pxRect& area, int count) {
-    pixie::Entity controls = world.Create("controls");
-    controls.Add<BoidControls>();
-    controls.Add<Pointer>();
-    controls.Add<Bounds>(Bounds{area});
+void SetUpBoids(pixie::World& world, pixie::Entity controls, const pxRect& area, int count) {
+    if (!controls.Has<Pointer>()) {
+        controls.Add<Pointer>();
+    }
+    if (!controls.Has<Bounds>()) {
+        controls.Add<Bounds>();
+    }
+    controls.Get<Bounds>().area = area;
     world.AddSystem(pixie::SystemPhase::PostUpdate, "boids.wrap", &WrapAtBounds);
     SetBoidCount(world, controls, count);
-    return controls;
 }
 
 void SetBoidCount(pixie::World& world, pixie::Entity controls, int count) {

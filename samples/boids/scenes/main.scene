@@ -1,0 +1,41 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "25bc195044d2aedf",
+      "name": "scenario",
+      "components": {
+        "BoidsScenario": {
+          "v": 1,
+          "count": 1000
+        }
+      }
+    },
+    {
+      "id": "9c3ed0c6fcadc79c",
+      "name": "controls",
+      "components": {
+        "BoidControls": {
+          "v": 1,
+          "mode": "Attract",
+          "radius": 220.0,
+          "maxSpeed": 260.0,
+          "cruiseSpeed": 110.0,
+          "maxForce": 520.0,
+          "wander": 2.5
+        },
+        "Pointer": {
+          "v": 1,
+          "position": [0.0, 0.0],
+          "active": false
+        },
+        "Bounds": {
+          "v": 1,
+          "area": [-400.0, -300.0, 800.0, 600.0]
+        }
+      }
+    }
+  ]
+}

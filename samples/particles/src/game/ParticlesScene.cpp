@@ -6,6 +6,7 @@
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/ParticleStep.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -23,12 +24,15 @@ constexpr double kOuterOrbit = 260.0;
 
 } // namespace
 
-pixie::Entity SetUpParticles(pixie::World& world) {
+void SetUpParticles(pixie::World& world, pixie::Entity system, bool defaults) {
     pixie::AddParticleStep(world);
-    pixie::Entity emitter = world.Create("particles");
-    emitter.Add<pixie::Transform2D>();
-    pixie::ParticleSystem& pool = emitter.Add<pixie::ParticleSystem>();
-    pool.capacity = 200000;
+    if (!system.Has<pixie::Transform2D>()) {
+        system.Add<pixie::Transform2D>();
+    }
+    pixie::ParticleSystem& pool = system.Get<pixie::ParticleSystem>();
+    if (defaults) {
+        pool.capacity = 200000;
+    }
     pool.style.color = kParticleColor;
     pool.style.size = 2.0f;
     pool.style.minPixels = 1.2f;
@@ -36,9 +40,10 @@ pixie::Entity SetUpParticles(pixie::World& world) {
     pool.AddAffector<pixie::AttractorAffector>();
     pool.AddAffector<pixie::InteractionAffector>();
 
-    // A spawner on the left: particles leave a small ring outward and fall toward the attractors.
-    AddSpawner(world, emitter, pxPoint(-420.0, 0.0)).Get<pixie::ParticleSpawner>().rate = 150.0;
-    return emitter;
+    if (defaults) {
+        // A spawner on the left: particles leave a small ring outward and fall toward the attractors.
+        AddSpawner(world, system, pxPoint(-420.0, 0.0)).Get<pixie::ParticleSpawner>().rate = 150.0;
+    }
 }
 
 pixie::Entity AddSpawner(pixie::World& world, pixie::Entity system, pxPoint position) {
@@ -55,6 +60,7 @@ pixie::Entity AddSpawner(pixie::World& world, pixie::Entity system, pxPoint posi
     feed.directionMode = pixie::DirectionMode::ShapeNormal;
     feed.spread = 0.6;
     spawner.Add<pixie::Shape>(pixie::Shape{pixie::ShapeKind::Ring, pxVec2(16.0, 16.0), kSpawnerColor});
+    pixie::AddToScene(spawner);
     return spawner;
 }
 
@@ -67,6 +73,7 @@ pixie::Entity AddAttractor(pixie::World& world, pxPoint position) {
     attractor.Add<pixie::Transform2D>(pixie::Transform2D{position});
     attractor.Add<pixie::Attractor>();
     attractor.Add<pixie::Shape>(pixie::Shape{pixie::ShapeKind::Ring, pxVec2(10.0, 10.0), kAttractorColor});
+    pixie::AddToScene(attractor);
     return attractor;
 }
 

@@ -8,6 +8,7 @@
 #include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -15,7 +16,6 @@
 #include <array>
 #include <cmath>
 #include <format>
-#include <numbers>
 
 namespace {
 
@@ -26,7 +26,6 @@ constexpr pixie::Key kPresetKeys[] = {pixie::Key::Num1, pixie::Key::Num2, pixie:
 constexpr int kInteractionLimit = 20000;
 constexpr double kPickPixels = 18.0;
 constexpr double kZoomStep = 1.15;
-constexpr double kAttractorRing = 250.0;
 
 } // namespace
 
@@ -37,10 +36,6 @@ void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
         .Tooltip("How many particles the scene starts with. Rebuild the scene to apply.")
         .Range(0.0, 200000.0, 1.0)
         .Scrub(10.0)
-        .Field<&ParticlesScenario::attractors>("attractors")
-        .Tooltip("How many attractors the scene starts with: one in the middle, or a ring of them.")
-        .Range(0.0, 16.0, 1.0)
-        .Scrub(0.1)
         .Field<&ParticlesScenario::interaction>("interaction")
         .Tooltip("Whether the scene starts with particle-to-particle interaction.");
     types.Add<ParticleControls>("ParticleControls")
@@ -62,20 +57,26 @@ void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
 }
 
 void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {
-    scenarioEntity_ = world.Create("scenario");
-    scenarioEntity_.Add<ParticlesScenario>(scenario_);
-    emitter_ = SetUpParticles(world);
-    dragged_ = {};
-    ParticleControls& controls = emitter_.Add<ParticleControls>();
-    controls.interaction = scenario_.interaction;
-    // One attractor at the middle; more on a ring around it.
-    for (int i = 0; i < scenario_.attractors; ++i) {
-        const double angle = 2.0 * std::numbers::pi * i / scenario_.attractors;
-        const double ring = scenario_.attractors == 1 ? 0.0 : kAttractorRing;
-        AddAttractor(world, pxPoint(ring * std::cos(angle), ring * std::sin(angle)));
+    // Without a scene, the World starts with what the sample's scene holds: the spawner on the left
+    // and one attractor in the middle.
+    const auto scenarios = world.Registry().view<ParticlesScenario>();
+    const bool defaults = scenarios.begin() == scenarios.end();
+    scenarioEntity_ = pixie::SceneEntityWith<ParticlesScenario>(world, "scenario", scenario_);
+    const ParticlesScenario scenario = scenarioEntity_.Get<ParticlesScenario>();
+    emitter_ = pixie::SceneEntityWith<pixie::ParticleSystem>(world, "particles");
+    SetUpParticles(world, emitter_, defaults);
+    if (defaults) {
+        AddAttractor(world, pxPoint(0.0, 0.0));
     }
+    dragged_ = {};
+    if (!emitter_.Has<ParticleControls>()) {
+        emitter_.Add<ParticleControls>();
+    }
+    // The scenario says whether the scene starts with the interaction.
+    ParticleControls& controls = emitter_.Get<ParticleControls>();
+    controls.interaction = scenario.interaction;
     SetInteraction(emitter_, controls.interaction);
-    Respawn(world, scenario_.count);
+    Respawn(world, scenario.count);
     pixie::LogInfo("particles: 1-5 for 1, 10, 100, 10000, 100000 particles; I interaction; "
                    "left click adds or drags an attractor, Alt + left click adds a spawner, "
                    "a left drag moves either, right click removes it; "

@@ -166,7 +166,8 @@ internal sealed class EditorWindow(EditorOptions options)
         if (!GameLibrary.IsLoaded)
             GameLibrary.Use(library);
         var session = EngineSession.OpenProject(ViewWidth, ViewHeight, folder);
-        Settings.Remember(folder);
+        if (options.Recent)
+            Settings.Remember(folder);
         Console.Error.WriteLine($"[info] Opened {folder} with {Path.GetFileName(library)}");
         return session;
     }
@@ -183,7 +184,7 @@ internal sealed class EditorWindow(EditorOptions options)
             BeginFrame();
             var outcome = screen.Draw();
             KeyEvents.Pending.Clear();
-            EndFrame(window, GLFW.GetTime());
+            EndFrame(window, GLFW.GetTime(), timed: false);
             if (outcome != null)
                 return outcome;
         }
@@ -208,6 +209,8 @@ internal sealed class EditorWindow(EditorOptions options)
 
     private unsafe int Edit(GLFWwindowPtr window, EngineSession session)
     {
+        // The command line's times count from here, not from a build before.
+        Start = GLFW.GetTime();
         var project = session.ProjectFolder != null;
         var firstLayout = FirstLayout;
         var gameName = options.Game is { } game ? Program.GameName(game) : GameLibrary.SceneGame;
@@ -278,6 +281,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var exitCode = 0;
         var previous = GLFW.GetTime();
         var editsApplied = false;
+        var savedOnce = false;
         while (!controls.CloseRequested)
         {
             if (GLFW.WindowShouldClose(window) != 0)
@@ -359,6 +363,12 @@ internal sealed class EditorWindow(EditorOptions options)
                 editsApplied = true;
             }
 
+            if (project && options.SaveAfter is { } saveAfter && !savedOnce && now - Start >= saveAfter)
+            {
+                Save(session);
+                savedOnce = true;
+            }
+
             var name = project ? session.ProjectName : gameName;
             var current = $"PixieEditor - {name}{(project && session.Unsaved ? " *" : "")}{(project && !session.Editing ? " - playing" : "")}";
             if (current != title)
@@ -437,13 +447,14 @@ internal sealed class EditorWindow(EditorOptions options)
         ImGui.NewFrame();
     }
 
-    // Draws the frame; with --quit-after, saves the screenshot and closes once the time is up.
-    private unsafe void EndFrame(GLFWwindowPtr window, double now)
+    // Draws the frame; with --quit-after, saves the screenshot and closes once the time is up, except
+    // while a project's code builds (`timed` false): the times count from when the project opens.
+    private unsafe void EndFrame(GLFWwindowPtr window, double now, bool timed = true)
     {
         ImGui.Render();
         ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
 
-        var quitting = options.QuitAfter > 0 && now - Start >= options.QuitAfter;
+        var quitting = timed && options.QuitAfter > 0 && now - Start >= options.QuitAfter;
         if (quitting && options.Screenshot != null)
         {
             int width, height;

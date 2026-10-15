@@ -1,21 +1,22 @@
-include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
+# The boids sample is a project folder (boids.pixie and scenes/), with code. Built with the engine,
+# it is one of the engine's samples: its player lands in the engine's bin/<config>/ and opens this
+# folder (PROJECT_DIR). Opened in the editor, the folder is a project of its own, built like any
+# other against the engine the editor runs from, into build/ and bin/ here.
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    cmake_minimum_required(VERSION 3.25)
+    project(boids LANGUAGES C CXX)
+    if(NOT IS_DIRECTORY "${PIXIE_ENGINE_DIR}")
+        message(FATAL_ERROR "PIXIE_ENGINE_DIR must name PixieEngine's folder; the editor passes it when it builds this project.")
+    endif()
+    include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
+endif()
 
-# The game: everything the boids are, as a Project. The player and the C API library link it.
-add_library(boids-game STATIC
-    src/game/Boid.cpp
-    src/game/BoidsProject.cpp
-    src/game/BoidsScene.cpp
+pixie_game(boids
+    SOURCES
+        src/game/Boid.cpp
+        src/game/BoidsProject.cpp
+        src/game/BoidsScene.cpp
+    INCLUDE_DIRS src/game
+    PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}
 )
-set_target_properties(boids-game PROPERTIES FOLDER samples/boids)
-target_include_directories(boids-game PUBLIC src/game)
-target_link_libraries(boids-game PUBLIC Pixie::Runtime)
-pixie_target_defaults(boids-game)
-
-# The player: the game in its own window.
-add_executable(boids src/player/main.cpp)
-set_target_properties(boids PROPERTIES FOLDER samples/boids)
-target_link_libraries(boids PRIVATE boids-game)
-pixie_target_defaults(boids)
-
-# The game for hosts that drive it through the C API, such as the editor: bin/<config>/boids-capi.
-pixie_add_capi_library(boids-capi boids-game)
+set_target_properties(boids-game boids PROPERTIES FOLDER samples/boids)

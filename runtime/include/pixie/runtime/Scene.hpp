@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pixie/runtime/Entity.hpp"
+#include "pixie/runtime/World.hpp"
 
 #include <cstdint>
 #include <filesystem>
@@ -11,7 +12,6 @@
 namespace pixie {
 
 class ComponentTypes;
-class World;
 
 // Makes an entity part of the scene, under an ID that stays the same through saving and loading.
 // Only entities with one are saved; what project code generates while building (boids from a
@@ -31,6 +31,20 @@ std::uint64_t NewSceneId();
 // Gives the entity a SceneId if it has none, and returns its ID; 0 for a dead entity. Not during a
 // step.
 std::uint64_t AddToScene(Entity entity);
+
+// An entity with a T: what a project finds of its scene while it builds. When there is none,
+// as when no scene was loaded, a new scene entity named `name` with `value`, so a save keeps it. Not
+// during a step.
+template<typename T>
+Entity SceneEntityWith(World& world, std::string_view name, T value = {}) {
+    if (auto view = world.Registry().view<T>(); view.begin() != view.end()) {
+        return world.Wrap(*view.begin());
+    }
+    Entity created = world.Create(name);
+    created.Add<T>(std::move(value));
+    AddToScene(created);
+    return created;
+}
 
 // What reading or writing a scene found: whether it worked, why not, and what it had to leave out.
 struct SceneReport {
