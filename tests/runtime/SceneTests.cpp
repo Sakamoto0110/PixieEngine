@@ -14,6 +14,7 @@
 
 #include <nlohmann/json.hpp>
 
+#include <array>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
@@ -335,4 +336,116 @@ TEST(SavingAndLoadingAFile) {
     CHECK(WriteScene(loaded, types) == WriteScene(world, types));
     CHECK(!LoadSceneFile(loaded, types, directory / "missing.scene").ok);
     std::filesystem::remove_all(directory);
+}
+
+namespace {
+
+Entity Named(World& world, const std::string& name) {
+    Entity found;
+    world.Each<const Name>([&](Entity entity, const Name& n) {
+        if (n.value == name) {
+            found = entity;
+        }
+    });
+    return found;
+}
+
+} // namespace
+
+TEST(ASnapshotBringsBackDestroyedEntities) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const std::array chosen = {Named(world, "pool"), Named(world, "spawner")};
+    const std::uint64_t poolId = chosen[0].Get<SceneId>().value;
+    const std::string snapshot = WriteEntities(world, types, chosen);
+    for (const Entity entity : chosen) {
+        entity.Destroy();
+    }
+    CHECK(world.EntityCount() == 2);
+
+    const EntitiesReport report = ReadEntities(world, types, snapshot, SceneIds::Keep);
+    CHECK(report.ok && report.warnings.empty() && report.entities.size() == 2);
+    CHECK(world.EntityCount() == 4);
+    const Entity pool = report.entities[0];
+    const Entity spawner = report.entities[1];
+    CHECK(pool.Get<SceneId>().value == poolId);
+    CHECK(spawner.Get<ParticleSpawner>().system == pool.Id());
+    CHECK(pool.Get<Attractor>().killOnContact && pool.Get<ParticleSystem>().capacity == 5000);
+    // Written again, the entities are as they were.
+    CHECK(WriteEntities(world, types, report.entities) == snapshot);
+}
+
+TEST(ACopyGetsNewIdsAndFollowsItsOwnReferences) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const Entity pool = Named(world, "pool");
+    const Entity spawner = Named(world, "spawner");
+
+    // Both copied: the copy of the spawner feeds the copy of the pool.
+    const std::array both = {pool, spawner};
+    const EntitiesReport pair = ReadEntities(world, types, WriteEntities(world, types, both), SceneIds::New);
+    CHECK(pair.ok && pair.entities.size() == 2);
+    const Entity poolCopy = pair.entities[0];
+    const Entity spawnerCopy = pair.entities[1];
+    CHECK(poolCopy.Get<SceneId>().value != pool.Get<SceneId>().value);
+    CHECK(spawnerCopy.Get<SceneId>().value != spawner.Get<SceneId>().value);
+    CHECK(spawnerCopy.Get<ParticleSpawner>().system == poolCopy.Id());
+    CHECK(poolCopy.Get<Name>().value == "pool");
+
+    // The spawner alone: its copy feeds the pool it fed.
+    const std::array one = {spawner};
+    const EntitiesReport single = ReadEntities(world, types, WriteEntities(world, types, one), SceneIds::New);
+    CHECK(single.ok && single.entities.size() == 1);
+    CHECK(single.entities[0].Get<ParticleSpawner>().system == pool.Id());
+
+    // A copied Behaviour runs.
+    const std::array spinners = {world.Wrap(*world.Registry().view<Spinner>().begin())};
+    const EntitiesReport copied = ReadEntities(world, types, WriteEntities(world, types, spinners), SceneIds::New);
+    CHECK(copied.ok && copied.entities.size() == 1 && copied.entities[0].Get<Spinner>().speed == 2.25);
+    world.Step(0.1, kNoInput);
+    CHECK(copied.entities[0].Get<Spinner>().turns == 1);
+}
+
+TEST(KeepingIdsThatAreInTheWorldIsRefused) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const std::array chosen = {Named(world, "pool")};
+    const std::size_t before = world.EntityCount();
+    const EntitiesReport report = ReadEntities(world, types, WriteEntities(world, types, chosen), SceneIds::Keep);
+    CHECK(!report.ok && !report.error.empty() && report.entities.empty());
+    CHECK(world.EntityCount() == before);
+    CHECK(!ReadEntities(world, types, "{ not json", SceneIds::New).ok);
+    CHECK(!ReadEntities(world, types, WriteScene(world, types), SceneIds::New).ok);
+}
+
+TEST(EntitiesOutsideTheSceneAreLeftOutOfASnapshot) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const std::array chosen = {Named(world, "pool"), Named(world, "generated")};
+    std::vector<std::string> warnings;
+    const auto document = nlohmann::json::parse(WriteEntities(world, types, chosen, &warnings));
+    CHECK(document["format"] == "pixie-entities" && document["entities"].size() == 1);
+    CHECK(warnings.size() == 1);
+}
+
+TEST(UnknownDataTravelsWithASnapshot) {
+    const std::string text = R"({"format": "pixie-scene", "version": 1, "seed": 0, "entities": [
+        {"id": "a1", "name": "odd", "layer": 2,
+         "components": {"Transform2D": {"v": 1, "wobble": 5}, "Mystery": {"v": 3, "a": 1}}}]})";
+    const ComponentTypes types = Types();
+    World world;
+    CHECK(ReadScene(world, types, text).ok);
+    const std::array chosen = {Named(world, "odd")};
+    const std::string snapshot = WriteEntities(world, types, chosen);
+    const EntitiesReport copy = ReadEntities(world, types, snapshot, SceneIds::New);
+    CHECK(copy.ok && copy.entities.size() == 1);
+    const std::array copies = {copy.entities[0]};
+    const auto written = nlohmann::json::parse(WriteEntities(world, types, copies))["entities"][0];
+    CHECK(written["layer"] == 2);
+    CHECK(written["components"]["Mystery"]["a"] == 1);
+    CHECK(written["components"]["Transform2D"]["wobble"] == 5);
 }

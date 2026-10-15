@@ -510,6 +510,100 @@ PixieResult pixie_entity_create(PixieSession* s, const char* name, uint32_t* ent
     });
 }
 
+PixieResult pixie_entity_set_name(PixieSession* s, uint32_t entity, const char* name) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] {
+        pixie::World& world = s->session.GetWorld();
+        if (!world.Registry().valid(ToEntity(entity))) {
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
+        }
+        const pixie::Entity handle = world.Wrap(ToEntity(entity));
+        if (name == nullptr || name[0] == '\0') {
+            handle.Remove<pixie::Name>();
+        } else {
+            handle.Add<pixie::Name>(pixie::Name{name});
+        }
+        if (InScene(s, entity)) {
+            s->session.MarkChanged();
+        }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entity_scene_id(PixieSession* s, uint32_t entity, uint64_t* id) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (id == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    if (!InScene(s, entity)) {
+        return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or not in the scene", entity));
+    }
+    *id = s->session.GetWorld().Registry().get<pixie::SceneId>(ToEntity(entity)).value;
+    return PIXIE_OK;
+}
+
+PixieResult pixie_entity_find(PixieSession* s, uint64_t id, uint32_t* entity) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (entity == nullptr) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output");
+    }
+    return Guard([&] {
+        for (const auto [found, sceneId] : s->session.GetWorld().Registry().view<const pixie::SceneId>().each()) {
+            if (sceneId.value == id) {
+                *entity = static_cast<uint32_t>(found);
+                return PIXIE_OK;
+            }
+        }
+        return Fail(PIXIE_ERROR_NOT_FOUND, std::format("no entity has the scene id {:016x}", id));
+    });
+}
+
+PixieResult pixie_entities_snapshot(PixieSession* s, const uint32_t* entities, int32_t count, char* buffer,
+                                    int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (length == nullptr || count < 0 || (entities == nullptr && count > 0) || capacity < 0 ||
+        (buffer == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null output, or a negative count or capacity");
+    }
+    return Guard([&] {
+        pixie::World& world = s->session.GetWorld();
+        std::vector<pixie::Entity> chosen;
+        chosen.reserve(static_cast<std::size_t>(count));
+        for (int32_t i = 0; i < count; ++i) {
+            chosen.push_back(world.Wrap(ToEntity(entities[i])));
+        }
+        const std::string text = pixie::WriteEntities(world, s->session.Types(), chosen);
+        *length = static_cast<int32_t>(text.size());
+        return capacity == 0 ? PIXIE_OK : Copy(text, buffer, capacity);
+    });
+}
+
+PixieResult pixie_entities_restore(PixieSession* s, const char* snapshot, int32_t ids, uint32_t* entities,
+                                   int32_t capacity, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (snapshot == nullptr || count == nullptr || capacity < 0 || (entities == nullptr && capacity > 0) ||
+        (ids != PIXIE_RESTORE_SAME_IDS && ids != PIXIE_RESTORE_NEW_IDS)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null snapshot or output, a negative capacity, or an unknown way to restore");
+    }
+    return Guard([&] {
+        const pixie::EntitiesReport report =
+            pixie::ReadEntities(s->session.GetWorld(), s->session.Types(), snapshot,
+                                ids == PIXIE_RESTORE_SAME_IDS ? pixie::SceneIds::Keep : pixie::SceneIds::New);
+        if (!report.ok) {
+            return Fail(PIXIE_ERROR_ARGUMENT, report.error);
+        }
+        const auto n = static_cast<int32_t>(report.entities.size());
+        for (int32_t i = 0; i < n && i < capacity; ++i) {
+            entities[i] = report.entities[static_cast<std::size_t>(i)].Number();
+        }
+        *count = n;
+        if (n > 0) {
+            s->session.MarkChanged();
+        }
+        return PIXIE_OK;
+    });
+}
+
 int32_t pixie_entity_alive(PixieSession* s, uint32_t entity) {
     return s != nullptr && s->session.GetWorld().Registry().valid(ToEntity(entity)) ? 1 : 0;
 }

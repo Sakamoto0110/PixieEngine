@@ -13,6 +13,7 @@
 #include <format>
 #include <fstream>
 #include <random>
+#include <span>
 #include <sstream>
 #include <unordered_map>
 #include <unordered_set>
@@ -297,142 +298,130 @@ std::uint64_t AddToScene(Entity entity) {
     return entity.Add<SceneId>(SceneId{NewSceneId()}).value;
 }
 
-std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings) {
-    entt::registry& registry = world.Registry();
-    Json document = Json::object();
-    document["format"] = std::string(kSceneFormat);
-    document["version"] = kSceneVersion;
-    document["seed"] = world.GetRandom().Seed();
-    if (const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>()) {
-        Json extras = ParseKept(kept->json);
-        extras.erase("entities");
-        Merge(document, extras);
+namespace {
+
+// One scene entity as the scene format writes it.
+Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::entity id,
+                 std::vector<std::string>* warnings) {
+    const std::string hex = HexId(registry.get<SceneId>(id).value);
+    Json entity = Json::object();
+    entity["id"] = hex;
+    if (const Name* name = registry.try_get<Name>(id); name != nullptr && !name->value.empty()) {
+        entity["name"] = name->value;
+    }
+    Json extras = Json::object();
+    if (const auto* kept = registry.try_get<detail::SceneExtras>(id)) {
+        extras = ParseKept(kept->json);
+    }
+    if (extras.contains("entity")) {
+        Json keys = extras["entity"];
+        if (keys.is_object()) {
+            keys.erase("components");
+        }
+        Merge(entity, keys);
     }
 
-    // EnTT lists live entities newest first; the scene lists them oldest first.
-    std::vector<entt::entity> members;
-    for (const entt::entity id : registry.view<entt::entity>()) {
-        if (registry.all_of<SceneId>(id)) {
-            members.push_back(id);
+    Json components = Json::object();
+    for (const ComponentDescriptor& type : types.All()) {
+        void* component = type.find(registry, id);
+        if (component == nullptr) {
+            continue;
         }
+        Json fields = Json::object();
+        fields["v"] = type.version;
+        const std::string where = std::format("{} of entity {}", type.name, hex);
+        for (const FieldDescriptor& field : type.fields) {
+            fields[field.name] = Encode(field, field.read(component), registry, where, warnings);
+        }
+        if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
+            Merge(fields, extras["fields"][type.name]);
+        }
+        components[type.name] = std::move(fields);
     }
-    std::reverse(members.begin(), members.end());
-
-    Json entities = Json::array();
-    for (const entt::entity id : members) {
-        const std::string hex = HexId(registry.get<SceneId>(id).value);
-        Json entity = Json::object();
-        entity["id"] = hex;
-        if (const Name* name = registry.try_get<Name>(id); name != nullptr && !name->value.empty()) {
-            entity["name"] = name->value;
-        }
-        Json extras = Json::object();
-        if (const auto* kept = registry.try_get<detail::SceneExtras>(id)) {
-            extras = ParseKept(kept->json);
-        }
-        if (extras.contains("entity")) {
-            Json keys = extras["entity"];
-            if (keys.is_object()) {
-                keys.erase("components");
-            }
-            Merge(entity, keys);
-        }
-
-        Json components = Json::object();
-        for (const ComponentDescriptor& type : types.All()) {
-            void* component = type.find(registry, id);
-            if (component == nullptr) {
-                continue;
-            }
-            Json fields = Json::object();
-            fields["v"] = type.version;
-            const std::string where = std::format("{} of entity {}", type.name, hex);
-            for (const FieldDescriptor& field : type.fields) {
-                fields[field.name] = Encode(field, field.read(component), registry, where, warnings);
-            }
-            if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
-                Merge(fields, extras["fields"][type.name]);
-            }
-            components[type.name] = std::move(fields);
-        }
-        if (extras.contains("components")) {
-            Merge(components, extras["components"]);
-        }
-        entity["components"] = std::move(components);
-        entities.push_back(std::move(entity));
+    if (extras.contains("components")) {
+        Merge(components, extras["components"]);
     }
-    document["entities"] = std::move(entities);
+    entity["components"] = std::move(components);
+    return entity;
+}
 
+std::string Finish(const Json& document) {
     std::string text;
     Pretty(document, text, 0);
     text += '\n';
     return text;
 }
 
-SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_view text) {
-    if (world.IsStepping()) {
-        return Failed("a scene cannot be read during a step");
-    }
+// Parses a document of `format` (a scene or a fragment, named by `what`), checks its version and its
+// list of entities, and returns it; on failure, sets `error`.
+Json ParseDocument(std::string_view text, std::string_view format, std::string_view what, std::string& error) {
     Json document;
     try {
         document = Json::parse(text.begin(), text.end());
-    } catch (const Json::parse_error& error) {
-        return Failed(std::format("the scene is not valid JSON: {}", error.what()));
+    } catch (const Json::parse_error& e) {
+        error = std::format("the {} is not valid JSON: {}", what, e.what());
+        return {};
     }
     if (!document.is_object()) {
-        return Failed("the scene is not a JSON object");
+        error = std::format("the {} is not a JSON object", what);
+    } else if (!document.contains("format") || document["format"] != std::string(format)) {
+        error = std::format("not a {}: its format is not \"{}\"", what, format);
+    } else if (!document.contains("version") || !document["version"].is_number_integer()) {
+        error = std::format("the {} has no version", what);
+    } else if (const auto version = document["version"].get<std::int64_t>(); version < 1) {
+        error = std::format("the {}'s version, {}, is not valid", what, version);
+    } else if (version > kSceneVersion) {
+        error = std::format("the {} was written by a newer engine (version {}; this one reads up to {})", what,
+                            version, kSceneVersion);
+    } else if (!document.contains("entities") || !document["entities"].is_array()) {
+        error = std::format("the {} has no list of entities", what);
     }
-    if (!document.contains("format") || document["format"] != std::string(kSceneFormat)) {
-        return Failed(std::format("not a scene: its format is not \"{}\"", kSceneFormat));
-    }
-    if (!document.contains("version") || !document["version"].is_number_integer()) {
-        return Failed("the scene has no version");
-    }
-    const auto version = document["version"].get<std::int64_t>();
-    if (version < 1) {
-        return Failed(std::format("the scene's version, {}, is not valid", version));
-    }
-    if (version > kSceneVersion) {
-        return Failed(std::format("the scene was written by a newer engine (version {}; this one reads up to {})",
-                                  version, kSceneVersion));
-    }
-    if (!document.contains("entities") || !document["entities"].is_array()) {
-        return Failed("the scene has no list of entities");
-    }
-    const Json& list = document["entities"];
+    return document;
+}
 
-    // Every ID is checked before anything is added, so a bad file leaves the World as it was.
-    entt::registry& registry = world.Registry();
-    std::unordered_set<std::uint64_t> taken;
-    registry.view<SceneId>().each([&](const SceneId& sceneId) { taken.insert(sceneId.value); });
-    std::vector<std::uint64_t> listed;
+// The World's scene entities by scene ID.
+std::unordered_map<std::uint64_t, entt::entity> SceneEntities(entt::registry& registry) {
+    std::unordered_map<std::uint64_t, entt::entity> found;
+    for (const auto [id, sceneId] : registry.view<const SceneId>().each()) {
+        found.emplace(sceneId.value, id);
+    }
+    return found;
+}
+
+// Checks a list of entities before anything is added: each an object with a valid id, used once in
+// the list, and, when `againstWorld`, not already in the World; components, if any, an object.
+// Returns what is wrong, or nothing, with the ids in `listed`.
+std::string CheckEntities(const Json& list, const std::unordered_map<std::uint64_t, entt::entity>& world,
+                          bool againstWorld, std::vector<std::uint64_t>& listed) {
+    std::unordered_set<std::uint64_t> seen;
     listed.reserve(list.size());
     for (std::size_t i = 0; i < list.size(); ++i) {
         const Json& entry = list[i];
         if (!entry.is_object()) {
-            return Failed(std::format("entity {} of the list is not an object", i));
+            return std::format("entity {} of the list is not an object", i);
         }
         std::uint64_t id = 0;
         if (!entry.contains("id") || !ParseHexId(entry["id"], id)) {
-            return Failed(std::format("entity {} of the list has no valid id", i));
+            return std::format("entity {} of the list has no valid id", i);
         }
-        if (!taken.insert(id).second) {
-            return Failed(std::format("the id {} is used twice, or is already in the World", HexId(id)));
+        if (!seen.insert(id).second || (againstWorld && world.contains(id))) {
+            return std::format("the id {} is used twice, or is already in the World", HexId(id));
         }
         if (entry.contains("components") && !entry["components"].is_object()) {
-            return Failed(std::format("the components of entity {} are not an object", HexId(id)));
+            return std::format("the components of entity {} are not an object", HexId(id));
         }
         listed.push_back(id);
     }
+    return {};
+}
 
-    SceneReport report;
-    if (document.contains("seed") && document["seed"].is_number_unsigned()) {
-        world.GetRandom().Reseed(document["seed"].get<std::uint64_t>());
-    } else {
-        report.warnings.push_back("the scene has no valid seed; the World keeps its own");
-    }
-
-    std::unordered_map<std::uint64_t, entt::entity> ids;
+// Adds the listed entities under the scene IDs `assigned` and fills their components. `ids` maps
+// the IDs an Entity field may name to entities: it starts with the World's, and gains the list's,
+// so a reference inside the list finds the new entity and one outside it the World's. Returns the
+// entities, in the list's order.
+std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const Json& list,
+                                const std::vector<std::uint64_t>& listed, const std::vector<std::uint64_t>& assigned,
+                                std::unordered_map<std::uint64_t, entt::entity>& ids, SceneReport& report) {
     std::vector<Entity> created;
     created.reserve(list.size());
     for (std::size_t i = 0; i < list.size(); ++i) {
@@ -442,15 +431,15 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
             name = entry["name"].get<std::string>();
         }
         Entity entity = world.Create(name);
-        entity.Add<SceneId>(SceneId{listed[i]});
-        ids.emplace(listed[i], entity.Id());
+        entity.Add<SceneId>(SceneId{assigned[i]});
+        ids.insert_or_assign(listed[i], entity.Id());
         created.push_back(entity);
     }
 
     for (std::size_t i = 0; i < list.size(); ++i) {
         const Json& entry = list[i];
         const Entity entity = created[i];
-        const std::string hex = HexId(listed[i]);
+        const std::string hex = HexId(assigned[i]);
         Json keptEntity = Json::object();
         Json keptComponents = Json::object();
         Json keptFields = Json::object();
@@ -524,6 +513,66 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
             entity.Add<detail::SceneExtras>(detail::SceneExtras{kept.dump()});
         }
     }
+    return created;
+}
+
+} // namespace
+
+std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings) {
+    entt::registry& registry = world.Registry();
+    Json document = Json::object();
+    document["format"] = std::string(kSceneFormat);
+    document["version"] = kSceneVersion;
+    document["seed"] = world.GetRandom().Seed();
+    if (const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>()) {
+        Json extras = ParseKept(kept->json);
+        extras.erase("entities");
+        Merge(document, extras);
+    }
+
+    // EnTT lists live entities newest first; the scene lists them oldest first.
+    std::vector<entt::entity> members;
+    for (const entt::entity id : registry.view<entt::entity>()) {
+        if (registry.all_of<SceneId>(id)) {
+            members.push_back(id);
+        }
+    }
+    std::reverse(members.begin(), members.end());
+
+    Json entities = Json::array();
+    for (const entt::entity id : members) {
+        entities.push_back(WriteEntity(registry, types, id, warnings));
+    }
+    document["entities"] = std::move(entities);
+    return Finish(document);
+}
+
+SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_view text) {
+    if (world.IsStepping()) {
+        return Failed("a scene cannot be read during a step");
+    }
+    std::string error;
+    const Json document = ParseDocument(text, kSceneFormat, "scene", error);
+    if (!error.empty()) {
+        return Failed(std::move(error));
+    }
+    const Json& list = document["entities"];
+
+    // Every ID is checked before anything is added, so a bad file leaves the World as it was.
+    entt::registry& registry = world.Registry();
+    std::unordered_map<std::uint64_t, entt::entity> ids = SceneEntities(registry);
+    std::vector<std::uint64_t> listed;
+    if (std::string problem = CheckEntities(list, ids, true, listed); !problem.empty()) {
+        return Failed(std::move(problem));
+    }
+
+    SceneReport report;
+    if (document.contains("seed") && document["seed"].is_number_unsigned()) {
+        world.GetRandom().Reseed(document["seed"].get<std::uint64_t>());
+    } else {
+        report.warnings.push_back("the scene has no valid seed; the World keeps its own");
+    }
+    AddEntities(world, types, list, listed, listed, ids, report);
 
     Json keptDocument = Json::object();
     for (auto it = document.begin(); it != document.end(); ++it) {
@@ -537,6 +586,63 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
     } else {
         registry.ctx().insert_or_assign(detail::SceneDocumentExtras{keptDocument.dump()});
     }
+    return report;
+}
+
+std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
+                          std::vector<std::string>* warnings) {
+    entt::registry& registry = world.Registry();
+    Json document = Json::object();
+    document["format"] = std::string(kEntitiesFormat);
+    document["version"] = kSceneVersion;
+    Json list = Json::array();
+    std::unordered_set<entt::entity> written;
+    for (const Entity entity : entities) {
+        if (!registry.valid(entity.Id()) || !registry.all_of<SceneId>(entity.Id())) {
+            if (warnings != nullptr) {
+                warnings->push_back(std::format("entity {} is gone or not in the scene; left out", entity.Number()));
+            }
+            continue;
+        }
+        if (written.insert(entity.Id()).second) {
+            list.push_back(WriteEntity(registry, types, entity.Id(), warnings));
+        }
+    }
+    document["entities"] = std::move(list);
+    return Finish(document);
+}
+
+EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds sceneIds) {
+    EntitiesReport report;
+    const auto fail = [&](std::string error) {
+        report.ok = false;
+        report.error = std::move(error);
+        return report;
+    };
+    if (world.IsStepping()) {
+        return fail("entities cannot be read during a step");
+    }
+    std::string error;
+    const Json document = ParseDocument(text, kEntitiesFormat, "set of entities", error);
+    if (!error.empty()) {
+        return fail(std::move(error));
+    }
+    const Json& list = document["entities"];
+    std::unordered_map<std::uint64_t, entt::entity> ids = SceneEntities(world.Registry());
+    std::vector<std::uint64_t> listed;
+    if (std::string problem = CheckEntities(list, ids, sceneIds == SceneIds::Keep, listed); !problem.empty()) {
+        return fail(std::move(problem));
+    }
+
+    std::vector<std::uint64_t> assigned = listed;
+    if (sceneIds == SceneIds::New) {
+        for (std::uint64_t& id : assigned) {
+            do {
+                id = NewSceneId();
+            } while (ids.contains(id));
+        }
+    }
+    report.entities = AddEntities(world, types, list, listed, assigned, ids, report);
     return report;
 }
 

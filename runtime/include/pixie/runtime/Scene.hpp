@@ -5,6 +5,7 @@
 
 #include <cstdint>
 #include <filesystem>
+#include <span>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -23,6 +24,9 @@ struct SceneId {
 // The scene file's format name and the newest version this engine reads and writes.
 inline constexpr std::string_view kSceneFormat = "pixie-scene";
 inline constexpr int kSceneVersion = 1;
+// The format name of a set of entities written apart from their scene (WriteEntities), with the
+// scene's version.
+inline constexpr std::string_view kEntitiesFormat = "pixie-entities";
 
 // A new random scene ID, never 0. IDs come from their own generator, not from a World's Random, so
 // making one does not change a simulation.
@@ -66,6 +70,32 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
 // Writes `text` to a file through a temporary file beside it (`<file>.saving`), which then replaces
 // the file, so a failed write leaves the old one.
 SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& path);
+
+// Some of the World's scene entities, written apart from their scene: a document of the scene's form,
+// with format kEntitiesFormat and only the entities' list, in the order given. An Entity field holds
+// its target's scene ID, inside the set or not. An entity that is gone or not in the scene is left
+// out, with a warning. For snapshots a tool takes to bring entities back, or to copy them.
+std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
+                          std::vector<std::string>* warnings = nullptr);
+
+// How ReadEntities gives the entities it adds their scene IDs.
+enum class SceneIds {
+    // The IDs written: none may be in the World, as when bringing back entities that were destroyed.
+    Keep,
+    // New IDs: a copy. An Entity field that named an entity of the set names its copy; one that named
+    // another entity keeps naming it, if it is in the World.
+    New,
+};
+
+// What ReadEntities found, and the entities it added, in the document's order.
+struct EntitiesReport : SceneReport {
+    std::vector<Entity> entities;
+};
+
+// Adds a set of entities written by WriteEntities to the World. Nothing is added when the document
+// cannot be read, or, with SceneIds::Keep, when one of its IDs is already in the World. Unknown
+// components and fields are kept as a scene keeps them. Not during a step.
+EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds ids);
 
 // WriteScene to a file, through SaveTextFile.
 SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);

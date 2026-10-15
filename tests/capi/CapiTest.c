@@ -92,6 +92,11 @@ static struct {
     PixieResult (*component_remove)(PixieSession*, uint32_t, int32_t);
     PixieResult (*view_to_world)(PixieSession*, double, double, double*, double*);
     PixieResult (*world_to_view)(PixieSession*, double, double, double*, double*);
+    PixieResult (*entity_set_name)(PixieSession*, uint32_t, const char*);
+    PixieResult (*entity_scene_id)(PixieSession*, uint32_t, uint64_t*);
+    PixieResult (*entity_find)(PixieSession*, uint64_t, uint32_t*);
+    PixieResult (*entities_snapshot)(PixieSession*, const uint32_t*, int32_t, char*, int32_t, int32_t*);
+    PixieResult (*entities_restore)(PixieSession*, const char*, int32_t, uint32_t*, int32_t, int32_t*);
 } api;
 
 static int failures = 0;
@@ -166,6 +171,11 @@ static int Load(Library library) {
     LOAD(component_remove, "pixie_component_remove")
     LOAD(view_to_world, "pixie_view_to_world")
     LOAD(world_to_view, "pixie_world_to_view")
+    LOAD(entity_set_name, "pixie_entity_set_name")
+    LOAD(entity_scene_id, "pixie_entity_scene_id")
+    LOAD(entity_find, "pixie_entity_find")
+    LOAD(entities_snapshot, "pixie_entities_snapshot")
+    LOAD(entities_restore, "pixie_entities_restore")
 #undef LOAD
     return !missing;
 }
@@ -210,6 +220,17 @@ static uint32_t FindEntity(PixieSession* s, const char* name) {
     free(ids);
     CHECK(found);
     return entity;
+}
+
+/* A snapshot of `count` entities as text, allocated; the caller frees it. */
+static char* Snapshot(PixieSession* s, const uint32_t* entities, int32_t count) {
+    int32_t length = 0;
+    CHECK(api.entities_snapshot(s, entities, count, NULL, 0, &length) == PIXIE_OK && length > 0);
+    char* text = (char*)malloc((size_t)length + 1);
+    int32_t again = 0;
+    CHECK(text != NULL && api.entities_snapshot(s, entities, count, text, length + 1, &again) == PIXIE_OK &&
+          again == length);
+    return text;
 }
 
 /* The one GL function the test calls itself, loaded through GLFW, with the constants it needs. */
@@ -319,6 +340,32 @@ static void Exercise(PixieSession* s) {
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 0);
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
     CHECK(api.component_add(s, made, 9999) == PIXIE_ERROR_ARGUMENT);
+
+    /* Its scene ID finds it; a rename shows; a snapshot brings it back, under the same ID, after it is
+     * destroyed. */
+    uint64_t sceneId = 0;
+    uint32_t back = 0;
+    CHECK(api.entity_scene_id(s, made, &sceneId) == PIXIE_OK && sceneId != 0);
+    CHECK(api.entity_find(s, sceneId, &back) == PIXIE_OK && back == made);
+    CHECK(api.entity_set_name(s, made, "renamed") == PIXIE_OK);
+    CHECK(api.entity_name(s, made, name, (int32_t)sizeof name) == PIXIE_OK && strcmp(name, "renamed") == 0);
+    CHECK(api.component_add(s, made, shapeType) == PIXIE_OK);
+    char* snapshot = Snapshot(s, &made, 1);
+    char small[8];
+    int32_t length = 0;
+    CHECK(api.entities_snapshot(s, &made, 1, small, (int32_t)sizeof small, &length) == PIXIE_ERROR_BUFFER);
+    CHECK(api.entities_restore(s, snapshot, PIXIE_RESTORE_SAME_IDS, &back, 1, &count) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entity_destroy(s, made) == PIXIE_OK);
+    CHECK(api.entity_find(s, sceneId, &back) == PIXIE_ERROR_NOT_FOUND);
+    CHECK(api.entities_restore(s, snapshot, PIXIE_RESTORE_SAME_IDS, &back, 1, &count) == PIXIE_OK && count == 1);
+    uint64_t restoredId = 0;
+    CHECK(api.entity_scene_id(s, back, &restoredId) == PIXIE_OK && restoredId == sceneId);
+    CHECK(api.entity_name(s, back, name, (int32_t)sizeof name) == PIXIE_OK && strcmp(name, "renamed") == 0);
+    CHECK(api.entity_has(s, back, shapeType) == 1);
+    CHECK(api.entity_set_name(s, back, NULL) == PIXIE_OK);
+    CHECK(api.entity_name(s, back, name, (int32_t)sizeof name) == PIXIE_OK && name[0] == '\0');
+    free(snapshot);
+    made = back;
     CHECK(api.entity_destroy(s, made) == PIXIE_OK);
     CHECK(api.component_add(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
 
@@ -518,6 +565,36 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     PixieValue read;
     CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
     CHECK(api.component_add(s, mover, shape) == PIXIE_OK && api.component_remove(s, mover, shape) == PIXIE_OK);
+
+    /* A copy of a spawner and the system it feeds: the copied spawner feeds the copied system. A copy
+     * of the spawner alone feeds the system it fed. The copies are removed again. */
+    int32_t systemType = -1, spawnerType = -1;
+    CHECK(api.type_find(s, "ParticleSystem", &systemType) == PIXIE_OK);
+    CHECK(api.type_find(s, "ParticleSpawner", &spawnerType) == PIXIE_OK);
+    const int32_t feeds = FindField(s, spawnerType, "system");
+    uint32_t pair[2];
+    CHECK(api.entity_create(s, "system", &pair[0]) == PIXIE_OK && api.component_add(s, pair[0], systemType) == PIXIE_OK);
+    CHECK(api.entity_create(s, "spawner", &pair[1]) == PIXIE_OK && api.component_add(s, pair[1], spawnerType) == PIXIE_OK);
+    const PixieValue target = {(double)pair[0], 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, pair[1], spawnerType, feeds, &target) == PIXIE_OK);
+    char* both = Snapshot(s, pair, 2);
+    uint32_t copies[2];
+    int32_t copied = 0;
+    CHECK(api.entities_restore(s, both, PIXIE_RESTORE_NEW_IDS, copies, 2, &copied) == PIXIE_OK && copied == 2);
+    CHECK(api.field_get(s, copies[1], spawnerType, feeds, &read) == PIXIE_OK && (uint32_t)read.x == copies[0]);
+    uint64_t original = 0, copy = 0;
+    CHECK(api.entity_scene_id(s, pair[0], &original) == PIXIE_OK && api.entity_scene_id(s, copies[0], &copy) == PIXIE_OK &&
+          original != copy);
+    char* alone = Snapshot(s, &pair[1], 1);
+    uint32_t single = 0;
+    CHECK(api.entities_restore(s, alone, PIXIE_RESTORE_NEW_IDS, &single, 1, &copied) == PIXIE_OK && copied == 1);
+    CHECK(api.field_get(s, single, spawnerType, feeds, &read) == PIXIE_OK && (uint32_t)read.x == pair[0]);
+    free(both);
+    free(alone);
+    CHECK(api.entity_destroy(s, single) == PIXIE_OK);
+    for (int i = 0; i < 2; ++i) {
+        CHECK(api.entity_destroy(s, copies[i]) == PIXIE_OK && api.entity_destroy(s, pair[i]) == PIXIE_OK);
+    }
     CHECK(api.project_save(s) == PIXIE_OK && api.project_unsaved(s) == 0);
 
     /* Play: built again from the scene, and stepping. Edits in play mark nothing. */

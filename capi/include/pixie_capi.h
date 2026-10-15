@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 5
+#define PIXIE_CAPI_VERSION 6
 
 typedef struct PixieSession PixieSession;
 
@@ -233,6 +233,33 @@ PIXIE_API PixieResult pixie_spawn_at(PixieSession* session, double x, double y, 
 
 /* Creates an entity that belongs to the scene, named `name` (UTF-8; null or empty for none). */
 PIXIE_API PixieResult pixie_entity_create(PixieSession* session, const char* name, uint32_t* entity);
+/* Writes the entity's Name (UTF-8); null or empty removes it. */
+PIXIE_API PixieResult pixie_entity_set_name(PixieSession* session, uint32_t entity, const char* name);
+
+/* Scene IDs. An entity of the scene keeps its scene ID through play, stop, reset, and restoring; its
+ * handle does not. pixie_entity_scene_id gives the ID, or PIXIE_ERROR_NOT_FOUND for an entity that
+ * is gone or not in the scene (one the game generates); pixie_entity_find gives the live entity with
+ * an ID, or PIXIE_ERROR_NOT_FOUND. */
+PIXIE_API PixieResult pixie_entity_scene_id(PixieSession* session, uint32_t entity, uint64_t* id);
+PIXIE_API PixieResult pixie_entity_find(PixieSession* session, uint64_t id, uint32_t* entity);
+
+/* Snapshots: scene entities as text in the scene's format (format "pixie-entities"), to bring them
+ * back or copy them. pixie_entities_snapshot writes `count` entities into `buffer` with a NUL and
+ * sets `length` to the text's full length; a null buffer with capacity 0 asks for the length, and a
+ * buffer too small gets PIXIE_ERROR_BUFFER. Entities that are gone or not in the scene are left out.
+ * pixie_entities_restore adds a snapshot's entities: PIXIE_RESTORE_SAME_IDS with their IDs, none of
+ * which may be in the World (to bring back entities that were destroyed), PIXIE_RESTORE_NEW_IDS
+ * with new ones (a copy: a reference to an entity of the snapshot names its copy, one to another
+ * entity keeps naming it). It fills up to `capacity` handles of the entities added, in the
+ * snapshot's order, and sets `count` to how many; nothing is added when it fails. */
+typedef enum PixieRestore {
+    PIXIE_RESTORE_SAME_IDS = 0,
+    PIXIE_RESTORE_NEW_IDS = 1
+} PixieRestore;
+PIXIE_API PixieResult pixie_entities_snapshot(PixieSession* session, const uint32_t* entities, int32_t count,
+                                              char* buffer, int32_t capacity, int32_t* length);
+PIXIE_API PixieResult pixie_entities_restore(PixieSession* session, const char* snapshot, int32_t ids,
+                                             uint32_t* entities, int32_t capacity, int32_t* count);
 
 /* Component types that can be inspected, by index from 0 to pixie_type_count - 1. */
 PIXIE_API int32_t pixie_type_count(PixieSession* session);
