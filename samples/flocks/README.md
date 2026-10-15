@@ -34,17 +34,25 @@ Changes are logged. Once per second the log also shows how long the World's step
 The flock lives in the visible area, so adding boids makes it denser and each boid's neighbourhood
 larger: the step's cost grows faster than the count.
 
-The starting values (the count) live in a scenario struct of the project, mirrored in a `FlocksScenario` component on
-the `scenario` entity; the options below fill it, and the editor rebuilds the scene from it.
+## The project
+
+This folder is a project ([editor's README](../../editor/README.md#projects)): `flocks.pixie`, and
+`scenes/main.scene`, which holds the scenario and the `flock` entity with its controls. The starting values (the count) live in the
+`FlocksScenario` component of the `scenario` entity: edit them in the editor and press "Rebuild the
+scene", or save them. The boids themselves are generated from the scenario when the World is
+built, and are not saved. A World built without the scene, as the C API test builds it, starts with
+the same entities, made in code.
+
+The scene's entities and the project's code are the sample's; its player and its C API library are
+built by `pixie_game` ([runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-with-code)).
 
 ## Layout
 
 - `src/game/`: the game, built as the static library `flocks-game`. `FlocksProject` is its `Project`
   (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
-  it builds the World, handles the pointer and the keys before each step, draws the overlay, and
-  describes the game's components for tools. `pixie::CreateProject` returns it with its defaults.
-- `src/player/`: the player, `flocks`, which runs the project in its own window through
-  `ProjectApp`.
+  it finds its entities in the scene, generates the rest, handles the pointer and the keys before
+  each step, and describes the game's components for tools. `pixie::CreateProject` returns it.
+- `flocks`: the player, the engine's, which opens this folder and plays its scene.
 - `flocks-capi`: the same game as a shared library with the
   [C API](../../docs/modules/capi/README.md), for hosts such as the editor.
 
@@ -58,16 +66,25 @@ cmake --build --preset vs2026-release
 bin/Release/flocks
 ```
 
+The player opens `samples/flocks`. To edit the scene, open the folder in the editor, which builds it
+as a project of its own (into `build/` and `bin/` here, which git ignores):
+
+```bash
+editor/PixieEditor/bin/Release/net10.0/PixieEditor --project samples/flocks
+```
+
+`--game flocks` still opens the game from the engine's `bin/`, without the scene.
+
 ## Options
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--count <n>` | `5000` | Number of boids at the start, 0 to 100,000 |
-| `--seed <n>` | `1` | Seed of the World's random numbers |
+| `--project <folder>` | this folder | The project to play |
 | `--ups <hz>` | `60` | Updates per second |
 | `--fps <hz>` | `0` | Frame cap; `0` means none |
 | `--vsync on\|off` | `on` | Vertical sync |
 | `--quit-after <seconds>` | `0` | Closes the window after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame as a PNG |
 
-An invalid option prints the usage and exits with code 2.
+An invalid option prints the usage and exits with code 2. The count, the seed, and the rest of the
+starting values are the scene's.

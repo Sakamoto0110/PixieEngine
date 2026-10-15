@@ -130,4 +130,6 @@ PIXIE-TODO-022.
 **Source:** [decision record](../archive/projects-and-scenes-decisions-2026-10-14.md)
 
 **Outcome:** promoted on 2026-10-14, as recorded in the
-[promotion record](../archive/projects-and-scenes-promotion-2026-10-14.md).
+[promotion record](../archive/projects-and-scenes-promotion-2026-10-14.md), and carried out the
+same day: PIXIE-TODO-018 to PIXIE-TODO-022 are completed (PIXIE-ARCHIVE-035, 036, 037, 039, and
+040).

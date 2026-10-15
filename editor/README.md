@@ -134,6 +134,11 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | `--mode <game\|select>` | `game`; `select` for a project | What the mouse does in the viewport at the start |
 | `--paused <on\|off>` | `off` | Starts with time paused, so a World stays as built |
 | `--after <process id>` | none | Waits, up to 15 seconds, for that editor to exit before opening; the editor passes it when it restarts itself |
+| `--save-after <seconds>` | none | Saves the project after this long, after the `--set` edits |
+| `--recent <on\|off>` | `on` | Whether the project joins the recent projects; `off` for scripted runs, so they leave the user's list alone |
+
+The times of `--edit-after`, `--save-after`, and `--quit-after` count from when the game or the
+project opens, after any build of its code; the build screen is never closed by them.
 
 A `--set` on a button presses it: `--select scenario --set BoidsScenario.count=300 --set
 BoidsScenario.rebuild=go` rebuilds the boids with 300. For example, `--game boids --select controls --set BoidControls.mode=Repel --set

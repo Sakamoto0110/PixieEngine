@@ -39,14 +39,6 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-14 with PIXIE-TODO-018 to PIXIE-TODO-022; the breakdowns
-of PIXIE-TODO-018 to PIXIE-TODO-021 are in their archive records. Earlier breakdowns are in their archive records, routed from the
+None. The breakdowns of PIXIE-TODO-018 to PIXIE-TODO-023, opened on
+2026-10-14, are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-022` — Samples as projects
-
-**Parent:** PIXIE-TODO-022
-
-- `PIXIE-TASK-100` — **Status:** open — Boids, flocks, and particles each get a `.pixie` file and a scene with their authored entities; generated entities stay generated.
-- `PIXIE-TASK-101` — **Status:** open — The three build through `pixie_game`; `samples/common` keeps only what the engine's player does not provide.
-- `PIXIE-TASK-102` — **Status:** open — Verification in the editor and the players, and the samples' READMEs.

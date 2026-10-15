@@ -206,6 +206,11 @@ relatively and holds no absolute path, and fails to open a folder that is not a 
 it as the test `pixie-scene-capi`, in a folder of the build tree that it removes before and after.
 `--expect-type <name>` adds a check that the library describes that type.
 
+With `--open <folder>`, on a game's library, it opens that existing project and changes nothing in
+it: edit mode, a `scenario` entity and one scenario type, then play for 12 steps with something
+drawn, and stop back to the same number of entities, with no step and nothing unsaved. CTest runs
+it for each sample as `<sample>-project`, on the sample's folder.
+
 The test `project-code` (`tests/project-code/ProjectCodeTest.cmake`) makes a project named "Code
 Test" with code from the templates, refuses to add code twice, configures and builds it as a
 project of its own against this engine (with the same generator and configuration), checks that its

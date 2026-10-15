@@ -50,7 +50,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Attractor.hpp`, `AttractorAffector.hpp` | Attractor entities and the affector that pulls toward them |
 | `InteractionAffector.hpp` | Short-range push between the particles of a pool |
 | `ComponentTypes.hpp` | Field descriptors: `ComponentTypes`, `FieldKind`, `FieldValue`, `DescribeRuntimeComponents` |
-| `Scene.hpp` | `SceneId`, `AddToScene`, and reading and writing scene files |
+| `Scene.hpp` | `SceneId`, `AddToScene`, `SceneEntityWith`, and reading and writing scene files |
 | `Picking.hpp` | `PickAt`, `PickIn`, `PickRadius`, and `RemoveParticleAt`, for a tool's selection |
 | `Project.hpp` | `Project`, a game as the engine sees it, and `CreateProject` |
 | `ProjectFile.hpp` | Project folders: `ProjectFile`, `OpenProjectFolder`, `CreateProjectFolder`, `WriteProjectFile` |
@@ -260,6 +260,11 @@ a `SceneId`: a random 64-bit ID, never 0, that stays the same through saving and
 from its own generator, so a World's `Random` is not touched. Entities without a `SceneId`, such as
 those project code generates from a count, are not saved.
 
+`SceneEntityWith<T>(world, name, value)` is how a project's `Build` finds what its scene holds: an
+entity with a `T`, or, when there is none (no scene was loaded, or it lacks one), a new scene entity
+named `name` with `value`, which a save then keeps. The samples find their scenario and controls
+this way, so they build the same World with and without a scene.
+
 `WriteScene(world, types)` returns the scene as JSON text; `ReadScene(world, types, text)` adds its
 entities to a World and returns a `SceneReport` (`ok`, `error`, and `warnings`).
 `SaveSceneFile` writes through a temporary file beside the target (`<file>.saving`) and then
@@ -420,15 +425,19 @@ project or that already has a `CMakeLists.txt`.
 top-level project, builds neither its samples nor its tests, does not write to its own `bin/`, and
 does not build `pixie-scene-capi`.
 
-`pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...])` (in `cmake/PixieGame.cmake`) makes
-three targets: `<name>-game`, a static library with the game's code, which defines
+`pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...] [PROJECT_DIR <dir>])` (in
+`cmake/PixieGame.cmake`) makes three targets: `<name>-game`, a static library with the game's code, which defines
 `pixie::CreateProject()` (its public include directories are `INCLUDE_DIRS`, `src/` by default);
 `<name>`, its player; and `<name>-capi`, its C API library. The player is the Visual Studio startup
 project of the calling directory. Every target links the C++ runtime statically, as the engine's do.
+`PROJECT_DIR` is for a game built in another tree than its project, such as the engine's samples,
+whose players land in the engine's `bin/`: the player opens that folder, and, when the engine's
+tests are built, a CTest test `<name>-project` opens the project with the game's library
+(`capi-test --open`).
 
 The player's `main` is the engine's (`runtime/player/PlayerMain.cpp`, compiled into each player,
 not into the runtime library). It opens the project folder given with `--project`, or else the
-first folder above the executable that holds a `.pixie` file, and plays its start scene with
+folder of `PROJECT_DIR`, or else the first folder above the executable that holds a `.pixie` file, and plays its start scene with
 `ProjectApp`, titled with the project's name. It takes the options every player takes
 (`pixie/RunOptions.hpp` in the engine library: `--ups`, `--fps`, `--vsync`, `--quit-after`,
 `--screenshot`).

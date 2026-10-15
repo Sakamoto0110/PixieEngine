@@ -18,19 +18,25 @@ boids that the user steers with the mouse. It is the first sample built on the `
   leave an empty disc around it.
 - Once per second the log shows how long the World's steps took, average and slowest.
 
-The World is built in code (`src/game/BoidsScene.cpp`); nothing is saved or loaded.
+## The project
 
-The starting values (the count) live in a scenario struct of the project, mirrored in a `BoidsScenario` component on
-the `scenario` entity; the options below fill it, and the editor rebuilds the scene from it.
+This folder is a project ([editor's README](../../editor/README.md#projects)): `boids.pixie`, and
+`scenes/main.scene`, which holds the scenario and the `controls` entity. The starting values (the count) live in the
+`BoidsScenario` component of the `scenario` entity: edit them in the editor and press "Rebuild the
+scene", or save them. The boids themselves are generated from the scenario when the World is
+built, and are not saved. A World built without the scene, as the C API test builds it, starts with
+the same entities, made in code.
+
+The scene's entities and the project's code are the sample's; its player and its C API library are
+built by `pixie_game` ([runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-with-code)).
 
 ## Layout
 
 - `src/game/`: the game, built as the static library `boids-game`. `BoidsProject` is its `Project`
   (see the [runtime reference](../../docs/modules/runtime/REFERENCE.md#projects-and-sessions)):
-  it builds the World, handles the pointer and the keys before each step, draws the overlay, and
-  describes the game's components for tools. `pixie::CreateProject` returns it with its defaults.
-- `src/player/`: the player, `boids`, which runs the project in its own window through
-  `ProjectApp`.
+  it finds its entities in the scene, generates the rest, handles the pointer and the keys before
+  each step, and describes the game's components for tools. `pixie::CreateProject` returns it.
+- `boids`: the player, the engine's, which opens this folder and plays its scene.
 - `boids-capi`: the same game as a shared library with the
   [C API](../../docs/modules/capi/README.md), for hosts such as the editor.
 
@@ -44,16 +50,25 @@ cmake --build --preset vs2026-release
 bin/Release/boids
 ```
 
+The player opens `samples/boids`. To edit the scene, open the folder in the editor, which builds it
+as a project of its own (into `build/` and `bin/` here, which git ignores):
+
+```bash
+editor/PixieEditor/bin/Release/net10.0/PixieEditor --project samples/boids
+```
+
+`--game boids` still opens the game from the engine's `bin/`, without the scene.
+
 ## Options
 
 | Option | Default | Meaning |
 |---|---|---|
-| `--count <n>` | `1000` | Number of boids at the start, 0 to 200,000 |
-| `--seed <n>` | `1` | Seed of the World's random numbers |
+| `--project <folder>` | this folder | The project to play |
 | `--ups <hz>` | `60` | Updates per second |
 | `--fps <hz>` | `0` | Frame cap; `0` means none |
 | `--vsync on\|off` | `on` | Vertical sync |
 | `--quit-after <seconds>` | `0` | Closes the window after this long; `0` means never |
 | `--screenshot <file.png>` | none | With `--quit-after`, saves the last frame as a PNG |
 
-An invalid option prints the usage and exits with code 2.
+An invalid option prints the usage and exits with code 2. The count, the seed, and the rest of the
+starting values are the scene's.

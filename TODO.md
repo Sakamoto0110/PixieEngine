@@ -39,26 +39,11 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-Promoted on 2026-10-14 from
-[PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md) (projects created
-in the editor, with scene serialization), in this order
-([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)).
-PIXIE-TODO-018 to PIXIE-TODO-021 are completed, as is PIXIE-TODO-023, which the owner asked for
-after seeing the editor; see below.
-
-### `PIXIE-TODO-022` — Samples as projects
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-14; [PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md), part 8
-
-**Accepted scope:** boids, flocks, and particles each get a `.pixie` file and a scene with their authored entities (scenario, controls, attractors, spawners) and build through `pixie_game`, staying in the repository; entities generated from a count stay generated. hello-gl and shapes, which have no World, are left as they are. `samples/common` keeps only what the engine's player does not provide.
-
-**Dependencies and gates:** 1. PIXIE-TODO-021
-
-**Completion criteria:** (1) each of the three opens in the editor with `--project`, edits its scenario, saves, and rebuilds from the saved scene; (2) each player starts from its scene with the behaviour and gestures its README describes; (3) the samples' READMEs describe their projects; (4) zero warnings, and `ctest` passes.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-022--samples-as-projects)
+None. PIXIE-TODO-018 to PIXIE-TODO-022, promoted on 2026-10-14 from
+[PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)
+([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)),
+and PIXIE-TODO-023, which the owner asked for after seeing the editor, are
+completed; see below.
 
 ## Completed
 
@@ -151,3 +136,7 @@ are preserved in the
 `PIXIE-TODO-021` (code in a project) completed on 2026-10-14. Its entry,
 breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-021-project-code-2026-10-14.md).
+
+`PIXIE-TODO-022` (samples as projects) completed on 2026-10-14. Its entry,
+breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-022-samples-projects-2026-10-14.md).
