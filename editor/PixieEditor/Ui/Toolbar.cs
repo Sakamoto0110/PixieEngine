@@ -8,7 +8,7 @@ namespace PixieEditor.Ui;
 // Game or Select; and time: slower, pause or resume, faster, and the speed simulated time runs at.
 // Slowing down is what time control is mostly for; it speeds up to twice at most. While a project is
 // edited, time stands still and the mouse selects, so those controls wait for Play.
-internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
+internal sealed class Toolbar(EngineSession session, ViewportPanel viewport, Authoring authoring, Selection selection)
 {
     private static readonly double[] Scales = [0.1, 0.25, 0.5, 0.75, 1.0, 1.25, 1.5, 1.75, 2.0];
     private static readonly Vector4 PlayColor = new(0.2f, 0.55f, 0.3f, 1.0f);
@@ -36,6 +36,22 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
                 Save();
             if (ImGui.MenuItem("New or open project..."))
                 OtherProject();
+            ImGui.EndMenu();
+        }
+
+        if (ImGui.BeginMenu("Edit"))
+        {
+            var history = authoring.History;
+            if (ImGui.MenuItem(history.UndoName is { } undo ? $"Undo {undo}" : "Undo", "Ctrl+Z", false, history.UndoName != null && editing))
+                authoring.Undo();
+            if (ImGui.MenuItem(history.RedoName is { } redo ? $"Redo {redo}" : "Redo", "Ctrl+Y", false, history.RedoName != null && editing))
+                authoring.Redo();
+            ImGui.Separator();
+            var chosen = selection.Items.ToArray();
+            if (ImGui.MenuItem("Duplicate", "Ctrl+D", false, chosen.Length > 0))
+                authoring.Duplicate(chosen);
+            if (ImGui.MenuItem("Delete", "Delete", false, chosen.Length > 0))
+                authoring.Delete(chosen);
             ImGui.EndMenu();
         }
 
@@ -77,6 +93,24 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport)
                 ImGui.SetTooltip(mode == ViewportMode.Select
                     ? "Click selects, Shift + click adds, drag selects by box, right click opens a menu to delete or create."
                     : editing ? "The mouse plays the game in Play." : "The mouse plays the game.");
+        }
+
+        // Snapping, for moves in Select mode.
+        var snap = viewport.Snap;
+        if (ImGui.Checkbox("Snap", ref snap))
+            viewport.Snap = snap;
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Moves in Select mode put the dragged entity on a grid of this many world units.");
+        ImGui.SetNextItemWidth(48);
+        if (ImGui.BeginCombo("##grid", viewport.Grid.ToString(System.Globalization.CultureInfo.InvariantCulture)))
+        {
+            foreach (var grid in ViewportPanel.Grids)
+            {
+                if (ImGui.Selectable(grid.ToString(System.Globalization.CultureInfo.InvariantCulture), grid == viewport.Grid))
+                    viewport.Grid = grid;
+            }
+
+            ImGui.EndCombo();
         }
 
         ImGui.Separator();

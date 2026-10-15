@@ -9,10 +9,12 @@ internal enum ViewportMode
 {
     // The mouse goes to the game, as in its player.
     Game,
-    // The mouse selects: a click chooses an entity, Shift + click adds or takes out one, a drag on
-    // empty space chooses by box, and a right click opens a menu of what can be done there: delete
-    // the entities, or, on empty space, create an entity, ask the game to create one, or delete a
-    // particle. The middle button and the wheel still go to the game, to pan and zoom.
+    // The mouse selects and moves: a click chooses an entity, Shift + click adds or takes out one, a
+    // drag on an entity moves it (and the selection with it, when it was selected), Shift holding the
+    // drag to one axis and Snap rounding it to the grid; a drag on empty space chooses by box; and a
+    // right click opens a menu of what can be done there: duplicate or delete the entities, or, on
+    // empty space, create an entity, ask the game to create one, or delete a particle. The middle
+    // button and the wheel still go to the game, to pan and zoom.
     Select,
 }
 
@@ -20,8 +22,15 @@ internal enum ViewportMode
 // shows it with ImGui.Image, with the selection outlined on top. The mouse over the image goes to the
 // session as input in the image's pixels in Game mode, and selects in Select mode; the keys go to the
 // session while the window has focus, in both.
-internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection)
+internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring)
 {
+    // The grids Snap can round to, in world units.
+    public static readonly double[] Grids = [8, 16, 32, 64];
+
+    // Whether a move rounds the dragged entity's position to the grid, and the grid's size.
+    public bool Snap { get; set; }
+    public double Grid { get; set; } = 16;
+
     private const int LastKey = 348;
     private const int MiddleButton = 2;
     // How far, in pixels, a click may miss a shape, and how far the mouse moves before a press is a drag.
@@ -47,8 +56,12 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
     private readonly bool[] ButtonsSent = new bool[3];
     private readonly bool[] KeysSent = new bool[LastKey + 1];
 
-    // A left press in Select mode, in view pixels, until it is released.
+    // A left press in Select mode, in view pixels, until it is released; the entity it was on; and the
+    // move it became, if it did.
     private Vector2? PressedAt;
+    private uint? PressedOn;
+    private Move? Moving;
+    private (double X, double Y) MoveFrom;
 
     // Where the menu was opened, in view pixels, and what it was opened on.
     private const string MenuId = "viewport-menu";
@@ -189,6 +202,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             PressedAt = mouse;
             PressShift = io.KeyShift;
             Boxing = false;
+            PressedOn = session.Pick(mouse.X, mouse.Y, PickTolerance * Scale.X);
         }
 
         if (Hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Right))
@@ -199,12 +213,22 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
 
         if (ImGui.IsMouseDown(ImGuiMouseButton.Left))
         {
-            Boxing |= Vector2.Distance(start, mouse) > DragThreshold * Scale.X;
+            if (Moving == null && !Boxing && Vector2.Distance(start, mouse) > DragThreshold * Scale.X)
+                StartDrag(start);
+            if (Moving != null)
+                DragTo(mouse, io.KeyShift);
             return;
         }
 
-        // Released: a box, or a click.
+        // Released: a move, a box, or a click.
         PressedAt = null;
+        if (Moving != null)
+        {
+            authoring.EndMove(Moving);
+            Moving = null;
+            return;
+        }
+
         if (Boxing)
         {
             var boxed = session.PickBox(start.X, start.Y, mouse.X, mouse.Y);
@@ -230,8 +254,60 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         }
     }
 
+    // A drag that starts on an entity moves it, with the selection when it is selected; one that starts
+    // on empty space selects by box.
+    private void StartDrag(Vector2 start)
+    {
+        if (PressedOn is not { } target || !session.IsAlive(target))
+        {
+            Boxing = true;
+            return;
+        }
+
+        if (!selection.Contains(target))
+        {
+            if (PressShift)
+                selection.Add([target]);
+            else
+                selection.Set(target);
+        }
+
+        Moving = authoring.BeginMove([.. selection.Items], target);
+        MoveFrom = session.ViewToWorld(start.X, start.Y);
+        if (Moving == null)
+            Boxing = true;
+    }
+
+    private void DragTo(Vector2 mouse, bool oneAxis)
+    {
+        var at = session.ViewToWorld(mouse.X, mouse.Y);
+        var dx = at.X - MoveFrom.X;
+        var dy = at.Y - MoveFrom.Y;
+        if (oneAxis)
+        {
+            if (Math.Abs(dx) >= Math.Abs(dy))
+                dy = 0;
+            else
+                dx = 0;
+        }
+
+        if (Snap && Grid > 0)
+        {
+            // The dragged entity lands on the grid; the others keep their places around it.
+            var anchor = Moving!.Anchor;
+            dx = Math.Round((anchor.X + dx) / Grid) * Grid - anchor.X;
+            dy = Math.Round((anchor.Y + dy) / Grid) * Grid - anchor.Y;
+            if (oneAxis && Math.Abs(at.X - MoveFrom.X) >= Math.Abs(at.Y - MoveFrom.Y))
+                dy = 0;
+            else if (oneAxis)
+                dx = 0;
+        }
+
+        Moving!.By(dx, dy);
+    }
+
     // A right click: on an entity, it joins the selection if it was not in it, and the menu offers to
-    // delete the selection; on empty space, to create there.
+    // duplicate or delete the selection; on empty space, to create there.
     private void OpenMenu(Vector2 at)
     {
         MenuAt = at;
@@ -275,21 +351,16 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
 
             ImGui.TextDisabled(chosen.Length == 1 ? Describe(chosen[0]) : $"{chosen.Length} entities");
             ImGui.Separator();
-            if (ImGui.MenuItem(chosen.Length == 1 ? "Delete" : $"Delete {chosen.Length} entities"))
-            {
-                // Named before it is gone.
-                var what = chosen.Length == 1 ? Describe(chosen[0]) : $"{chosen.Length} entities";
-                foreach (var entity in chosen)
-                    session.Destroy(entity);
-                selection.Prune(session);
-                Log($"Deleted {what}");
-            }
+            if (ImGui.MenuItem(chosen.Length == 1 ? "Duplicate" : $"Duplicate {chosen.Length} entities", "Ctrl+D"))
+                authoring.Duplicate(chosen);
+            if (ImGui.MenuItem(chosen.Length == 1 ? "Delete" : $"Delete {chosen.Length} entities", "Delete"))
+                authoring.Delete(chosen);
         }
         else
         {
             if (ImGui.MenuItem("Create entity here"))
             {
-                if (Authoring.CreateEntity(session, selection, session.ViewToWorld(MenuAt.X, MenuAt.Y)) is { } created)
+                if (authoring.CreateEntity(session.ViewToWorld(MenuAt.X, MenuAt.Y)) is { } created)
                     Log($"Created {Describe(created)} at ({MenuAt.X:0}, {MenuAt.Y:0})");
             }
 

@@ -214,11 +214,14 @@ internal sealed class EditorWindow(EditorOptions options)
         var project = session.ProjectFolder != null;
         var firstLayout = FirstLayout;
         var gameName = options.Game is { } game ? Program.GameName(game) : GameLibrary.SceneGame;
-        using var inspector = new InspectorPanel(session);
         var selection = new Selection();
-        var viewport = new ViewportPanel(session, selection).Started();
+        var history = new Editing.History();
+        var authoring = new Authoring(session, selection, history);
+        var recorder = new Editing.EditRecorder(session, history, () => authoring.Recording);
+        using var inspector = new InspectorPanel(session, authoring, recorder);
+        var viewport = new ViewportPanel(session, selection, authoring).Started();
         viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
-        var entities = new EntitiesPanel(session, selection);
+        var entities = new EntitiesPanel(session, selection, authoring);
         var controls = new SessionPanel(session, gameName);
         if (options.Select != null && entities.Find(options.Select) is { } chosen)
             selection.Set(chosen);
@@ -231,7 +234,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var leaving = Leaving.None;
         var askToSave = false;
         var confirmed = false;
-        var toolbar = new Toolbar(session, viewport)
+        var toolbar = new Toolbar(session, viewport, authoring, selection)
         {
             Save = () => Save(session),
             AddCode = () =>
@@ -281,6 +284,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var exitCode = 0;
         var previous = GLFW.GetTime();
         var editsApplied = false;
+        var nextCommand = 0;
         var savedOnce = false;
         while (!controls.CloseRequested)
         {
@@ -309,6 +313,18 @@ internal sealed class EditorWindow(EditorOptions options)
             var io = ImGui.GetIO();
             if (project && io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.S, false))
                 Save(session);
+            // The editing shortcuts, unless a text field has the keyboard.
+            if (!io.WantTextInput)
+            {
+                if (io.KeyCtrl && !io.KeyShift && ImGui.IsKeyPressed(ImGuiKey.Z, false))
+                    authoring.Undo();
+                if (io.KeyCtrl && (ImGui.IsKeyPressed(ImGuiKey.Y, false) || (io.KeyShift && ImGui.IsKeyPressed(ImGuiKey.Z, false))))
+                    authoring.Redo();
+                if (io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.D, false))
+                    authoring.Duplicate([.. selection.Items]);
+                if (ImGui.IsKeyPressed(ImGuiKey.Delete, false))
+                    authoring.Delete([.. selection.Items]);
+            }
 
             // A rebuild, a deletion in the viewport, play, stop, or the game itself may have taken
             // entities away.
@@ -356,12 +372,21 @@ internal sealed class EditorWindow(EditorOptions options)
                 leaving = Leaving.None;
             }
 
-            // The command line's edits go through the inspectors, once they exist.
+            // The command line's edits go through the inspectors, once they exist; then its commands,
+            // one per frame.
             if (!editsApplied && now - Start >= options.EditAfter)
             {
                 exitCode = ApplyEdits(inspector) ? exitCode : 3;
                 editsApplied = true;
             }
+            else if (editsApplied && nextCommand < options.Commands.Count)
+            {
+                exitCode = RunCommand(options.Commands[nextCommand++], session, authoring, selection, entities, viewport) ? exitCode : 3;
+            }
+
+            // An inspector edit is one step, from the first write until no control is held.
+            if (!ImGui.IsAnyItemActive())
+                recorder.Close();
 
             if (project && options.SaveAfter is { } saveAfter && !savedOnce && now - Start >= saveAfter)
             {
@@ -466,6 +491,93 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.SwapBuffers(window);
         if (quitting)
             GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+    }
+
+    // One command of --do, as the editor's own gestures would run it; the state is logged after it.
+    private static bool RunCommand(string command, EngineSession session, Authoring authoring, Selection selection,
+        EntitiesPanel entities, ViewportPanel viewport)
+    {
+        var equals = command.IndexOf('=');
+        var verb = equals < 0 ? command : command[..equals].TrimEnd('+');
+        var adding = equals > 0 && command[equals - 1] == '+';
+        var argument = equals < 0 ? "" : command[(equals + 1)..];
+        var chosen = selection.Items.ToArray();
+        var ok = true;
+        switch (verb)
+        {
+            case "create":
+                ok = authoring.CreateEntity() != null;
+                break;
+            case "duplicate":
+                authoring.Duplicate(chosen);
+                break;
+            case "delete":
+                authoring.Delete(chosen);
+                break;
+            case "undo":
+                authoring.Undo();
+                break;
+            case "redo":
+                authoring.Redo();
+                break;
+            case "select" when entities.Find(argument) is { } found:
+                if (adding)
+                    selection.Add([found]);
+                else
+                    selection.Set(found);
+                break;
+            case "add" when chosen.Length > 0 && session.TypeIndex(argument) is var added and >= 0:
+                authoring.Change(chosen, $"addition of {argument}", e => session.AddComponent(e, added));
+                break;
+            case "remove" when chosen.Length > 0 && session.TypeIndex(argument) is var removed and >= 0:
+                authoring.Change(chosen, $"removal of {argument}", e => session.RemoveComponent(e, removed));
+                break;
+            case "save":
+                session.Save();
+                break;
+            case "rename" when chosen.Length == 1:
+                authoring.Rename(chosen[0], argument);
+                break;
+            case "move" when chosen.Length > 0 && argument.Split(',') is [var x, var y]
+                             && double.TryParse(x, System.Globalization.CultureInfo.InvariantCulture, out var dx)
+                             && double.TryParse(y, System.Globalization.CultureInfo.InvariantCulture, out var dy):
+                if (authoring.BeginMove(chosen, chosen[0]) is { } move)
+                {
+                    move.By(dx, dy);
+                    authoring.EndMove(move);
+                }
+                break;
+            case "play":
+                session.Play();
+                viewport.Mode = ViewportMode.Game;
+                break;
+            case "stop":
+                session.Stop();
+                viewport.Mode = ViewportMode.Select;
+                break;
+            default:
+                ok = false;
+                break;
+        }
+
+        selection.Prune(session);
+        Console.Error.WriteLine($"[{(ok ? "info" : "error")}] After {command}: {Describe(session, authoring, selection)}");
+        return ok;
+    }
+
+    // Entities, the selection with names and positions, and what undo and redo would do.
+    private static string Describe(EngineSession session, Authoring authoring, Selection selection)
+    {
+        var transform = session.TypeIndex("Transform2D");
+        var chosen = selection.Items.Select(e =>
+        {
+            var name = authoring.Describe(e);
+            if (transform < 0 || !session.Has(e, transform))
+                return name;
+            var at = session.Get(e, transform, session.FieldIndex(transform, "position"));
+            return string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{name} ({at.X:0.##}, {at.Y:0.##})");
+        });
+        return $"{session.Stats.Entities} entities; selected: [{string.Join(", ", chosen)}]; undo: {authoring.History.UndoName ?? "-"}; redo: {authoring.History.RedoName ?? "-"}; unsaved: {(session.Unsaved ? "yes" : "no")}";
     }
 
     private bool ApplyEdits(InspectorPanel inspector)

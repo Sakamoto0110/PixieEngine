@@ -7,7 +7,7 @@ namespace PixieEditor.Ui;
 // takes out one, and Shift + click chooses the range from the last one clicked. Only the rows in view
 // ask the engine for a name, so a World of thousands stays cheap to list. Create entity adds one to
 // the scene at the origin, with a transform and a circle so it shows, and chooses it.
-internal sealed class EntitiesPanel(EngineSession session, Selection selection)
+internal sealed class EntitiesPanel(EngineSession session, Selection selection, Authoring authoring)
 {
     // EnTT's 32-bit entity: the low 20 bits are the index, the rest the version.
     private const uint IndexMask = 0xFFFFF;
@@ -17,7 +17,7 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection)
         if (ImGui.Begin("Entities"))
         {
             if (ImGui.Button("Create entity"))
-                Authoring.CreateEntity(session, selection);
+                authoring.CreateEntity();
             var entities = session.Entities();
             ImGui.SameLine();
             ImGui.TextUnformatted(selection.Items.Count > 1

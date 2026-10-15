@@ -13,7 +13,7 @@ namespace PixieEditor.Ui;
 // the rest, and drawn by its Dear ImGui view under a header with the component's name. An edit
 // changes every selected entity; values that differ show as mixed. The inspectors are made again when
 // the selection or the set of shared components changes.
-internal sealed class InspectorPanel(EngineSession session) : IDisposable
+internal sealed class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder) : IDisposable
 {
     // Set by a scenario's button; the editor rebuilds the scene at the start of the next frame, not
     // while an inspector is drawing.
@@ -24,6 +24,9 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
     private readonly List<Section> Sections = [];
     private uint[] Entities = [];
     private int[] Types = [];
+    // The name being typed in the name field, while it has the keyboard.
+    private string NameText = "";
+    private bool NameActive;
 
     public void Draw(IReadOnlyList<uint> selected)
     {
@@ -41,9 +44,10 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
             }
             else
             {
-                ImGui.TextUnformatted(Entities.Length == 1
-                    ? Describe(Entities[0])
-                    : $"{Entities.Length} entities: {string.Join(", ", Entities.Take(4).Select(Describe))}{(Entities.Length > 4 ? ", ..." : "")}");
+                if (Entities.Length == 1)
+                    DrawName(Entities[0]);
+                else
+                    ImGui.TextUnformatted($"{Entities.Length} entities: {string.Join(", ", Entities.Take(4).Select(Describe))}{(Entities.Length > 4 ? ", ..." : "")}");
                 if (Entities.Length > 1 && Types.Length == 0)
                     ImGui.TextDisabled("They share no component.");
                 ImGui.Separator();
@@ -65,7 +69,7 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
                 // After drawing, so no inspector of the removed component is in use; the sections are
                 // made again on the next frame.
                 if (remove is { } type)
-                    Change(Entities, id => session.RemoveComponent(id, type));
+                    authoring.Change(Entities, $"removal of {session.TypeName(type)}", id => session.RemoveComponent(id, type));
             }
         }
 
@@ -87,24 +91,28 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
             if (ImGui.Selectable(session.TypeName(type)))
             {
                 var chosen = type;
-                Change(Entities, id => session.AddComponent(id, chosen));
+                authoring.Change(Entities, $"addition of {session.TypeName(chosen)}", id => session.AddComponent(id, chosen));
             }
         }
 
         ImGui.EndPopup();
     }
 
-    private static void Change(uint[] entities, Action<uint> change)
+    // The entity's name, which can be typed over; the rename happens when the field lets go of the
+    // keyboard, as one step.
+    private void DrawName(uint entity)
     {
-        try
-        {
-            foreach (var id in entities)
-                change(id);
-        }
-        catch (EngineException e)
-        {
-            Status.Show(e.Message, error: true);
-        }
+        if (!NameActive)
+            NameText = session.EntityName(entity);
+        ImGui.SetNextItemWidth(-60);
+        ImGui.InputText("##name", ref NameText, 128);
+        NameActive = ImGui.IsItemActive();
+        if (ImGui.IsItemDeactivatedAfterEdit())
+            authoring.Rename(entity, NameText.Trim());
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("The entity's name; type a new one and press Enter.");
+        ImGui.SameLine();
+        ImGui.TextDisabled($"#{entity & 0xFFFFF}");
     }
 
     private string Describe(uint entity)
@@ -154,7 +162,7 @@ internal sealed class InspectorPanel(EngineSession session) : IDisposable
         Types = types;
         foreach (var type in types)
         {
-            var handles = entities.Select(id => new ComponentHandle(session, id, type)).ToArray();
+            var handles = entities.Select(id => new ComponentHandle(session, id, type, recorder)).ToArray();
             var inspector = InspectorFactory.Build(session, type, handles, () => RebuildRequested = true);
             Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView()));
         }

@@ -67,6 +67,45 @@ public sealed unsafe class EngineSession : IDisposable
         return entity;
     }
 
+    public void SetName(uint entity, string name) => Check(PixieCapi.EntitySetName(Handle, entity, name), "rename an entity");
+
+    // The entity's scene ID, which survives the World being built again; null for an entity that is
+    // gone or not in the scene.
+    public ulong? SceneId(uint entity) =>
+        Found(PixieCapi.EntitySceneId(Handle, entity, out var id), "read a scene id") ? id : null;
+
+    // The live entity with a scene ID, or null.
+    public uint? Find(ulong id) => Found(PixieCapi.EntityFind(Handle, id, out var entity), "find an entity") ? entity : null;
+
+    // Scene entities as text, to bring them back or copy them with Restore.
+    public string Snapshot(IReadOnlyList<uint> entities)
+    {
+        var chosen = entities.ToArray();
+        fixed (uint* list = chosen)
+        {
+            Check(PixieCapi.EntitiesSnapshot(Handle, list, chosen.Length, null, 0, out var length), "measure a snapshot");
+            var buffer = new byte[length + 1];
+            fixed (byte* text = buffer)
+            {
+                Check(PixieCapi.EntitiesSnapshot(Handle, list, chosen.Length, text, buffer.Length, out _), "take a snapshot");
+            }
+
+            return Encoding.UTF8.GetString(buffer, 0, length);
+        }
+    }
+
+    // Adds a snapshot's entities back: with their scene IDs, or as copies with new ones. Returns them.
+    public uint[] Restore(string snapshot, bool newIds)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(snapshot);
+        var entities = new uint[document.RootElement.GetProperty("entities").GetArrayLength()];
+        fixed (uint* list = entities)
+        {
+            Check(PixieCapi.EntitiesRestore(Handle, snapshot, newIds ? 1 : 0, list, entities.Length, out var count), "restore entities");
+            return entities[..Math.Min(count, entities.Length)];
+        }
+    }
+
     public void AddComponent(uint entity, int type) => Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
     public void RemoveComponent(uint entity, int type) => Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
 

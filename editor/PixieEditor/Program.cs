@@ -29,6 +29,8 @@ internal sealed record EditorOptions
     public double? SaveAfter { get; init; }
     // Whether the project goes into the user's recent projects; off for scripted runs.
     public bool Recent { get; init; } = true;
+    // Editing commands run one per frame after the --set edits, as the editor's gestures would.
+    public List<string> Commands { get; } = [];
 }
 
 internal static class Program
@@ -49,6 +51,9 @@ internal static class Program
           --paused <on|off>        start with time paused (default off)
           --save-after <seconds>   save the project after this long (after the --set edits)
           --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
+          --do <command>           after the --set edits, one per frame: create, duplicate, delete, undo, redo,
+                                   select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,
+                                   add=<Type>, remove=<Type>, save, play, stop; repeatable
         """;
 
     [STAThread]
@@ -118,6 +123,9 @@ internal static class Program
                     break;
                 case "--save-after" when double.TryParse(value, CultureInfo.InvariantCulture, out var save):
                     options = options with { SaveAfter = save };
+                    break;
+                case "--do":
+                    options.Commands.Add(value);
                     break;
                 case "--recent" when value is "on" or "off":
                     options = options with { Recent = value == "on" };

@@ -255,6 +255,21 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_entity_create", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult EntityCreate(nint session, string? name, out uint entity);
 
+    [LibraryImport(Library, EntryPoint = "pixie_entity_set_name", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult EntitySetName(nint session, uint entity, string? name);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_scene_id")]
+    internal static partial PixieResult EntitySceneId(nint session, uint entity, out ulong id);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_find")]
+    internal static partial PixieResult EntityFind(nint session, ulong id, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entities_snapshot")]
+    internal static partial PixieResult EntitiesSnapshot(nint session, uint* entities, int count, byte* buffer, int capacity, out int length);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entities_restore", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult EntitiesRestore(nint session, string snapshot, int ids, uint* entities, int capacity, out int count);
+
     [LibraryImport(Library, EntryPoint = "pixie_component_add")]
     internal static partial PixieResult ComponentAdd(nint session, uint entity, int type);
 
