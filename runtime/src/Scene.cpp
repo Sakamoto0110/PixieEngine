@@ -397,6 +397,20 @@ Json ParseDocument(std::string_view text, std::string_view format, std::string_v
     return document;
 }
 
+// A document's meta object as compact JSON text; empty when it has none, and when it is not an
+// object (with a warning).
+std::string MetaText(const Json& document, std::vector<std::string>& warnings) {
+    const auto meta = document.find("meta");
+    if (meta == document.end()) {
+        return {};
+    }
+    if (!meta->is_object()) {
+        warnings.push_back("the meta is not a JSON object; ignored");
+        return {};
+    }
+    return meta->dump(-1, ' ', false, Json::error_handler_t::replace);
+}
+
 // The World's scene entities by scene ID.
 std::unordered_map<std::uint64_t, entt::entity> SceneEntities(entt::registry& registry) {
     std::unordered_map<std::uint64_t, entt::entity> found;
@@ -636,10 +650,23 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
 
 std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
                           std::vector<std::string>* warnings) {
+    return WriteEntities(world, types, entities, std::string_view(), warnings);
+}
+
+std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
+                          std::string_view meta, std::vector<std::string>* warnings) {
     entt::registry& registry = world.Registry();
     Json document = Json::object();
     document["format"] = std::string(kEntitiesFormat);
     document["version"] = kSceneVersion;
+    if (!meta.empty()) {
+        Json parsed = Json::parse(meta.begin(), meta.end(), nullptr, false);
+        if (parsed.is_object()) {
+            document["meta"] = std::move(parsed);
+        } else if (warnings != nullptr) {
+            warnings->push_back("the meta is not a JSON object; left out");
+        }
+    }
     Json list = Json::array();
     std::unordered_set<entt::entity> written;
     for (const Entity entity : entities) {
@@ -688,7 +715,22 @@ EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::stri
         }
     }
     report.entities = AddEntities(world, types, list, listed, assigned, ids, report);
+    report.meta = MetaText(document, report.warnings);
     return report;
+}
+
+FragmentMeta ReadFragmentMeta(std::string_view text) {
+    FragmentMeta found;
+    std::string error;
+    const Json document = ParseDocument(text, kEntitiesFormat, "set of entities", error);
+    if (!error.empty()) {
+        found.ok = false;
+        found.error = std::move(error);
+        return found;
+    }
+    found.meta = MetaText(document, found.warnings);
+    found.entityCount = document["entities"].size();
+    return found;
 }
 
 SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& path) {

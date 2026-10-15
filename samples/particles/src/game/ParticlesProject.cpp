@@ -9,13 +9,17 @@
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Scene.hpp"
+#include "pixie/runtime/ScreenCanvas.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <format>
+#include <string>
+#include <string_view>
 
 namespace {
 
@@ -26,6 +30,9 @@ constexpr pixie::Key kPresetKeys[] = {pixie::Key::Num1, pixie::Key::Num2, pixie:
 constexpr int kInteractionLimit = 20000;
 constexpr double kPickPixels = 18.0;
 constexpr double kZoomStep = 1.15;
+
+// The screen layer's font, copied into the project from the shared resources (vdr cp inter-regular).
+constexpr std::string_view kFont = "fonts/inter-regular.ttf";
 
 } // namespace
 
@@ -202,4 +209,32 @@ void ParticlesProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, 
 
 std::unique_ptr<pixie::Project> pixie::CreateProject() {
     return std::make_unique<ParticlesProject>();
+}
+
+void ParticlesProject::DrawScreen(pixie::World& world, pixie::ScreenCanvas& screen) {
+    const pixie::TextStyle title{kFont, 18.0, pxColorRgba(236, 238, 245)};
+    const pixie::TextStyle body{kFont, 14.0, pxColorRgba(170, 178, 196)};
+    const int particles = static_cast<int>(emitter_.Get<pixie::ParticleSystem>().particles.size());
+    const std::string counts = std::format("{} particles\n{} attractors, {} spawners\ninteraction {}", particles,
+                                           AttractorCount(world), SpawnerCount(world),
+                                           emitter_.Get<ParticleControls>().interaction ? "on" : "off");
+
+    // A panel sized to what it holds, in the top-left corner.
+    constexpr double kMargin = 12.0;
+    constexpr double kPadding = 10.0;
+    const pxVec2 titleSize = screen.MeasureText("particles", title);
+    const pxVec2 bodySize = screen.MeasureText(counts, body);
+    const pxVec2 panel(std::max(titleSize.x, bodySize.x) + 2.0 * kPadding, titleSize.y + bodySize.y + 2.0 * kPadding + 4.0);
+    screen.Rect(pxPoint(kMargin, kMargin), panel, pxColorRgba(16, 20, 32, 210));
+    screen.Text("particles", pxPoint(kMargin + kPadding, kMargin + kPadding), title);
+    screen.Text(counts, pxPoint(kMargin + kPadding, kMargin + kPadding + titleSize.y + 4.0), body);
+
+    // Each spawner's rate, centered below it wherever the camera puts it.
+    world.Each<const pixie::Transform2D, const pixie::ParticleSpawner>(
+        [&](pixie::Entity, const pixie::Transform2D& transform, const pixie::ParticleSpawner& spawner) {
+            const pxPoint at = screen.WorldToScreen(transform.position);
+            const std::string rate = std::format("{:g}/s", spawner.rate);
+            const pxVec2 size = screen.MeasureText(rate, body);
+            screen.Text(rate, pxPoint(at.x - size.x * 0.5, at.y + 28.0), body);
+        });
 }

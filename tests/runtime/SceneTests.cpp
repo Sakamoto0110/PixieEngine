@@ -449,3 +449,51 @@ TEST(UnknownDataTravelsWithASnapshot) {
     CHECK(written["components"]["Mystery"]["a"] == 1);
     CHECK(written["components"]["Transform2D"]["wobble"] == 5);
 }
+
+TEST(AFragmentKeepsItsMetaAndItIsReadAlone) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const std::array chosen = {Named(world, "pool"), Named(world, "spawner")};
+    const std::size_t entities = world.EntityCount();
+    std::vector<std::string> warnings;
+    const std::string text =
+        WriteEntities(world, types, chosen, R"({"name": "fountain", "made": [2026, 10, 15]})", &warnings);
+    CHECK(warnings.empty());
+    // The meta is written at the top, before the entities.
+    const auto document = nlohmann::ordered_json::parse(text);
+    CHECK(document["meta"]["name"] == "fountain" && document.begin().key() == "format");
+    CHECK(text.find("\"meta\"") < text.find("\"entities\""));
+
+    const FragmentMeta alone = ReadFragmentMeta(text);
+    CHECK(alone.ok && alone.entityCount == 2 && world.EntityCount() == entities);
+    CHECK(nlohmann::json::parse(alone.meta) == nlohmann::json::parse(R"({"name": "fountain", "made": [2026, 10, 15]})"));
+
+    const EntitiesReport copy = ReadEntities(world, types, text, SceneIds::New);
+    CHECK(copy.ok && copy.entities.size() == 2 && copy.meta == alone.meta);
+
+    // Without meta, nothing is written and nothing is read back.
+    const std::string bare = WriteEntities(world, types, chosen);
+    CHECK(nlohmann::json::parse(bare).contains("meta") == false);
+    const FragmentMeta none = ReadFragmentMeta(bare);
+    CHECK(none.ok && none.meta.empty() && none.entityCount == 2);
+}
+
+TEST(MetaThatIsNotAnObjectIsLeftOut) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const std::array chosen = {Named(world, "pool")};
+    for (const char* meta : {"[1, 2]", "\"name\"", "{not json"}) {
+        std::vector<std::string> warnings;
+        const std::string text = WriteEntities(world, types, chosen, meta, &warnings);
+        CHECK(warnings.size() == 1 && !nlohmann::json::parse(text).contains("meta"));
+    }
+    // A document whose meta is not an object reads, with a warning.
+    auto document = nlohmann::json::parse(WriteEntities(world, types, chosen));
+    document["meta"] = 7;
+    const FragmentMeta read = ReadFragmentMeta(document.dump());
+    CHECK(read.ok && read.meta.empty() && read.warnings.size() == 1 && read.entityCount == 1);
+    // What is not a set of entities fails, as ReadEntities does.
+    CHECK(!ReadFragmentMeta("{}").ok && !ReadFragmentMeta(WriteScene(world, types)).ok && !ReadFragmentMeta("x").ok);
+}

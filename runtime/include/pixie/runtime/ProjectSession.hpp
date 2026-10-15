@@ -8,7 +8,9 @@
 #include "pixie/RenderTarget.hpp"
 #include "pixie/ShapeRenderer.hpp"
 #include "pixie/SpriteRenderer.hpp"
+#include "pixie/TextRenderer.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/Fonts.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
@@ -113,7 +115,7 @@ public:
 
     // Draws the World into the bound framebuffer, interpolated `alpha` of the way between steps:
     // sprites of negative layers, then paths, then the other sprites, then particles, then shapes,
-    // then the project's overlay. Images whose files changed
+    // then the project's overlay, then its screen layer (Project::DrawScreen). Images whose files changed
     // are read again first, checked at most every SpriteImages::kCheckInterval seconds.
     void Render(double alpha);
     // Draws into the session's own render target, sized to the viewport, and returns its texture.
@@ -128,6 +130,8 @@ public:
     // The images of the World's sprites, resolved against the project folder (the working
     // directory without a project).
     SpriteImages& Images() { return images_; }
+    // The fonts of the screen layer's text, resolved as the images are.
+    Fonts& GetFonts() { return fonts_; }
 
     // Duration of the last step, in milliseconds.
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
@@ -146,6 +150,8 @@ private:
     SpriteRenderer sprites_;
     PathRenderer paths_;
     SpriteImages images_;
+    TextRenderer text_;
+    Fonts fonts_;
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
     RenderTarget target_;

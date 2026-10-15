@@ -3,6 +3,7 @@
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/World.hpp"
 
+#include <cstddef>
 #include <cstdint>
 #include <filesystem>
 #include <span>
@@ -77,6 +78,11 @@ SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& pat
 // out, with a warning. For snapshots a tool takes to bring entities back, or to copy them.
 std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
                           std::vector<std::string>* warnings = nullptr);
+// The same, with `meta`, a JSON object as text, written at the top of the document: what a game keeps
+// about a saved set, such as a template's name. Meta that is not a JSON object is left out, with a
+// warning.
+std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
+                          std::string_view meta, std::vector<std::string>* warnings = nullptr);
 
 // How ReadEntities gives the entities it adds their scene IDs.
 enum class SceneIds {
@@ -90,12 +96,26 @@ enum class SceneIds {
 // What ReadEntities found, and the entities it added, in the document's order.
 struct EntitiesReport : SceneReport {
     std::vector<Entity> entities;
+    // The document's meta object, as compact JSON text; empty when it has none.
+    std::string meta;
 };
 
 // Adds a set of entities written by WriteEntities to the World. Nothing is added when the document
 // cannot be read, or, with SceneIds::Keep, when one of its IDs is already in the World. Unknown
 // components and fields are kept as a scene keeps them. Not during a step.
 EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds ids);
+
+// What ReadFragmentMeta found: a set of entities' meta object, as compact JSON text (empty when it
+// has none), and how many entities the set holds.
+struct FragmentMeta : SceneReport {
+    std::string meta;
+    std::size_t entityCount = 0;
+};
+
+// Reads the meta of a set of entities written by WriteEntities without building anything, so a game
+// can list its saved sets (its templates) by name and size quickly. Fails as ReadEntities does when
+// the document is not a set of entities this engine reads.
+FragmentMeta ReadFragmentMeta(std::string_view text);
 
 // WriteScene to a file, through SaveTextFile.
 SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);

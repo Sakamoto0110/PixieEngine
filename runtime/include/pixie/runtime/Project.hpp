@@ -13,10 +13,11 @@
 namespace pixie {
 
 class ComponentTypes;
+class ScreenCanvas;
 class World;
 
 // A game's code as the engine sees it: how to build its World, what to do with the host's view and
-// input before each step, what to draw on top, and which of its components a tool may inspect. The
+// input before each step, what to draw on top and on the screen, and which of its components a tool may inspect. The
 // same Project runs in its player executable (through ProjectApp) and in an editor (through the C
 // API's session), so a game is written once.
 class Project {
@@ -49,6 +50,10 @@ public:
     // Submits what is drawn over the World's shapes and particles, such as a pointer's ring. The
     // session flushes the renderer afterwards.
     virtual void DrawOverlay(World& /*world*/, ShapeRenderer& /*shapes*/, const Camera2D& /*camera*/) {}
+
+    // Draws the game's interface over everything else, in pixels of the view (see ScreenCanvas): in
+    // its player and in an editor's viewport, in play and in edit alike.
+    virtual void DrawScreen(World& /*world*/, ScreenCanvas& /*screen*/) {}
 };
 
 // Every game library defines this: the project with its default settings. The C API's library for

@@ -1,9 +1,10 @@
 # Provisional engine library: window, GL context, main loop, input, 2D camera, and shape, particle,
-# sprite, and path rendering, with PNG images.
+# sprite, path, and text rendering, with PNG images and TrueType fonts.
 # Its layout changes when the module split (PIXIE-PROPOSAL-001) is decided.
 
 add_library(pixie_engine STATIC
     src/Camera2D.cpp
+    src/Font.cpp
     src/FrameLimiter.cpp
     src/GlBuffer.cpp
     src/GlDebugOutput.cpp
@@ -23,6 +24,7 @@ add_library(pixie_engine STATIC
     src/ShaderProgram.cpp
     src/ShapeRenderer.cpp
     src/SpriteRenderer.cpp
+    src/TextRenderer.cpp
     src/Texture.cpp
     src/Window.cpp
 )
@@ -30,7 +32,7 @@ add_library(Pixie::Engine ALIAS pixie_engine)
 set_target_properties(pixie_engine PROPERTIES FOLDER engine)
 
 target_include_directories(pixie_engine PUBLIC include)
-target_link_libraries(pixie_engine PUBLIC glew pixie::pixie pixie::math EnTT::EnTT PRIVATE glfw stb_image)
+target_link_libraries(pixie_engine PUBLIC glew pixie::pixie pixie::math EnTT::EnTT PRIVATE glfw stb_image stb_truetype)
 target_compile_definitions(pixie_engine PRIVATE GLFW_INCLUDE_NONE)
 
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)

@@ -26,7 +26,7 @@ struct ParticleControls {
 // user places, drags, and removes. The scene (samples/particles/scenes/main.scene) holds the
 // scenario, the particle system with its controls, the attractors, and the spawners; the particles
 // are generated from the scenario's count. The same project runs in the particles player and,
-// through the C API, in the editor.
+// through the C API, in the editor. Its screen layer shows the counts, and labels each spawner.
 class ParticlesProject final : public pixie::Project {
 public:
     explicit ParticlesProject(ParticlesScenario scenario = {}) : scenario_(scenario) {}
@@ -38,6 +38,7 @@ public:
     void Capture(pixie::World& world) override;
     void BeforeStep(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input) override;
     bool SpawnAt(pixie::World& world, pxPoint at) override;
+    void DrawScreen(pixie::World& world, pixie::ScreenCanvas& screen) override;
 
 private:
     void HandleMouse(pixie::World& world, pixie::Camera2D& camera, const pixie::Input& input);

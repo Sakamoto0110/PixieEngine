@@ -6,6 +6,7 @@
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
 #include "pixie/runtime/PathDrawing.hpp"
+#include "pixie/runtime/ScreenCanvas.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 
@@ -49,6 +50,8 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
         return false;
     }
     images_.SetFolder(opened.folder);
+    text_.Destroy();
+    fonts_.SetFolder(opened.folder);
     opened_ = std::move(opened);
     sceneText_ = text.str();
     playedFrom_.clear();
@@ -78,6 +81,7 @@ void ProjectSession::Stop() {
     world_.reset();
     target_.Destroy();
     images_.Destroy();
+    text_.Destroy();
     paths_.Destroy();
     sprites_.Destroy();
     particles_.Destroy();
@@ -241,6 +245,13 @@ void ProjectSession::Render(double alpha) {
     SubmitShapes(*world_, shapes_, alpha);
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_);
+
+    ScreenCanvas screen(camera_, shapes_, paths_, sprites_, text_, images_, fonts_);
+    project_->DrawScreen(*world_, screen);
+    const Camera2D pixels = ScreenCanvas::PixelCamera(camera_.Viewport());
+    shapes_.Flush(pixels);
+    paths_.Flush(pixels);
+    sprites_.Flush(pixels);
 }
 
 unsigned ProjectSession::RenderToTarget() {
