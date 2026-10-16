@@ -45,7 +45,23 @@ The game lives in a project folder of its own, `C:\Users\Sakamoto\dev\LogicSandb
 repository; this file tracks it because it is the engine's first game and its proof. Its first
 block, PIXIE-TODO-032, and everything before it are completed; see below. On 2026-10-16 the owner
 promoted fixes to stage 1, PIXIE-TODO-034, to come before PIXIE-TODO-033
-([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)), completed the same day.
+([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)), completed the same day, and then
+a box selection and a toolbar, PIXIE-TODO-035, before the templates of PIXIE-TODO-033
+([promotion record](docs/archive/logic-sandbox-toolbar-promotion-2026-10-16.md)).
+
+### `PIXIE-TODO-035` — The logic sandbox: box selection and a toolbar
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-16 ([promotion record](docs/archive/logic-sandbox-toolbar-promotion-2026-10-16.md))
+
+**Accepted scope:** a drag on empty space, with no piece chosen and no wire being drawn, draws a box and selects the pieces whose centers are in it and the wires between selected pieces (Shift keeps the selection, a click without a drag still clears it); a toolbar along the top of the view, beside the hotbar, with Delete (as Del), Copy (Ctrl + C: the selected pieces and the wires between them, in the game's memory), Paste (Ctrl + V at the cursor; the button 32 units to the side of the copy, further at each paste), with new scene IDs and the pasted entities selected, Save (as Ctrl + S), and Load (as Ctrl + O), each dimmed when it has nothing to act on and naming its key on hover; clicks on the toolbar never reach the circuit. Out: the system clipboard, and templates (PIXIE-TASK-150 and 151), which build on the box selection and on pasting with new IDs.
+
+**Dependencies and gates:** 1. PIXIE-TASK-149, saves
+
+**Completion criteria:** (1) the game's tests, with synthetic input: a box drag selects the pieces in it and the wires between them, and Shift keeps the rest; Delete, Copy, Paste, Save, and Load on the toolbar do what their keys do; a paste gets new scene IDs, keeps its inner wires, and is selected; Ctrl + V pastes at the cursor; a click on the toolbar places nothing; (2) zero warnings in Debug and Release; (3) the README describes the box, the toolbar, and copy and paste.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-035--the-logic-sandbox-box-selection-and-a-toolbar)
 
 ### `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 
@@ -55,7 +71,7 @@ promoted fixes to stage 1, PIXIE-TODO-034, to come before PIXIE-TODO-033
 
 **Accepted scope:** the whole circuit saved and loaded with Ctrl + S and Ctrl + O in the game's `UserDataFolder`; a box selection saved as a named template, its fragment's metadata holding the name, the inputs (input pins not fed from inside), and the final outputs (output pins feeding nothing inside); the hotbar's Templates page, switched with Tab, keys 1 to 9 for the first nine and 0 for a menu of all, a slot's hover showing name, inputs, and outputs; placing a template pastes its circuit with new IDs at the mouse. Out: a template as a closed box with pins of its own.
 
-**Dependencies and gates:** 1. PIXIE-TODO-032; 2. PIXIE-TODO-034, put before it by the owner on 2026-10-16
+**Dependencies and gates:** 1. PIXIE-TODO-032; 2. PIXIE-TODO-034, put before it by the owner on 2026-10-16; 3. PIXIE-TODO-035, before its templates (PIXIE-TASK-150 and 151), on 2026-10-16
 
 **Completion criteria:** (1) the game's tests: a circuit saved and loaded gives the same pieces, wires, and states; a template's metadata counts its inputs and outputs; a pasted template gets new IDs and keeps its inner wires; the Templates page lists saved templates; (2) zero warnings in Debug and Release; (3) the README describes saving and templates.
 

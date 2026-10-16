@@ -159,7 +159,11 @@ owner put fixes to stage 1 before block 30
 31. The logic sandbox, stage 1 fixes: selecting and removing wires (PIXIE-TODO-034), before block 30.
 
 Block 31 was completed on 2026-10-16: wires and their bends are selected and removed, and a right
-click on a wired input removes its wire.
+click on a wired input removes its wire. Then the owner asked for a box selection and a toolbar,
+before the templates of block 30
+([promotion record](docs/archive/logic-sandbox-toolbar-promotion-2026-10-16.md)):
+
+32. The logic sandbox: box selection and a toolbar (PIXIE-TODO-035).
 
 Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
 particle system made in a blank project does not seem to work, and asked for it to be investigated
