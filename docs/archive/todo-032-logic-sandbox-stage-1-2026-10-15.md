@@ -128,3 +128,10 @@ Machine: Windows 11, AMD Radeon RX 7600, against the engine at `d577557`.
   lamp is lit! The sandbox goes on: keep building."
 - Not run: real input, which only the owner can judge; the project's README lists it (pin reach and
   snapping, hover, dragging, readability of the bar, routes after moves, the signal's pace).
+
+## Reconciliation, 2026-10-15
+
+The game is now under version control in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox), at the owner's request.
+The work this record describes is its first commit, `069df175902d0c636482b17e8d4fc6295776467c`; see
+[PIXIE-ARCHIVE-059](logic-sandbox-versioned-2026-10-15.md).

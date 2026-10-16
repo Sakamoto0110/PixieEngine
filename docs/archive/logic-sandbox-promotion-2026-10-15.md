@@ -55,3 +55,9 @@ Decided by Claude at promotion, where the proposal left it open:
   player's own saves.
 
 Also changed: `ROADMAP.md` (the two blocks in the current direction).
+
+## Reconciliation, 2026-10-15
+
+The owner later asked Claude to put the game under version control. It is now its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox); see
+[PIXIE-ARCHIVE-059](logic-sandbox-versioned-2026-10-15.md).
