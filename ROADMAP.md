@@ -152,7 +152,11 @@ of its own:
 30. The logic sandbox, stage 1.5: saves and templates (PIXIE-TODO-033).
 
 Block 29 was completed on 2026-10-15: on the engine as it is, a player places gates, wires them
-through bends, and lights a lamp, in a project of its own with its own tests.
+through bends, and lights a lamp, in a project of its own with its own tests. After playing it, the
+owner put fixes to stage 1 before block 30
+([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)):
+
+31. The logic sandbox, stage 1 fixes: selecting and removing wires (PIXIE-TODO-034), before block 30.
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

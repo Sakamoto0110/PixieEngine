@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-15
+**Last promotion decision:** 2026-10-16
 
 ## Purpose and admission rule
 
@@ -43,7 +43,23 @@ Promoted on 2026-10-15 from [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md
 logic circuits), in this order ([promotion record](docs/archive/logic-sandbox-promotion-2026-10-15.md)).
 The game lives in a project folder of its own, `C:\Users\Sakamoto\dev\LogicSandbox`, outside this
 repository; this file tracks it because it is the engine's first game and its proof. Its first
-block, PIXIE-TODO-032, and everything before it are completed; see below.
+block, PIXIE-TODO-032, and everything before it are completed; see below. On 2026-10-16 the owner
+promoted fixes to stage 1, PIXIE-TODO-034, to come before PIXIE-TODO-033
+([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)).
+
+### `PIXIE-TODO-034` — The logic sandbox, stage 1 fixes: selecting and removing wires
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-16, after playing stage 1 ([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md))
+
+**Accepted scope:** a click on a wire selects it, and Shift adds or removes it from the selection, as with pieces; a selected wire shows its bends, and a click on one selects that bend; Del removes a selected bend, and the wire routes again through the bends left (the crossing rule is not checked, as when a piece moves), or else the selected wires and pieces, marking the pieces those wires fed to evaluate again; a right click on an input that has a wire removes that wire, when no wire is being drawn and no piece is chosen (a right click keeps cancelling a wire being drawn, then putting down the chosen piece, first). Out: moving bends, and adding bends to a wire already made.
+
+**Dependencies and gates:** 1. PIXIE-TODO-032
+
+**Completion criteria:** (1) the game's tests, with synthetic input: a click selects a wire and Shift adds one; a click selects a selected wire's bend; Del removes the bend and the wire routes again without it; Del removes a selected wire, and the piece it fed evaluates again; a right click on a wired input removes its wire; with a piece chosen, the first right click only puts it down; (2) zero warnings in Debug and Release; (3) the README describes selecting and removing wires and bends, and the right click on an input.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-034--the-logic-sandbox-stage-1-fixes-selecting-and-removing-wires)
 
 ### `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 
@@ -53,7 +69,7 @@ block, PIXIE-TODO-032, and everything before it are completed; see below.
 
 **Accepted scope:** the whole circuit saved and loaded with Ctrl + S and Ctrl + O in the game's `UserDataFolder`; a box selection saved as a named template, its fragment's metadata holding the name, the inputs (input pins not fed from inside), and the final outputs (output pins feeding nothing inside); the hotbar's Templates page, switched with Tab, keys 1 to 9 for the first nine and 0 for a menu of all, a slot's hover showing name, inputs, and outputs; placing a template pastes its circuit with new IDs at the mouse. Out: a template as a closed box with pins of its own.
 
-**Dependencies and gates:** 1. PIXIE-TODO-032
+**Dependencies and gates:** 1. PIXIE-TODO-032; 2. PIXIE-TODO-034, put before it by the owner on 2026-10-16
 
 **Completion criteria:** (1) the game's tests: a circuit saved and loaded gives the same pieces, wires, and states; a template's metadata counts its inputs and outputs; a pasted template gets new IDs and keeps its inner wires; the Templates page lists saved templates; (2) zero warnings in Debug and Release; (3) the README describes saving and templates.
 
