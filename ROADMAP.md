@@ -137,7 +137,11 @@ Block 26 was completed on 2026-10-15: the engine draws lines with rounded corner
 and the editor edits lists of points. Block 27 was completed the same day: a game draws its interface
 and text on a screen layer, keeps its own files in a user data folder, and saves sets of entities
 with metadata. PIXIE-PROPOSAL-008 is carried out; the logic sandbox
-([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)) waits on the owner's promotion.
+([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)) waits on the owner's promotion. Before it, the
+owner promoted text in the World as data
+([PIXIE-PROPOSAL-011](docs/proposals/scene-text.md); screen text stays code):
+
+28. Text in the scene (PIXIE-TODO-031).
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

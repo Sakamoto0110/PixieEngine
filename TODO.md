@@ -39,7 +39,23 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. PIXIE-TODO-030 and everything before it are completed; see below.
+Promoted on 2026-10-15 from [PIXIE-PROPOSAL-011](docs/proposals/scene-text.md) (text in the scene)
+([decision record](docs/archive/scene-text-decisions-2026-10-15.md)), before the logic sandbox.
+PIXIE-TODO-030 and everything before it are completed; see below.
+
+### `PIXIE-TODO-031` — Text in the scene
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-011](docs/proposals/scene-text.md)
+
+**Accepted scope:** in the `engine`, lines aligned `Left`, `Center`, or `Right` in the font's layout, measured line by line. In the `runtime`, a `Text` component (UTF-8 text, a font as a text field of asset kind `ttf`, a size in world units, a color, an alignment, a pivot over the measured block, and a layer) saved with the scene, drawn by the session as sprites in their layer and World order, its size multiplied by the transform's scale and its glyphs turned and mirrored with it, from the ladder's atlas for its size on screen, interpolated like a sprite; picked by its turned block in the sprites' picking order; a text without a readable font draws nothing and has a one-em block. In the C API, a text's outline through the view quad, at version 8. In the editor: a `ttf` field chosen among `.ttf` files and copied into the project's `fonts/` folder, a new `Text` taking the project's first font, and a selected text outlined. Out: wrapping, rich text, kerning, outlines and shadows, text bound to a component's value, dropping a `.ttf` to create a text, editing several lines in the inspector, and the logic sandbox (PIXIE-PROPOSAL-009).
+
+**Dependencies and gates:** none; PIXIE-TODO-030 is completed
+
+**Completion criteria:** (1) runtime tests: aligned lines measured and laid out; a `Text` through a scene and a snapshot; its block at a turned, scaled, and mirrored transform, and with no readable font; picking and the drawing order among sprites; (2) the C API test draws a text into the render with content inside its outline and none outside it, over a sprite of a lower layer and under one of a higher, picks it, and reads its outline; (3) in the editor, a `Text` is added with the project's font, its text, size, and alignment edited, each undone and redone, verified by scripted options and a screenshot, without computer use; (4) the `runtime`, `capi`, and editor documents describe them; (5) zero warnings, and `ctest` passes locally and in the CI.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-031--text-in-the-scene)
 
 ## Completed
 

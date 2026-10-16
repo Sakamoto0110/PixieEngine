@@ -22,7 +22,7 @@
 
 ## PIXIE-PROPOSAL-011
 
-**State:** idea
+**State:** promoted
 
 **Idea:** The engine draws text two ways today, and both are code: on the screen layer
 (`ScreenCanvas::Text`, in view pixels, over everything), and through the `TextRenderer`'s
@@ -86,4 +86,5 @@ new version for it.
 apart, and the discussion recorded in the
 [decision record](../archive/scene-text-decisions-2026-10-15.md).
 
-**Outcome:** none yet.
+**Outcome:** promoted on 2026-10-15 as PIXIE-TODO-031, as recorded in the
+[promotion record](../archive/scene-text-promotion-2026-10-15.md).
