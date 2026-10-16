@@ -144,8 +144,12 @@ owner promoted text in the World as data
 28. Text in the scene (PIXIE-TODO-031).
 
 Block 28 was completed on 2026-10-15: text is part of a scene, saved, picked, and drawn among the
-sprites, and the editor treats fonts as assets. The logic sandbox (PIXIE-PROPOSAL-009) waits on the
-owner's promotion.
+sprites, and the editor treats fonts as assets. Then the owner promoted the logic sandbox
+([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)), the engine's first game, in a project folder
+of its own:
+
+29. The logic sandbox, stage 1: light the lamp (PIXIE-TODO-032).
+30. The logic sandbox, stage 1.5: saves and templates (PIXIE-TODO-033).
 
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the

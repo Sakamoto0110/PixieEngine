@@ -22,7 +22,7 @@
 
 ## PIXIE-PROPOSAL-009
 
-**State:** idea
+**State:** promoted
 
 **Idea:** A game in C++, in a project folder of its own (made by the editor, with code, versioned by
 the owner, outside the engine's repository), on the engine features of
@@ -89,4 +89,5 @@ how many inputs) live in the game's code; `gates.json` only measures the drawing
 **Source:** the owner's proposal of 2026-10-15 and the discussion in the
 [decision record](../archive/logic-sandbox-decisions-2026-10-15.md).
 
-**Outcome:** none yet.
+**Outcome:** promoted on 2026-10-15 as PIXIE-TODO-032 and PIXIE-TODO-033, as recorded in the
+[promotion record](../archive/logic-sandbox-promotion-2026-10-15.md).
