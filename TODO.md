@@ -42,22 +42,8 @@ entry may keep an explicit gate after promotion.
 Promoted on 2026-10-15 from [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (a sandbox of
 logic circuits), in this order ([promotion record](docs/archive/logic-sandbox-promotion-2026-10-15.md)).
 The game lives in a project folder of its own, `C:\Users\Sakamoto\dev\LogicSandbox`, outside this
-repository; this file tracks it because it is the engine's first game and its proof. PIXIE-TODO-031
-and everything before it are completed; see below.
-
-### `PIXIE-TODO-032` — The logic sandbox, stage 1: light the lamp
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md), stage 1
-
-**Accepted scope:** a project with C++ code, `LogicSandbox`, made by the engine's tools in `C:\Users\Sakamoto\dev\LogicSandbox`, with the `logic-gates` sprites, `gates.json`, and Inter copied in through `vdr cp`. Pieces: the eight gates (1 to 4 inputs; NOT and BUF one), a power source toggled by a click, a lamp, and a relay. Pins drawn by the game at the anchors of `gates.json` through `SpritePoint` (a dot for the output, a ring for an input), clicked within about 10 view pixels, growing under the mouse; bodies select and move pieces. Wires as `Path`s from an output to an input, routed horizontally and vertically with rounded corners through the bends clicked on empty space, Esc or the right button cancelling, valid inputs lit and the preview snapping to them; refused: from an input, from a gate to itself, a second wire into an input, a wire crossing or overlapping another; moving a piece routes its wires again. Signals travel down wires at a fixed speed, drawn by the fill, and a gate evaluates one step after an input changes. A vertical hotbar on the left of the screen layer, its symbols from the 32 or 64 PNGs, the name on hover, keys 1 to 9; R turns the selected pieces 90 degrees and F mirrors them. A lamp lit says so, and the sandbox goes on. The circuit is the project's scene, so the editor opens and saves it. Out: saves of the player and templates (PIXIE-TODO-033), undo inside the game, sound.
-
-**Dependencies and gates:** none
-
-**Completion criteria:** (1) the game's own tests, built with the project, pass: every gate's truth table; the wiring rules; a signal taking its time down a wire and a gate answering one step after; and gestures driven with synthetic input (placing pieces, wiring through a bend, toggling the source) ending with the lamp lit; (2) the project builds in Debug and Release with zero warnings against this engine, through the editor's build and on its own; (3) its player shows a saved circuit with a lit lamp in a screenshot, and the editor opens the project; (4) the project's README says how to build, play, and test it; (5) what real input alone can check (feel, hover, snapping) is listed for the owner, since computer use is not used.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-032--the-logic-sandbox-stage-1-light-the-lamp)
+repository; this file tracks it because it is the engine's first game and its proof. Its first
+block, PIXIE-TODO-032, and everything before it are completed; see below.
 
 ### `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 
@@ -201,3 +187,7 @@ the [archive record](docs/archive/todo-030-screen-text-2026-10-15.md).
 `PIXIE-TODO-031` (text in the scene) completed on 2026-10-15. Its entry,
 breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-031-scene-text-2026-10-15.md).
+
+`PIXIE-TODO-032` (the logic sandbox, stage 1: light the lamp) completed on
+2026-10-15. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-032-logic-sandbox-stage-1-2026-10-15.md).

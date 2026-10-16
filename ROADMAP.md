@@ -151,6 +151,9 @@ of its own:
 29. The logic sandbox, stage 1: light the lamp (PIXIE-TODO-032).
 30. The logic sandbox, stage 1.5: saves and templates (PIXIE-TODO-033).
 
+Block 29 was completed on 2026-10-15: on the engine as it is, a player places gates, wires them
+through bends, and lights a lamp, in a project of its own with its own tests.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their

@@ -39,18 +39,9 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-15 with PIXIE-TODO-032 and PIXIE-TODO-033. Earlier breakdowns are in their
-archive records, routed from the [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-032` — The logic sandbox, stage 1: light the lamp
-
-**Parent:** PIXIE-TODO-032
-
-- `PIXIE-TASK-144` — **Status:** open — The project: made with code in `C:\Users\Sakamoto\dev\LogicSandbox`, the sprites, `gates.json`, and Inter copied in with `vdr cp`; its components described for the editor; its tests' target.
-- `PIXIE-TASK-145` — **Status:** open — The logic: gates and their truth tables, the power source, the lamp, the relay, signals travelling down wires, evaluation one step after an input changes; tests.
-- `PIXIE-TASK-146` — **Status:** open — Pins at the `gates.json` anchors, turned and mirrored; wires routed through bends with rounded corners; the wiring rules; moving pieces re-routes their wires; tests.
-- `PIXIE-TASK-147` — **Status:** open — The hotbar on the screen layer, hover names, keys 1 to 9, placing, selecting and moving, R and F, toggling the source, the lamp's message; gestures tested with synthetic input.
-- `PIXIE-TASK-148` — **Status:** open — A saved circuit with a lit lamp, the player's screenshot, the editor opening the project, the README, and the list of what real input alone can check.
+Opened on 2026-10-15 with PIXIE-TODO-032 and PIXIE-TODO-033; PIXIE-TODO-032's is in its archive
+record. Earlier breakdowns are in their archive records, routed from the
+[archive router](docs/archive/README.md).
 
 ## `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 
