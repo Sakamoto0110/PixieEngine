@@ -161,6 +161,13 @@ owner put fixes to stage 1 before block 30
 Block 31 was completed on 2026-10-16: wires and their bends are selected and removed, and a right
 click on a wired input removes its wire.
 
+Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
+particle system made in a blank project does not seem to work, and asked for it to be investigated
+toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).
+An unconfirmed lead: only the particles sample adds the particle step to its World
+(`AddParticleStep`, in `samples/particles/src/game/ParticlesScene.cpp`), and a project without code
+runs on the generic library, which does not; if that holds, its particle systems never step.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
