@@ -41,16 +41,8 @@ and the section shape is in the
 
 Opened on 2026-10-15 with PIXIE-TODO-032 and PIXIE-TODO-033, and on 2026-10-16 with PIXIE-TODO-034 and
 PIXIE-TODO-035.
-PIXIE-TODO-032's and PIXIE-TODO-034's breakdowns, and earlier ones, are in their archive records, routed from the
+PIXIE-TODO-032's, PIXIE-TODO-034's, and PIXIE-TODO-035's breakdowns, and earlier ones, are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-035` — The logic sandbox: box selection and a toolbar
-
-**Parent:** PIXIE-TODO-035
-
-- `PIXIE-TASK-154` — **Status:** open — The box selection: a drag on empty space selects the pieces in it and the wires between them; Shift keeps the rest; tests.
-- `PIXIE-TASK-155` — **Status:** open — Copy and paste: Ctrl + C, Ctrl + V at the cursor, new scene IDs, inner wires kept, the paste selected; tests.
-- `PIXIE-TASK-156` — **Status:** open — The toolbar (Delete, Copy, Paste, Save, Load), dimmed and named on hover, catching its clicks; the README; tests.
 
 ## `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 
