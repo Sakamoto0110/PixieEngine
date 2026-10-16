@@ -49,5 +49,5 @@ PIXIE-TODO-032's, PIXIE-TODO-034's, and PIXIE-TODO-035's breakdowns, and earlier
 **Parent:** PIXIE-TODO-033
 
 - `PIXIE-TASK-149` — **Status:** done — Saving and loading the whole circuit with Ctrl + S and Ctrl + O in the `UserDataFolder`; tests. Done on 2026-10-16 in the game's `ef64d11` (Sakamoto0110/LogicSandbox).
-- `PIXIE-TASK-150` — **Status:** open — Templates from a box selection, with a name and counts in the fragment's metadata; pasting with new IDs at the mouse; tests.
+- `PIXIE-TASK-150` — **Status:** done — Templates from a box selection, with a name and counts in the fragment's metadata; pasting with new IDs at the mouse; tests. Done on 2026-10-16 in the game's `33bcc7c` (Sakamoto0110/LogicSandbox): the box comes from PIXIE-TODO-035, pasting goes through its copy and paste, and the name is typed from key presses, since the engine's input has no typed text.
 - `PIXIE-TASK-151` — **Status:** open — The hotbar's Templates page (Tab, 1 to 9, 0 for the menu, hover details), and the README.
