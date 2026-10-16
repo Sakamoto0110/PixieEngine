@@ -39,29 +39,11 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-Promoted on 2026-10-15 from [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (a sandbox of
-logic circuits), in this order ([promotion record](docs/archive/logic-sandbox-promotion-2026-10-15.md)).
-The game lives in a project folder of its own, `C:\Users\Sakamoto\dev\LogicSandbox`, outside this
-repository; this file tracks it because it is the engine's first game and its proof. Its first
-block, PIXIE-TODO-032, and everything before it are completed; see below. On 2026-10-16 the owner
-promoted fixes to stage 1, PIXIE-TODO-034, to come before PIXIE-TODO-033
-([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)), completed the same day, and then
-a box selection and a toolbar, PIXIE-TODO-035, before the templates of PIXIE-TODO-033
-([promotion record](docs/archive/logic-sandbox-toolbar-promotion-2026-10-16.md)), completed the same day.
-
-### `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md), stage 1.5
-
-**Accepted scope:** the whole circuit saved and loaded with Ctrl + S and Ctrl + O in the game's `UserDataFolder`; a box selection saved as a named template, its fragment's metadata holding the name, the inputs (input pins not fed from inside), and the final outputs (output pins feeding nothing inside); the hotbar's Templates page, switched with Tab, keys 1 to 9 for the first nine and 0 for a menu of all, a slot's hover showing name, inputs, and outputs; placing a template pastes its circuit with new IDs at the mouse. Out: a template as a closed box with pins of its own.
-
-**Dependencies and gates:** 1. PIXIE-TODO-032; 2. PIXIE-TODO-034, put before it by the owner on 2026-10-16; 3. PIXIE-TODO-035, before its templates (PIXIE-TASK-150 and 151), on 2026-10-16
-
-**Completion criteria:** (1) the game's tests: a circuit saved and loaded gives the same pieces, wires, and states; a template's metadata counts its inputs and outputs; a pasted template gets new IDs and keeps its inner wires; the Templates page lists saved templates; (2) zero warnings in Debug and Release; (3) the README describes saving and templates.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-033--the-logic-sandbox-stage-15-saves-and-templates)
+None. The last promoted work, the logic sandbox of
+[PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (PIXIE-TODO-032 to PIXIE-TODO-035, promoted on
+2026-10-15 and 2026-10-16), is completed; see below. The game lives in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox). What comes next waits
+for the owner's promotion.
 
 ## Completed
 
@@ -203,3 +185,7 @@ the [archive record](docs/archive/todo-034-logic-sandbox-wire-fixes-2026-10-16.m
 `PIXIE-TODO-035` (the logic sandbox: box selection and a toolbar) completed on
 2026-10-16. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-035-logic-sandbox-toolbar-2026-10-16.md).
+
+`PIXIE-TODO-033` (the logic sandbox, stage 1.5: saves and templates) completed on
+2026-10-16. Its entry, breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-033-logic-sandbox-saves-templates-2026-10-16.md).

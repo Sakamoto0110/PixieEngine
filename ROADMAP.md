@@ -168,6 +168,9 @@ before the templates of block 30
 Block 32 was completed on 2026-10-16: a box selects pieces and their wires, the selection is copied
 and pasted with new IDs, and a toolbar deletes, copies, pastes, saves, and loads.
 
+Block 30 was completed on 2026-10-16: the circuit is saved and loaded, and parts of it become
+templates, placed from the hotbar's Templates page. PIXIE-PROPOSAL-009 is carried out.
+
 Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
 particle system made in a blank project does not seem to work, and asked for it to be investigated
 toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).
