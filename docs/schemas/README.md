@@ -32,9 +32,11 @@ The schema is a fork of NekoLib `docs/schemas/documentation-schema.json`,
 schema version 1, as observed on 2026-10-09. Its authority traversal,
 self-review, and stop rules come from the documentation references of Void
 Agent Workplace (`profiles/nekolib/references/documentation/`, observed
-2026-10-12 at `c9d81ba`), adapted to this repository. This is a
-documentation-only derivation: the repository is not bound to a Void Agent
-Workplace profile and depends on none of its tooling.
+2026-10-12 at `c9d81ba`), adapted to this repository. The documentation is a
+derivation and depends on none of Void Agent Workplace's tooling: no build,
+check, or document here runs it. Since 2026-10-16 the repository is also bound
+to a Void Agent Workplace profile, for identity, routing, and skill discovery
+only ([development guide](../development.md#void-agent-workplace)).
 
 PixieLib and PixieInspector derived their documentation from this schema at
 `46ee6aa` on 2026-10-12. Practices they added that fit here were brought back

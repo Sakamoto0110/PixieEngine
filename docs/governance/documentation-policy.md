@@ -32,8 +32,11 @@ stop rules from the documentation references of Void Agent Workplace (observed
 PixieInspector derive their documentation from this one. The derivation and
 every intentional difference are recorded in the
 [schema index](../schemas/README.md). None of those projects is an authority
-over this repository, and this repository is not bound to a Void Agent
-Workplace profile.
+over this repository. Since 2026-10-16 the repository is bound, on the owner's
+machine, to a Void Agent Workplace profile for project binding and skill
+discovery only (see the [development guide](../development.md#void-agent-workplace));
+the binding grants no authority, and the documentation is still checked by this
+repository's own verifier, not by Void Agent Workplace.
 
 ## Authority
 

@@ -138,6 +138,37 @@ Third-party code lives unmodified under `external/<name>/`, built by
 2. Record the version, source, license, and hash in `DEPENDENCIES.md`.
 3. Commit the vendored code alone, before the code that uses it.
 
+## Void Agent Workplace
+
+The repository is bound, on the owner's machine, to the Void Agent Workplace
+profile `pixieengine`, revision 1, read from the VAW checkout at
+`C:\Users\Sakamoto\dev\VAW` (commit `c9d81ba`, version 0.2.0.0), for project
+binding and skill discovery only. The profile is machine-local and outside both
+repositories, in `C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles\pixieengine\`;
+the binding is in the default registry, `%LOCALAPPDATA%\VoidAgentWorkplace\bindings.json`.
+The profile maps VAW's authority roles to this repository's documents, routes
+each source area to the documents that own it, and lists the checks above as
+its validation. Nothing in this repository depends on it: a machine without it
+builds, checks, and commits as before.
+
+Before a task, an agent resolves the binding for the task's routes (`engine`,
+`runtime`, `capi`, `editor`, `samples`, `build`, `documentation`), from
+PowerShell 7:
+
+```powershell
+$profiles = 'C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles'
+C:\Users\Sakamoto\dev\VAW\scripts\resolve-project-binding.ps1 -RepositoryPath . `
+    -ProfilesPath $profiles -CompatibilityScope Routes -RouteId runtime,documentation
+C:\Users\Sakamoto\dev\VAW\vaw.ps1 skills list -Agent claude -RepositoryPath . -ProfilesPath $profiles
+```
+
+It requires `bound_scoped` with every selected route checked (or `bound` without
+`-CompatibilityScope`), and the task's archive record states the VAW commit, the
+profile and revision, and the routes checked. A binding grants no authority:
+commits, pushes, and releases follow the rules below. Workflow records,
+continuity checkpoints, campaigns, and premises are not adopted; campaigns are
+frozen in VAW itself.
+
 ## Commits and pushes
 
 The [commit rules](governance/documentation-policy.md#commits) apply: prefixes,
