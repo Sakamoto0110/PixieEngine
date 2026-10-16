@@ -43,6 +43,9 @@ bool PathContains(const Path& path, const Transform2D& transform, pxPoint point,
 void SubmitPaths(World& world, PathRenderer& renderer, double alpha) {
     entt::registry& registry = world.Registry();
     for (auto [id, current, path] : registry.view<const Transform2D, const Path>().each()) {
+        if (!path.visible) {
+            continue;
+        }
         const auto* previous = registry.try_get<const PreviousTransform2D>(id);
         const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, current, alpha) : current;
         renderer.Submit(PathLine(path, drawn), path.width, path.color, path.fillColor, path.fill);

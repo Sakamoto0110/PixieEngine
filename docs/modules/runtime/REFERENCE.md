@@ -139,6 +139,9 @@ paused one, keep separate clocks.
   default), and `layer`.
 - `Path`: a line (see [Paths](#paths)): `points` (a point list in the entity's space), `width`
   (world units, not scaled), `cornerRadius`, `color`, `fillColor`, and `fill` (0 to 1).
+- `Shape`, `Sprite`, `Text`, and `Path` also have `visible` (`bool`, `true` by default): a hidden one
+  is neither drawn nor picked, keeps its place, and is saved, as a game hides what it shows only at
+  some zoom.
 - `Name`: a string, added by `World::Create(name)` when the name is not empty.
 
 ## Order independence and neighbours
@@ -215,7 +218,7 @@ the GPU.
 ## Picking
 
 `Picking.hpp` finds things by where they are, for a tool's selection. Only entities with a
-`Transform2D` and a `Shape`, a `Sprite`, a `Text`, or a `Path` can be picked: what is drawn can be
+`Transform2D` and a visible `Shape`, `Sprite`, `Text`, or `Path` can be picked: what is drawn can be
 clicked. A shape covers `PickRadius`, its larger half extent times the transform's larger scale; a
 sprite covers its rectangle and a text its block of lines, turned with the entity; a path covers the
 points within half its width of its line. `PickAt(world, point, tolerance, sprites, fonts)` returns

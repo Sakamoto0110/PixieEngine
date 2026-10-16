@@ -29,6 +29,8 @@ struct Text {
     pxVec2 pivot{0.5, 0.5};
     // Drawing order among sprites: a higher layer on top; within a layer, the World's order.
     int layer = 0;
+    // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
+    bool visible = true;
 };
 
 } // namespace pixie

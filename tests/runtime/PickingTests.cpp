@@ -1,6 +1,7 @@
 #include "Check.hpp"
 
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Picking.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -73,4 +74,21 @@ TEST(RemoveParticleAtTakesTheNearestWithinTheRadius) {
     for (const Particle& p : particles) {
         CHECK(p.position.x != 3.0f);
     }
+}
+
+TEST(HiddenShapesAndPathsAreNotPicked) {
+    World world;
+    Entity disc = Disc(world, pxPoint(0.0, 0.0), 5.0);
+    Entity line = world.Create();
+    line.Add<Transform2D>(Transform2D{pxPoint(100.0, 0.0)});
+    line.Add<Path>();
+    CHECK(PickAt(world, pxPoint(0.0, 0.0), 0.0) == disc.Id());
+    CHECK(PickAt(world, pxPoint(130.0, 0.0), 1.0) == line.Id());
+    CHECK(PickIn(world, pxRect(-10.0, -10.0, 200.0, 20.0)).size() == 2);
+
+    disc.Get<Shape>().visible = false;
+    line.Get<Path>().visible = false;
+    CHECK(PickAt(world, pxPoint(0.0, 0.0), 0.0) == entt::null);
+    CHECK(PickAt(world, pxPoint(130.0, 0.0), 1.0) == entt::null);
+    CHECK(PickIn(world, pxRect(-10.0, -10.0, 200.0, 20.0)).empty());
 }

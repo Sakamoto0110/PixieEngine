@@ -13,6 +13,8 @@ struct Shape {
     ShapeKind kind = ShapeKind::Circle;
     pxVec2 size{1.0, 1.0};
     pxColorRgba color{255, 255, 255};
+    // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
+    bool visible = true;
 };
 
 } // namespace pixie

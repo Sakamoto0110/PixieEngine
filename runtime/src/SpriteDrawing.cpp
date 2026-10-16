@@ -106,6 +106,13 @@ void ForEachDrawnInOrder(World& world, const std::function<void(const Drawn&)>& 
     for (auto [id, transform] : registry.view<const Transform2D>().each()) {
         const auto* sprite = registry.try_get<const Sprite>(id);
         const auto* text = registry.try_get<const Text>(id);
+        // Hidden ones are neither drawn nor picked.
+        if (sprite != nullptr && !sprite->visible) {
+            sprite = nullptr;
+        }
+        if (text != nullptr && !text->visible) {
+            text = nullptr;
+        }
         // Pushed text first: the list is reversed below, which puts the sprite first.
         if (text != nullptr) {
             order.push_back({id, &transform, nullptr, text, text->layer});

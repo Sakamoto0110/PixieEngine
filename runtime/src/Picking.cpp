@@ -27,6 +27,9 @@ entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages*
     entt::entity best = entt::null;
     double bestDistance = std::numeric_limits<double>::max();
     for (auto [id, transform, shape] : world.Registry().view<const Transform2D, const Shape>().each()) {
+        if (!shape.visible) {
+            continue;
+        }
         const double distance = std::hypot(transform.position.x - point.x, transform.position.y - point.y);
         if (distance <= PickRadius(shape, transform) + tolerance && distance < bestDistance) {
             best = id;
@@ -55,7 +58,7 @@ entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages*
     }
     std::vector<entt::entity> paths;
     for (auto [id, transform, path] : world.Registry().view<const Transform2D, const Path>().each()) {
-        if (PathContains(path, transform, point, tolerance)) {
+        if (path.visible && PathContains(path, transform, point, tolerance)) {
             paths.push_back(id);
         }
     }
@@ -71,9 +74,16 @@ std::vector<entt::entity> PickIn(World& world, const pxRect& box) {
         const auto inside = [&](pxPoint q) {
             return q.x >= box.x && q.x <= box.Right() && q.y >= box.y && q.y <= box.Bottom();
         };
-        if (registry.any_of<Shape, Sprite, Text>(id) && inside(p)) {
+        // Hidden shapes, sprites, texts, and paths are not picked.
+        const auto* shape = registry.try_get<Shape>(id);
+        const auto* sprite = registry.try_get<Sprite>(id);
+        const auto* text = registry.try_get<Text>(id);
+        const bool drawn = (shape != nullptr && shape->visible) || (sprite != nullptr && sprite->visible) ||
+                           (text != nullptr && text->visible);
+        const Path* path = registry.try_get<Path>(id);
+        if (drawn && inside(p)) {
             picked.push_back(id);
-        } else if (const Path* path = registry.try_get<Path>(id)) {
+        } else if (path != nullptr && path->visible) {
             const std::vector<pxPoint> line = PathLine(*path, transform);
             if (!line.empty() && std::all_of(line.begin(), line.end(), inside)) {
                 picked.push_back(id);

@@ -26,6 +26,8 @@ struct Sprite {
     // Drawing order: a higher layer on top; within a layer, the World's order.
     int layer = 0;
     SpriteFilter filter = SpriteFilter::Smooth;
+    // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
+    bool visible = true;
 };
 
 } // namespace pixie

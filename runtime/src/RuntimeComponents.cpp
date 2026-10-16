@@ -48,7 +48,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Range(0.0, 10000.0)
         .Scrub(0.5)
         .Field<&Shape::color>("color")
-        .Tooltip("Red, green, blue, and alpha.");
+        .Tooltip("Red, green, blue, and alpha.")
+        .Field<&Shape::visible>("visible")
+        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Sprite>("Sprite")
         .Field<&Sprite::image>("image")
         .Asset("png")
@@ -70,7 +72,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
                  "Sprites are drawn under particles and shapes.")
         .Scrub(0.1)
         .Field<&Sprite::filter>("filter", {"Smooth", "Pixel"})
-        .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.");
+        .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.")
+        .Field<&Sprite::visible>("visible")
+        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Text>("Text")
         .Field<&Text::text>("text")
         .Tooltip("What it says; a line break starts a new line.")
@@ -93,7 +97,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Text::layer>("layer")
         .Tooltip("Drawing order among sprites: higher layers on top; within a layer, older entities first. "
                  "A negative layer lies under paths.")
-        .Scrub(0.1);
+        .Scrub(0.1)
+        .Field<&Text::visible>("visible")
+        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Path>("Path")
         .Field<&Path::points>("points")
         .Tooltip("The line's points, in the entity's space: moved, turned, and scaled with its transform.")
@@ -115,7 +121,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Path::fill>("fill")
         .Tooltip("How much of the line, from its first point, is drawn in the fill color: 0 none, 1 all.")
         .Range(0.0, 1.0, 0.01)
-        .Scrub(0.005);
+        .Scrub(0.005)
+        .Field<&Path::visible>("visible")
+        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Attractor>("Attractor")
         .Field<&Attractor::strength>("strength")
         .Tooltip("How hard it pulls, in world units cubed per second squared; negative pushes away. A "

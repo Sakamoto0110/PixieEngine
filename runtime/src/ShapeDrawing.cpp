@@ -9,6 +9,9 @@ namespace pixie {
 void SubmitShapes(World& world, ShapeRenderer& renderer, double alpha) {
     auto view = world.Registry().view<const Transform2D, const PreviousTransform2D, const Shape>();
     for (auto [id, current, previous, shape] : view.each()) {
+        if (!shape.visible) {
+            continue;
+        }
         const Transform2D drawn = Interpolate(previous.value, current, alpha);
         const pxVec2 scale = drawn.scale * shape.size;
         ShapeInstance instance;

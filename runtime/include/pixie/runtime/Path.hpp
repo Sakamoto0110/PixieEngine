@@ -21,6 +21,8 @@ struct Path {
     pxColorRgba fillColor{255, 210, 74};
     // From 0 (all in color) to 1 (all in fillColor).
     double fill = 0.0;
+    // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
+    bool visible = true;
 };
 
 } // namespace pixie
