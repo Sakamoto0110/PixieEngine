@@ -39,11 +39,26 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. The last promoted work, the logic sandbox of
-[PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (PIXIE-TODO-032 to PIXIE-TODO-035, promoted on
-2026-10-15 and 2026-10-16), is completed; see below. The game lives in its own repository,
-[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox). What comes next waits
-for the owner's promotion.
+Promoted on 2026-10-16 by the owner: a new anchor for the logic sandbox, an 8-bit adder built in
+the game out of templates that become chips
+([promotion record](docs/archive/logic-sandbox-adder-promotion-2026-10-16.md)). The logic sandbox of
+[PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (PIXIE-TODO-032 to PIXIE-TODO-035) is completed;
+see below. The game lives in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox).
+
+### `PIXIE-TODO-036` — The logic sandbox, stage 2: chips and an 8-bit adder
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-16
+
+**Accepted scope:** in the engine, a `visible` flag on `Shape`, `Sprite`, `Text`, and `Path` (hidden: not drawn, not picked, still saved). In the game: In and Out ports, a Clock, and labels; pieces with several outputs; a placed template becomes a chip, a box whose pins are its sources, lamps, and ports, ordered top to bottom and labelled, whose content runs inside it and shows by semantic zoom (closed far, opened when large on screen), chips inside chips; chips read-only, exploded back into loose pieces on demand; saving, copying, deleting, and templates take a chip whole. The anchor: a half adder, a full adder of two half-adder chips, and an 8-bit ripple adder of eight full-adder chips, built and saved as templates, with a demo circuit as the project's start scene. Anything else the work needs in the engine, the C API, or the editor is in scope.
+
+**Dependencies and gates:** 1. PIXIE-TODO-033
+
+**Completion criteria:** (1) engine tests for the hidden drawables; (2) the game's tests: the half and full adders' truth tables through chips, sums of the 8-bit adder, explode, copy, save and load with chips, the clock; (3) zero warnings in Debug and Release; (4) the game's README describes ports, clocks, labels, chips, and the adder.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-036--the-logic-sandbox-stage-2-chips-and-an-8-bit-adder)
 
 ## Completed
 
