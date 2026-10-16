@@ -16,11 +16,12 @@ namespace PixieEditor.Ui;
 // the selection or the set of shared components changes.
 //
 // Text fields are drawn here, above the component's inspector: a text box whose edit is one step when
-// it lets go of the keyboard, and, for a field that names an image, a "..." button that picks a PNG
-// (copying one from outside the project into it) and a preview of the image, or why it cannot be read.
+// it lets go of the keyboard, and, for a field that names a file (an asset), a "..." button that picks
+// one of its kind (copying one from outside the project into it); under an image, a preview of it, or
+// why it cannot be read; under a font, whether its file is missing.
 // So are lists of points: a row of X and Y per point, each edit one step when it lets go, with buttons
 // to remove a point and to add one.
-internal sealed class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder, ImageChooser images) : IDisposable
+internal sealed class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder, AssetChooser files) : IDisposable
 {
     private static readonly Vector4 ProblemColor = new(1.0f, 0.45f, 0.4f, 1.0f);
     private const float PreviewSize = 96f;
@@ -116,7 +117,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
             if (ImGui.Selectable(session.TypeName(type)))
             {
                 var chosen = type;
-                authoring.Change(Entities, $"addition of {session.TypeName(chosen)}", id => session.AddComponent(id, chosen));
+                authoring.AddComponent(Entities, chosen);
             }
         }
 
@@ -153,8 +154,8 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         ImGui.TextUnformatted(mixed ? $"{field.Label} (mixed)" : field.Label);
         if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(field.Tooltip);
-        var image = field.Asset == "png";
-        ImGui.SetNextItemWidth(image ? -40 : -1);
+        var asset = field.Asset.Length > 0;
+        ImGui.SetNextItemWidth(asset ? -40 : -1);
         ImGui.InputText("##text", ref text, 1024);
         if (ImGui.IsItemActive())
             Typing[key] = text;
@@ -165,23 +166,29 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(field.Tooltip);
 
-        if (image)
+        if (asset)
         {
             ImGui.SameLine();
             if (ImGui.Button("...", new Vector2(-1, 0)))
             {
                 var chosen = Entities;
-                images.Open(file =>
+                var kind = field.Asset;
+                files.Open(kind, file =>
                 {
-                    if (authoring.ImportImage(file) is { } path)
+                    if (authoring.ImportAsset(file, kind) is { } path)
                         authoring.SetText(chosen, type, field.Field, path);
                 });
             }
 
             if (ImGui.IsItemHovered())
-                ImGui.SetTooltip("Choose a PNG; one outside the project is copied into its images folder.");
-            if (!mixed)
+                ImGui.SetTooltip($"Choose a .{field.Asset} file; one outside the project is copied into its " +
+                                 $"{Editing.ProjectAssets.FolderFor(field.Asset)} folder.");
+            if (!mixed && field.Asset == "png")
                 DrawPreview(values[0]);
+            else if (!mixed && values[0].Length == 0)
+                ImGui.TextDisabled($"No file: choose a .{field.Asset} one.");
+            else if (!mixed && !Editing.ProjectAssets.Exists(session.ProjectFolder, values[0]))
+                ImGui.TextColored(ProblemColor, $"{values[0]}: the file does not exist");
         }
 
         ImGui.Spacing();

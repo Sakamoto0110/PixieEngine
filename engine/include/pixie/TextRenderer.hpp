@@ -35,6 +35,10 @@ public:
     void SubmitWorld(SpriteRenderer& sprites, Font& font, std::string_view text, pxPoint at, double size, double zoom,
                      pxColorRgba color, int layer = 0);
 
+    // The texture of `font`'s atlas at `pixelSize`, uploaded on first use, for a caller that places
+    // the glyphs itself (a text turned with its entity).
+    unsigned AtlasTexture(Font& font, int pixelSize);
+
     // The smallest of 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, and 256 not below `pixels`; 256 above.
     static int LadderSize(double pixels);
 

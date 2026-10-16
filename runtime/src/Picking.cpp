@@ -6,6 +6,8 @@
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
+#include "pixie/runtime/Text.hpp"
+#include "pixie/runtime/TextDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
@@ -21,7 +23,7 @@ double PickRadius(const Shape& shape, const Transform2D& transform) {
     return extent * scale;
 }
 
-entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages* sprites) {
+entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages* sprites, Fonts* fonts) {
     entt::entity best = entt::null;
     double bestDistance = std::numeric_limits<double>::max();
     for (auto [id, transform, shape] : world.Registry().view<const Transform2D, const Shape>().each()) {
@@ -37,13 +39,17 @@ entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages*
     // The last sprite drawn over the point is the one seen there; paths lie between the sprites of
     // negative layers and the rest.
     entt::entity background = entt::null;
-    if (sprites != nullptr) {
-        ForEachSpriteInDrawOrder(world, [&](entt::entity id, const Transform2D& transform, const Sprite& sprite) {
-            if (SpriteContains(sprite, transform, SpritePixelSize(sprite, *sprites), point, tolerance)) {
-                (sprite.layer < 0 ? background : best) = id;
-            }
-        });
-    }
+    ForEachDrawnInOrder(world, [&](const Drawn& drawn) {
+        const bool covers =
+            drawn.sprite != nullptr
+                ? sprites != nullptr && SpriteContains(*drawn.sprite, drawn.transform,
+                                                       SpritePixelSize(*drawn.sprite, *sprites), point, tolerance)
+                : fonts != nullptr && TextContains(*drawn.text, drawn.transform, TextBlock(*drawn.text, *fonts),
+                                                   point, tolerance);
+        if (covers) {
+            (drawn.layer < 0 ? background : best) = drawn.id;
+        }
+    });
     if (best != entt::null) {
         return best;
     }
@@ -65,7 +71,7 @@ std::vector<entt::entity> PickIn(World& world, const pxRect& box) {
         const auto inside = [&](pxPoint q) {
             return q.x >= box.x && q.x <= box.Right() && q.y >= box.y && q.y <= box.Bottom();
         };
-        if (registry.any_of<Shape, Sprite>(id) && inside(p)) {
+        if (registry.any_of<Shape, Sprite, Text>(id) && inside(p)) {
             picked.push_back(id);
         } else if (const Path* path = registry.try_get<Path>(id)) {
             const std::vector<pxPoint> line = PathLine(*path, transform);

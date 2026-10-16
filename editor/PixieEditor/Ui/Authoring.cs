@@ -48,13 +48,13 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
 
     // One sprite per PNG among `files`, named after its file, placed from `at` (world units) on, each a
     // little to the side of the one before; they become the selection, as one step. Images from outside
-    // the project are copied into it first (ProjectImages). A sprite drawn larger than `fit` world units
+    // the project are copied into it first (ProjectAssets). A sprite drawn larger than `fit` world units
     // on either side is scaled down to it, so a large image does not cover the view. Returns the
     // sprites made.
     public uint[] PlaceImages(IReadOnlyList<string> files, (double X, double Y) at, double fit = double.PositiveInfinity)
     {
-        var images = files.Where(ProjectImages.IsImage).ToArray();
-        var skipped = files.Where(f => !ProjectImages.IsImage(f)).Select(Path.GetFileName).ToArray();
+        var images = files.Where(ProjectAssets.IsImage).ToArray();
+        var skipped = files.Where(f => !ProjectAssets.IsImage(f)).Select(Path.GetFileName).ToArray();
         if (skipped.Length > 0)
             Status.Show($"Only PNG images become sprites; left out: {string.Join(", ", skipped)}.", error: true);
         if (images.Length == 0)
@@ -78,7 +78,7 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
             var copied = new List<string>();
             foreach (var file in images)
             {
-                var (path, copiedTo) = ProjectImages.Import(session.ProjectFolder, file);
+                var (path, copiedTo) = ProjectAssets.Import(session.ProjectFolder, file);
                 if (copiedTo != null)
                     copied.Add(copiedTo);
                 var stem = Path.GetFileNameWithoutExtension(file);
@@ -108,8 +108,8 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
         }) ?? [];
     }
 
-    // Writes a text field of the entities' component `type`, as one step; an image chosen for an asset
-    // field comes in through ImportImage first.
+    // Writes a text field of the entities' component `type`, as one step; a file chosen for an asset
+    // field comes in through ImportAsset first.
     public void SetText(IReadOnlyList<uint> entities, int type, int field, string text)
     {
         if (entities.All(e => session.GetText(e, type, field) == text))
@@ -147,19 +147,19 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
         SetPoints(entities, type, field, points);
     }
 
-    // The path a sprite names for an image file, copying it into the project when it is outside; null,
-    // with the reason shown, when it cannot be used.
-    public string? ImportImage(string file)
+    // The path a component names for a file of asset kind `kind` ("png", "ttf"), copying it into the
+    // project when it is outside; null, with the reason shown, when it cannot be used.
+    public string? ImportAsset(string file, string kind)
     {
-        if (!ProjectImages.IsImage(file))
+        if (!ProjectAssets.IsKind(file, kind))
         {
-            Status.Show($"Only PNG images can be used: {Path.GetFileName(file)}.", error: true);
+            Status.Show($"Only .{kind} files can be used here: {Path.GetFileName(file)}.", error: true);
             return null;
         }
 
         try
         {
-            var (path, copiedTo) = ProjectImages.Import(session.ProjectFolder, file);
+            var (path, copiedTo) = ProjectAssets.Import(session.ProjectFolder, file);
             if (copiedTo != null)
                 Status.Show($"Copied into the project: {copiedTo}");
             return path;
@@ -224,6 +224,20 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
         if (session.EntityName(entity) == name)
             return;
         Change([entity], $"rename to \"{name}\"", e => session.SetName(e, name));
+    }
+
+    // Adds a component of `type` to the entities, as one step. A Text without a font gets the project's
+    // first TrueType font, so it shows at once.
+    public void AddComponent(IReadOnlyList<uint> entities, int type)
+    {
+        var name = session.TypeName(type);
+        var font = name == "Text" ? ProjectAssets.First(session.ProjectFolder, "ttf") : null;
+        Change(entities, $"addition of {name}", e =>
+        {
+            session.AddComponent(e, type);
+            if (font != null && session.GetText(e, type, session.FieldIndex(type, "font")).Length == 0)
+                session.SetText(e, type, session.FieldIndex(type, "font"), font);
+        });
     }
 
     // Changes the entities one by one, as one step: adding or removing a component.

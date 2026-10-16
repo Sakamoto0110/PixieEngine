@@ -213,27 +213,29 @@ PIXIE_API PixieResult pixie_view_to_world(PixieSession* session, double x, doubl
 PIXIE_API PixieResult pixie_world_to_view(PixieSession* session, double worldX, double worldY,
                                           double* x, double* y);
 
-/* Picking, in view pixels. Only entities with a Transform2D and a Shape, a Sprite, or a Path can be
- * picked; particles are not entities. pixie_pick finds the entity under (x, y), widened by
+/* Picking, in view pixels. Only entities with a Transform2D and a Shape, a Sprite, a Text, or a Path
+ * can be picked; particles are not entities. pixie_pick finds the entity under (x, y), widened by
  * `tolerance` pixels, the one drawn on top first: a shape whose radius covers it, nearest center
- * first; else a sprite of a layer of 0 or more; else a path within half its width; else a sprite of
- * a negative layer; or it returns PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities whose
- * position lies in the box with corners (x0, y0) and (x1, y1), in any order of the corners, and the
- * paths whose whole line does, oldest first, filling and counting as pixie_entities does. */
+ * first; else a sprite or a text of a layer of 0 or more (a text by its block of lines); else a path
+ * within half its width; else a sprite or a text of a negative layer; or it returns
+ * PIXIE_ERROR_NOT_FOUND. pixie_pick_box lists the entities whose position lies in the box with
+ * corners (x0, y0) and (x1, y1), in any order of the corners, and the paths whose whole line does,
+ * oldest first, filling and counting as pixie_entities does. */
 PIXIE_API PixieResult pixie_pick(PixieSession* session, double x, double y, double tolerance,
                                  uint32_t* entity);
 PIXIE_API PixieResult pixie_pick_box(PixieSession* session, double x0, double y0, double x1,
                                      double y1, uint32_t* entities, int32_t capacity,
                                      int32_t* count);
-/* Where an entity with a Transform2D and a Shape, a Sprite, or a Path appears in the view, as of the
- * last render: its center and a radius around it, in view pixels; for a shape, the radius it can be
- * picked within; for a sprite, half its rectangle's diagonal; for a path, half the diagonal of the
- * box around its line. */
+/* Where an entity with a Transform2D and a Shape, a Sprite, a Text, or a Path appears in the view, as
+ * of the last render: its center and a radius around it, in view pixels; for a shape, the radius it
+ * can be picked within; for a sprite or a text, half its rectangle's or block's diagonal; for a path,
+ * half the diagonal of the box around its line. */
 PIXIE_API PixieResult pixie_entity_view_bounds(PixieSession* session, uint32_t entity, double* x,
                                                double* y, double* radius);
-/* The rectangle an entity's Sprite covers in the view, as of the last render: four corners (x, y)
- * in view pixels, in `corners[0..7]`, the image's top-left, top-right, bottom-right, and
- * bottom-left. PIXIE_ERROR_NOT_FOUND for an entity without a Transform2D and a Sprite. */
+/* The rectangle an entity's Sprite covers in the view, as of the last render, or, without a sprite,
+ * its Text's block of lines: four corners (x, y) in view pixels, in `corners[0..7]`, the top-left,
+ * top-right, bottom-right, and bottom-left. PIXIE_ERROR_NOT_FOUND for an entity without a Transform2D
+ * and a Sprite or a Text. */
 PIXIE_API PixieResult pixie_entity_view_quad(PixieSession* session, uint32_t entity, double* corners);
 /* The line an entity's Path draws in the view, as of the last render, corners rounded: up to
  * `capacity` points (x, y) in view pixels into `xy` (2 * capacity doubles), and `count` set to how

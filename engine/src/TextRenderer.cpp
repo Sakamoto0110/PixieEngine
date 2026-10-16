@@ -33,6 +33,10 @@ const Texture& TextRenderer::TextureOf(Font& font, const FontAtlas& atlas) {
     return texture;
 }
 
+unsigned TextRenderer::AtlasTexture(Font& font, int pixelSize) {
+    return TextureOf(font, font.Atlas(pixelSize)).Id();
+}
+
 void TextRenderer::SubmitPixels(SpriteRenderer& sprites, Font& font, std::string_view text, pxPoint at,
                                 int pixelSize, pxColorRgba color, int layer) {
     const FontAtlas& atlas = font.Atlas(pixelSize);

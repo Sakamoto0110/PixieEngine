@@ -52,6 +52,9 @@ struct FontAtlas {
     std::vector<AtlasGlyph> glyphs;
 };
 
+// How the lines of a text line up with each other, within the width of the widest.
+enum class TextAlign : std::uint8_t { Left, Center, Right };
+
 // A glyph of a laid-out string: which glyph, and where its pen stands on the baseline, in pixels of
 // the atlas's size from the top-left of the text.
 struct PlacedGlyph {
@@ -86,9 +89,9 @@ public:
     static constexpr int kMinPixelSize = 4;
     static constexpr int kMaxPixelSize = 256;
 
-    // `text` laid out at `pixelSize`: left-aligned lines from the top-left, the first baseline at
-    // the atlas's ascent.
-    std::vector<PlacedGlyph> Layout(std::string_view text, int pixelSize);
+    // `text` laid out at `pixelSize`: lines from the top-left, the first baseline at the atlas's
+    // ascent, each line aligned within the widest (whose width Measure gives) by `align`.
+    std::vector<PlacedGlyph> Layout(std::string_view text, int pixelSize, TextAlign align = TextAlign::Left);
     // The size of `text` at `pixelSize`, in pixels: the widest line's advance, and the lines' height.
     // Empty text measures zero.
     pxVec2 Measure(std::string_view text, int pixelSize);

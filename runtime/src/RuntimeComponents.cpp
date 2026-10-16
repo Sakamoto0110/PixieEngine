@@ -6,6 +6,7 @@
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
+#include "pixie/runtime/Text.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
 
@@ -70,6 +71,29 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Scrub(0.1)
         .Field<&Sprite::filter>("filter", {"Smooth", "Pixel"})
         .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.");
+    types.Add<Text>("Text")
+        .Field<&Text::text>("text")
+        .Tooltip("What it says; a line break starts a new line.")
+        .Field<&Text::font>("font")
+        .Asset("ttf")
+        .Tooltip("A TrueType font (.ttf), relative to the project folder. Without a readable one, nothing is drawn.")
+        .Field<&Text::size>("size")
+        .Tooltip("The em size, in world units, before the transform's scale.")
+        .Range(0.0, 10000.0)
+        .Scrub(0.5)
+        .Field<&Text::color>("color")
+        .Tooltip("Red, green, blue, and alpha.")
+        .Field<&Text::align>("align", {"Left", "Center", "Right"})
+        .Tooltip("How the lines line up within the widest.")
+        .Field<&Text::pivot>("pivot")
+        .Tooltip("Where the position falls on the block of lines, and what it turns around: (0, 0) is its "
+                 "top-left, (1, 1) its bottom-right, (0.5, 0.5) its center.")
+        .Range(0.0, 1.0)
+        .Scrub(0.01)
+        .Field<&Text::layer>("layer")
+        .Tooltip("Drawing order among sprites: higher layers on top; within a layer, older entities first. "
+                 "A negative layer lies under paths.")
+        .Scrub(0.1);
     types.Add<Path>("Path")
         .Field<&Path::points>("points")
         .Tooltip("The line's points, in the entity's space: moved, turned, and scaled with its transform.")

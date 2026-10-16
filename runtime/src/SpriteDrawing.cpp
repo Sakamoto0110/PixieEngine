@@ -2,6 +2,8 @@
 
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
+#include "pixie/runtime/Text.hpp"
+#include "pixie/runtime/TextDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
@@ -91,30 +93,58 @@ bool SpriteContains(const Sprite& sprite, const Transform2D& transform, pxVec2 p
     return x >= left - tolerance && x <= right + tolerance && y >= top - tolerance && y <= bottom + tolerance;
 }
 
-void ForEachSpriteInDrawOrder(World& world,
-                              const std::function<void(entt::entity, const Transform2D&, const Sprite&)>& visit) {
+void ForEachDrawnInOrder(World& world, const std::function<void(const Drawn&)>& visit) {
+    struct Item {
+        entt::entity id;
+        const Transform2D* transform;
+        const Sprite* sprite;
+        const Text* text;
+        int layer;
+    };
     entt::registry& registry = world.Registry();
-    std::vector<entt::entity> order;
-    for (auto [id, sprite] : registry.view<const Sprite>().each()) {
-        if (registry.all_of<Transform2D>(id)) {
-            order.push_back(id);
+    std::vector<Item> order;
+    for (auto [id, transform] : registry.view<const Transform2D>().each()) {
+        const auto* sprite = registry.try_get<const Sprite>(id);
+        const auto* text = registry.try_get<const Text>(id);
+        // Pushed text first: the list is reversed below, which puts the sprite first.
+        if (text != nullptr) {
+            order.push_back({id, &transform, nullptr, text, text->layer});
+        }
+        if (sprite != nullptr) {
+            order.push_back({id, &transform, sprite, nullptr, sprite->layer});
         }
     }
     // EnTT iterates newest first; the World's order is oldest first.
     std::reverse(order.begin(), order.end());
-    std::stable_sort(order.begin(), order.end(), [&](entt::entity a, entt::entity b) {
-        return registry.get<const Sprite>(a).layer < registry.get<const Sprite>(b).layer;
-    });
-    for (const entt::entity id : order) {
-        visit(id, registry.get<const Transform2D>(id), registry.get<const Sprite>(id));
+    std::stable_sort(order.begin(), order.end(), [](const Item& a, const Item& b) { return a.layer < b.layer; });
+    for (const Item& item : order) {
+        visit(Drawn{item.id, *item.transform, item.sprite, item.text, item.layer});
     }
 }
 
-void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha) {
+void ForEachSpriteInDrawOrder(World& world,
+                              const std::function<void(entt::entity, const Transform2D&, const Sprite&)>& visit) {
+    ForEachDrawnInOrder(world, [&](const Drawn& drawn) {
+        if (drawn.sprite != nullptr) {
+            visit(drawn.id, drawn.transform, *drawn.sprite);
+        }
+    });
+}
+
+void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                   const TextSources* texts) {
     entt::registry& registry = world.Registry();
-    ForEachSpriteInDrawOrder(world, [&](entt::entity id, const Transform2D& current, const Sprite& sprite) {
-        const auto* previous = registry.try_get<const PreviousTransform2D>(id);
-        const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, current, alpha) : current;
+    ForEachDrawnInOrder(world, [&](const Drawn& item) {
+        const auto* previous = registry.try_get<const PreviousTransform2D>(item.id);
+        const Transform2D drawn =
+            previous != nullptr ? Interpolate(previous->value, item.transform, alpha) : item.transform;
+        if (item.text != nullptr) {
+            if (texts != nullptr) {
+                SubmitText(*item.text, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
+            }
+            return;
+        }
+        const Sprite& sprite = *item.sprite;
         const Texture& texture = images.TextureOf(sprite.image);
         const pxVec2 size = SpritePixelSize(sprite, images) * drawn.scale;
 

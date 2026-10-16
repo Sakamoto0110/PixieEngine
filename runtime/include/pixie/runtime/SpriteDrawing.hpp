@@ -13,9 +13,12 @@
 
 namespace pixie {
 
+class Fonts;
 class SpriteImages;
+class TextRenderer;
 class World;
 struct Sprite;
+struct Text;
 struct Transform2D;
 
 // The size of what a sprite draws, in image pixels, before the transform's scale: its region's when
@@ -41,14 +44,37 @@ std::array<pxPoint, 4> SpriteCorners(const Sprite& sprite, const Transform2D& tr
 bool SpriteContains(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint point,
                     double tolerance);
 
-// Calls `visit` for every entity with a Transform2D and a Sprite, in the order they are drawn:
-// lower layers first, and the World's order (oldest first) within a layer.
+// What the sprite renderer draws for one entity with a Transform2D: its Sprite, its Text, or both
+// (the sprite first), on the layer `layer`.
+struct Drawn {
+    entt::entity id;
+    const Transform2D& transform;
+    const Sprite* sprite;
+    const Text* text;
+    int layer;
+};
+
+// Calls `visit` for every Sprite and every Text of an entity with a Transform2D, in the order they
+// are drawn: lower layers first, and the World's order (oldest first) within a layer, sprites and
+// texts mixed. An entity with both is visited once for each, its sprite first.
+void ForEachDrawnInOrder(World& world, const std::function<void(const Drawn&)>& visit);
+
+// The same, for sprites alone.
 void ForEachSpriteInDrawOrder(World& world,
                               const std::function<void(entt::entity, const Transform2D&, const Sprite&)>& visit);
 
+// Where a session's texts get their fonts and atlases, and the camera's pixels per world unit, for
+// SubmitSprites.
+struct TextSources {
+    Fonts& fonts;
+    TextRenderer& renderer;
+    double zoom = 1.0;
+};
+
 // Submits every entity with a Transform2D and a Sprite to `renderer`, interpolated `alpha` of the
-// way from its previous transform to its current one, with its image from `images`. Flush the
-// renderer afterwards.
-void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha);
+// way from its previous transform to its current one, with its image from `images`; and, with
+// `texts`, every Text, in the same order (ForEachDrawnInOrder). Flush the renderer afterwards.
+void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                   const TextSources* texts = nullptr);
 
 } // namespace pixie

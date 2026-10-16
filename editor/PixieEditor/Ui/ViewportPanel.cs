@@ -23,7 +23,7 @@ internal enum ViewportMode
 // session as input in the image's pixels in Game mode, and selects in Select mode; the keys go to the
 // session while the window has focus, in both. PNG files dropped on the window become sprites where
 // the mouse is, or in the middle of the view when it is elsewhere, in either mode.
-internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring, ImageChooser images)
+internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring, AssetChooser files)
 {
     // The grids Snap can round to, in world units.
     public static readonly double[] Grids = [8, 16, 32, 64];
@@ -394,7 +394,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             if (session.TypeIndex("Sprite") >= 0 && ImGui.MenuItem("New sprite here..."))
             {
                 var at = MenuAt;
-                images.Open(file => Drop([file], at));
+                files.Open("png", file => Drop([file], at));
             }
 
             // A project's own scene has nothing to ask the game for.
@@ -423,8 +423,8 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
         var draw = ImGui.GetWindowDrawList();
         foreach (var entity in selection.Items)
         {
-            // A sprite is outlined by its rectangle, turned as it is drawn; a path along its line; anything
-            // else by a circle.
+            // A sprite is outlined by its rectangle, and a text by its block, turned as they are drawn; a
+            // path along its line; anything else by a circle.
             if (session.ViewQuad(entity) is { } quad)
             {
                 var corners = quad.Select(c => ImageOrigin + new Vector2((float)c.X, (float)c.Y) / Scale).ToArray();

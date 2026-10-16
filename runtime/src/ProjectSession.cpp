@@ -236,7 +236,8 @@ void ProjectSession::Render(double alpha) {
         nextImageCheck_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
                                     std::chrono::duration<double>(SpriteImages::kCheckInterval));
     }
-    SubmitSprites(*world_, sprites_, images_, alpha);
+    const TextSources texts{fonts_, text_, camera_.Zoom()};
+    SubmitSprites(*world_, sprites_, images_, alpha, &texts);
     sprites_.Flush(camera_, 0);
     SubmitPaths(*world_, paths_, alpha);
     paths_.Flush(camera_);

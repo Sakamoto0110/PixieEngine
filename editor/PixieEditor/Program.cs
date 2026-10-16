@@ -56,6 +56,7 @@ internal static class Program
                                    add=<Type>, remove=<Type>, save, play, stop,
                                    drop=<file>[;<file>...]@<x>,<y> (as files dropped at a point of the view, in pixels),
                                    image=<file> (as chosen for the selected sprites' image),
+                                   font=<file> (as chosen for the selected texts' font),
                                    addpoint=<Type.field>, removepoint=<Type.field>@<index> (as the inspector's
                                    buttons on a list of points); repeatable
         """;

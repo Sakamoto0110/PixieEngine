@@ -7,6 +7,7 @@
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <utility>
 
 // The implementation is compiled here only. Fonts are read from memory, so stb_truetype never sees
 // a file name.
@@ -177,13 +178,17 @@ const FontAtlas& Font::Atlas(int pixelSize) {
     return data_->atlases.emplace(pixelSize, std::move(atlas)).first->second;
 }
 
-std::vector<PlacedGlyph> Font::Layout(std::string_view text, int pixelSize) {
+std::vector<PlacedGlyph> Font::Layout(std::string_view text, int pixelSize, TextAlign align) {
     const FontAtlas& atlas = Atlas(pixelSize);
     std::vector<PlacedGlyph> placed;
+    // Each line's first glyph and width, to move it into place once every line is known.
+    std::vector<std::pair<std::size_t, float>> lines{{0, 0.0f}};
     float x = 0.0f;
     float baseline = atlas.ascent;
     for (const char32_t c : DecodeUtf8(text)) {
         if (c == U'\n') {
+            lines.back().second = x;
+            lines.emplace_back(placed.size(), 0.0f);
             x = 0.0f;
             baseline += atlas.lineHeight;
             continue;
@@ -194,6 +199,22 @@ std::vector<PlacedGlyph> Font::Layout(std::string_view text, int pixelSize) {
         const AtlasGlyph& glyph = atlas.Glyph(c);
         placed.push_back({&glyph, x, baseline});
         x += glyph.advance;
+    }
+    lines.back().second = x;
+    if (align == TextAlign::Left) {
+        return placed;
+    }
+    float widest = 0.0f;
+    for (const auto& line : lines) {
+        widest = std::max(widest, line.second);
+    }
+    const float share = align == TextAlign::Center ? 0.5f : 1.0f;
+    for (std::size_t l = 0; l < lines.size(); ++l) {
+        const std::size_t end = l + 1 < lines.size() ? lines[l + 1].first : placed.size();
+        const float shift = (widest - lines[l].second) * share;
+        for (std::size_t i = lines[l].first; i < end; ++i) {
+            placed[i].x += shift;
+        }
     }
     return placed;
 }

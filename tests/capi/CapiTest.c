@@ -553,6 +553,8 @@ static void Cleanup(const char* folder) {
     remove(path);
     snprintf(path, sizeof path, "%s/green.png", folder);
     remove(path);
+    snprintf(path, sizeof path, "%s/inter.ttf", folder);
+    remove(path);
     RemoveFolder(folder);
 }
 
@@ -653,6 +655,134 @@ static void ExercisePath(const char* folder) {
         wire = FindEntity(s, "wire");
         CHECK(api.field_get_points(s, wire, pathType, points, read, 2, &count) == PIXIE_OK && count == 2 &&
               read[2] == -100.0 && read[3] == 120.0);
+        api.session_destroy(s);
+    }
+}
+
+/* Copies the file at `from` to `to`; 0 when it cannot. */
+static int CopyBytes(const char* from, const char* to) {
+    FILE* in = fopen(from, "rb");
+    FILE* out = in != NULL ? fopen(to, "wb") : NULL;
+    int ok = in != NULL && out != NULL;
+    char buffer[4096];
+    size_t n = 0;
+    while (ok && (n = fread(buffer, 1, sizeof buffer, in)) > 0) {
+        ok = fwrite(buffer, 1, n, out) == n;
+    }
+    if (in != NULL) {
+        fclose(in);
+    }
+    if (out != NULL) {
+        fclose(out);
+    }
+    return ok;
+}
+
+/* A text in the project, with the test's copy of Inter as inter.ttf: drawn in its color inside its
+ * outline and nowhere else; over a sprite of a lower layer and under one of a higher; picked; and saved. */
+static void ExerciseText(const char* folder) {
+    char path[1024];
+    snprintf(path, sizeof path, "%s/inter.ttf", folder);
+    CHECK(CopyBytes(PIXIE_TEST_FONT, path));
+    PixieSession* s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s == NULL) {
+        return;
+    }
+    int32_t transform = -1, textType = -1, spriteType = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK && api.type_find(s, "Text", &textType) == PIXIE_OK &&
+          api.type_find(s, "Sprite", &spriteType) == PIXIE_OK);
+    char asset[16];
+    CHECK(api.field_text(s, textType, FindField(s, textType, "font"), PIXIE_TEXT_ASSET, asset, (int32_t)sizeof asset) ==
+              PIXIE_OK &&
+          strcmp(asset, "ttf") == 0);
+
+    /* "HELLO", 48 units, magenta, centered at world (0, -120): the view's (320, 60). */
+    uint32_t sign = 0;
+    CHECK(api.entity_create(s, "sign", &sign) == PIXIE_OK && api.component_add(s, sign, transform) == PIXIE_OK &&
+          api.component_add(s, sign, textType) == PIXIE_OK);
+    const PixieValue at = {0.0, -120.0, 0.0, 0.0};
+    const PixieValue size = {48.0, 0.0, 0.0, 0.0};
+    const PixieValue magenta = {255.0, 0.0, 255.0, 255.0};
+    CHECK(api.field_set(s, sign, transform, FindField(s, transform, "position"), &at) == PIXIE_OK);
+    CHECK(api.field_set_text(s, sign, textType, FindField(s, textType, "text"), "HELLO") == PIXIE_OK);
+    CHECK(api.field_set_text(s, sign, textType, FindField(s, textType, "font"), "inter.ttf") == PIXIE_OK);
+    CHECK(api.field_set(s, sign, textType, FindField(s, textType, "size"), &size) == PIXIE_OK);
+    CHECK(api.field_set(s, sign, textType, FindField(s, textType, "color"), &magenta) == PIXIE_OK);
+
+    uint32_t texture = 0;
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    double corners[8];
+    CHECK(api.entity_view_quad(s, sign, corners) == PIXIE_OK);
+    const double left = corners[0], top = corners[1], right = corners[4], bottom = corners[5];
+    CHECK(fabs((left + right) / 2.0 - 320.0) < 1e-6 && fabs((top + bottom) / 2.0 - 60.0) < 1e-6 && right - left > 48.0);
+
+    /* Magenta inside the outline, none outside it; the lit pixel nearest the center is remembered. */
+    GetTextureImage getTextureImage = (GetTextureImage)glfwGetProcAddress("glGetTextureImage");
+    unsigned char* pixels = (unsigned char*)malloc(640 * 360 * 4);
+    int inside = 0, outside = 0, px = -1, py = -1;
+    double nearest = 1e9;
+    if (getTextureImage != NULL && pixels != NULL) {
+        getTextureImage(texture, 0, TEST_GL_RGBA, TEST_GL_UNSIGNED_BYTE, 640 * 360 * 4, pixels);
+        for (int y = 0; y < 360; ++y) {
+            for (int x = 0; x < 640; ++x) {
+                const unsigned char* p = pixels + ((size_t)(359 - y) * 640 + (size_t)x) * 4;
+                if (!(p[0] > 200 && p[1] < 60 && p[2] > 200)) {
+                    continue;
+                }
+                const int in = x >= left - 1 && x <= right + 1 && y >= top - 1 && y <= bottom + 1;
+                inside += in;
+                outside += !in;
+                const double d = fabs(x - 320.0) + fabs(y - 60.0);
+                if (in && d < nearest) {
+                    nearest = d;
+                    px = x;
+                    py = y;
+                }
+            }
+        }
+    }
+    free(pixels);
+    CHECK(inside > 100 && outside == 0 && px >= 0);
+    printf("text pixels: %d inside its outline, %d outside\n", inside, outside);
+
+    uint32_t picked = 0;
+    CHECK(api.pick(s, px, py, 0.0, &picked) == PIXIE_OK && picked == sign);
+
+    /* A sprite at the same place: on layer -1 the text lies over it, on layer 1 under it. */
+    uint32_t sprite = 0;
+    CHECK(api.entity_create(s, "plate", &sprite) == PIXIE_OK && api.component_add(s, sprite, transform) == PIXIE_OK &&
+          api.component_add(s, sprite, spriteType) == PIXIE_OK);
+    CHECK(api.field_set_text(s, sprite, spriteType, FindField(s, spriteType, "image"), "green.png") == PIXIE_OK);
+    const PixieValue plateAt = {px - 320.0, py - 180.0, 0.0, 0.0};
+    const PixieValue plateScale = {4.0, 4.0, 0.0, 0.0};
+    const PixieValue below = {-1.0, 0.0, 0.0, 0.0};
+    const PixieValue above = {1.0, 0.0, 0.0, 0.0};
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "position"), &plateAt) == PIXIE_OK);
+    CHECK(api.field_set(s, sprite, transform, FindField(s, transform, "scale"), &plateScale) == PIXIE_OK);
+    CHECK(api.field_set(s, sprite, spriteType, FindField(s, spriteType, "layer"), &below) == PIXIE_OK);
+    unsigned char rgba[4];
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, px, py, rgba);
+    CHECK(rgba[0] > 200 && rgba[1] < 60 && rgba[2] > 200);
+    CHECK(api.pick(s, px, py, 0.0, &picked) == PIXIE_OK && picked == sign);
+    CHECK(api.field_set(s, sprite, spriteType, FindField(s, spriteType, "layer"), &above) == PIXIE_OK);
+    CHECK(api.session_render(s, &texture) == PIXIE_OK);
+    TexturePixel(texture, 640, 360, px, py, rgba);
+    CHECK(SameColor(rgba, 40, 200, 120));
+    CHECK(api.pick(s, px, py, 0.0, &picked) == PIXIE_OK && picked == sprite);
+
+    CHECK(api.project_save(s) == PIXIE_OK);
+    api.session_destroy(s);
+    s = NULL;
+    CHECK(api.session_open_project(640, 360, folder, &s) == PIXIE_OK && s != NULL);
+    if (s != NULL) {
+        char text[64];
+        int32_t length = 0;
+        sign = FindEntity(s, "sign");
+        CHECK(api.field_get_text(s, sign, textType, FindField(s, textType, "text"), text, (int32_t)sizeof text, &length) ==
+                  PIXIE_OK &&
+              strcmp(text, "HELLO") == 0);
         api.session_destroy(s);
     }
 }
@@ -847,6 +977,7 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
 
     ExerciseSprite(folder);
     ExercisePath(folder);
+    ExerciseText(folder);
 
     /* The project file names its scene relative to the folder, and holds no absolute path. */
     char path[1024];

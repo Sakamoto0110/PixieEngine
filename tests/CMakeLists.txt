@@ -31,12 +31,15 @@ add_executable(runtime-tests
     runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
     runtime/SpriteTests.cpp
+    runtime/TextTests.cpp
     runtime/UserDataTests.cpp
     runtime/WorldTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)
 target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(runtime-tests PRIVATE Pixie::Runtime nlohmann_json::nlohmann_json)
+target_compile_definitions(runtime-tests PRIVATE
+    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 
@@ -46,6 +49,9 @@ add_executable(capi-test capi/CapiTest.c)
 set_target_properties(capi-test PROPERTIES FOLDER tests C_STANDARD 11 C_STANDARD_REQUIRED ON)
 target_include_directories(capi-test PRIVATE ${PROJECT_SOURCE_DIR}/capi/include)
 target_link_libraries(capi-test PRIVATE glfw)
+# A font for the project the test writes: the particles sample's copy of Inter.
+target_compile_definitions(capi-test PRIVATE
+    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\"")
 if(MSVC)
     target_compile_options(capi-test PRIVATE /W4 /WX /utf-8)
 else()

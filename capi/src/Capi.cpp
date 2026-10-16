@@ -13,6 +13,8 @@
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
+#include "pixie/runtime/Text.hpp"
+#include "pixie/runtime/TextDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 
@@ -417,7 +419,7 @@ PixieResult pixie_pick(PixieSession* s, double x, double y, double tolerance, ui
     return Guard([&] {
         const entt::entity picked =
             pixie::PickAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance),
-                          &s->session.Images());
+                          &s->session.Images(), &s->session.GetFonts());
         if (picked == entt::null) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("nothing to pick at ({}, {})", x, y));
         }
@@ -458,9 +460,10 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
         const auto* shape = registry.valid(id) ? registry.try_get<pixie::Shape>(id) : nullptr;
         const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
         const auto* path = registry.valid(id) ? registry.try_get<pixie::Path>(id) : nullptr;
-        if (transform == nullptr || (shape == nullptr && sprite == nullptr && path == nullptr)) {
+        const auto* text = registry.valid(id) ? registry.try_get<pixie::Text>(id) : nullptr;
+        if (transform == nullptr || (shape == nullptr && sprite == nullptr && path == nullptr && text == nullptr)) {
             return Fail(PIXIE_ERROR_NOT_FOUND,
-                        std::format("entity {} is gone or has no Transform2D and Shape, Sprite, or Path", entity));
+                        std::format("entity {} is gone or has no Transform2D and Shape, Sprite, Text, or Path", entity));
         }
         const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
         const pixie::Camera2D& camera = s->session.GetCamera();
@@ -469,6 +472,15 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
             *x = screen.x;
             *y = screen.y;
             *radius = pixie::PickRadius(*shape, *transform) * camera.Zoom();
+            return PIXIE_OK;
+        }
+        if (sprite == nullptr && text != nullptr) {
+            const auto corners =
+                pixie::TextCorners(*text, drawn, pixie::TextBlock(*text, s->session.GetFonts()));
+            const pxPoint screen = camera.WorldToScreen(pxPoint::Lerp(corners[0], corners[2], 0.5));
+            *x = screen.x;
+            *y = screen.y;
+            *radius = std::hypot(corners[2].x - corners[0].x, corners[2].y - corners[0].y) * 0.5 * camera.Zoom();
             return PIXIE_OK;
         }
         if (sprite == nullptr) {
@@ -505,12 +517,16 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
         const entt::entity id = ToEntity(entity);
         const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
         const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
-        if (transform == nullptr || sprite == nullptr) {
-            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no Transform2D and Sprite", entity));
+        const auto* text = registry.valid(id) ? registry.try_get<pixie::Text>(id) : nullptr;
+        if (transform == nullptr || (sprite == nullptr && text == nullptr)) {
+            return Fail(PIXIE_ERROR_NOT_FOUND,
+                        std::format("entity {} is gone or has no Transform2D and Sprite or Text", entity));
         }
         const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
         const auto world =
-            pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()));
+            sprite != nullptr
+                ? pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()))
+                : pixie::TextCorners(*text, drawn, pixie::TextBlock(*text, s->session.GetFonts()));
         for (std::size_t i = 0; i < world.size(); ++i) {
             const pxPoint view = s->session.GetCamera().WorldToScreen(world[i]);
             corners[i * 2] = view.x;

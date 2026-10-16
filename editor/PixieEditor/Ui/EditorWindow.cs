@@ -219,9 +219,9 @@ internal sealed class EditorWindow(EditorOptions options)
         var history = new Editing.History();
         var authoring = new Authoring(session, selection, history);
         var recorder = new Editing.EditRecorder(session, history, () => authoring.Recording);
-        var images = new ImageChooser(session.ProjectFolder);
-        using var inspector = new InspectorPanel(session, authoring, recorder, images);
-        var viewport = new ViewportPanel(session, selection, authoring, images).Started();
+        var files = new AssetChooser(session.ProjectFolder);
+        using var inspector = new InspectorPanel(session, authoring, recorder, files);
+        var viewport = new ViewportPanel(session, selection, authoring, files).Started();
         viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
         var entities = new EntitiesPanel(session, selection, authoring);
         var controls = new SessionPanel(session, gameName);
@@ -345,7 +345,7 @@ internal sealed class EditorWindow(EditorOptions options)
             entities.Draw();
             inspector.Draw(selection.Items);
             viewport.Draw(frameDelta);
-            images.Draw();
+            files.Draw();
 
             if (askToSave)
             {
@@ -530,7 +530,14 @@ internal sealed class EditorWindow(EditorOptions options)
                     selection.Set(found);
                 break;
             case "add" when chosen.Length > 0 && session.TypeIndex(argument) is var added and >= 0:
-                authoring.Change(chosen, $"addition of {argument}", e => session.AddComponent(e, added));
+                authoring.AddComponent(chosen, added);
+                break;
+            case "font" when chosen.Length > 0 && session.TypeIndex("Text") is var textType and >= 0
+                              && chosen.All(e => session.Has(e, textType)):
+                if (authoring.ImportAsset(argument, "ttf") is { } fontPath)
+                    authoring.SetText(chosen, textType, session.FieldIndex(textType, "font"), fontPath);
+                else
+                    ok = false;
                 break;
             case "remove" when chosen.Length > 0 && session.TypeIndex(argument) is var removed and >= 0:
                 authoring.Change(chosen, $"removal of {argument}", e => session.RemoveComponent(e, removed));
@@ -548,7 +555,7 @@ internal sealed class EditorWindow(EditorOptions options)
                 break;
             case "image" when chosen.Length > 0 && session.TypeIndex("Sprite") is var spriteType and >= 0
                                && chosen.All(e => session.Has(e, spriteType)):
-                if (authoring.ImportImage(argument) is { } imagePath)
+                if (authoring.ImportAsset(argument, "png") is { } imagePath)
                     authoring.SetText(chosen, spriteType, session.FieldIndex(spriteType, "image"), imagePath);
                 else
                     ok = false;
@@ -604,16 +611,19 @@ internal sealed class EditorWindow(EditorOptions options)
         }
     }
 
-    // Entities, the selection with names, positions, images, and path points, and what undo and redo
-    // would do.
+    // Entities, the selection with names, positions, images, texts, and path points, and what undo and
+    // redo would do.
     private static string Describe(EngineSession session, Authoring authoring, Selection selection)
     {
         var transform = session.TypeIndex("Transform2D");
         var sprite = session.TypeIndex("Sprite");
         var path = session.TypeIndex("Path");
+        var text = session.TypeIndex("Text");
         var chosen = selection.Items.Select(e =>
         {
             var name = authoring.Describe(e);
+            if (text >= 0 && session.Has(e, text))
+                name += $" \"{session.GetText(e, text, session.FieldIndex(text, "text"))}\" ({session.GetText(e, text, session.FieldIndex(text, "font"))})";
             if (sprite >= 0 && session.Has(e, sprite))
                 name += $" [{session.GetText(e, sprite, session.FieldIndex(sprite, "image"))}]";
             if (path >= 0 && session.Has(e, path))

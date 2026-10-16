@@ -191,3 +191,22 @@ TEST(TextIsDrawnWhereItsGlyphsAre) {
     glfwDestroyWindow(window);
     glfwTerminate();
 }
+
+TEST(LinesAreAlignedWithinTheWidest) {
+    std::optional<Font> font = LoadInter();
+    CHECK(font.has_value());
+    if (!font) {
+        return;
+    }
+    const std::string text = "Wide line\nab";
+    const double wide = font->Measure("Wide line", 32).x;
+    const double narrow = font->Measure("ab", 32).x;
+    CHECK(Near(font->Measure(text, 32).x, wide, 1e-3));
+    // The second line starts at "ab"'s first glyph, after the 9 glyphs of the first.
+    const auto start = [&](pixie::TextAlign align) { return font->Layout(text, 32, align)[9].x; };
+    CHECK(Near(start(pixie::TextAlign::Left), 0.0, 1e-3));
+    CHECK(Near(start(pixie::TextAlign::Center), (wide - narrow) / 2.0, 1e-3));
+    CHECK(Near(start(pixie::TextAlign::Right), wide - narrow, 1e-3));
+    // The widest line does not move.
+    CHECK(Near(font->Layout(text, 32, pixie::TextAlign::Right)[0].x, 0.0, 1e-3));
+}
