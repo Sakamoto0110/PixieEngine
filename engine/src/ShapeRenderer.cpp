@@ -126,4 +126,12 @@ void ShapeRenderer::Flush(const Camera2D& camera) {
     }
 }
 
+std::size_t ShapeRenderer::PendingCount() const {
+    std::size_t count = 0;
+    for (const auto& kind : pending_) {
+        count += kind.size();
+    }
+    return count;
+}
+
 } // namespace pixie

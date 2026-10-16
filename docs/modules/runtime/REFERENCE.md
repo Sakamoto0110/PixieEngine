@@ -61,6 +61,7 @@ All under `runtime/include/pixie/runtime/`:
 | `Sprite.hpp` | `Sprite`, an entity's look as an image |
 | `Path.hpp` | `Path`, a line through points with rounded corners and a fill |
 | `PathDrawing.hpp` | `SubmitPaths`, `PathLine`, and `PathContains` |
+| `Culling.hpp` | `PaddedView`, and `SpriteInView`, `TextInView`, `PathInView`, and `ShapeInView`: what drawing skips off screen |
 | `SpriteImages.hpp` | `SpriteImages`, the images a session's sprites draw |
 | `ScreenCanvas.hpp` | `ScreenCanvas`, what a project draws on the screen layer, and `TextStyle` |
 | `Fonts.hpp` | `Fonts`, the fonts a session's text names |
@@ -528,6 +529,18 @@ folder of `PROJECT_DIR`, or else the first folder above the executable that hold
 position and scale linearly, rotation the short way around (`Interpolate` in `Transform2D.hpp`).
 The caller flushes the renderer with its camera. It needs the GL context current, as the renderer
 does.
+
+**Only what is on screen.** `SubmitShapes`, `SubmitPaths`, and `SubmitSprites` (with its texts) take
+an optional `view`, an area of the World: with one, they submit only what may show in it, in the same
+order and the same way as without it; without one, everything, as other callers expect. Each item is
+tested by a conservative bound (`Culling.hpp`): a circle around its position that holds a shape, a
+sprite (by its image's size), or a text (by `TextBlock`), however it is turned and pivoted; and the
+box of a path's points, widened by half its width. So what shows is never skipped, and something just
+outside may still be drawn. A session passes `PaddedView(camera, 32)`, its camera's
+`VisibleWorld` widened by 32 view pixels on every side. Hidden ones (`visible` false) are skipped
+first. Picking does not cull. Particles, and what a project draws itself (its overlay and screen
+layer), are not culled by the engine. `ShapeRenderer`, `PathRenderer`, and `SpriteRenderer` count
+what waits for their next flush (`PendingCount`).
 
 ### Sprites
 

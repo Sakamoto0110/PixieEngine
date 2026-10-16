@@ -1,5 +1,7 @@
 #pragma once
 
+#include <pixie/pxRect.hpp>
+
 #include "pixie/SpriteRenderer.hpp"
 
 #include <entt/entity/entity.hpp>
@@ -73,8 +75,10 @@ struct TextSources {
 
 // Submits every entity with a Transform2D and a Sprite to `renderer`, interpolated `alpha` of the
 // way from its previous transform to its current one, with its image from `images`; and, with
-// `texts`, every Text, in the same order (ForEachDrawnInOrder). Flush the renderer afterwards.
+// `texts`, every Text, in the same order (ForEachDrawnInOrder). With `view`, an area of the World
+// (PaddedView), only those that may show in it (SpriteInView, TextInView), in the same order. Flush
+// the renderer afterwards.
 void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
-                   const TextSources* texts = nullptr);
+                   const TextSources* texts = nullptr, const pxRect* view = nullptr);
 
 } // namespace pixie

@@ -27,6 +27,8 @@ public:
     void Submit(ShapeKind kind, const ShapeInstance& instance);
     // Draws what was submitted since the last flush, then forgets it.
     void Flush(const Camera2D& camera);
+    // How many shapes wait for the next flush.
+    std::size_t PendingCount() const;
 
 private:
     ShaderProgram program_;

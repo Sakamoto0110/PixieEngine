@@ -1,5 +1,7 @@
 #include "pixie/runtime/ProjectSession.hpp"
 
+#include "pixie/runtime/Culling.hpp"
+
 #include "pixie/Gl.hpp"
 #include "pixie/Log.hpp"
 #include "pixie/runtime/ParticleStep.hpp"
@@ -227,6 +229,13 @@ double ProjectSession::Alpha() const {
     return paused_ || mode_ == SessionMode::Edit ? 1.0 : stepper_.RenderTime(0.0, 0).alpha;
 }
 
+namespace {
+
+// How far beyond the screen's edges, in view pixels, a session still draws.
+constexpr double kCullPadding = 32.0;
+
+} // namespace
+
 void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
     glClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
@@ -237,13 +246,15 @@ void ProjectSession::Render(double alpha) {
                                     std::chrono::duration<double>(SpriteImages::kCheckInterval));
     }
     const TextSources texts{fonts_, text_, camera_.Zoom()};
-    SubmitSprites(*world_, sprites_, images_, alpha, &texts);
+    // Only what may show on screen is submitted.
+    const pxRect view = PaddedView(camera_, kCullPadding);
+    SubmitSprites(*world_, sprites_, images_, alpha, &texts, &view);
     sprites_.Flush(camera_, 0);
-    SubmitPaths(*world_, paths_, alpha);
+    SubmitPaths(*world_, paths_, alpha, &view);
     paths_.Flush(camera_);
     sprites_.Flush(camera_);
     DrawParticles(*world_, particles_, camera_, alpha);
-    SubmitShapes(*world_, shapes_, alpha);
+    SubmitShapes(*world_, shapes_, alpha, &view);
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_);
 

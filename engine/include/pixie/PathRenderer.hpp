@@ -51,6 +51,8 @@ public:
     void Submit(std::span<const pxPoint> points, double width, pxColorRgba color, pxColorRgba fillColor, double fill);
     // Draws what was submitted since the last flush, seen through `camera`, then forgets it.
     void Flush(const Camera2D& camera);
+    // How many segments wait for the next flush.
+    std::size_t PendingCount() const { return pending_.size(); }
 
 private:
     ShaderProgram program_;

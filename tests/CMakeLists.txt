@@ -25,6 +25,7 @@ add_executable(runtime-tests
     runtime/OrderIndependenceTests.cpp
     runtime/ParticleTests.cpp
     runtime/PathTests.cpp
+    runtime/CullingTests.cpp
     runtime/PickingTests.cpp
     runtime/ProjectFileTests.cpp
     runtime/RandomTests.cpp

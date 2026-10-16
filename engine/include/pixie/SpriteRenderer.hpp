@@ -62,6 +62,8 @@ public:
 
     // Draw calls made by the last Flush.
     int LastDrawCalls() const { return lastDrawCalls_; }
+    // How many sprites wait for a flush.
+    std::size_t PendingCount() const { return pending_.size(); }
 
 private:
     struct Pending {

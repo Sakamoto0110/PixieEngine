@@ -5,6 +5,7 @@ add_library(pixie_runtime STATIC
     src/Fonts.cpp
     src/InteractionAffector.cpp
     src/ParticleSpawner.cpp
+    src/Culling.cpp
     src/Picking.cpp
     src/ParticleStep.cpp
     src/PathDrawing.cpp

@@ -1,5 +1,7 @@
 #include "pixie/runtime/SpriteDrawing.hpp"
 
+#include "pixie/runtime/Culling.hpp"
+
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/Text.hpp"
@@ -139,19 +141,22 @@ void ForEachSpriteInDrawOrder(World& world,
 }
 
 void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
-                   const TextSources* texts) {
+                   const TextSources* texts, const pxRect* view) {
     entt::registry& registry = world.Registry();
     ForEachDrawnInOrder(world, [&](const Drawn& item) {
         const auto* previous = registry.try_get<const PreviousTransform2D>(item.id);
         const Transform2D drawn =
             previous != nullptr ? Interpolate(previous->value, item.transform, alpha) : item.transform;
         if (item.text != nullptr) {
-            if (texts != nullptr) {
+            if (texts != nullptr && (view == nullptr || TextInView(*item.text, drawn, TextBlock(*item.text, texts->fonts), *view))) {
                 SubmitText(*item.text, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
             }
             return;
         }
         const Sprite& sprite = *item.sprite;
+        if (view != nullptr && !SpriteInView(sprite, drawn, SpritePixelSize(sprite, images), *view)) {
+            return;
+        }
         const Texture& texture = images.TextureOf(sprite.image);
         const pxVec2 size = SpritePixelSize(sprite, images) * drawn.scale;
 

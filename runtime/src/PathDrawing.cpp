@@ -1,5 +1,7 @@
 #include "pixie/runtime/PathDrawing.hpp"
 
+#include "pixie/runtime/Culling.hpp"
+
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -40,7 +42,7 @@ bool PathContains(const Path& path, const Transform2D& transform, pxPoint point,
     return false;
 }
 
-void SubmitPaths(World& world, PathRenderer& renderer, double alpha) {
+void SubmitPaths(World& world, PathRenderer& renderer, double alpha, const pxRect* view) {
     entt::registry& registry = world.Registry();
     for (auto [id, current, path] : registry.view<const Transform2D, const Path>().each()) {
         if (!path.visible) {
@@ -48,6 +50,9 @@ void SubmitPaths(World& world, PathRenderer& renderer, double alpha) {
         }
         const auto* previous = registry.try_get<const PreviousTransform2D>(id);
         const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, current, alpha) : current;
+        if (view != nullptr && !PathInView(path, drawn, *view)) {
+            continue;
+        }
         renderer.Submit(PathLine(path, drawn), path.width, path.color, path.fillColor, path.fill);
     }
 }
