@@ -39,16 +39,9 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-15 with PIXIE-TODO-032 and PIXIE-TODO-033, and on 2026-10-16 with PIXIE-TODO-034;
-PIXIE-TODO-032's is in its archive record. Earlier breakdowns are in their archive records, routed from the
+Opened on 2026-10-15 with PIXIE-TODO-032 and PIXIE-TODO-033, and on 2026-10-16 with PIXIE-TODO-034.
+PIXIE-TODO-032's and PIXIE-TODO-034's breakdowns, and earlier ones, are in their archive records, routed from the
 [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-034` — The logic sandbox, stage 1 fixes: selecting and removing wires
-
-**Parent:** PIXIE-TODO-034
-
-- `PIXIE-TASK-152` — **Status:** open — Selecting wires (click, Shift) and a selected wire's bends; Del removes a bend, routing the wire again, or the selected wires and pieces; tests.
-- `PIXIE-TASK-153` — **Status:** open — A right click on a wired input removes its wire, after cancelling a wire and putting down a piece; the README; tests.
 
 ## `PIXIE-TODO-033` — The logic sandbox, stage 1.5: saves and templates
 

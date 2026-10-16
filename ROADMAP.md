@@ -158,6 +158,9 @@ owner put fixes to stage 1 before block 30
 
 31. The logic sandbox, stage 1 fixes: selecting and removing wires (PIXIE-TODO-034), before block 30.
 
+Block 31 was completed on 2026-10-16: wires and their bends are selected and removed, and a right
+click on a wired input removes its wire.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their
