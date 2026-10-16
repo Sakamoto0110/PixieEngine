@@ -39,12 +39,24 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. The last promoted work, the logic sandbox's new anchor, an 8-bit adder built out of chips
-(PIXIE-TODO-036, [promotion record](docs/archive/logic-sandbox-adder-promotion-2026-10-16.md)), and
-before it the logic sandbox of [PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md) (PIXIE-TODO-032
-to PIXIE-TODO-035), are completed; see below. The game lives in its own repository,
-[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox). What comes next waits
-for the owner's promotion.
+Promoted on 2026-10-16 by the owner: drawing only what is on screen
+([promotion record](docs/archive/view-culling-promotion-2026-10-16.md)). The logic sandbox's work
+(PIXIE-TODO-032 to PIXIE-TODO-036) is completed; see below. The game lives in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox).
+
+### `PIXIE-TODO-037` — Drawing only what is on screen
+
+**Status:** promoted
+
+**Source:** owner decision on 2026-10-16 ("conforme for dando zoom, o que não está na tela não precisa ser renderizado")
+
+**Accepted scope:** a session draws only the sprites, texts, paths, and shapes whose bounds meet the camera's visible area (`Camera2D::VisibleWorld`), padded by a few view pixels, the rest skipped before they are submitted; the drawing order, and what is drawn of what is on screen, stay as they were. `SubmitSprites`, `SubmitPaths`, and `SubmitShapes` take the visible area, and draw everything without one, as before; the bounds tests are public (`Culling.hpp`). Picking is unchanged. Out: particles, and the culling of what a game draws itself (its overlay and screen layer), which is the game's.
+
+**Dependencies and gates:** none.
+
+**Completion criteria:** (1) runtime tests: something off screen is not submitted, and what is on screen is submitted as without culling, for shapes and paths, and the bounds of sprites, texts, paths, and shapes; (2) zero warnings in Debug and Release, ctest passing locally and in CI; (3) the runtime reference describes it.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-037--drawing-only-what-is-on-screen)
 
 ## Completed
 
