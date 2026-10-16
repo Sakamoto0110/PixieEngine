@@ -38,5 +38,6 @@ update its state, and link the outcome.
 | [`authoring-in-the-viewport.md`](authoring-in-the-viewport.md) | PIXIE-PROPOSAL-006 | promoted | PIXIE-TODO-024 and PIXIE-TODO-025 (2026-10-14), completed by 2026-10-15 |
 | [`sprites.md`](sprites.md) | PIXIE-PROPOSAL-007 | promoted | PIXIE-TODO-027 and PIXIE-TODO-028 (2026-10-15), completed the same day |
 | [`interactive-2d-games.md`](interactive-2d-games.md) | PIXIE-PROPOSAL-008 | promoted | PIXIE-TODO-029 and PIXIE-TODO-030 (2026-10-15), completed the same day |
-| [`logic-sandbox.md`](logic-sandbox.md) | PIXIE-PROPOSAL-009 | idea | Requires an owner decision; after PIXIE-PROPOSAL-008 |
+| [`logic-sandbox.md`](logic-sandbox.md) | PIXIE-PROPOSAL-009 | idea | Requires an owner decision; after PIXIE-PROPOSAL-008 and PIXIE-PROPOSAL-011 |
 | [`shared-engine-and-export.md`](shared-engine-and-export.md) | PIXIE-PROPOSAL-010 | idea | Requires an owner decision |
+| [`scene-text.md`](scene-text.md) | PIXIE-PROPOSAL-011 | idea | Requires an owner decision |
