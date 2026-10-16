@@ -39,24 +39,11 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-Promoted on 2026-10-16 by the owner: drawing only what is on screen
-([promotion record](docs/archive/view-culling-promotion-2026-10-16.md)). The logic sandbox's work
-(PIXIE-TODO-032 to PIXIE-TODO-036) is completed; see below. The game lives in its own repository,
-[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox).
-
-### `PIXIE-TODO-037` — Drawing only what is on screen
-
-**Status:** promoted
-
-**Source:** owner decision on 2026-10-16 ("conforme for dando zoom, o que não está na tela não precisa ser renderizado")
-
-**Accepted scope:** a session draws only the sprites, texts, paths, and shapes whose bounds meet the camera's visible area (`Camera2D::VisibleWorld`), padded by a few view pixels, the rest skipped before they are submitted; the drawing order, and what is drawn of what is on screen, stay as they were. `SubmitSprites`, `SubmitPaths`, and `SubmitShapes` take the visible area, and draw everything without one, as before; the bounds tests are public (`Culling.hpp`). Picking is unchanged. Out: particles, and the culling of what a game draws itself (its overlay and screen layer), which is the game's.
-
-**Dependencies and gates:** none.
-
-**Completion criteria:** (1) runtime tests: something off screen is not submitted, and what is on screen is submitted as without culling, for shapes and paths, and the bounds of sprites, texts, paths, and shapes; (2) zero warnings in Debug and Release, ctest passing locally and in CI; (3) the runtime reference describes it.
-
-**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-037--drawing-only-what-is-on-screen)
+None. The last promoted work, drawing only what is on screen (PIXIE-TODO-037,
+[promotion record](docs/archive/view-culling-promotion-2026-10-16.md)), and the logic sandbox's
+(PIXIE-TODO-032 to PIXIE-TODO-036) are completed; see below. The game lives in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox). What comes next waits
+for the owner's promotion.
 
 ## Completed
 
@@ -206,3 +193,7 @@ the [archive record](docs/archive/todo-034-logic-sandbox-wire-fixes-2026-10-16.m
 `PIXIE-TODO-036` (the logic sandbox, stage 2: chips and an 8-bit adder) completed on
 2026-10-16. Its entry, breakdown, and verification are preserved in the
 [archive record](docs/archive/todo-036-logic-sandbox-chips-adder-2026-10-16.md).
+
+`PIXIE-TODO-037` (drawing only what is on screen) completed on 2026-10-16. Its entry,
+breakdown, and verification are preserved in the
+[archive record](docs/archive/todo-037-view-culling-2026-10-16.md).
