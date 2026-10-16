@@ -145,7 +145,10 @@ profile `pixieengine`, revision 1, read from the VAW checkout at
 `C:\Users\Sakamoto\dev\VAW` (commit `c9d81ba`, version 0.2.0.0), for project
 binding and skill discovery only. The profile is machine-local and outside both
 repositories, in `C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles\pixieengine\`;
-the binding is in the default registry, `%LOCALAPPDATA%\VoidAgentWorkplace\bindings.json`.
+the binding is in the explicit machine-local registry
+`C:\Users\Sakamoto\dev\Void Agent Workplace\.local\bindings\pixieengine.json`.
+Pass that path with `-BindingsPath` on every VAW command. This keeps the procedure
+independent of differing session views of the default AppData registry.
 The profile maps VAW's authority roles to this repository's documents, routes
 each source area to the documents that own it, and lists the checks above as
 its validation. Nothing in this repository depends on it: a machine without it
@@ -157,10 +160,16 @@ PowerShell 7:
 
 ```powershell
 $profiles = 'C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles'
+$bindings = 'C:\Users\Sakamoto\dev\Void Agent Workplace\.local\bindings\pixieengine.json'
 C:\Users\Sakamoto\dev\VAW\scripts\resolve-project-binding.ps1 -RepositoryPath . `
-    -ProfilesPath $profiles -CompatibilityScope Routes -RouteId runtime,documentation
-C:\Users\Sakamoto\dev\VAW\vaw.ps1 skills list -Agent claude -RepositoryPath . -ProfilesPath $profiles
+    -ProfilesPath $profiles -BindingsPath $bindings `
+    -CompatibilityScope Routes -RouteId runtime,documentation
+C:\Users\Sakamoto\dev\VAW\vaw.ps1 skills list -Agent claude -RepositoryPath . `
+    -ProfilesPath $profiles -BindingsPath $bindings
 ```
+
+Select all routes affected by the actual task; `runtime,documentation` is an
+example. Pass the same profile and binding paths to `skills show <name>`.
 
 It requires `bound_scoped` with every selected route checked (or `bound` without
 `-CompatibilityScope`), and the task's archive record states the VAW commit, the
