@@ -143,6 +143,10 @@ owner promoted text in the World as data
 
 28. Text in the scene (PIXIE-TODO-031).
 
+Block 28 was completed on 2026-10-15: text is part of a scene, saved, picked, and drawn among the
+sprites, and the editor treats fonts as assets. The logic sandbox (PIXIE-PROPOSAL-009) waits on the
+owner's promotion.
+
 The anchor blocks supersede the vertical slice
 of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
 first scenario. The `platform` and `render` boundaries stay undecided; their

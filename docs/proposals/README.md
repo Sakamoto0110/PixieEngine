@@ -40,4 +40,4 @@ update its state, and link the outcome.
 | [`interactive-2d-games.md`](interactive-2d-games.md) | PIXIE-PROPOSAL-008 | promoted | PIXIE-TODO-029 and PIXIE-TODO-030 (2026-10-15), completed the same day |
 | [`logic-sandbox.md`](logic-sandbox.md) | PIXIE-PROPOSAL-009 | idea | Requires an owner decision; after PIXIE-PROPOSAL-008 and PIXIE-PROPOSAL-011 |
 | [`shared-engine-and-export.md`](shared-engine-and-export.md) | PIXIE-PROPOSAL-010 | idea | Requires an owner decision |
-| [`scene-text.md`](scene-text.md) | PIXIE-PROPOSAL-011 | promoted | PIXIE-TODO-031 (2026-10-15) |
+| [`scene-text.md`](scene-text.md) | PIXIE-PROPOSAL-011 | promoted | PIXIE-TODO-031 (2026-10-15), completed the same day |

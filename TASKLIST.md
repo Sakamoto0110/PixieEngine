@@ -39,14 +39,5 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Opened on 2026-10-15 with PIXIE-TODO-031. Earlier breakdowns are in their archive records, routed
-from the [archive router](docs/archive/README.md).
-
-## `PIXIE-TODO-031` — Text in the scene
-
-**Parent:** PIXIE-TODO-031
-
-- `PIXIE-TASK-140` — **Status:** open — Aligned lines in the font's layout; the `Text` component, its descriptor with a `ttf` font, and its scene form.
-- `PIXIE-TASK-141` — **Status:** open — Texts drawn among sprites at their transform, from the ladder's atlas, interpolated; their block, picking, and the view quad in the C API.
-- `PIXIE-TASK-142` — **Status:** open — The editor: the `ttf` chooser copying into `fonts/`, a new `Text` taking the project's first font, and the outline; scripted verification.
-- `PIXIE-TASK-143` — **Status:** open — Runtime and C API tests, and the `runtime`, `capi`, and editor documents.
+None. Every breakdown, up to PIXIE-TODO-031's, is in its archive record,
+routed from the [archive router](docs/archive/README.md).

@@ -64,8 +64,10 @@ All under `runtime/include/pixie/runtime/`:
 | `SpriteImages.hpp` | `SpriteImages`, the images a session's sprites draw |
 | `ScreenCanvas.hpp` | `ScreenCanvas`, what a project draws on the screen layer, and `TextStyle` |
 | `Fonts.hpp` | `Fonts`, the fonts a session's text names |
+| `Text.hpp` | `Text`, text in the scene |
+| `TextDrawing.hpp` | `TextBlock`, `TextCorners`, `TextContains`, and `SubmitText` |
 | `UserData.hpp` | `UserDataFolder`, the folder for a game's own files, and `UserDataFolderName` |
-| `SpriteDrawing.hpp` | `SubmitSprites`, `SpritePixelSize`, `SpritePoint`, `SpriteLocal`, `SpriteCorners`, `SpriteContains`, and `ForEachSpriteInDrawOrder` |
+| `SpriteDrawing.hpp` | `SubmitSprites`, `TextSources`, `SpritePixelSize`, `SpritePoint`, `SpriteLocal`, `SpriteCorners`, `SpriteContains`, `ForEachDrawnInOrder`, and `ForEachSpriteInDrawOrder` |
 | `Name.hpp` | `Name`, an optional label |
 | `ShapeDrawing.hpp` | `SubmitShapes`, the render system for shapes |
 
@@ -131,6 +133,10 @@ paused one, keep separate clocks.
   relative to the project folder, with `/`), `region` (`pxRect` in image pixels; empty for the
   whole image), `pivot` (`pxVec2`, 0 to 1 within the drawn rectangle, (0.5, 0.5) by default),
   `color` (a tint), `layer` (`int`), and `filter` (`SpriteFilter`: `Smooth` or `Pixel`).
+- `Text`: text in the scene (see [Text in the scene](#text-in-the-scene)): `text` (UTF-8), `font`
+  (a `.ttf`'s path, a text field of asset kind `ttf`), `size` (the em size in world units), `color`,
+  `align` (`TextAlign`: `Left`, `Center`, `Right`), `pivot` (0 to 1 over its block, (0.5, 0.5) by
+  default), and `layer`.
 - `Path`: a line (see [Paths](#paths)): `points` (a point list in the entity's space), `width`
   (world units, not scaled), `cornerRadius`, `color`, `fillColor`, and `fill` (0 to 1).
 - `Name`: a string, added by `World::Create(name)` when the name is not empty.
@@ -209,14 +215,15 @@ the GPU.
 ## Picking
 
 `Picking.hpp` finds things by where they are, for a tool's selection. Only entities with a
-`Transform2D` and a `Shape`, a `Sprite`, or a `Path` can be picked: what is drawn can be clicked. A
-shape covers `PickRadius`, its larger half extent times the transform's larger scale; a sprite covers
-its rectangle, turned with the entity; a path covers the points within half its width of its line.
-`PickAt(world, point, tolerance, sprites)` returns what is drawn on top at the point, widened by
-`tolerance`: a shape, nearest center first; else, when `sprites` (a `SpriteImages`, which knows the
-images' sizes) is given, a sprite of a layer of 0 or more, the last drawn; else a path, the newest;
-else a sprite of a negative layer; else `entt::null`. That is the reverse of the drawing order.
-`PickIn(world, box)` lists the entities with a shape or a sprite whose position lies in the box, and
+`Transform2D` and a `Shape`, a `Sprite`, a `Text`, or a `Path` can be picked: what is drawn can be
+clicked. A shape covers `PickRadius`, its larger half extent times the transform's larger scale; a
+sprite covers its rectangle and a text its block of lines, turned with the entity; a path covers the
+points within half its width of its line. `PickAt(world, point, tolerance, sprites, fonts)` returns
+what is drawn on top at the point, widened by `tolerance`: a shape, nearest center first; else a
+sprite (when `sprites`, a `SpriteImages`, gives the images' sizes) or a text (when `fonts` measures
+it) of a layer of 0 or more, the last drawn; else a path, the newest; else a sprite or a text of a
+negative layer; else `entt::null`. That is the reverse of the drawing order. `PickIn(world, box)`
+lists the entities with a shape, a sprite, or a text whose position lies in the box, and
 those with a path whose whole line does, oldest first. Particles are not entities:
 `RemoveParticleAt(world, point, radius)` removes the particle nearest the point within the radius,
 from whichever pool holds it, at once. Positions are the current ones, in world units.
@@ -533,10 +540,12 @@ world units, following rotation and mirroring, and `SpriteLocal` turns a world p
 for a sprite with no area). `SpriteCorners` gives the rectangle's corners in world units, and
 `SpriteContains` tests a point against it.
 
-`SubmitSprites(world, renderer, images, alpha)` submits each entity with a `Transform2D` and a
-`Sprite` to a `SpriteRenderer` (in the engine library), interpolated like shapes. The renderer
-draws instanced quads by layer, lower first, and in the World's order within a layer (oldest
-first, `ForEachSpriteInDrawOrder`), batching consecutive sprites that share a texture and a filter
+`SubmitSprites(world, renderer, images, alpha, texts)` submits each entity with a `Transform2D` and
+a `Sprite` to a `SpriteRenderer` (in the engine library), interpolated like shapes, and, with
+`texts` (a `TextSources`: the fonts, the text renderer, and the camera's zoom), each `Text` too, in
+one order (`ForEachDrawnInOrder`: by layer, then the World's order, oldest first, sprites and texts
+mixed; an entity with both draws its sprite first). The renderer draws instanced quads by layer,
+lower first, and in submission order within a layer, batching consecutive sprites that share a texture and a filter
 into one draw call. `Smooth` samples linearly between mipmaps, so a large image drawn small does not
 alias; `Pixel` samples the nearest texel. Sprites are drawn under particles and shapes, so a
 background never hides them; a layer shared with shapes is not there yet. The renderer can flush the
@@ -597,14 +606,34 @@ a missing file, not a TrueType font) draws nothing, measures zero, and is logged
 Text is drawn by the engine's `TextRenderer` from a `Font` (`Font.hpp`, `TextRenderer.hpp`): the
 font, read whole, is rasterized by `stb_truetype` into an atlas per pixel size, holding U+0020 to
 U+00FF (Latin-1) and the font's replacement glyph for every other code point, white with
-premultiplied alpha, and drawn as one sprite per glyph. Strings are UTF-8, left-aligned; a line break
+premultiplied alpha, and drawn as one sprite per glyph. Strings are UTF-8; a line break
 starts a new line, other control characters draw nothing, and bytes that are not UTF-8 draw the
 replacement glyph. There is no kerning. `SubmitPixels` places every glyph on whole pixels at exactly
 its size, which is what the screen layer uses; `SubmitWorld` draws text a size in world units for a
 camera's zoom, from the atlas at the next step of a fixed ladder (8, 12, 16, 24, 32, 48, 64, 96, 128,
-192, and 256 pixels), scaled to fit, so zooming makes few atlases. A `Text` component in the scene is
-not there yet: a game labels the World on its screen layer, through `WorldToScreen`, at a size that
-reads at any zoom.
+192, and 256 pixels), scaled to fit, so zooming makes few atlases. `Font::Layout` aligns the lines of
+a text within the widest (`TextAlign`), and `Measure` gives the widest line and the lines' height, so
+measuring and drawing agree. Text that belongs to the World is the `Text` component, below; a
+label that follows an entity at a fixed size on screen (a nameplate) stays code on the screen layer,
+through `WorldToScreen`, since when it shows and what it says are the game's rules.
+
+### Text in the scene
+
+A `Text` draws its lines at the entity's transform, as part of the World: saved with the scene,
+picked, undone, and drawn among the sprites in their layer order (a label made after its gate lies
+over it; one on a negative layer lies under paths, with the backgrounds). Its size is in world units
+and multiplies by the transform's scale, so it zooms with the World; it turns and mirrors with the
+transform, each glyph a quad laid out in the entity's space and transformed. The atlas is the
+ladder's for its size on screen, so it stays sharp zoomed in and costs little zoomed out. The pivot
+places its block of lines around the position, as a sprite's rectangle.
+
+`TextBlock(text, fonts)` is the block, in world units before the transform's scale: the widest line
+and the lines' height at its size, measured at one atlas size and scaled, so it is the same at any
+zoom. A text without a readable font draws nothing, and its block is one em square, so it can still
+be seen selected and picked; so is the block of a text with no characters. `TextCorners` and
+`TextContains` work on the block as `SpriteCorners` and `SpriteContains` work on a sprite's
+rectangle, and `SubmitText` draws one text. The font field's asset kind is `ttf`, so a tool offers
+`.ttf` files for it. There is no wrapping at a width, rich text, kerning, outline, or shadow.
 
 ## Randomness
 
@@ -643,7 +672,10 @@ and its errors; the `Sprite` descriptor's text field; text through a scene and a
 of the wrong type left at its default; image sizes and problems without GL; reading a changed,
 removed, and appearing file again; sizes from the region, the image, and the missing size; the
 rectangle around the pivot, turned and mirrored; the drawing order; and picking the sprite on top,
-with shapes first), paths (rounded corners and their length; straight lines and short segments; the
+with shapes first), texts (the `Text` descriptor's `ttf` font; a text through a scene and a
+snapshot; its block measured, doubled with its size and its lines, around its pivot, turned,
+mirrored, and scaled; one em square without a font or characters; and the drawing and picking order
+among sprites by layer), paths (rounded corners and their length; straight lines and short segments; the
 point list through a scene, a snapshot, and a wrong value; the line at a turned and scaled transform,
 and picking along it; the picking order of shapes, sprites, and paths; and `SpritePoint` and
 `SpriteLocal` turned and mirrored, each the other's inverse), fragment metadata (written at the top,
@@ -654,7 +686,8 @@ shape and no path outside it; a folder that is not empty refused; only a folder 
 project file opening; unknown keys written back; and which paths count as inside the folder).
 Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
 which drives a whole project through `pixie-scene-capi`, including a sprite drawn in its image's
-color, and a path drawn in its two colors, over a background sprite and under one of layer 0. `SubmitShapes` is exercised by the samples that draw a World.
+color, a path drawn in its two colors, over a background sprite and under one of layer 0, and a text
+drawn inside its outline and nowhere else, over a sprite of a lower layer and under one of a higher. `SubmitShapes` is exercised by the samples that draw a World.
 `tests/engine/TextTests.cpp` (CTest `engine-tests`) covers UTF-8 decoding, refusing what is not a
 font, measuring by advances and lines, the atlases (clamped sizes, premultiplied white glyphs, the
 replacement glyph beyond Latin-1, and the layout's pens), the ladder, and text drawn into a render

@@ -87,4 +87,4 @@ apart, and the discussion recorded in the
 [decision record](../archive/scene-text-decisions-2026-10-15.md).
 
 **Outcome:** promoted on 2026-10-15 as PIXIE-TODO-031, as recorded in the
-[promotion record](../archive/scene-text-promotion-2026-10-15.md).
+[promotion record](../archive/scene-text-promotion-2026-10-15.md), and carried out the same day: PIXIE-TODO-031 is completed (PIXIE-ARCHIVE-056).

@@ -197,23 +197,25 @@ top-left) into world units through the session's camera as it is now, and `pixie
 turns it back, so a host can place things where the user points.
 
 For a host's selection, in view pixels like the input. Only entities with a `Transform2D` and a
-`Shape`, a `Sprite`, or a `Path` can be picked ([runtime picking](../runtime/REFERENCE.md#picking));
+`Shape`, a `Sprite`, a `Text`, or a `Path` can be picked ([runtime picking](../runtime/REFERENCE.md#picking));
 particles are not entities.
 
 - `pixie_pick` returns the entity drawn on top under a point, widened by `tolerance` pixels: a
-  shape whose radius covers it, nearest center first; else a sprite of a layer of 0 or more; else a
-  path within half its width; else a sprite of a negative layer; or `PIXIE_ERROR_NOT_FOUND`.
+  shape whose radius covers it, nearest center first; else a sprite or a text (by its block of
+  lines) of a layer of 0 or more; else a path within half its width; else a sprite or a text of a
+  negative layer; or `PIXIE_ERROR_NOT_FOUND`.
   `pixie_pick_box` lists the entities whose position lies in a box given by two corners in any
   order, and the paths whose whole line does, oldest first, filling and counting as
   `pixie_entities` does.
 - `pixie_entity_view_bounds` gives where an entity was drawn by the last render (between the
   previous step and this one, as drawn) and a radius, in pixels, for outlining it: for a shape, the
-  radius it can be picked within, from its position; for a sprite, half its rectangle's diagonal,
-  from the rectangle's center; for a path, half the diagonal of the box around its line, from the
+  radius it can be picked within, from its position; for a sprite or a text, half its rectangle's or
+  block's diagonal, from its center; for a path, half the diagonal of the box around its line, from the
   box's center.
-- `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle as the
-  last render drew it, in view pixels (`corners[0..7]`: the image's top-left, top-right,
-  bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND` for an entity without a sprite.
+- `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle, or,
+  without a sprite, of a text's block of lines, as the last render drew it, in view pixels
+  (`corners[0..7]`: the top-left, top-right, bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND`
+  for an entity with neither. The text's outline needed no new function, so the version stays 8.
 - `pixie_entity_view_path(entity, xy, capacity, &count)` gives the line a path was last drawn along,
   corners rounded, in view pixels, filling and counting as `pixie_entities` does, or
   `PIXIE_ERROR_NOT_FOUND` for an entity without a path.
@@ -265,7 +267,11 @@ are a point list that the value functions refuse, writes and reads the points (a
 too small), renders it and finds its fill color before the fill and its color after it, picks it
 within its width and not beside it, reads its line and bounds in the view, finds it drawn over a
 sprite of layer -1 and under the same sprite on layer 0, saves, and reads the points again after
-opening the project anew.
+opening the project anew. Then it copies a font into the project and adds a text: its font field is
+of asset kind `ttf`; drawn, it lights pixels of its color inside its outline (the view quad) and none
+outside it, centered where its transform puts it; it is picked at one of its lit pixels; a sprite at
+the same place lies under it on layer -1 and over it on layer 1, where the sprite is picked instead;
+and its text is read again after saving and opening anew.
 
 With `--open <folder>`, on a game's library, it opens that existing project and changes nothing in
 it: edit mode, a `scenario` entity and one scenario type, then play for 12 steps with something
