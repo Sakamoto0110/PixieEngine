@@ -176,6 +176,10 @@ Then the owner promoted a new anchor for the game
 
 33. The logic sandbox, stage 2: chips and an 8-bit adder (PIXIE-TODO-036).
 
+Block 33 was completed on 2026-10-16: templates come back as chips, boxes with labelled pins that
+open by zoom down to their gates, and an 8-bit ripple adder of full-adder chips of half-adder chips
+adds in the game's start scene.
+
 Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
 particle system made in a blank project does not seem to work, and asked for it to be investigated
 toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).
