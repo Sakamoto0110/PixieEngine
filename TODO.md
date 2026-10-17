@@ -39,11 +39,25 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
-None. The last promoted work, drawing only what is on screen (PIXIE-TODO-037,
-[promotion record](docs/archive/view-culling-promotion-2026-10-16.md)), and the logic sandbox's
-(PIXIE-TODO-032 to PIXIE-TODO-036) are completed; see below. The game lives in its own repository,
-[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox). What comes next waits
-for the owner's promotion.
+Promoted on 2026-10-17 at the owner's request: reading many small sets of entities into a large
+World ([promotion record](docs/archive/scene-index-promotion-2026-10-17.md)). Drawing only what is on
+screen (PIXIE-TODO-037) and the logic sandbox's work (PIXIE-TODO-032 to PIXIE-TODO-036) are
+completed; see below. The game lives in its own repository,
+[`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox).
+
+### `PIXIE-TODO-038` — Reading many small sets of entities into a large World
+
+**Status:** promoted
+
+**Source:** owner request on 2026-10-17, through the session working on the logic sandbox's calculator, whose load spends about 104 s in `ReadEntities` (2272 chips, about 30,000 pieces)
+
+**Accepted scope:** the World keeps its scene entities by scene ID, kept current as `SceneId` components are added, replaced, and removed, and built the first time a read needs it; `ReadScene` and `ReadEntities` check and resolve IDs through it instead of building a map of every scene entity on each call, so a read costs what its text holds, not the World's size. `SceneIds::Keep` and `SceneIds::New`, their checks against the World, and a set's references to its own entities naming their copies, stay as they were. Out: the C API's `pixie_entity_find`, which still scans.
+
+**Dependencies and gates:** none.
+
+**Completion criteria:** (1) runtime tests: the index follows entities destroyed, scene IDs removed and replaced, and repeated IDs; reading many small sets into a large World takes about as long as into a small one; the snapshot tests pass unchanged; (2) zero warnings in Debug and Release, ctest passing locally; (3) the runtime reference states the cost.
+
+**Breakdown:** [`TASKLIST.md`](TASKLIST.md#pixie-todo-038--reading-many-small-sets-of-entities-into-a-large-world)
 
 ## Completed
 

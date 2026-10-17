@@ -39,5 +39,13 @@ and the section shape is in the
 
 ## Open breakdowns
 
-None. The last ones, of PIXIE-TODO-032 to PIXIE-TODO-037 (opened on 2026-10-15 and 2026-10-16), and
-earlier ones, are in their archive records, routed from the [archive router](docs/archive/README.md).
+Opened on 2026-10-17 with PIXIE-TODO-038. Earlier breakdowns, PIXIE-TODO-032 to PIXIE-TODO-037's
+among them, are in their archive records, routed from the [archive router](docs/archive/README.md).
+
+## `PIXIE-TODO-038` — Reading many small sets of entities into a large World
+
+**Parent:** PIXIE-TODO-038
+
+- `PIXIE-TASK-165` — **Status:** open — The World's scene entities by scene ID, in the registry's context, kept by hooks on `SceneId` (added, replaced, removed) and built on first use.
+- `PIXIE-TASK-166` — **Status:** open — `ReadScene` and `ReadEntities` check and resolve IDs through it, with no copy per call; a set's own IDs are looked up first, so its references name its new entities.
+- `PIXIE-TASK-167` — **Status:** open — Tests, and the runtime reference.

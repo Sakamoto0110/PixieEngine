@@ -188,6 +188,12 @@ Then the owner asked for drawing to skip what is off screen, as the zoom grows
 Block 34 was completed on 2026-10-16: a session submits only the sprites, texts, paths, and shapes
 that may show on screen.
 
+Then the logic sandbox's calculator, thousands of chips each read as a small set of entities, took
+minutes to load, nearly all of it in `ReadEntities`, and the owner asked for it to load fast
+([promotion record](docs/archive/scene-index-promotion-2026-10-17.md)):
+
+35. Reading many small sets of entities into a large World (PIXIE-TODO-038).
+
 Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
 particle system made in a blank project does not seem to work, and asked for it to be investigated
 toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).
