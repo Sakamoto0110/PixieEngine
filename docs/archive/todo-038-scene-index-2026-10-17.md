@@ -30,7 +30,7 @@
 
 **Reference date:** 2026-10-17
 
-**Commits:** `51a731bd42cf5841fb5f88b70ea7817156e64ae1`, and this record with parent `51a731bd42cf5841fb5f88b70ea7817156e64ae1`
+**Commits:** `51a731bd42cf5841fb5f88b70ea7817156e64ae1`, and this record with parent `51a731bd42cf5841fb5f88b70ea7817156e64ae1`; the test fix `c4d0571870eb758232a322ca0324279c73d94774`, and its note below with parent `c4d0571870eb758232a322ca0324279c73d94774`
 
 **Original path:** `TODO.md` (the entry) and `TASKLIST.md` (the breakdown)
 
@@ -85,6 +85,14 @@ changed through `Entity::Add`, never in place. Writing scenes and sets, and the 
 - Done by the procedure of the [development guide](../development.md#void-agent-workplace): VAW at
   `c9d81ba1fe538ddaaaa44f2ca48e1dc9d3dcfcb1`, the explicit registry, `pixieengine`/1, the routes
   `runtime` and `documentation` resolved `bound_scoped`.
+- A fault found afterwards, fixed at `c4d0571`: run against the build without the replace hook,
+  `TheWorldsSceneIdsFollowItsEntities` read a read's first entity after the check on their count had
+  failed, and the Debug runtime's "vector subscript out of range" assertion opened a modal dialog on
+  the owner's screen. The test now stops when a read added none, and `tests/TestMain.cpp` sends the
+  debug runtime's assertions and errors to stderr with no abort dialog, as the logic sandbox's tests
+  do. Run again against that broken build, the test failed with exit code 1 and no dialog; on the
+  fixed code, `ctest` 11 of 11 in Debug and Release, zero warnings. The C API's `capi-test` and the
+  libraries it loads, each with its own runtime under `/MT`, keep their default reporting.
 - Not run here: the logic sandbox's calculator load against this engine, which its session measures;
   continuous integration, since nothing was pushed; and the editor's build, which the change does not
   touch.
