@@ -17,7 +17,8 @@ class ComponentTypes;
 
 // Makes an entity part of the scene, under an ID that stays the same through saving and loading.
 // Only entities with one are saved; what project code generates while building (boids from a
-// count) has none, and is built again instead. 0 is never an ID.
+// count) has none, and is built again instead. 0 is never an ID. The World finds its scene entities
+// by ID, so an ID is changed through Entity::Add, never in place.
 struct SceneId {
     std::uint64_t value = 0;
 };
@@ -102,7 +103,8 @@ struct EntitiesReport : SceneReport {
 
 // Adds a set of entities written by WriteEntities to the World. Nothing is added when the document
 // cannot be read, or, with SceneIds::Keep, when one of its IDs is already in the World. Unknown
-// components and fields are kept as a scene keeps them. Not during a step.
+// components and fields are kept as a scene keeps them. Its cost is the document's, not the World's
+// size: the World keeps its scene entities by ID from the first read on. Not during a step.
 EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds ids);
 
 // What ReadFragmentMeta found: a set of entities' meta object, as compact JSON text (empty when it

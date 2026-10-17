@@ -15,9 +15,13 @@
 #include <nlohmann/json.hpp>
 
 #include <array>
+#include <chrono>
+#include <cstddef>
+#include <cstdio>
 #include <filesystem>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 using namespace pixie;
 
@@ -496,4 +500,93 @@ TEST(MetaThatIsNotAnObjectIsLeftOut) {
     CHECK(read.ok && read.meta.empty() && read.warnings.size() == 1 && read.entityCount == 1);
     // What is not a set of entities fails, as ReadEntities does.
     CHECK(!ReadFragmentMeta("{}").ok && !ReadFragmentMeta(WriteScene(world, types)).ok && !ReadFragmentMeta("x").ok);
+}
+
+TEST(TheWorldsSceneIdsFollowItsEntities) {
+    const ComponentTypes types = Types();
+    World world;
+    Fill(world);
+    const Entity pool = Named(world, "pool");
+    const Entity spawner = Named(world, "spawner");
+    const std::uint64_t poolId = pool.Get<SceneId>().value;
+    const std::array pools = {pool};
+    const std::array spawners = {spawner};
+    const std::string poolSet = WriteEntities(world, types, pools);
+    const std::string spawnerSet = WriteEntities(world, types, spawners);
+    // The first read finds the World's scene entities; later ones follow what changes.
+    CHECK(!ReadEntities(world, types, poolSet, SceneIds::Keep).ok);
+
+    // Destroyed, the pool comes back under its ID, and a copy of the spawner feeds it.
+    pool.Destroy();
+    const EntitiesReport back = ReadEntities(world, types, poolSet, SceneIds::Keep);
+    CHECK(back.ok && back.entities.size() == 1);
+    CHECK(!ReadEntities(world, types, poolSet, SceneIds::Keep).ok);
+    const EntitiesReport feeder = ReadEntities(world, types, spawnerSet, SceneIds::New);
+    CHECK(feeder.ok && feeder.entities[0].Get<ParticleSpawner>().system == back.entities[0].Id());
+
+    // Without its SceneId, the spawner leaves the scene, and its ID is free.
+    spawner.Remove<SceneId>();
+    CHECK(ReadEntities(world, types, spawnerSet, SceneIds::Keep).ok);
+
+    // A replaced ID: the old one is free, the new one taken.
+    const Entity moved = back.entities[0];
+    moved.Add<SceneId>(SceneId{NewSceneId()});
+    const EntitiesReport again = ReadEntities(world, types, poolSet, SceneIds::Keep);
+    CHECK(again.ok && again.entities.size() == 1);
+    const std::array movedOnly = {moved};
+    const std::string movedSet = WriteEntities(world, types, movedOnly);
+    CHECK(!ReadEntities(world, types, movedSet, SceneIds::Keep).ok);
+    moved.Destroy();
+    CHECK(ReadEntities(world, types, movedSet, SceneIds::Keep).ok);
+
+    // An ID given by hand to a second entity: when one of them goes, the other still holds it.
+    const Entity twin = world.Create("twin");
+    twin.Add<SceneId>(SceneId{poolId});
+    again.entities[0].Destroy();
+    CHECK(!ReadEntities(world, types, poolSet, SceneIds::Keep).ok);
+    twin.Destroy();
+    CHECK(ReadEntities(world, types, poolSet, SceneIds::Keep).ok);
+}
+
+namespace {
+
+// Reads a set of a few entities `reads` times into a World of `size` scene entities, and returns how
+// long the reads took, after a first read.
+double SecondsToRead(std::size_t size, int reads) {
+    const ComponentTypes types = Types();
+    World world;
+    std::vector<Entity> chosen;
+    for (int i = 0; i < 4; ++i) {
+        Entity entity = world.Create("piece");
+        entity.Add<Transform2D>();
+        entity.Add<Shape>();
+        AddToScene(entity);
+        chosen.push_back(entity);
+    }
+    for (std::size_t i = 0; i < size; ++i) {
+        AddToScene(world.Create());
+    }
+    const std::string text = WriteEntities(world, types, chosen);
+    CHECK(ReadEntities(world, types, text, SceneIds::New).ok);
+
+    bool ok = true;
+    const auto start = std::chrono::steady_clock::now();
+    for (int i = 0; i < reads; ++i) {
+        ok = ReadEntities(world, types, text, SceneIds::New).ok && ok;
+    }
+    const std::chrono::duration<double> taken = std::chrono::steady_clock::now() - start;
+    CHECK(ok);
+    return taken.count();
+}
+
+} // namespace
+
+TEST(ReadingASetCostsWhatItHoldsNotTheWorldsSize) {
+    const double small = SecondsToRead(1'000, 200);
+    const double large = SecondsToRead(100'000, 200);
+    std::fprintf(stderr, "200 reads of 4 entities: %.3f s into 1,000 scene entities, %.3f s into 100,000\n", small,
+                 large);
+    // When each read went through every scene entity, the large World's reads took about a hundred
+    // times as long; the margin is for a busy machine.
+    CHECK(large < 3.0 * small + 0.05);
 }

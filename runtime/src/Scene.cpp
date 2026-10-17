@@ -32,6 +32,18 @@ struct SceneDocumentExtras {
     std::string json;
 };
 
+// The World's scene entities by scene ID, kept in the registry's context: built the first time a
+// read needs it, and kept current from then on by hooks on SceneId, so a read does not scan the
+// World. When two entities hold one ID (only when a game adds it by hand), one of them is found, as
+// a scan finds one, and the index is built again after either goes.
+struct SceneIndex {
+    std::unordered_map<std::uint64_t, entt::entity> entities;
+    // Some ID is held by more than one entity.
+    bool repeated = false;
+    // Built again before its next use: a SceneId was replaced, or a repeated one removed.
+    bool stale = false;
+};
+
 } // namespace detail
 
 namespace {
@@ -157,9 +169,25 @@ Json Encode(const FieldDescriptor& field, const FieldValue& v, entt::registry& r
     return nullptr;
 }
 
+// The entities an Entity field of a list may name, by scene ID: the list's own, under the IDs it was
+// written with, so a reference inside the list names the new entity; then the World's.
+struct SceneLookup {
+    const std::unordered_map<std::uint64_t, entt::entity>& listed;
+    const std::unordered_map<std::uint64_t, entt::entity>& world;
+
+    const entt::entity* Find(std::uint64_t id) const {
+        if (const auto found = listed.find(id); found != listed.end()) {
+            return &found->second;
+        }
+        if (const auto found = world.find(id); found != world.end()) {
+            return &found->second;
+        }
+        return nullptr;
+    }
+};
+
 // Reads a field's value from the file into `out`; returns what is wrong with it, or nothing.
-std::string Decode(const FieldDescriptor& field, const Json& value,
-                   const std::unordered_map<std::uint64_t, entt::entity>& ids, FieldValue& out) {
+std::string Decode(const FieldDescriptor& field, const Json& value, const SceneLookup& ids, FieldValue& out) {
     switch (field.kind) {
     case FieldKind::Bool:
         if (!value.is_boolean()) {
@@ -206,11 +234,11 @@ std::string Decode(const FieldDescriptor& field, const Json& value,
         if (!ParseHexId(value, id)) {
             return "expected an entity's id or null";
         }
-        const auto found = ids.find(id);
-        if (found == ids.end()) {
+        const entt::entity* found = ids.Find(id);
+        if (found == nullptr) {
             return std::format("no entity in the scene has the id {}", value.dump());
         }
-        out.x = static_cast<double>(static_cast<std::uint32_t>(found->second));
+        out.x = static_cast<double>(static_cast<std::uint32_t>(*found));
         return {};
     }
     case FieldKind::Text:
@@ -411,13 +439,60 @@ std::string MetaText(const Json& document, std::vector<std::string>& warnings) {
     return meta->dump(-1, ' ', false, Json::error_handler_t::replace);
 }
 
-// The World's scene entities by scene ID.
-std::unordered_map<std::uint64_t, entt::entity> SceneEntities(entt::registry& registry) {
-    std::unordered_map<std::uint64_t, entt::entity> found;
+void BuildSceneIndex(entt::registry& registry, detail::SceneIndex& index) {
+    index.entities.clear();
+    index.entities.reserve(registry.storage<SceneId>().size());
+    index.repeated = false;
+    index.stale = false;
     for (const auto [id, sceneId] : registry.view<const SceneId>().each()) {
-        found.emplace(sceneId.value, id);
+        if (!index.entities.try_emplace(sceneId.value, id).second) {
+            index.repeated = true;
+        }
     }
-    return found;
+}
+
+void OnSceneIdAdded(entt::registry& registry, entt::entity id) {
+    detail::SceneIndex& index = registry.ctx().get<detail::SceneIndex>();
+    const auto [found, added] = index.entities.try_emplace(registry.get<SceneId>(id).value, id);
+    if (!added && found->second != id) {
+        index.repeated = true;
+    }
+}
+
+// The ID it replaced is not known here.
+void OnSceneIdReplaced(entt::registry& registry, entt::entity) {
+    registry.ctx().get<detail::SceneIndex>().stale = true;
+}
+
+// Called while the entity still has its SceneId.
+void OnSceneIdRemoved(entt::registry& registry, entt::entity id) {
+    detail::SceneIndex& index = registry.ctx().get<detail::SceneIndex>();
+    if (index.stale) {
+        return;
+    }
+    if (const auto found = index.entities.find(registry.get<SceneId>(id).value);
+        found != index.entities.end() && found->second == id) {
+        index.entities.erase(found);
+    }
+    // Another entity may hold the ID it held.
+    index.stale = index.repeated;
+}
+
+// The World's scene entities by scene ID (detail::SceneIndex), kept with the World; it changes as
+// SceneIds are added, so an iterator into it is not kept across adding one.
+const std::unordered_map<std::uint64_t, entt::entity>& SceneEntities(entt::registry& registry) {
+    detail::SceneIndex* index = registry.ctx().find<detail::SceneIndex>();
+    if (index == nullptr) {
+        index = &registry.ctx().emplace<detail::SceneIndex>();
+        registry.on_construct<SceneId>().connect<&OnSceneIdAdded>();
+        registry.on_update<SceneId>().connect<&OnSceneIdReplaced>();
+        registry.on_destroy<SceneId>().connect<&OnSceneIdRemoved>();
+        index->stale = true;
+    }
+    if (index->stale) {
+        BuildSceneIndex(registry, *index);
+    }
+    return index->entities;
 }
 
 // Checks a list of entities before anything is added: each an object with a valid id, used once in
@@ -447,15 +522,18 @@ std::string CheckEntities(const Json& list, const std::unordered_map<std::uint64
     return {};
 }
 
-// Adds the listed entities under the scene IDs `assigned` and fills their components. `ids` maps
-// the IDs an Entity field may name to entities: it starts with the World's, and gains the list's,
-// so a reference inside the list finds the new entity and one outside it the World's. Returns the
+// Adds the listed entities under the scene IDs `assigned` and fills their components. An Entity
+// field names an entity of the list by the ID it was written with (`listed`), so a reference inside
+// the list finds the new entity, and one outside it the World's (`sceneEntities`). Returns the
 // entities, in the list's order.
 std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const Json& list,
                                 const std::vector<std::uint64_t>& listed, const std::vector<std::uint64_t>& assigned,
-                                std::unordered_map<std::uint64_t, entt::entity>& ids, SceneReport& report) {
+                                const std::unordered_map<std::uint64_t, entt::entity>& sceneEntities,
+                                SceneReport& report) {
     std::vector<Entity> created;
     created.reserve(list.size());
+    std::unordered_map<std::uint64_t, entt::entity> listedEntities;
+    listedEntities.reserve(list.size());
     for (std::size_t i = 0; i < list.size(); ++i) {
         const Json& entry = list[i];
         std::string name;
@@ -464,9 +542,10 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
         }
         Entity entity = world.Create(name);
         entity.Add<SceneId>(SceneId{assigned[i]});
-        ids.insert_or_assign(listed[i], entity.Id());
+        listedEntities.insert_or_assign(listed[i], entity.Id());
         created.push_back(entity);
     }
+    const SceneLookup ids{listedEntities, sceneEntities};
 
     for (std::size_t i = 0; i < list.size(); ++i) {
         const Json& entry = list[i];
@@ -619,7 +698,7 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
 
     // Every ID is checked before anything is added, so a bad file leaves the World as it was.
     entt::registry& registry = world.Registry();
-    std::unordered_map<std::uint64_t, entt::entity> ids = SceneEntities(registry);
+    const std::unordered_map<std::uint64_t, entt::entity>& ids = SceneEntities(registry);
     std::vector<std::uint64_t> listed;
     if (std::string problem = CheckEntities(list, ids, true, listed); !problem.empty()) {
         return Failed(std::move(problem));
@@ -700,7 +779,7 @@ EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::stri
         return fail(std::move(error));
     }
     const Json& list = document["entities"];
-    std::unordered_map<std::uint64_t, entt::entity> ids = SceneEntities(world.Registry());
+    const std::unordered_map<std::uint64_t, entt::entity>& ids = SceneEntities(world.Registry());
     std::vector<std::uint64_t> listed;
     if (std::string problem = CheckEntities(list, ids, sceneIds == SceneIds::Keep, listed); !problem.empty()) {
         return fail(std::move(problem));
