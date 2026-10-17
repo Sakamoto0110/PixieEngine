@@ -194,6 +194,9 @@ minutes to load, nearly all of it in `ReadEntities`, and the owner asked for it 
 
 35. Reading many small sets of entities into a large World (PIXIE-TODO-038).
 
+Block 35 was completed on 2026-10-17: the World keeps its scene entities by scene ID, so reading a set
+of entities costs what the set holds, not the World's size.
+
 Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
 particle system made in a blank project does not seem to work, and asked for it to be investigated
 toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).

@@ -371,6 +371,13 @@ The checks and the kept unknown data are a scene's: a set that cannot be read, o
 with an ID already in the World, adds nothing. The World's seed is not part of a set and is left
 alone. Not during a step.
 
+A read costs what its document holds, not the World's size, so a game can read many small sets,
+such as one per chip, into a large World. The World keeps its scene entities by scene ID in its
+registry's context, built by the first `ReadScene` or `ReadEntities` and kept current from then on
+as `SceneId`s are added, replaced (through `Entity::Add`), and removed, with their entities or alone.
+A replaced ID, or one removed while another entity holds the same ID, makes the next read find them
+all again, once. A `SceneId` is never changed in place.
+
 A set can carry metadata: `WriteEntities(world, types, entities, meta)` takes a JSON object as text
 and writes it as `meta`, after the format and the version and before the entities, for what a game
 keeps about a saved set, such as a template's name. Meta that is not a JSON object is left out, with
