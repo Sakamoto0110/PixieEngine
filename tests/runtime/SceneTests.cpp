@@ -520,9 +520,14 @@ TEST(TheWorldsSceneIdsFollowItsEntities) {
     pool.Destroy();
     const EntitiesReport back = ReadEntities(world, types, poolSet, SceneIds::Keep);
     CHECK(back.ok && back.entities.size() == 1);
+    // What follows reads the entities a read added; without them it stops, not reading past the end.
+    if (back.entities.size() != 1) {
+        return;
+    }
     CHECK(!ReadEntities(world, types, poolSet, SceneIds::Keep).ok);
     const EntitiesReport feeder = ReadEntities(world, types, spawnerSet, SceneIds::New);
-    CHECK(feeder.ok && feeder.entities[0].Get<ParticleSpawner>().system == back.entities[0].Id());
+    CHECK(feeder.ok && feeder.entities.size() == 1 &&
+          feeder.entities[0].Get<ParticleSpawner>().system == back.entities[0].Id());
 
     // Without its SceneId, the spawner leaves the scene, and its ID is free.
     spawner.Remove<SceneId>();
@@ -533,6 +538,9 @@ TEST(TheWorldsSceneIdsFollowItsEntities) {
     moved.Add<SceneId>(SceneId{NewSceneId()});
     const EntitiesReport again = ReadEntities(world, types, poolSet, SceneIds::Keep);
     CHECK(again.ok && again.entities.size() == 1);
+    if (again.entities.size() != 1) {
+        return;
+    }
     const std::array movedOnly = {moved};
     const std::string movedSet = WriteEntities(world, types, movedOnly);
     CHECK(!ReadEntities(world, types, movedSet, SceneIds::Keep).ok);
