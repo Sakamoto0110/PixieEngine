@@ -30,7 +30,7 @@
 
 **Reference date:** 2026-10-22
 
-**Commits:** uncommitted working tree based on `2365251e7ea50fe730e937c03bdd404f46a86f40`
+**Commits:** `414e40f6def238ff7f1afbbded00f477abfdd6c4`, and this record in `a18fe6ba9ecadb94b148f6cce7d23019bd277c70`
 
 **Current state:** [authoring guide](../editor-movement.md), [sample](../../samples/movement-lab/README.md)
 

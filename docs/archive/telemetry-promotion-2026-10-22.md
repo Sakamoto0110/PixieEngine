@@ -30,7 +30,7 @@
 
 **Reference date:** 2026-10-22
 
-**Commits:** uncommitted working tree based on `2365251e7ea50fe730e937c03bdd404f46a86f40`
+**Commits:** `a18fe6ba9ecadb94b148f6cce7d23019bd277c70`, which adds this record; the promoted work is in `9d022c1639383f3397cfe7ac52057db1b20860be`
 
 **Current state:** [TODO.md](../../TODO.md)
 

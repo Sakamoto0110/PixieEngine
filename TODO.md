@@ -51,8 +51,8 @@ entry may keep an explicit gate after promotion.
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
-verification. Completion of 039 and 040 is recorded in the uncommitted
-working tree; this table does not imply a commit, push or independent acceptance.
+verification. The code of 039 to 042 is in commits `9d022c1` and `414e40f`, with their
+records in `a18fe6b`; this table does not imply independent acceptance.
 
 | Entry | Scope | Completion date | Record |
 |---|---|---|---|
