@@ -47,6 +47,11 @@ add_library(nlohmann_json INTERFACE)
 add_library(nlohmann_json::nlohmann_json ALIAS nlohmann_json)
 target_include_directories(nlohmann_json SYSTEM INTERFACE nlohmann_json/single_include)
 
+# Box2D is a private runtime backend; its upstream sources remain unmodified.
+set(BOX2D_DOUBLE_PRECISION OFF CACHE BOOL "" FORCE)
+add_subdirectory(box2d SYSTEM)
+set_target_properties(box2d PROPERTIES FOLDER external)
+
 foreach(target glew glfw update_mappings pixie_math)
     if(TARGET ${target})
         set_target_properties(${target} PROPERTIES FOLDER external)

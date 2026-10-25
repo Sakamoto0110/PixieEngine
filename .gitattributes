@@ -8,3 +8,4 @@ external/pixielib/** -text
 external/glm/** -text
 external/entt/** -text
 external/nlohmann_json/** -text
+external/box2d/** -text

@@ -76,6 +76,12 @@ version change.
 | GLM | Vectors and matrices behind PixieLib's math | 1.0.3 release, unmodified, in `external/glm/`; archive `glm-1.0.3.zip`, SHA-256 `1c0a0fced9b0d87c7b7bc94e40be490cff6d4c83c25db8488d8f33754e7fdeb2` (the digest GitHub publishes for the asset) | 1.0.3 (2025-12-31) | `ok` | MIT or Happy Bunny license (`external/glm/copying.txt`). Brought by PixieLib (`pixie::math`), which pins 1.0.3; given to it as its `FetchContent` source. Not used directly by the engine. |
 | nlohmann/json | Reading and writing scene files (`runtime/src/Scene.cpp`) | v3.12.0 single header and license, unmodified, in `external/nlohmann_json/`; release asset `json.hpp`, SHA-256 `aaf127c04cb31c406e5b04a63f1ae89369fccde6d8fa7cdda1ed4f32dfc5de63`; `LICENSE.MIT` from the tag, SHA-256 `46a65cffd1ea955132d95a8dd921640714a8d6b537d2e4e482d31145ae95b603` | v3.12.0 (2025-04-11) | `ok` | MIT license. Adopted 2026-10-14 for the scene format (PIXIE-PROPOSAL-005, PIXIE-TODO-018). Header-only, through the `nlohmann_json::nlohmann_json` interface target; linked privately by the runtime library, so no public header includes it. GitHub publishes no digest for the asset; the hash was computed on download. Readable text scenes for diffs and debugging; a binary format can come later. |
 
+### Collision backend (adopted 2026-10-22)
+
+| Dependency | Used for | In use | Latest observed | Status | Notes |
+|---|---|---|---|---|---|
+| Box2D | Private runtime collision queries and capsule contact primitives | 3.2.0, unmodified source under `external/box2d/`, except its `.gitattributes`, left out because a nested one would override the root `-text` rule | 3.2.0, checked 2026-10-22 | `ok` | Owner selected backend plus our character controller. MIT (`external/box2d/LICENSE`). Static build through upstream CMake, single precision; upstream samples/tests are not built as a subproject. Public runtime headers expose no b2 types. Archive `https://codeload.github.com/erincatto/box2d/zip/refs/tags/v3.2.0`, SHA-256 `ed94013e8d16b19876757920bfa6d7663358aef8ba9407cc18146da6b714029e`. Runtime queries use one worker; no implicit global physics stepping. |
+
 ## Editor side
 
 The engine has no dependency on a GUI toolkit or binding. Its contract with an
