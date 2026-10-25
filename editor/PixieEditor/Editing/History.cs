@@ -1,4 +1,5 @@
 using PixieEditor.Native;
+using PixieEditor.Inspection;
 
 namespace PixieEditor.Editing;
 
@@ -108,6 +109,14 @@ internal sealed class History
 internal sealed class EditRecorder(EngineSession session, History history, Func<bool> recording)
 {
     private readonly Dictionary<(uint Entity, int Type, int Field), (ulong Id, PixieValue Before, PixieValue After)> Open = [];
+    private readonly Dictionary<uint, (ulong Id, string Before)> Records = [];
+
+    public void WriteRecord(uint entity, RecordAddress address, int field, PixieValue value)
+    {
+        if (!Records.ContainsKey(entity) && recording() && session.SceneId(entity) is { } id)
+            Records[entity] = (id, session.Snapshot([entity]));
+        session.SetRecord(entity, address.OwnerType, address.List, address.Index, field, value);
+    }
 
     public void Write(uint entity, int type, int field, PixieValue value)
     {
@@ -121,6 +130,14 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void Close()
     {
+        foreach (var (entity, change) in Records)
+        {
+            if (!session.IsAlive(entity)) continue;
+            var after = session.Snapshot([entity]);
+            if (change.Before != after)
+                history.Record(new ReplaceStep("edit of shape properties", [change.Id], change.Before, after));
+        }
+        Records.Clear();
         if (Open.Count == 0)
             return;
 

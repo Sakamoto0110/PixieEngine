@@ -36,6 +36,7 @@ public enum PixieFieldKind
     Entity = 9,
     Text = 10,
     PointList = 11,
+    RecordList = 12,
 }
 
 public enum PixieEditorKind
@@ -47,6 +48,8 @@ public enum PixieEditorKind
     Choice = 4,
     Color = 5,
     Arc = 6,
+    LayerMask = 7,
+    LayerNames = 8,
 }
 
 [Flags]
@@ -112,13 +115,19 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 8;
+    internal const int Version = 12;
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
 
     [LibraryImport(Library, EntryPoint = "pixie_last_error")]
     internal static partial int LastError(byte* buffer, int capacity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_movement_status")]
+    internal static partial PixieResult MovementStatus(nint session, byte* buffer, int capacity, out int required);
+
+    [LibraryImport(Library, EntryPoint = "pixie_collision_layer_name")]
+    internal static partial PixieResult CollisionLayerName(nint session, int slot, byte* buffer, int capacity, out int required);
 
     [LibraryImport(Library, EntryPoint = "pixie_session_create")]
     internal static partial PixieResult SessionCreate(int width, int height, ulong seed, out nint session);
@@ -273,8 +282,35 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_entities_restore", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult EntitiesRestore(nint session, string snapshot, int ids, uint* entities, int capacity, out int count);
 
+    [LibraryImport(Library, EntryPoint = "pixie_record_info")]
+    internal static partial PixieResult RecordInfo(nint session, uint entity, int type, int list, out int itemType, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_edit")]
+    internal static partial PixieResult RecordEdit(nint session, uint entity, int type, int list, int index, int remove);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_get")]
+    internal static partial PixieResult RecordGet(nint session, uint entity, int type, int list, int index, int field, out PixieValue value);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_set")]
+    internal static partial PixieResult RecordSet(nint session, uint entity, int type, int list, int index, int field, in PixieValue value);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_get_points")]
+    internal static partial PixieResult RecordGetPoints(nint session, uint entity, int type, int list, int index, int field, double* xy, int capacity, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_set_points")]
+    internal static partial PixieResult RecordSetPoints(nint session, uint entity, int type, int list, int index, int field, double* xy, int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_get_text")]
+    internal static partial PixieResult RecordGetText(nint session, uint entity, int type, int list, int index, int field, byte* text, int capacity, out int required);
+
+    [LibraryImport(Library, EntryPoint = "pixie_record_set_text", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult RecordSetText(nint session, uint entity, int type, int list, int index, int field, string text);
+
     [LibraryImport(Library, EntryPoint = "pixie_component_add")]
     internal static partial PixieResult ComponentAdd(nint session, uint entity, int type);
+
+    [LibraryImport(Library, EntryPoint = "pixie_component_add_status")]
+    internal static partial PixieResult ComponentAddStatus(nint session, uint entity, int type, byte* buffer, int capacity, out int required);
 
     [LibraryImport(Library, EntryPoint = "pixie_component_remove")]
     internal static partial PixieResult ComponentRemove(nint session, uint entity, int type);

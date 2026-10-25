@@ -24,8 +24,16 @@ pixie_target_defaults(engine-tests)
 add_test(NAME engine-tests COMMAND engine-tests)
 
 add_executable(runtime-tests
+    runtime/PhysicsEventsTests.cpp
+    runtime/BodyQualificationTests.cpp
+    runtime/RigidBodyTests.cpp
+    runtime/CollisionMovementTests.cpp
+    runtime/SceneMovementTests.cpp
+    runtime/MotorGravityTests.cpp
     TestMain.cpp
     runtime/ComponentTypesTests.cpp
+    runtime/CompoundAuthoringTests.cpp
+    runtime/CollisionLayersTests.cpp
     runtime/OrderIndependenceTests.cpp
     runtime/ParticleTests.cpp
     runtime/PathTests.cpp
@@ -45,7 +53,8 @@ set_target_properties(runtime-tests PROPERTIES FOLDER tests)
 target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(runtime-tests PRIVATE Pixie::Runtime nlohmann_json::nlohmann_json)
 target_compile_definitions(runtime-tests PRIVATE
-    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\"")
+    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\""
+    "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 
@@ -70,6 +79,14 @@ endif()
 if(TARGET pixie-scene-capi)
     add_test(NAME pixie-scene-capi
              COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --project ${CMAKE_CURRENT_BINARY_DIR}/capi-project)
+    add_test(NAME compound-authoring
+             COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --compounds ${CMAKE_CURRENT_BINARY_DIR}/compound-project)
+    add_test(NAME collision-layers
+             COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --layers ${CMAKE_CURRENT_BINARY_DIR}/layer-project)
+    add_test(NAME body-authoring
+             COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --bodies ${CMAKE_CURRENT_BINARY_DIR}/body-project)
+    add_test(NAME movement-authoring
+             COMMAND capi-test $<TARGET_FILE:pixie-scene-capi> --movement ${CMAKE_CURRENT_BINARY_DIR}/movement-project)
 endif()
 
 # A project with code made from the templates, built as a project of its own against this engine, and

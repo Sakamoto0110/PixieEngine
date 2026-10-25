@@ -49,6 +49,16 @@ internal sealed class Selection
         Anchor = null;
     }
 
+    // Play/Stop reconstruct the World. Scene IDs identify the same authored entities across it.
+    public void PreserveThrough(EngineSession session, Action rebuild)
+    {
+        var ids = Chosen.Select(session.SceneId).OfType<ulong>().ToArray();
+        var anchorId = Anchor is { } anchor ? session.SceneId(anchor) : null;
+        rebuild();
+        var restored = ids.Select(session.Find).OfType<uint>().ToArray();
+        Set(restored, anchorId is { } id ? session.Find(id) : null);
+    }
+
     // Drops the entities that no longer exist, such as one deleted in the viewport.
     public void Prune(EngineSession session)
     {

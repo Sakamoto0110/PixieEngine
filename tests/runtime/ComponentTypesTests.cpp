@@ -8,6 +8,34 @@
 
 using namespace pixie;
 
+TEST(SingletonAdmissionIsGenericAndExistingNondefaultComponentsAreAllowed) {
+    struct Unique { double value = 1; };
+    struct NeedsValue {
+        explicit NeedsValue(double initial) : value(initial) {}
+        double value;
+    };
+    ComponentTypes types;
+    types.Add<Unique>("Unique").Singleton().Field<&Unique::value>("value");
+    types.Add<NeedsValue>("NeedsValue").Field<&NeedsValue::value>("value");
+    World world;
+    auto first = world.Create();
+    auto second = world.Create();
+    const auto& unique = types.All()[0];
+    const auto& constructed = types.All()[1];
+    CHECK(unique.AdditionError(world, first.Id()).empty());
+    first.Add<Unique>();
+    CHECK(unique.AdditionError(world, first.Id()).empty());
+    CHECK(!unique.AdditionError(world, second.Id()).empty());
+    first.Remove<Unique>();
+    CHECK(unique.AdditionError(world, second.Id()).empty());
+    CHECK(!constructed.AdditionError(world, first.Id()).empty());
+    first.Add<NeedsValue>(42.0);
+    CHECK(constructed.AdditionError(world, first.Id()).empty());
+    CHECK(first.Get<NeedsValue>().value == 42);
+    first.Destroy();
+    CHECK(!constructed.AdditionError(world, first.Id()).empty());
+}
+
 namespace {
 
 enum class Mode : std::uint8_t { First, Second, Third };

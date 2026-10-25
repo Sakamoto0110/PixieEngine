@@ -163,6 +163,7 @@ Json Encode(const FieldDescriptor& field, const FieldValue& v, entt::registry& r
     }
     case FieldKind::Text:
     case FieldKind::PointList:
+    case FieldKind::RecordList:
         // Written through readText or readPoints; never a FieldValue.
         return nullptr;
     }
@@ -245,8 +246,94 @@ std::string Decode(const FieldDescriptor& field, const Json& value, const SceneL
         return "expected text";
     case FieldKind::PointList:
         return "expected [[x, y], ...]";
+    case FieldKind::RecordList:
+        return "expected a record list";
     }
     return "unknown field kind";
+}
+
+const ComponentDescriptor& RecordType(const ComponentTypes& types, const FieldDescriptor& field) {
+    for (const auto& type : types.All()) if (type.type == field.recordType) return type;
+    throw std::invalid_argument("record item type is not registered");
+}
+
+Json EncodeField(const FieldDescriptor& field, void* component, const ComponentTypes& types,
+                 entt::registry& registry, const std::string& where, std::vector<std::string>* warnings, int depth = 0) {
+    if (depth > 8) throw std::invalid_argument("record nesting exceeds 8 levels");
+    if (field.kind == FieldKind::Text) return field.readText(component);
+    if (field.kind == FieldKind::PointList) {
+        Json points = Json::array();
+        for (const auto& p : field.readPoints(component)) points.push_back(Json::array({p.x, p.y}));
+        return points;
+    }
+    if (field.kind == FieldKind::RecordList) {
+        const auto& itemType = RecordType(types, field);
+        if (field.recordCount(component) > FieldDescriptor::maxRecords) throw std::invalid_argument("record list exceeds 256 items");
+        Json records = Json::array();
+        for (std::size_t i = 0; i < field.recordCount(component); ++i) {
+            Json item = Json::object();
+            item["v"] = itemType.version;
+            for (const auto& child : itemType.fields)
+                item[child.name] = EncodeField(child, field.recordAt(component, i), types, registry,
+                    std::format("{}.{}[{}]", where, field.name, i), warnings, depth + 1);
+            const auto kept = ParseKept(field.recordExtras(component, i));
+            if (kept.contains("v") && kept["v"].is_number_integer() && kept["v"].get<std::int64_t>() > itemType.version)
+                item["v"] = kept["v"];
+            Merge(item, kept);
+            records.push_back(std::move(item));
+        }
+        return records;
+    }
+    return Encode(field, field.read(component), registry, where, warnings);
+}
+
+std::string DecodeField(const FieldDescriptor& field, const Json& saved, void* component,
+                        const ComponentTypes& types, const SceneLookup& ids, int depth = 0) {
+    if (depth > 8) return "record nesting exceeds 8 levels";
+    if (field.kind == FieldKind::Text) {
+        if (!saved.is_string()) return "expected text";
+        field.writeText(component, saved.get_ref<const std::string&>());
+        return {};
+    }
+    if (field.kind == FieldKind::PointList) {
+        if (!saved.is_array()) return "expected [[x, y], ...]";
+        std::vector<pxPoint> points;
+        for (const auto& point : saved) {
+            double xy[2];
+            if (!Numbers(point, 2, xy)) return "expected [[x, y], ...]";
+            points.emplace_back(xy[0], xy[1]);
+        }
+        field.writePoints(component, points);
+        return {};
+    }
+    if (field.kind == FieldKind::RecordList) {
+        if (!saved.is_array() || saved.size() > FieldDescriptor::maxRecords) return "expected at most 256 records";
+        try {
+            const auto& itemType = RecordType(types, field);
+            field.replaceRecords(component, saved.size(), [&](void* item, std::string& extras, std::size_t i) {
+                if (!saved[i].is_object()) throw std::invalid_argument("record must be an object");
+                Json unknown = Json::object();
+                for (auto child = saved[i].begin(); child != saved[i].end(); ++child) {
+                    if (child.key() == "v") {
+                        if (child.value().is_number_integer() && child.value().get<std::int64_t>() > itemType.version)
+                            unknown["v"] = child.value();
+                        continue;
+                    }
+                    const auto known = std::find_if(itemType.fields.begin(), itemType.fields.end(),
+                        [&](const FieldDescriptor& f) { return f.name == child.key(); });
+                    if (known == itemType.fields.end()) { unknown[child.key()] = child.value(); continue; }
+                    if (auto error = DecodeField(*known, child.value(), item, types, ids, depth + 1); !error.empty())
+                        throw std::invalid_argument(std::format("record {}.{}: {}", i, child.key(), error));
+                }
+                extras = unknown.empty() ? "" : unknown.dump();
+            });
+            return {};
+        } catch (const std::invalid_argument& error) { return error.what(); }
+    }
+    FieldValue value;
+    auto error = Decode(field, saved, ids, value);
+    if (error.empty()) field.write(component, value);
+    return error;
 }
 
 std::string Scalar(const Json& value) {
@@ -359,6 +446,7 @@ Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::en
 
     Json components = Json::object();
     for (const ComponentDescriptor& type : types.All()) {
+        if (type.valueType) continue;
         void* component = type.find(registry, id);
         if (component == nullptr) {
             continue;
@@ -367,17 +455,7 @@ Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::en
         fields["v"] = type.version;
         const std::string where = std::format("{} of entity {}", type.name, hex);
         for (const FieldDescriptor& field : type.fields) {
-            if (field.kind == FieldKind::Text) {
-                fields[field.name] = field.readText(component);
-            } else if (field.kind == FieldKind::PointList) {
-                Json points = Json::array();
-                for (const pxPoint& p : field.readPoints(component)) {
-                    points.push_back(Json::array({p.x, p.y}));
-                }
-                fields[field.name] = std::move(points);
-            } else {
-                fields[field.name] = Encode(field, field.read(component), registry, where, warnings);
-            }
+            fields[field.name] = EncodeField(field, component, types, registry, where, warnings);
         }
         if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
             Merge(fields, extras["fields"][type.name]);
@@ -522,6 +600,47 @@ std::string CheckEntities(const Json& list, const std::unordered_map<std::uint64
     return {};
 }
 
+// Offers the numeric fields of `typeName` that `kept` holds to the type's upgrade, then removes from
+// `kept` those it consumed, so a converted value is not also written back as an unknown field.
+void UpgradeComponent(const ComponentDescriptor& type, void* component, int savedVersion, Json& kept,
+                      const std::string& typeName) {
+    LegacyFields legacy;
+    if (kept.contains(typeName)) {
+        for (auto field = kept[typeName].begin(); field != kept[typeName].end(); ++field) {
+            const Json& saved = field.value();
+            FieldValue value;
+            if (saved.is_number()) {
+                value.x = saved.get<double>();
+            } else if (saved.is_array() && !saved.empty() && saved.size() <= 4
+                       && std::all_of(saved.begin(), saved.end(), [](const Json& n) { return n.is_number(); })) {
+                double* parts[] = {&value.x, &value.y, &value.z, &value.w};
+                for (std::size_t i = 0; i < saved.size(); ++i) {
+                    *parts[i] = saved[i].get<double>();
+                }
+            } else {
+                continue;
+            }
+            legacy.emplace(field.key(), value);
+        }
+    }
+    std::vector<std::string> offered;
+    for (const auto& entry : legacy) {
+        offered.push_back(entry.first);
+    }
+    type.upgrade(component, savedVersion, legacy);
+    if (!kept.contains(typeName)) {
+        return;
+    }
+    for (const std::string& name : offered) {
+        if (!legacy.contains(name)) {
+            kept[typeName].erase(name);
+        }
+    }
+    if (kept[typeName].empty()) {
+        kept.erase(typeName);
+    }
+}
+
 // Adds the listed entities under the scene IDs `assigned` and fills their components. An Entity
 // field names an entity of the list by the ID it was written with (`listed`), so a reference inside
 // the list finds the new entity, and one outside it the World's (`sceneEntities`). Returns the
@@ -599,41 +718,17 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
                     keptFields[typeName][field.key()] = field.value();
                     continue;
                 }
-                std::string problem;
-                if (known->kind == FieldKind::Text) {
-                    if (field.value().is_string()) {
-                        known->writeText(component, field.value().get_ref<const std::string&>());
-                    } else {
-                        problem = "expected text";
-                    }
-                } else if (known->kind == FieldKind::PointList) {
-                    std::vector<pxPoint> points;
-                    if (field.value().is_array()) {
-                        for (const Json& item : field.value()) {
-                            double xy[2];
-                            if (!Numbers(item, 2, xy)) {
-                                problem = "expected [[x, y], ...]";
-                                break;
-                            }
-                            points.emplace_back(xy[0], xy[1]);
-                        }
-                    } else {
-                        problem = "expected [[x, y], ...]";
-                    }
-                    if (problem.empty()) {
-                        known->writePoints(component, points);
-                    }
-                } else {
-                    FieldValue value;
-                    problem = Decode(*known, field.value(), ids, value);
-                    if (problem.empty()) {
-                        known->write(component, value);
-                    }
-                }
+                const auto problem = DecodeField(*known, field.value(), component, types, ids);
                 if (!problem.empty()) {
                     report.warnings.push_back(std::format("{}.{} of entity {}: {}; left at its default", typeName,
                                                           field.key(), hex, problem));
                 }
+            }
+            const std::int64_t savedVersion =
+                saved.contains("v") && saved["v"].is_number_integer() ? saved["v"].get<std::int64_t>() : 1;
+            if (type.upgrade != nullptr && savedVersion < type.version) {
+                UpgradeComponent(type, component, static_cast<int>(std::max<std::int64_t>(savedVersion, 0)),
+                                 keptFields, typeName);
             }
         }
 

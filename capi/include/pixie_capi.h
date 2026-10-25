@@ -35,7 +35,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 8
+#define PIXIE_CAPI_VERSION 12
 
 typedef struct PixieSession PixieSession;
 
@@ -68,7 +68,8 @@ typedef enum PixieFieldKind {
     PIXIE_FIELD_COLOR = 8,  /* x, y, z, w: red, green, blue, alpha, 0 to 255 */
     PIXIE_FIELD_ENTITY = 9, /* x: an entity handle; 4294967295 is none */
     PIXIE_FIELD_TEXT = 10,  /* none: UTF-8 text, through pixie_field_get_text and pixie_field_set_text */
-    PIXIE_FIELD_POINT_LIST = 11 /* none: points, through pixie_field_get_points and pixie_field_set_points */
+    PIXIE_FIELD_POINT_LIST = 11, /* none: points, through pixie_field_get_points and pixie_field_set_points */
+    PIXIE_FIELD_RECORD_LIST = 12 /* none: bounded native records, through pixie_record_* */
 } PixieFieldKind;
 
 /* The editor a tool should use for a field; AUTO lets it choose from the kind. */
@@ -79,7 +80,9 @@ typedef enum PixieEditorKind {
     PIXIE_EDITOR_TOGGLE = 3,
     PIXIE_EDITOR_CHOICE = 4,
     PIXIE_EDITOR_COLOR = 5,
-    PIXIE_EDITOR_ARC = 6 /* an angle and the width around it; PIXIE_TEXT_ARC_SPREAD names the width */
+    PIXIE_EDITOR_ARC = 6, /* an angle and the width around it; PIXIE_TEXT_ARC_SPREAD names the width */
+    PIXIE_EDITOR_LAYER_MASK = 7, /* 31 membership/collision checkboxes, numeric Int storage unchanged */
+    PIXIE_EDITOR_LAYER_NAMES = 8 /* RecordList of CollisionLayer2D values, edited by stable slot */
 } PixieEditorKind;
 
 /* PixieFieldInfo.flags */
@@ -134,11 +137,21 @@ typedef struct PixieStats {
 
 /* pixie_type_flags */
 #define PIXIE_TYPE_SCENARIO 1u /* values the scene is built from; offer to rebuild after editing */
+#define PIXIE_TYPE_SINGLETON 2u /* authoring allows at most one instance in the World */
+#define PIXIE_TYPE_VALUE 4u /* reflected record metadata; omit from Add component menus */
 
 /* PIXIE_CAPI_VERSION of the library. */
 PIXIE_API int32_t pixie_api_version(void);
 /* The last failure on this thread, as text. Returns the full length, which may exceed capacity. */
 PIXIE_API int32_t pixie_last_error(char* buffer, int32_t capacity);
+/* Scene movement diagnostics summary from the latest sync/update. required includes the null
+ * terminator. Query with null buffer/capacity 0; no simulation step is performed. */
+PIXIE_API PixieResult pixie_movement_status(PixieSession* session, char* buffer, int32_t capacity,
+                                           int32_t* required);
+/* Display name of scene filter slot 1..31, including undefined/invalid-slot fallback names.
+ * No simulation/backend allocation. required includes NUL; capacity 0 measures. */
+PIXIE_API PixieResult pixie_collision_layer_name(PixieSession* session, int32_t slot,
+    char* buffer, int32_t capacity, int32_t* required);
 
 /* Session: the game, its World, and its time. Create it with the host's GL context current; the
  * view is width x height pixels. Loads the GL functions for that context. */
@@ -235,7 +248,8 @@ PIXIE_API PixieResult pixie_entity_view_bounds(PixieSession* session, uint32_t e
 /* The rectangle an entity's Sprite covers in the view, as of the last render, or, without a sprite,
  * its Text's block of lines: four corners (x, y) in view pixels, in `corners[0..7]`, the top-left,
  * top-right, bottom-right, and bottom-left. PIXIE_ERROR_NOT_FOUND for an entity without a Transform2D
- * and a Sprite or a Text. */
+ * and a Sprite or a Text. In Edit mode, a collider/character authoring gizmo may instead
+ * return its world-axis-aligned outline bounds transformed into view pixels. */
 PIXIE_API PixieResult pixie_entity_view_quad(PixieSession* session, uint32_t entity, double* corners);
 /* The line an entity's Path draws in the view, as of the last render, corners rounded: up to
  * `capacity` points (x, y) in view pixels into `xy` (2 * capacity doubles), and `count` set to how
@@ -291,10 +305,35 @@ PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char*
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */
 PIXIE_API int32_t pixie_entity_has(PixieSession* session, uint32_t entity, int32_t type);
+/* Read-only authoring admission: empty text means allowed; otherwise explains the rejection.
+ * required includes NUL; null buffer with capacity 0 measures. Invalid type/entity is an error.
+ * Re-adding an existing component is allowed. Loading snapshots remains permissive for repair. */
+PIXIE_API PixieResult pixie_component_add_status(PixieSession* session, uint32_t entity, int32_t type,
+                                               char* buffer, int32_t capacity, int32_t* required);
 /* Adds a component of the type with its default values, or keeps the one the entity has; removes
- * it. A type that has no default value cannot be added (PIXIE_ERROR_ARGUMENT). */
+ * it. Missing defaults or a rejected native admission rule return PIXIE_ERROR_ARGUMENT. */
 PIXIE_API PixieResult pixie_component_add(PixieSession* session, uint32_t entity, int32_t type);
 PIXIE_API PixieResult pixie_component_remove(PixieSession* session, uint32_t entity, int32_t type);
+/* Record lists contain up to 256 items. item_type uses the ordinary component field metadata.
+ * Item indices are valid until insert/remove/restore. No native pointers leave the session.
+ * List editing is one level; nested records can be serialized but need a future path API.
+ * edit inserts a default item (remove=0) or erases one (remove=1); other values are rejected. */
+PIXIE_API PixieResult pixie_record_info(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                      int32_t* item_type, int32_t* count);
+PIXIE_API PixieResult pixie_record_edit(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                      int32_t index, int32_t remove);
+PIXIE_API PixieResult pixie_record_get(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                     int32_t index, int32_t field, PixieValue* value);
+PIXIE_API PixieResult pixie_record_set(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                     int32_t index, int32_t field, const PixieValue* value);
+PIXIE_API PixieResult pixie_record_get_points(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                            int32_t index, int32_t field, double* xy, int32_t capacity, int32_t* count);
+PIXIE_API PixieResult pixie_record_set_points(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                            int32_t index, int32_t field, const double* xy, int32_t count);
+PIXIE_API PixieResult pixie_record_get_text(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                          int32_t index, int32_t field, char* text, int32_t capacity, int32_t* required);
+PIXIE_API PixieResult pixie_record_set_text(PixieSession*, uint32_t entity, int32_t type, int32_t list,
+                                          int32_t index, int32_t field, const char* text);
 PIXIE_API int32_t pixie_field_count(PixieSession* session, int32_t type);
 PIXIE_API PixieResult pixie_field_name(PixieSession* session, int32_t type, int32_t field,
                                        char* buffer, int32_t capacity);

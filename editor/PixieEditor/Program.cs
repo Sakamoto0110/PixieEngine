@@ -51,7 +51,9 @@ internal static class Program
           --paused <on|off>        start with time paused (default off)
           --save-after <seconds>   save the project after this long (after the --set edits)
           --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
-          --do <command>           after the --set edits, one per frame: create, duplicate, delete, undo, redo,
+          --do <command>           after the --set edits, one per frame: create, collider, character, dynamic, kinematic, sensor, world,
+                                  compoundbox, compound, addshape, removeshape=<index>, shape=<index>:<field>:<value>, wait=<seconds>,
+                                  duplicate, delete, undo, redo,
                                    select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,
                                    add=<Type>, remove=<Type>, save, play, stop,
                                    drop=<file>[;<file>...]@<x>,<y> (as files dropped at a point of the view, in pixels),

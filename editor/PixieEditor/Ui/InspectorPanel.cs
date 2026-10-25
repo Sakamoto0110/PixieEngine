@@ -21,7 +21,7 @@ namespace PixieEditor.Ui;
 // why it cannot be read; under a font, whether its file is missing.
 // So are lists of points: a row of X and Y per point, each edit one step when it lets go, with buttons
 // to remove a point and to add one.
-internal sealed class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder, AssetChooser files) : IDisposable
+internal sealed partial class InspectorPanel(EngineSession session, Authoring authoring, Editing.EditRecorder recorder, AssetChooser files) : IDisposable
 {
     private static readonly Vector4 ProblemColor = new(1.0f, 0.45f, 0.4f, 1.0f);
     private const float PreviewSize = 96f;
@@ -69,6 +69,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
                     ImGui.TextDisabled("They share no component.");
                 ImGui.Separator();
                 int? remove = null;
+                var makeCompound = false;
                 foreach (var section in Sections)
                 {
                     ImGui.PushID(section.Type);
@@ -78,12 +79,21 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
                     {
                         foreach (var text in section.Texts)
                         {
-                            if (text.Kind == PixieFieldKind.PointList)
+                            if (text.Kind == PixieFieldKind.RecordList)
+                            {
+                                if (session.FieldInfo(section.Type, text.Field).Editor == PixieEditorKind.LayerNames)
+                                    DrawLayerNames(section.Type, text.Field);
+                                else DrawRecords(section.Type, text);
+                            }
+                            else if (text.Kind == PixieFieldKind.PointList)
                                 DrawPoints(section.Type, text);
                             else
                                 DrawText(section.Type, text);
                         }
+                        DrawLayerMasks(section.Type, Entities.Select(id => new ComponentHandle(session, id, section.Type, recorder)).ToArray());
                         section.View.Draw();
+                        if (section.Name == "Collider2D" && session.TypeIndex("CompoundCollider2D") >= 0 && ImGui.Button("Make compound"))
+                            makeCompound = true;
                     }
                     if (!keep)
                         remove = section.Type;
@@ -96,6 +106,11 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
                 // made again on the next frame.
                 if (remove is { } type)
                     authoring.Change(Entities, $"removal of {session.TypeName(type)}", id => session.RemoveComponent(id, type));
+                else if (makeCompound)
+                {
+                    recorder.Close();
+                    authoring.MakeCompound(Entities);
+                }
             }
         }
 
@@ -112,13 +127,18 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
 
         for (var type = 0; type < session.TypeCount; type++)
         {
-            if (Types.Contains(type))
+            if (Types.Contains(type) || session.IsValueType(type))
                 continue;
+            var reason = authoring.AdditionError(Entities, type);
+            ImGui.BeginDisabled(reason != null);
             if (ImGui.Selectable(session.TypeName(type)))
             {
                 var chosen = type;
                 authoring.AddComponent(Entities, chosen);
             }
+            ImGui.EndDisabled();
+            if (reason != null && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+                ImGui.SetTooltip(reason);
         }
 
         ImGui.EndPopup();
@@ -291,6 +311,15 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         if (section == null)
             return false;
 
+        var maskField = Enumerable.Range(0, session.FieldCount(section.Type)).FirstOrDefault(f => session.FieldName(section.Type, f) == property, -1);
+        if (maskField >= 0 && session.FieldInfo(section.Type, maskField).Editor == PixieEditorKind.LayerMask)
+        {
+            foreach (var entity in Entities)
+                new ComponentHandle(session, entity, section.Type, recorder).Set(maskField,
+                    new PixieValue { X = int.Parse(text, CultureInfo.InvariantCulture) });
+            return true;
+        }
+
         if (section.Texts.FirstOrDefault(t => t.Name == property) is { } textField)
         {
             if (textField.Kind == PixieFieldKind.PointList)
@@ -337,6 +366,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
         Release();
         Typing.Clear();
         PointTyping.Clear();
+        LayerTyping.Clear();
         Entities = entities;
         Types = types;
         foreach (var type in types)
@@ -345,7 +375,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
             var inspector = InspectorFactory.Build(session, type, handles, () => RebuildRequested = true);
             var texts = Enumerable.Range(0, session.FieldCount(type))
                 .Select(f => (Field: f, Kind: session.FieldInfo(type, f).Kind))
-                .Where(f => f.Kind is PixieFieldKind.Text or PixieFieldKind.PointList)
+                .Where(f => f.Kind is PixieFieldKind.Text or PixieFieldKind.PointList or PixieFieldKind.RecordList)
                 .Select(f => new TextField(f.Field, session.FieldName(type, f.Field), session.FieldText(type, f.Field, PixieFieldText.Label),
                     session.FieldText(type, f.Field, PixieFieldText.Tooltip), session.FieldText(type, f.Field, PixieFieldText.Asset), f.Kind))
                 .ToArray();
@@ -355,6 +385,7 @@ internal sealed class InspectorPanel(EngineSession session, Authoring authoring,
 
     private void Release()
     {
+        ReleaseRecords();
         foreach (var section in Sections)
         {
             section.View.Dispose();

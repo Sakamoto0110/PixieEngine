@@ -27,6 +27,7 @@ internal static class InspectorFactory
         var row = 0;
         foreach (var (field, info) in fields)
         {
+            if (info.Editor == PixieEditorKind.LayerMask) continue;
             foreach (var node in AddNodes(inspector, session, type, field, info))
             {
                 ApplyOptions(node, session, type, field, info);

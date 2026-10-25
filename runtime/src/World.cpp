@@ -4,6 +4,7 @@
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
 
 namespace pixie {
 
@@ -23,11 +24,11 @@ void CopyPreviousTransforms(World& world, const FrameTime&, const Input&) {
 void IntegrateVelocities(World& world, const FrameTime& time, const Input&) {
     // Semi-implicit Euler: the velocity first, then the position with the new velocity.
     for (auto [id, velocity, acceleration] :
-         world.Registry().view<Velocity2D, const Acceleration2D>().each()) {
+         world.Registry().view<Velocity2D, const Acceleration2D>(entt::exclude<CharacterMotor2D, RigidBody2D>).each()) {
         velocity.linear += acceleration.linear * time.delta;
     }
     for (auto [id, transform, velocity] :
-         world.Registry().view<Transform2D, const Velocity2D>().each()) {
+         world.Registry().view<Transform2D, const Velocity2D>(entt::exclude<CharacterMotor2D, RigidBody2D>).each()) {
         transform.position = transform.position + velocity.linear * time.delta;
         transform.rotation += velocity.angular * time.delta;
     }

@@ -1,7 +1,10 @@
 using PixieEditor.Editing;
 using PixieEditor.Native;
+using System.Text.Json.Nodes;
 
 namespace PixieEditor.Ui;
+
+internal enum PhysicsPreset { Static, Dynamic, Compound, Kinematic, Sensor, Character, World }
 
 // Changing the scene by hand: creating, deleting, duplicating, renaming, changing components, and
 // moving entities, from the entity list, the viewport, the inspector, and the shortcuts. In a
@@ -15,6 +18,202 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
     private const double DuplicateOffset = 16;
 
     public History History => history;
+
+    // Names are scene data; slots never follow list order. A rename/clear is one native
+    // snapshot history step and never writes any collider category or mask.
+    public bool RenameCollisionLayer(int slot, string name)
+    {
+        return Guard(() =>
+        {
+            if (slot is < 1 or > 31) throw new EngineException("Collision layer slots are 1..31.");
+            var type = session.TypeIndex("CollisionLayers2D");
+            if (type < 0) throw new EngineException("Rebuild the library for collision layer authoring.");
+            var owners = session.Entities().Where(e => session.Has(e, type)).ToArray();
+            if (owners.Length > 1) throw new EngineException("Remove the duplicate CollisionLayers2D configuration first.");
+            var created = owners.Length == 0;
+            var owner = created ? session.CreateEntity("collision layers") : owners[0];
+            try
+            {
+                if (created) session.AddComponent(owner, type);
+                var list = session.FieldIndex(type, "layers");
+                var (item, count) = session.RecordInfo(owner, type, list);
+                var slotField = session.FieldIndex(item, "slot");
+                var nameField = session.FieldIndex(item, "name");
+                var matches = Enumerable.Range(0, count).Where(i => session.GetRecord(owner, type, list, i, slotField).X == slot).ToArray();
+                if (matches.Length > 1) throw new EngineException($"Remove duplicate records for layer {slot} first.");
+                if (matches.Length == 0 && count >= 256) throw new EngineException("Remove invalid name records before adding another layer name.");
+                void Write(uint entity)
+                {
+                    var index = matches.Length == 0 ? count : matches[0];
+                    if (matches.Length == 0)
+                    {
+                        session.EditRecord(entity, type, list, index, remove: false);
+                        session.SetRecord(entity, type, list, index, slotField, new PixieValue { X = slot });
+                    }
+                    session.SetRecordText(entity, type, list, index, nameField, name.Trim());
+                }
+                if (created)
+                {
+                    Write(owner);
+                    Record("creation of collision layer names", [owner], before: null, after: true);
+                }
+                else Change([owner], $"rename of collision layer {slot}", Write);
+                return true;
+            }
+            catch { if (created) session.Destroy(owner); throw; }
+        });
+    }
+
+    public void EditRecord(uint entity, int type, int list, int index, bool remove) =>
+        Change([entity], remove ? "removal of shape" : "addition of shape", e => session.EditRecord(e, type, list, index, remove));
+
+    public void SetRecordPoints(uint entity, int type, int list, int index, int field, IReadOnlyList<(double X, double Y)> points) =>
+        Change([entity], "edit of shape points", e => session.SetRecordPoints(e, type, list, index, field, points));
+
+    public void SetRecordText(uint entity, int type, int list, int index, int field, string text) =>
+        Change([entity], "edit of shape text", e => session.SetRecordText(e, type, list, index, field, text));
+
+    public bool MakeCompound(IReadOnlyList<uint> entities)
+    {
+        return Guard(() =>
+        {
+            var collider = session.TypeIndex("Collider2D");
+            if (entities.Count == 0 || session.TypeIndex("CompoundCollider2D") < 0 || entities.Any(e => !session.Has(e, collider)))
+                throw new EngineException("Select entities with Collider2D to convert their geometry.");
+            var (ids, before) = Take(entities);
+            if (before == null || ids.Length != entities.Count)
+                throw new EngineException("Compound conversion needs authored scene entities.");
+            var document = JsonNode.Parse(before)!;
+            foreach (var entity in document["entities"]!.AsArray())
+            {
+                var components = entity!["components"]!.AsObject();
+                if (components.ContainsKey("CompoundCollider2D") || components.ContainsKey("CharacterMotor2D"))
+                    throw new EngineException("Remove conflicting geometry/movement components before conversion.");
+                var original = components["Collider2D"]!.DeepClone();
+                components.Remove("Collider2D");
+                components["CompoundCollider2D"] = new JsonObject
+                {
+                    ["v"] = 1, ["enabled"] = true, ["shapes"] = new JsonArray(original)
+                };
+            }
+            // Snapshots are the existing native scene transport. Move the entire saved collider,
+            // including unknown fields; no physics values or backend state are reconstructed here.
+            foreach (var entity in entities) session.Destroy(entity);
+            uint[] restored;
+            try { restored = session.Restore(document.ToJsonString(), newIds: false); }
+            catch { selection.Set(session.Restore(before, newIds: false)); throw; }
+            selection.Set(restored);
+            if (Recording) history.Record(new ReplaceStep("conversion to compound", ids, before, session.Snapshot(restored)));
+            return true;
+        });
+    }
+
+    public static readonly (PhysicsPreset Kind, string Label)[] PhysicsPresets =
+    [
+        (PhysicsPreset.Static, "Static obstacle"), (PhysicsPreset.Dynamic, "Dynamic box"),
+        (PhysicsPreset.Compound, "Compound box"),
+        (PhysicsPreset.Kinematic, "Kinematic platform"), (PhysicsPreset.Sensor, "Sensor region"),
+        (PhysicsPreset.Character, "Character"), (PhysicsPreset.World, "World settings")
+    ];
+
+    public uint? CreateMovementEntity(bool character, (double X, double Y)? at = null) =>
+        CreatePhysicsEntity(character ? PhysicsPreset.Character : PhysicsPreset.Static, at);
+
+    // One creation/history step, using the engine's reflected fields and serialized scene.
+    public uint? CreatePhysicsEntity(PhysicsPreset preset, (double X, double Y)? at = null)
+    {
+        return Guard(() =>
+        {
+            var character = preset == PhysicsPreset.Character;
+            var world = preset == PhysicsPreset.World;
+            var movingBody = preset is PhysicsPreset.Dynamic or PhysicsPreset.Compound or PhysicsPreset.Kinematic;
+            string[] required = world ? ["PhysicsSettings2D"]
+                : character ? ["Transform2D", "Shape", "CharacterMotor2D", "KeyboardControl2D"]
+                : preset == PhysicsPreset.Compound ? ["Transform2D", "Shape", "CompoundCollider2D", "RigidBody2D"]
+                : movingBody ? ["Transform2D", "Shape", "Collider2D", "RigidBody2D"]
+                : ["Transform2D", "Shape", "Collider2D"];
+            if (required.Any(name => session.TypeIndex(name) < 0))
+                throw new EngineException("Rebuild the game library for physics authoring.");
+            if (world)
+            {
+                var settings = session.TypeIndex("PhysicsSettings2D");
+                foreach (var existing in session.Entities())
+                    if (session.Has(existing, settings))
+                    {
+                        selection.Set(existing);
+                        Status.Show("Selected the scene's existing world settings.");
+                        return existing;
+                    }
+            }
+            var transform = session.TypeIndex("Transform2D");
+            var shape = session.TypeIndex("Shape");
+            var prefix = preset switch
+            {
+                PhysicsPreset.Static => "collider", PhysicsPreset.Dynamic => "dynamic box",
+                PhysicsPreset.Compound => "compound box",
+                PhysicsPreset.Kinematic => "platform", PhysicsPreset.Sensor => "sensor",
+                PhysicsPreset.Character => "character", _ => "world physics"
+            };
+            var names = session.Entities().Select(session.EntityName).ToHashSet();
+            var number = Enumerable.Range(1, names.Count + 1).First(n => !names.Contains($"{prefix} {n}"));
+            var entity = session.CreateEntity($"{prefix} {number}");
+            try
+            {
+                foreach (var name in required) session.AddComponent(entity, session.TypeIndex(name));
+                if (!world)
+                {
+                    if (at is { } point) Set(transform, "position", new PixieValue { X = point.X, Y = point.Y });
+                    var size = preset switch
+                    {
+                        PhysicsPreset.Character => new PixieValue { X = 12, Y = 24 },
+                        PhysicsPreset.Dynamic or PhysicsPreset.Compound => new PixieValue { X = 20, Y = 28 },
+                        PhysicsPreset.Kinematic => new PixieValue { X = 80, Y = 8 },
+                        PhysicsPreset.Sensor => new PixieValue { X = 36, Y = 40 },
+                        _ => new PixieValue { X = 80, Y = 12 }
+                    };
+                    Set(shape, "kind", new PixieValue { X = 3 });
+                    Set(shape, "size", size);
+                    Set(shape, "color", preset switch
+                    {
+                        PhysicsPreset.Character => new PixieValue { X = 70, Y = 225, Z = 180, W = 255 },
+                        PhysicsPreset.Dynamic or PhysicsPreset.Compound => new PixieValue { X = 235, Y = 165, Z = 65, W = 255 },
+                        PhysicsPreset.Kinematic => new PixieValue { X = 175, Y = 120, Z = 230, W = 255 },
+                        PhysicsPreset.Sensor => new PixieValue { X = 80, Y = 200, Z = 240, W = 80 },
+                        _ => new PixieValue { X = 85, Y = 105, Z = 140, W = 255 }
+                    });
+                    if (preset == PhysicsPreset.Compound)
+                    {
+                        var compound = session.TypeIndex("CompoundCollider2D");
+                        var collider = session.TypeIndex("Collider2D");
+                        session.SetRecord(entity, compound, session.FieldIndex(compound, "shapes"), 0,
+                            session.FieldIndex(collider, "halfSize"), size);
+                    }
+                    else if (!character)
+                    {
+                        var collider = session.TypeIndex("Collider2D");
+                        Set(collider, "halfSize", size);
+                        if (preset == PhysicsPreset.Sensor) Set(collider, "sensor", new PixieValue { X = 1 });
+                    }
+                    if (preset == PhysicsPreset.Kinematic)
+                    {
+                        var body = session.TypeIndex("RigidBody2D");
+                        Set(body, "type", new PixieValue { X = 1 });
+                        Set(body, "initialVelocity", new PixieValue { X = 40 });
+                    }
+                }
+                Record($"creation of {prefix} {number}", [entity], before: null, after: true);
+            }
+            catch
+            {
+                session.Destroy(entity);
+                throw;
+            }
+            selection.Set(entity);
+            return entity;
+
+            void Set(int type, string field, PixieValue value) => session.Set(entity, type, session.FieldIndex(type, field), value);
+        });
+    }
 
     public bool Recording => session.ProjectFolder != null && session.Editing;
 
@@ -230,6 +429,13 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
     // first TrueType font, so it shows at once.
     public void AddComponent(IReadOnlyList<uint> entities, int type)
     {
+        // Preflight the whole selection before changing any entity, so a rejected batch cannot
+        // leave an unrecorded partial edit. The native add call checks again at the mutation.
+        if (AdditionError(entities, type) is { } reason)
+        {
+            Status.Show(reason, error: true);
+            return;
+        }
         var name = session.TypeName(type);
         var font = name == "Text" ? ProjectAssets.First(session.ProjectFolder, "ttf") : null;
         Change(entities, $"addition of {name}", e =>
@@ -238,6 +444,20 @@ internal sealed class Authoring(EngineSession session, Selection selection, Hist
             if (font != null && session.GetText(e, type, session.FieldIndex(type, "font")).Length == 0)
                 session.SetText(e, type, session.FieldIndex(type, "font"), font);
         });
+    }
+
+    public string? AdditionError(IReadOnlyList<uint> entities, int type)
+    {
+        foreach (var entity in entities)
+        {
+            var reason = session.ComponentAdditionError(entity, type);
+            if (reason.Length > 0) return $"{Describe(entity)}: {reason}";
+        }
+        // A singleton can pass each individual check when absent. Do not add it to a batch.
+        // The native second add would reject, but this avoids a partial history entry.
+        if (session.IsSingleton(type) && entities.Count(e => !session.Has(e, type)) > 1)
+            return $"{session.TypeName(type)} belongs to one entity. Select a single entity.";
+        return null;
     }
 
     // Changes the entities one by one, as one step: adding or removing a component.

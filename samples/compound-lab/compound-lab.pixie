@@ -1,0 +1,6 @@
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "Compound body laboratory",
+  "startScene": "scenes/main.scene"
+}

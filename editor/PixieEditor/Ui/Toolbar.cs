@@ -162,12 +162,12 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport, Aut
         {
             if (editing)
             {
-                session.Play();
+                selection.PreserveThrough(session, session.Play);
                 viewport.Mode = ViewportMode.Game;
             }
             else
             {
-                session.Stop();
+                selection.PreserveThrough(session, session.Stop);
                 viewport.Mode = ViewportMode.Select;
             }
         }

@@ -287,6 +287,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var previous = GLFW.GetTime();
         var editsApplied = false;
         var nextCommand = 0;
+        var commandResumeAt = 0.0;
         var savedOnce = false;
         while (!controls.CloseRequested)
         {
@@ -382,9 +383,15 @@ internal sealed class EditorWindow(EditorOptions options)
                 exitCode = ApplyEdits(inspector) ? exitCode : 3;
                 editsApplied = true;
             }
-            else if (editsApplied && nextCommand < options.Commands.Count)
+            else if (editsApplied && nextCommand < options.Commands.Count && now >= commandResumeAt)
             {
-                exitCode = RunCommand(options.Commands[nextCommand++], session, authoring, selection, entities, viewport) ? exitCode : 3;
+                var command = options.Commands[nextCommand++];
+                if (command.StartsWith("wait=", StringComparison.Ordinal)
+                    && double.TryParse(command[5..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds)
+                    && double.IsFinite(seconds) && seconds >= 0 && seconds <= 3600)
+                    commandResumeAt = now + seconds;
+                else
+                    exitCode = RunCommand(command, session, authoring, selection, entities, viewport, inspector) ? exitCode : 3;
             }
 
             // An inspector edit is one step, from the first write until no control is held.
@@ -498,7 +505,7 @@ internal sealed class EditorWindow(EditorOptions options)
 
     // One command of --do, as the editor's own gestures would run it; the state is logged after it.
     private static bool RunCommand(string command, EngineSession session, Authoring authoring, Selection selection,
-        EntitiesPanel entities, ViewportPanel viewport)
+        EntitiesPanel entities, ViewportPanel viewport, InspectorPanel inspector)
     {
         var equals = command.IndexOf('=');
         var verb = equals < 0 ? command : command[..equals].TrimEnd('+');
@@ -510,6 +517,56 @@ internal sealed class EditorWindow(EditorOptions options)
         {
             case "create":
                 ok = authoring.CreateEntity() != null;
+                break;
+            case "collider":
+                ok = authoring.CreateMovementEntity(false) != null;
+                break;
+            case "character":
+                ok = authoring.CreateMovementEntity(true) != null;
+                break;
+            case "compound":
+                ok = authoring.MakeCompound(chosen);
+                break;
+            case "addshape":
+            case "removeshape":
+                if (chosen.Length == 1 && session.TypeIndex("CompoundCollider2D") is var compoundType and >= 0 && session.Has(chosen[0], compoundType))
+                {
+                    var list = session.FieldIndex(compoundType, "shapes");
+                    var index = verb == "addshape" ? session.RecordInfo(chosen[0], compoundType, list).Count : int.Parse(argument, System.Globalization.CultureInfo.InvariantCulture);
+                    authoring.EditRecord(chosen[0], compoundType, list, index, remove: verb == "removeshape");
+                }
+                else ok = false;
+                break;
+            case "shape":
+                var shapeParts = argument.Split(':', 3);
+                ok = shapeParts.Length == 3 && int.TryParse(shapeParts[0], out var shapeIndex) && inspector.SetShape(shapeIndex, shapeParts[1], shapeParts[2]);
+                break;
+            case "layername":
+                var nameParts = argument.Split(':', 2);
+                ok = nameParts.Length == 2 && int.TryParse(nameParts[0], out var layerSlot) && inspector.RenameLayer(layerSlot, nameParts[1]);
+                break;
+            case "layer":
+                var layerParts = argument.Split(':', 3);
+                ok = layerParts.Length == 3 && int.TryParse(layerParts[1], out var slot) && bool.TryParse(layerParts[2], out var enabled)
+                    && inspector.SetLayer("Collider2D", layerParts[0], slot, enabled);
+                break;
+            case "shapelayer":
+                var shapeLayerParts = argument.Split(':', 4);
+                ok = shapeLayerParts.Length == 4 && int.TryParse(shapeLayerParts[0], out var itemIndex)
+                    && int.TryParse(shapeLayerParts[2], out var itemSlot) && bool.TryParse(shapeLayerParts[3], out var itemEnabled)
+                    && inspector.SetLayer("Collider2D", shapeLayerParts[1], itemSlot, itemEnabled, itemIndex);
+                break;
+            case "dynamic":
+            case "compoundbox":
+            case "kinematic":
+            case "sensor":
+            case "world":
+                var preset = verb switch
+                {
+                    "dynamic" => PhysicsPreset.Dynamic, "compoundbox" => PhysicsPreset.Compound, "kinematic" => PhysicsPreset.Kinematic,
+                    "sensor" => PhysicsPreset.Sensor, _ => PhysicsPreset.World
+                };
+                ok = authoring.CreatePhysicsEntity(preset) != null;
                 break;
             case "duplicate":
                 authoring.Duplicate(chosen);
@@ -578,11 +635,11 @@ internal sealed class EditorWindow(EditorOptions options)
                 }
                 break;
             case "play":
-                session.Play();
+                selection.PreserveThrough(session, session.Play);
                 viewport.Mode = ViewportMode.Game;
                 break;
             case "stop":
-                session.Stop();
+                selection.PreserveThrough(session, session.Stop);
                 viewport.Mode = ViewportMode.Select;
                 break;
             default:

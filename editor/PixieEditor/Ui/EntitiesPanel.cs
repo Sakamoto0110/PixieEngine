@@ -23,6 +23,20 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection, 
             ImGui.TextUnformatted(selection.Items.Count > 1
                 ? $"{entities.Length} entities, {selection.Items.Count} selected"
                 : $"{entities.Length} entities");
+            if (session.TypeIndex("Collider2D") >= 0)
+            {
+                if (ImGui.SmallButton("Collider")) authoring.CreateMovementEntity(false);
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Character")) authoring.CreateMovementEntity(true);
+                ImGui.SameLine();
+                if (ImGui.SmallButton("Physics...")) ImGui.OpenPopup("physics-presets");
+                if (ImGui.BeginPopup("physics-presets"))
+                {
+                    foreach (var (kind, label) in Authoring.PhysicsPresets)
+                        if (ImGui.MenuItem(label)) authoring.CreatePhysicsEntity(kind);
+                    ImGui.EndPopup();
+                }
+            }
             ImGui.Separator();
 
             if (ImGui.BeginChild("##list"))

@@ -36,7 +36,8 @@ using System = std::function<void(World& world, const FrameTime& time, const Inp
 // A step runs, in order: the PreUpdate systems, then every Behaviour (class by class), then the
 // PostUpdate systems, then the destructions and deferred actions requested during the step. The
 // World's own systems come first in their phase: in PreUpdate, copying each Transform2D into its
-// PreviousTransform2D; in PostUpdate, integrating Velocity2D into Transform2D.
+// PreviousTransform2D; in PostUpdate, integrating Velocity2D into Transform2D for entities without
+// CharacterMotor2D and RigidBody2D, whose physics service owns motion instead.
 class World {
 public:
     explicit World(std::uint64_t seed = 0);

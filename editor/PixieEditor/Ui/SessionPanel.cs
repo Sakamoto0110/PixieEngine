@@ -9,6 +9,8 @@ namespace PixieEditor.Ui;
 // next to this one, each opened in a new editor.
 internal sealed class SessionPanel(EngineSession session, string game)
 {
+    private string MovementStatus = "";
+    private long NextStatusRead;
     // Set when another game was opened, so the editor closes.
     public bool CloseRequested { get; private set; }
 
@@ -54,6 +56,16 @@ internal sealed class SessionPanel(EngineSession session, string game)
             ImGui.TextUnformatted($"Entities: {stats.Entities}");
             ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
             ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+            if (Environment.TickCount64 >= NextStatusRead)
+            {
+                MovementStatus = session.MovementStatus;
+                NextStatusRead = Environment.TickCount64 + 250;
+            }
+            if (MovementStatus.Length > 0)
+            {
+                ImGui.Separator();
+                ImGui.TextWrapped("Movement configuration: " + MovementStatus);
+            }
 
             if (project != null)
             {

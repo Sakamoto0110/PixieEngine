@@ -1,0 +1,226 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "0000000000000100",
+      "name": "floor",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            0,
+            190
+          ],
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            440,
+            16
+          ],
+          "color": [
+            85,
+            105,
+            140,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            440,
+            16
+          ],
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000101",
+      "name": "ramp",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            70,
+            136
+          ],
+          "rotation": -0.3,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            160,
+            10
+          ],
+          "color": [
+            85,
+            105,
+            140,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            160,
+            10
+          ],
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000102",
+      "name": "wall",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            360,
+            80
+          ],
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            110
+          ],
+          "color": [
+            85,
+            105,
+            140,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            12,
+            110
+          ],
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000103",
+      "name": "ceiling",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            200,
+            -10
+          ],
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            80,
+            12
+          ],
+          "color": [
+            85,
+            105,
+            140,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            80,
+            12
+          ],
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "0000000000000200",
+      "name": "character",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -310,
+            80
+          ],
+          "rotation": 0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            24
+          ],
+          "color": [
+            70,
+            225,
+            180,
+            255
+          ],
+          "visible": true
+        },
+        "CharacterMotor2D": {
+          "v": 1,
+          "radius": 12,
+          "halfSegment": 12,
+          "maxSpeed": 200,
+          "acceleration": 1400,
+          "braking": 1800,
+          "gravity": 1100,
+          "terminalSpeed": 700,
+          "jumpSpeed": 380,
+          "maxSlopeDegrees": 45,
+          "coyoteSeconds": 0.08,
+          "jumpBufferSeconds": 0.1
+        },
+        "KeyboardControl2D": {
+          "v": 1,
+          "enabled": true
+        }
+      }
+    }
+  ]
+}

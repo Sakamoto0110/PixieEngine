@@ -106,7 +106,55 @@ public sealed unsafe class EngineSession : IDisposable
         }
     }
 
+    public (int Type, int Count) RecordInfo(uint entity, int type, int list)
+    {
+        Check(PixieCapi.RecordInfo(Handle, entity, type, list, out var itemType, out var count), "read record info");
+        return (itemType, count);
+    }
+    public void EditRecord(uint entity, int type, int list, int index, bool remove) =>
+        Check(PixieCapi.RecordEdit(Handle, entity, type, list, index, remove ? 1 : 0), "edit record list");
+    public PixieValue GetRecord(uint entity, int type, int list, int index, int field)
+    {
+        Check(PixieCapi.RecordGet(Handle, entity, type, list, index, field, out var value), "read record value");
+        return value;
+    }
+    public void SetRecord(uint entity, int type, int list, int index, int field, PixieValue value) =>
+        Check(PixieCapi.RecordSet(Handle, entity, type, list, index, field, in value), "write record value");
+    public (double X, double Y)[] GetRecordPoints(uint entity, int type, int list, int index, int field)
+    {
+        Check(PixieCapi.RecordGetPoints(Handle, entity, type, list, index, field, null, 0, out var count), "measure record points");
+        var xy = new double[count * 2];
+        fixed (double* data = xy)
+            Check(PixieCapi.RecordGetPoints(Handle, entity, type, list, index, field, data, count, out _), "read record points");
+        return Enumerable.Range(0, count).Select(i => (xy[2*i], xy[2*i+1])).ToArray();
+    }
+    public void SetRecordPoints(uint entity, int type, int list, int index, int field, IReadOnlyList<(double X, double Y)> points)
+    {
+        var xy = points.SelectMany(p => new[] {p.X, p.Y}).ToArray();
+        fixed (double* data = xy)
+            Check(PixieCapi.RecordSetPoints(Handle, entity, type, list, index, field, data, points.Count), "write record points");
+    }
+    public string GetRecordText(uint entity, int type, int list, int index, int field)
+    {
+        Check(PixieCapi.RecordGetText(Handle, entity, type, list, index, field, null, 0, out var required), "measure record text");
+        var bytes = new byte[required];
+        fixed (byte* data = bytes)
+            Check(PixieCapi.RecordGetText(Handle, entity, type, list, index, field, data, required, out _), "read record text");
+        return Encoding.UTF8.GetString(bytes, 0, required - 1);
+    }
+    public void SetRecordText(uint entity, int type, int list, int index, int field, string text) =>
+        Check(PixieCapi.RecordSetText(Handle, entity, type, list, index, field, text), "write record text");
+
     public void AddComponent(uint entity, int type) => Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
+
+    public string ComponentAdditionError(uint entity, int type)
+    {
+        Check(PixieCapi.ComponentAddStatus(Handle, entity, type, null, 0, out var required), "measure component admission");
+        var bytes = new byte[required];
+        fixed (byte* data = bytes)
+            Check(PixieCapi.ComponentAddStatus(Handle, entity, type, data, bytes.Length, out _), "read component admission");
+        return Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1);
+    }
     public void RemoveComponent(uint entity, int type) => Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
 
     public void Dispose()
@@ -119,6 +167,18 @@ public sealed unsafe class EngineSession : IDisposable
     }
 
     public string ProjectName => ReadString((b, n) => PixieCapi.ProjectName(Handle, b, n), "read the project name");
+
+    public string MovementStatus
+    {
+        get
+        {
+            Check(PixieCapi.MovementStatus(Handle, null, 0, out var required), "measure movement status");
+            var bytes = new byte[required];
+            fixed (byte* data = bytes)
+                Check(PixieCapi.MovementStatus(Handle, data, bytes.Length, out _), "read movement status");
+            return Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1);
+        }
+    }
 
     public PixieStats Stats
     {
@@ -143,6 +203,17 @@ public sealed unsafe class EngineSession : IDisposable
 
     // The component type holds a scenario: values the scene is built from.
     public bool IsScenario(int type) => (PixieCapi.TypeFlags(Handle, type) & 1u) != 0;
+    public bool IsSingleton(int type) => (PixieCapi.TypeFlags(Handle, type) & 2u) != 0;
+    public bool IsValueType(int type) => (PixieCapi.TypeFlags(Handle, type) & 4u) != 0;
+
+    public unsafe string CollisionLayerName(int slot)
+    {
+        Check(PixieCapi.CollisionLayerName(Handle, slot, null, 0, out var required), "measure a collision layer name");
+        var buffer = new byte[required];
+        fixed (byte* output = buffer)
+            Check(PixieCapi.CollisionLayerName(Handle, slot, output, buffer.Length, out _), "read a collision layer name");
+        return System.Text.Encoding.UTF8.GetString(buffer, 0, required - 1);
+    }
 
     public void Resize(int width, int height) => Check(PixieCapi.SessionResize(Handle, width, height), "resize");
     public void Advance(double seconds) => Check(PixieCapi.SessionAdvance(Handle, seconds), "advance");

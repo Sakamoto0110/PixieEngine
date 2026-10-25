@@ -397,6 +397,17 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
                 files.Open("png", file => Drop([file], at));
             }
 
+            if (session.TypeIndex("Collider2D") >= 0 && ImGui.MenuItem("New collider here"))
+                authoring.CreateMovementEntity(false, session.ViewToWorld(MenuAt.X, MenuAt.Y));
+            if (session.TypeIndex("CharacterMotor2D") >= 0 && ImGui.MenuItem("New character here"))
+                authoring.CreateMovementEntity(true, session.ViewToWorld(MenuAt.X, MenuAt.Y));
+            if (session.TypeIndex("RigidBody2D") >= 0 && ImGui.BeginMenu("Physics"))
+            {
+                foreach (var (kind, label) in Authoring.PhysicsPresets)
+                    if (ImGui.MenuItem(label)) authoring.CreatePhysicsEntity(kind, session.ViewToWorld(MenuAt.X, MenuAt.Y));
+                ImGui.EndMenu();
+            }
+
             // A project's own scene has nothing to ask the game for.
             if (session.ProjectFolder == null && ImGui.MenuItem("Ask the game to create one here"))
                 Log(session.SpawnAt(MenuAt.X, MenuAt.Y) ? $"The game created one at ({MenuAt.X:0}, {MenuAt.Y:0})" : "The game creates nothing there");

@@ -17,6 +17,7 @@
 #include "pixie/runtime/TextDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -31,9 +32,12 @@
 
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
+static_assert(static_cast<int>(pixie::FieldEditor::LayerMask) == PIXIE_EDITOR_LAYER_MASK);
+static_assert(static_cast<int>(pixie::FieldEditor::LayerNames) == PIXIE_EDITOR_LAYER_NAMES);
 static_assert(static_cast<int>(pixie::FieldKind::Entity) == PIXIE_FIELD_ENTITY);
 static_assert(static_cast<int>(pixie::FieldKind::Text) == PIXIE_FIELD_TEXT);
 static_assert(static_cast<int>(pixie::FieldKind::PointList) == PIXIE_FIELD_POINT_LIST);
+static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECORD_LIST);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
@@ -162,6 +166,36 @@ double ToWorldLength(PixieSession* s, double pixels) {
         return Fail(PIXIE_ERROR_ARGUMENT, "null session");                                         \
     }
 
+struct RecordAccess {
+    void* owner = nullptr;
+    void* item = nullptr;
+    const pixie::FieldDescriptor* list = nullptr;
+    const pixie::FieldDescriptor* field = nullptr;
+    int32_t itemType = -1;
+};
+PixieResult RecordOf(PixieSession* s, uint32_t entity, int32_t type, int32_t listIndex,
+                    int32_t index, int32_t child, RecordAccess& out) {
+    out.list = FieldAt(s, type, listIndex);
+    if (!out.list || out.list->kind != pixie::FieldKind::RecordList)
+        return Fail(PIXIE_ERROR_ARGUMENT, "field is not a record list");
+    PixieResult result = PIXIE_OK;
+    out.owner = ComponentOf(s, entity, type, result);
+    if (!out.owner) return result;
+    const auto& types = s->session.Types().All();
+    for (std::size_t i = 0; i < types.size(); ++i)
+        if (types[i].type == out.list->recordType) out.itemType = static_cast<int32_t>(i);
+    if (out.itemType < 0) return Fail(PIXIE_ERROR_ARGUMENT, "record item type is not registered");
+    if (index < 0) return PIXIE_OK; // list-only access
+    if (static_cast<std::size_t>(index) >= out.list->recordCount(out.owner))
+        return Fail(PIXIE_ERROR_ARGUMENT, "record index is out of range");
+    out.item = out.list->recordAt(out.owner, static_cast<std::size_t>(index));
+    out.field = FieldAt(s, out.itemType, child);
+    return out.field ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, "record field is out of range");
+}
+void RecordChanged(PixieSession* s, uint32_t entity) {
+    if (InScene(s, entity)) s->session.MarkChanged();
+}
+
 } // namespace
 
 extern "C" {
@@ -177,6 +211,33 @@ int32_t pixie_last_error(char* buffer, int32_t capacity) {
         buffer[length] = '\0';
     }
     return static_cast<int32_t>(lastError.size());
+}
+
+PixieResult pixie_movement_status(PixieSession* s, char* buffer, int32_t capacity, int32_t* required) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (required == nullptr || capacity < 0 || (buffer == nullptr && capacity > 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid movement status output");
+    return Guard([&] {
+        const auto errors = pixie::SceneMovementErrors2D(s->session.GetWorld());
+        std::string summary;
+        const std::size_t shown = std::min(errors.size(), std::size_t{8});
+        for (std::size_t i = 0; i < shown; ++i) summary += errors[i] + "\n";
+        if (shown < errors.size()) summary += std::format("{} more movement errors\n", errors.size() - shown);
+        *required = static_cast<int32_t>(summary.size() + 1);
+        return capacity == 0 ? PIXIE_OK : Copy(summary, buffer, capacity);
+    });
+}
+
+PixieResult pixie_collision_layer_name(PixieSession* s, int32_t slot, char* buffer, int32_t capacity, int32_t* required) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (slot < 1 || slot > 31 || !required || capacity < 0 || (!buffer && capacity > 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid collision layer name query (slots are 1..31)");
+    return Guard([&] {
+        const auto names = pixie::DescribeCollisionLayers2D(s->session.GetWorld());
+        const auto& name = names.names[slot - 1];
+        *required = static_cast<int32_t>(name.size() + 1);
+        return capacity == 0 ? PIXIE_OK : Copy(name, buffer, capacity);
+    });
 }
 
 PixieResult pixie_session_create(int32_t width, int32_t height, uint64_t seed, PixieSession** session) {
@@ -417,9 +478,11 @@ PixieResult pixie_pick(PixieSession* s, double x, double y, double tolerance, ui
         return Fail(PIXIE_ERROR_ARGUMENT, "null output or negative tolerance");
     }
     return Guard([&] {
-        const entt::entity picked =
+        entt::entity picked =
             pixie::PickAt(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance),
                           &s->session.Images(), &s->session.GetFonts());
+        if (picked == entt::null && s->session.Mode() == pixie::SessionMode::Edit)
+            picked = pixie::PickMovementGizmo2D(s->session.GetWorld(), ToWorld(s, x, y), ToWorldLength(s, tolerance));
         if (picked == entt::null) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("nothing to pick at ({}, {})", x, y));
         }
@@ -438,7 +501,11 @@ PixieResult pixie_pick_box(PixieSession* s, double x0, double y0, double x1, dou
         const pxPoint a = ToWorld(s, x0, y0);
         const pxPoint b = ToWorld(s, x1, y1);
         const pxRect box(std::min(a.x, b.x), std::min(a.y, b.y), std::abs(a.x - b.x), std::abs(a.y - b.y));
-        const std::vector<entt::entity> picked = pixie::PickIn(s->session.GetWorld(), box);
+        std::vector<entt::entity> picked = pixie::PickIn(s->session.GetWorld(), box);
+        if (s->session.Mode() == pixie::SessionMode::Edit) {
+            for (const auto id : pixie::PickMovementGizmosIn2D(s->session.GetWorld(), box))
+                if (std::find(picked.begin(), picked.end(), id) == picked.end()) picked.push_back(id);
+        }
         const auto n = static_cast<int32_t>(picked.size());
         for (int32_t i = 0; i < n && i < capacity; ++i) {
             entities[i] = static_cast<uint32_t>(picked[static_cast<std::size_t>(i)]);
@@ -518,6 +585,24 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
         const auto* transform = registry.valid(id) ? registry.try_get<pixie::Transform2D>(id) : nullptr;
         const auto* sprite = registry.valid(id) ? registry.try_get<pixie::Sprite>(id) : nullptr;
         const auto* text = registry.valid(id) ? registry.try_get<pixie::Text>(id) : nullptr;
+        if (transform != nullptr && sprite == nullptr && text == nullptr && s->session.Mode() == pixie::SessionMode::Edit) {
+            std::vector<pxPoint> outline;
+            for (const auto& part : pixie::MovementOutlines2D(s->session.GetWorld(), id))
+                outline.insert(outline.end(), part.begin(), part.end());
+            if (!outline.empty()) {
+                pxPoint low = outline.front(), high = low;
+                for (auto point : outline) {
+                    low = {std::min(low.x, point.x), std::min(low.y, point.y)};
+                    high = {std::max(high.x, point.x), std::max(high.y, point.y)};
+                }
+                const pxPoint box[] = {low, {high.x, low.y}, high, {low.x, high.y}};
+                for (std::size_t i = 0; i < 4; ++i) {
+                    const auto view = s->session.GetCamera().WorldToScreen(box[i]);
+                    corners[i * 2] = view.x; corners[i * 2 + 1] = view.y;
+                }
+                return PIXIE_OK;
+            }
+        }
         if (transform == nullptr || (sprite == nullptr && text == nullptr)) {
             return Fail(PIXIE_ERROR_NOT_FOUND,
                         std::format("entity {} is gone or has no Transform2D and Sprite or Text", entity));
@@ -738,7 +823,9 @@ PixieResult pixie_type_find(PixieSession* s, const char* name, int32_t* type) {
 
 uint32_t pixie_type_flags(PixieSession* s, int32_t type) {
     const pixie::ComponentDescriptor* descriptor = s != nullptr ? TypeAt(s, type) : nullptr;
-    return descriptor != nullptr && descriptor->scenario ? PIXIE_TYPE_SCENARIO : 0u;
+    return descriptor ? (descriptor->scenario ? PIXIE_TYPE_SCENARIO : 0u)
+                      | (descriptor->singleton ? PIXIE_TYPE_SINGLETON : 0u)
+                      | (descriptor->valueType ? PIXIE_TYPE_VALUE : 0u) : 0u;
 }
 
 int32_t pixie_entity_has(PixieSession* s, uint32_t entity, int32_t type) {
@@ -752,16 +839,35 @@ int32_t pixie_entity_has(PixieSession* s, uint32_t entity, int32_t type) {
                : 0;
 }
 
+PixieResult pixie_component_add_status(PixieSession* s, uint32_t entity, int32_t type,
+                                     char* buffer, int32_t capacity, int32_t* required) {
+    PIXIE_REQUIRE_SESSION(s);
+    const auto* descriptor = TypeAt(s, type);
+    if (!descriptor || !required || capacity < 0 || (!buffer && capacity > 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid component admission query");
+    return Guard([&] {
+        auto& world = s->session.GetWorld();
+        if (!world.Registry().valid(ToEntity(entity)))
+            return Fail(PIXIE_ERROR_NOT_FOUND, "entity no longer exists");
+        const auto reason = descriptor->AdditionError(world, ToEntity(entity));
+        *required = static_cast<int32_t>(reason.size() + 1);
+        return capacity == 0 ? PIXIE_OK : Copy(reason, buffer, capacity);
+    });
+}
+
 PixieResult pixie_component_add(PixieSession* s, uint32_t entity, int32_t type) {
     PIXIE_REQUIRE_SESSION(s);
     const pixie::ComponentDescriptor* descriptor = TypeAt(s, type);
     if (descriptor == nullptr) {
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no component type {}", type));
     }
-    if (descriptor->add == nullptr) {
-        return Fail(PIXIE_ERROR_ARGUMENT, std::format("{} has no default value to add", descriptor->name));
-    }
     return Guard([&] {
+        auto& world = s->session.GetWorld();
+        if (!world.Registry().valid(ToEntity(entity)))
+            return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
+        if (auto reason = descriptor->AdditionError(world, ToEntity(entity)); !reason.empty())
+            return Fail(PIXIE_ERROR_ARGUMENT, std::move(reason));
+        if (descriptor->find(world.Registry(), ToEntity(entity))) return PIXIE_OK;
         if (descriptor->add(s->session.GetWorld(), ToEntity(entity)) == nullptr) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
         }
@@ -888,9 +994,9 @@ PixieResult pixie_field_get(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null output", field, type));
     }
     return Guard([&] {
-        if (descriptor->kind == pixie::FieldKind::Text || descriptor->kind == pixie::FieldKind::PointList) {
+        if (descriptor->read == nullptr) {
             return Fail(PIXIE_ERROR_ARGUMENT,
-                        std::format("{} is not a value; read it with pixie_field_get_text or pixie_field_get_points",
+                        std::format("{} is not a value; use pixie_field_get_text, pixie_field_get_points or pixie_record_* for its kind",
                                     descriptor->name));
         }
         PixieResult result = PIXIE_OK;
@@ -912,9 +1018,9 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field {} in type {}, or null value", field, type));
     }
     return Guard([&] {
-        if (descriptor->kind == pixie::FieldKind::Text || descriptor->kind == pixie::FieldKind::PointList) {
+        if (descriptor->read == nullptr) {
             return Fail(PIXIE_ERROR_ARGUMENT,
-                        std::format("{} is not a value; write it with pixie_field_set_text or pixie_field_set_points",
+                        std::format("{} is not a value; use pixie_field_set_text, pixie_field_set_points or pixie_record_* for its kind",
                                     descriptor->name));
         }
         PixieResult result = PIXIE_OK;
@@ -1031,6 +1137,128 @@ PixieResult pixie_field_set_points(PixieSession* s, uint32_t entity, int32_t typ
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_record_info(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                             int32_t* itemType, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!itemType || !count) return Fail(PIXIE_ERROR_ARGUMENT, "null record info output");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, -1, -1, access);
+        if (result != PIXIE_OK) return result;
+        *itemType = access.itemType;
+        *count = static_cast<int32_t>(access.list->recordCount(access.owner));
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_edit(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                             int32_t index, int32_t remove) {
+    PIXIE_REQUIRE_SESSION(s);
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, -1, -1, access);
+        if (result != PIXIE_OK) return result;
+        const auto count = access.list->recordCount(access.owner);
+        if (index < 0 || (remove != 0 && remove != 1) || static_cast<std::size_t>(index) > count
+            || (remove && static_cast<std::size_t>(index) == count) || (!remove && count >= 256))
+            return Fail(PIXIE_ERROR_ARGUMENT, "record edit index or count is out of range");
+        if (access.list->metadata.readOnly) return Fail(PIXIE_ERROR_ARGUMENT, "record list is read-only");
+        if (remove) access.list->eraseRecord(access.owner, static_cast<std::size_t>(index));
+        else access.list->insertRecord(access.owner, static_cast<std::size_t>(index));
+        RecordChanged(s, entity);
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_get(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                            int32_t index, int32_t field, PixieValue* value) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!value || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "null value or negative record index");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->read) return Fail(PIXIE_ERROR_ARGUMENT, "record field is not numeric");
+        const auto v = access.field->read(access.item);
+        *value = {v.x, v.y, v.z, v.w};
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_set(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                            int32_t index, int32_t field, const PixieValue* value) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!value || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "null value or negative record index");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->write || access.field->metadata.readOnly || access.list->metadata.readOnly)
+            return Fail(PIXIE_ERROR_ARGUMENT, "record field is not writable numeric data");
+        access.field->write(access.item, {value->x, value->y, value->z, value->w});
+        RecordChanged(s, entity);
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_get_points(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                                   int32_t index, int32_t field, double* xy, int32_t capacity, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!count || capacity < 0 || (!xy && capacity > 0) || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "invalid record points output");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->readPoints) return Fail(PIXIE_ERROR_ARGUMENT, "record field is not a point list");
+        const auto points = access.field->readPoints(access.item);
+        *count = static_cast<int32_t>(points.size());
+        for (int32_t i = 0; i < *count && i < capacity; ++i) { xy[2*i] = points[i].x; xy[2*i+1] = points[i].y; }
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_set_points(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                                   int32_t index, int32_t field, const double* xy, int32_t count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (count < 0 || count > 65536 || (!xy && count > 0) || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "invalid record points input");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->writePoints || access.field->metadata.readOnly || access.list->metadata.readOnly)
+            return Fail(PIXIE_ERROR_ARGUMENT, "record points are not writable");
+        std::vector<pxPoint> points;
+        for (int32_t i = 0; i < count; ++i) points.emplace_back(xy[2*i], xy[2*i+1]);
+        access.field->writePoints(access.item, points);
+        RecordChanged(s, entity);
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_record_get_text(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                                 int32_t index, int32_t field, char* text, int32_t capacity, int32_t* required) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!required || capacity < 0 || (!text && capacity > 0) || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "invalid record text output");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->readText) return Fail(PIXIE_ERROR_ARGUMENT, "record field is not text");
+        const auto value = access.field->readText(access.item);
+        *required = static_cast<int32_t>(value.size() + 1);
+        return capacity == 0 ? PIXIE_OK : Copy(value, text, capacity);
+    });
+}
+PixieResult pixie_record_set_text(PixieSession* s, uint32_t entity, int32_t type, int32_t list,
+                                 int32_t index, int32_t field, const char* text) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!text || index < 0) return Fail(PIXIE_ERROR_ARGUMENT, "null text or negative record index");
+    return Guard([&] {
+        RecordAccess access;
+        const auto result = RecordOf(s, entity, type, list, index, field, access);
+        if (result != PIXIE_OK) return result;
+        if (!access.field->writeText || access.field->metadata.readOnly || access.list->metadata.readOnly)
+            return Fail(PIXIE_ERROR_ARGUMENT, "record text is not writable");
+        access.field->writeText(access.item, text);
+        RecordChanged(s, entity);
         return PIXIE_OK;
     });
 }

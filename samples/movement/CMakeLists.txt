@@ -1,0 +1,5 @@
+add_executable(movement-demo main.cpp)
+set_target_properties(movement-demo PROPERTIES FOLDER samples)
+target_link_libraries(movement-demo PRIVATE Pixie::Runtime)
+include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
+pixie_target_defaults(movement-demo)

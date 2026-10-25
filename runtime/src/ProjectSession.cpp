@@ -10,6 +10,7 @@
 #include "pixie/runtime/PathDrawing.hpp"
 #include "pixie/runtime/ScreenCanvas.hpp"
 #include "pixie/runtime/ShapeDrawing.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 
 #include <algorithm>
@@ -108,6 +109,8 @@ void ProjectSession::Build(bool resetCamera) {
         }
     }
     project_->Build(*world_, camera_);
+    InstallSceneMovement2D(*world_);
+    SyncSceneMovement2D(*world_);
 }
 
 void ProjectSession::Reset() {
@@ -255,6 +258,10 @@ void ProjectSession::Render(double alpha) {
     sprites_.Flush(camera_);
     DrawParticles(*world_, particles_, camera_, alpha);
     SubmitShapes(*world_, shapes_, alpha, &view);
+    if (mode_ == SessionMode::Edit) {
+        SyncSceneMovement2D(*world_);
+        DrawMovementGizmos2D(*world_, shapes_, camera_);
+    }
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_);
 
