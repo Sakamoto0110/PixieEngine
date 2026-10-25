@@ -33,3 +33,8 @@ checking, and committing are in the [development guide](docs/development.md).
 - [`TODO.md`](TODO.md): promoted work. [`TASKLIST.md`](TASKLIST.md): its task breakdowns.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md): every dependency, its status, and candidates.
 - [`docs/`](docs/README.md): documentation index, policy, development guide, proposals, and archive.
+
+## License
+
+PixieEngine is released under the [MIT License](LICENSE). Vendored dependencies keep their own
+licenses, listed in [`DEPENDENCIES.md`](DEPENDENCIES.md).
