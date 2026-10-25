@@ -53,3 +53,22 @@ TEST(UnknownCodesAreIgnored) {
     input.SetMouseButton(Input::kButtonCount, true);
     CHECK(!input.IsDown(static_cast<Key>(-1)));
 }
+
+TEST(ModalInputCancelsHeldControlsAndDiscardsPendingActions) {
+    Input input;
+    input.SetKey(static_cast<int>(Key::A), true);
+    input.SetMouseButton(static_cast<int>(MouseButton::Left), true);
+    input.EndUpdate();
+    input.SetKey(static_cast<int>(Key::B), true);
+    input.SetKey(static_cast<int>(Key::B), false);
+    input.SetCursor(pxPoint(80.0, 30.0));
+    input.AddScroll(pxVec2(0.0, 4.0));
+    input.ReleaseAll();
+    CHECK(!input.IsDown(Key::A) && input.WasReleased(Key::A) && !input.WasPressed(Key::A));
+    CHECK(!input.IsDown(MouseButton::Left) && input.WasReleased(MouseButton::Left));
+    CHECK(!input.WasPressed(Key::B) && !input.WasReleased(Key::B));
+    CHECK(input.Cursor() == pxPoint(80.0, 30.0));
+    CHECK(input.CursorMoved() == pxVec2(0.0) && input.Scroll() == pxVec2(0.0));
+    input.EndUpdate();
+    CHECK(!input.WasReleased(Key::A) && !input.WasReleased(MouseButton::Left));
+}

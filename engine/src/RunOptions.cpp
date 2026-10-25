@@ -18,6 +18,7 @@ void PrintUsage(std::string_view program, std::span<const RunOption> extra) {
     line("--ups", "<hz>", "updates per second (default 60)");
     line("--fps", "<hz>", "frame cap; 0 means none (default 0)");
     line("--vsync", "on|off", "vertical sync (default on)");
+    line("--telemetry", "on|off", "override host and app CPU metric collection (F3 displays it)");
     line("--quit-after", "<seconds>", "close after this long; 0 means never (default 0)");
     line("--screenshot", "<file.png>", "with --quit-after, save the last frame as a PNG");
     for (const RunOption& option : extra) {
@@ -38,6 +39,11 @@ bool ParseCommon(std::string_view option, std::string_view value, RunConfig& con
     if (option == "--vsync") {
         config.vsync = value == "on";
         return value == "on" || value == "off";
+    }
+    if (option == "--telemetry") {
+        if (value != "on" && value != "off") return false;
+        config.telemetry = value == "on";
+        return true;
     }
     if (option == "--quit-after") {
         return ParseNumber(value, config.quitAfterSeconds);

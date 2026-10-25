@@ -17,7 +17,7 @@ struct RunOption {
     std::function<bool(std::string_view)> parse;
 };
 
-// Parses the options every player takes (--ups, --fps, --vsync, --quit-after, --screenshot) into
+// Parses the options every player takes (--ups, --fps, --vsync, --telemetry, --quit-after, --screenshot) into
 // `config`, and the player's own `extra` ones. On an unknown option or a bad value, prints the
 // usage to stderr and returns false; the player then exits with code 2.
 bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig& config,

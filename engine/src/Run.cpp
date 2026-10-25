@@ -1,6 +1,8 @@
 #include "pixie/Run.hpp"
 
 #include "FrameLimiter.hpp"
+#include "DebugConsole.hpp"
+#include "DebugOverlay.hpp"
 #include "pixie/FixedStepper.hpp"
 #include "pixie/Gl.hpp"
 #include "pixie/GlLoader.hpp"
@@ -47,8 +49,14 @@ GLFWwindow* CreateContextWindow(const RunConfig& config) {
     return glfwCreateWindow(config.width, config.height, config.title.c_str(), nullptr, nullptr);
 }
 
-Input& InputOf(GLFWwindow* handle) {
-    return *static_cast<Input*>(glfwGetWindowUserPointer(handle));
+struct PlayerInput {
+    explicit PlayerInput(const RunConfig& config) : debug(config.vsync, config.frameRateCap, config.telemetry) {}
+    Input game;
+    DebugConsole debug;
+};
+
+PlayerInput& InputOf(GLFWwindow* handle) {
+    return *static_cast<PlayerInput*>(glfwGetWindowUserPointer(handle));
 }
 
 // GLFW reports the cursor in window coordinates; the engine works in framebuffer pixels, which
@@ -65,25 +73,55 @@ pxPoint CursorInPixels(GLFWwindow* handle, double x, double y) {
     return pxPoint(x * sx, y * sy);
 }
 
-void ConnectInput(GLFWwindow* handle, Input& input) {
+void ConnectInput(GLFWwindow* handle, PlayerInput& input) {
     glfwSetWindowUserPointer(handle, &input);
-    glfwSetKeyCallback(handle, [](GLFWwindow* window, int key, int, int action, int) {
-        InputOf(window).SetKey(key, action != GLFW_RELEASE);
+    glfwSetKeyCallback(handle, [](GLFWwindow* window, int key, int, int action, int mods) {
+        auto& state = InputOf(window);
+        const bool wasOpen = state.debug.IsOpen();
+        const auto code = static_cast<Key>(key);
+        if (!state.debug.KeyEvent(code, action != GLFW_RELEASE, action == GLFW_REPEAT)) {
+            // A repeat from a key first pressed in the console must not become a new game press.
+            if (action != GLFW_REPEAT || state.game.IsDown(code)) {
+                state.game.SetKey(key, action != GLFW_RELEASE);
+            }
+        }
+        if (wasOpen != state.debug.IsOpen()) {
+            double x = 0.0, y = 0.0;
+            glfwGetCursorPos(window, &x, &y);
+            state.game.SetCursor(CursorInPixels(window, x, y));
+            state.game.ReleaseAll();
+        }
+        if (wasOpen && key == GLFW_KEY_V && action == GLFW_PRESS && (mods & GLFW_MOD_CONTROL) != 0) {
+            if (const char* text = glfwGetClipboardString(window)) state.debug.Paste(text);
+        }
+    });
+    glfwSetCharCallback(handle, [](GLFWwindow* window, unsigned int codepoint) {
+        InputOf(window).debug.Character(codepoint);
     });
     glfwSetMouseButtonCallback(handle, [](GLFWwindow* window, int button, int action, int) {
-        InputOf(window).SetMouseButton(button, action != GLFW_RELEASE);
+        auto& state = InputOf(window);
+        if (!state.debug.IsOpen()) state.game.SetMouseButton(button, action != GLFW_RELEASE);
     });
     glfwSetCursorPosCallback(handle, [](GLFWwindow* window, double x, double y) {
-        InputOf(window).SetCursor(CursorInPixels(window, x, y));
+        auto& state = InputOf(window);
+        if (!state.debug.IsOpen()) state.game.SetCursor(CursorInPixels(window, x, y));
     });
     glfwSetScrollCallback(handle, [](GLFWwindow* window, double x, double y) {
-        InputOf(window).AddScroll(pxVec2(x, y));
+        auto& state = InputOf(window);
+        if (!state.debug.IsOpen()) state.game.AddScroll(pxVec2(x, y));
+    });
+    glfwSetWindowFocusCallback(handle, [](GLFWwindow* window, int focused) {
+        if (focused == GLFW_FALSE) {
+            auto& state = InputOf(window);
+            state.game.ReleaseAll();
+            state.debug.FocusLost();
+        }
     });
     double x = 0.0;
     double y = 0.0;
     glfwGetCursorPos(handle, &x, &y);
-    input.SetCursor(CursorInPixels(handle, x, y));
-    input.EndUpdate();
+    input.game.SetCursor(CursorInPixels(handle, x, y));
+    input.game.EndUpdate();
 }
 
 } // namespace
@@ -111,12 +149,18 @@ int Run(App& app, const RunConfig& config) {
                                                   : std::string("none"),
                         config.vsync ? "on" : "off"));
 
-    Input input;
+    PlayerInput input(config);
     ConnectInput(handle, input);
 
     Window window(handle);
     if (!app.Start(window)) {
         LogError("App::Start failed");
+        app.Stop();
+        return 1;
+    }
+
+    DebugOverlay overlay;
+    if (!overlay.Create()) {
         app.Stop();
         return 1;
     }
@@ -128,17 +172,41 @@ int Run(App& app, const RunConfig& config) {
     auto previous = start;
     FrameLimiter limiter(config.frameRateCap);
     RateMeter meter(start);
+    bool vsync = config.vsync;
+    double frameCap = config.frameRateCap;
+    Telemetry telemetry;
+    const auto updateMetric = telemetry.RegisterTiming("host.update");
+    const auto renderMetric = telemetry.RegisterTiming("host.render");
+    const auto observerMetric = telemetry.RegisterTiming("host.observer");
+    std::vector<MetricSnapshot> hostMetrics, appMetrics;
+    auto nextMetrics = start;
 
     while (glfwWindowShouldClose(handle) == GLFW_FALSE) {
         glfwPollEvents();
+        const auto& settings = input.debug.CurrentSettings();
+        telemetry.SetEnabled(settings.telemetry.value_or(false));
+        if (auto* metrics = app.GetTelemetry(); metrics && settings.telemetry) metrics->SetEnabled(*settings.telemetry);
+        if (settings.vsync != vsync) {
+            vsync = settings.vsync;
+            glfwSwapInterval(vsync ? 1 : 0);
+            LogInfo(std::format("VSync: {}", vsync ? "on" : "off"));
+        }
+        if (settings.frameRateCap != frameCap) {
+            frameCap = settings.frameRateCap;
+            limiter.SetRate(frameCap);
+            LogInfo(frameCap > 0 ? std::format("Frame cap: {} Hz", frameCap) : "Frame cap: none");
+        }
 
         const auto now = Clock::now();
         const double frameDelta = Seconds(now - previous);
         previous = now;
 
         stepper.Advance(frameDelta, [&](const FrameTime& time) {
-            app.Update(time, input);
-            input.EndUpdate();
+            {
+                const TelemetryScope measure(telemetry,updateMetric);
+                app.Update(time, input.game);
+            }
+            input.game.EndUpdate();
             meter.CountUpdate();
         });
 
@@ -148,7 +216,21 @@ int Run(App& app, const RunConfig& config) {
         if (size.width > 0 && size.height > 0) {
             glViewport(0, 0, size.width, size.height);
             const double drawnDelta = std::min(frameDelta, FixedStepper::kMaxFrameDelta);
-            app.Render(stepper.RenderTime(drawnDelta, frameIndex), input);
+            {
+                const TelemetryScope measure(telemetry,renderMetric);
+                app.Render(stepper.RenderTime(drawnDelta, frameIndex), input.game);
+            }
+            {
+                const TelemetryScope observer(telemetry,observerMetric);
+                auto* metrics = app.GetTelemetry(); // Reacquire after callbacks: sessions can rebuild their World.
+                if (input.debug.ShowsRates() && now >= nextMetrics) {
+                    hostMetrics = telemetry.Snapshot();
+                    appMetrics = metrics ? metrics->Snapshot() : std::vector<MetricSnapshot>{};
+                    nextMetrics = now+std::chrono::milliseconds(500);
+                }
+                overlay.Draw(input.debug,size,meter.FramesPerSecond(),meter.UpdatesPerSecond(),Seconds(now-start),
+                             hostMetrics,appMetrics,telemetry.Enabled(),metrics && metrics->Enabled());
+            }
             if (quitting && !config.screenshotPath.empty()) {
                 SaveFramebufferPng(config.screenshotPath, size);
             }
@@ -173,6 +255,7 @@ int Run(App& app, const RunConfig& config) {
         }
     }
 
+    overlay.Destroy();
     app.Stop();
     glfwDestroyWindow(handle);
     return 0;

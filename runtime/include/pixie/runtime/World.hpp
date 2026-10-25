@@ -2,6 +2,7 @@
 
 #include "pixie/FrameTime.hpp"
 #include "pixie/Input.hpp"
+#include "pixie/Telemetry.hpp"
 #include "pixie/runtime/Behaviour.hpp"
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"
@@ -62,6 +63,11 @@ public:
     double Elapsed() const { return elapsed_; }
     bool IsStepping() const { return stepping_; }
 
+    // Per-World CPU metrics, disabled initially and never serialized. Named systems and whole-step
+    // timings are inclusive; presentation does not control collection.
+    Telemetry& GetTelemetry() { return telemetry_; }
+    const Telemetry& GetTelemetry() const { return telemetry_; }
+
     Random& GetRandom() { return random_; }
 
     // Makes the previous transform equal the current one, so a jump is not drawn as motion.
@@ -86,6 +92,7 @@ private:
     struct SystemEntry {
         std::string name;
         System run;
+        MetricHandle timing;
     };
     struct BehaviourClass {
         entt::id_type type;
@@ -106,6 +113,8 @@ private:
     void FinishStep();
 
     entt::registry registry_;
+    Telemetry telemetry_;
+    MetricHandle stepMetric_, behaviourMetric_;
     std::vector<SystemEntry> preUpdate_;
     std::vector<SystemEntry> postUpdate_;
     std::vector<BehaviourClass> behaviours_;

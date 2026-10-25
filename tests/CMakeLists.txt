@@ -8,10 +8,14 @@ add_executable(engine-tests
     engine/CameraTests.cpp
     engine/FixedStepperTests.cpp
     engine/InputTests.cpp
+    engine/DebugConsoleTests.cpp
+    engine/DebugOverlayTests.cpp
+    engine/PlayerDebugTests.cpp
     engine/TextTests.cpp
+    engine/TelemetryTests.cpp
 )
 set_target_properties(engine-tests PROPERTIES FOLDER tests)
-target_include_directories(engine-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_include_directories(engine-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/engine/src)
 # GLFW for the hidden window text is drawn in; the font is the particles sample's copy of Inter.
 target_link_libraries(engine-tests PRIVATE Pixie::Engine glfw)
 target_compile_definitions(engine-tests PRIVATE GLFW_INCLUDE_NONE
@@ -35,6 +39,7 @@ add_executable(runtime-tests
     runtime/TextTests.cpp
     runtime/UserDataTests.cpp
     runtime/WorldTests.cpp
+    runtime/TelemetryTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)
 target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

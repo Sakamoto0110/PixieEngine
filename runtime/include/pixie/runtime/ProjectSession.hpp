@@ -124,6 +124,8 @@ public:
     double Alpha() const;
 
     World& GetWorld() { return *world_; }
+    // Optional view, including before Start and after Stop. Reacquire after rebuilding the World.
+    Telemetry* GetTelemetry() { return world_ ? &world_->GetTelemetry() : nullptr; }
     Camera2D& GetCamera() { return camera_; }
     Project& GetProject() { return *project_; }
     const ComponentTypes& Types() const { return types_; }

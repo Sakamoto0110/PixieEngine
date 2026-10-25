@@ -1,6 +1,7 @@
 #pragma once
 
 #include <filesystem>
+#include <optional>
 #include <string>
 
 namespace pixie {
@@ -14,6 +15,9 @@ struct RunConfig {
     // Maximum frames per second; 0 means no cap. Applies together with vsync.
     double frameRateCap = 0.0;
     bool vsync = true;
+    // No override by default: host collection is off and the app chooses its own setting.
+    // on/off overrides both host and the collector exposed by App::GetTelemetry.
+    std::optional<bool> telemetry;
     // Closes the window after this many seconds; 0 runs until the window is closed.
     double quitAfterSeconds = 0.0;
     // When set together with quitAfterSeconds, the last frame drawn before the window closes is saved

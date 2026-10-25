@@ -44,6 +44,8 @@ void Entity::Destroy() const {
 }
 
 World::World(std::uint64_t seed) : random_(seed) {
+    stepMetric_ = telemetry_.RegisterTiming("world.step");
+    behaviourMetric_ = telemetry_.RegisterTiming("world.behaviours");
     registry_.on_construct<Transform2D>().connect<&KeepPreviousOnCreate>();
     AddSystem(SystemPhase::PreUpdate, "transform.previous", &CopyPreviousTransforms);
     AddSystem(SystemPhase::PostUpdate, "velocity.integrate", &IntegrateVelocities);
@@ -86,23 +88,27 @@ void World::Defer(std::function<void(World&)> action) {
 
 void World::AddSystem(SystemPhase phase, std::string name, System system) {
     auto& systems = phase == SystemPhase::PreUpdate ? preUpdate_ : postUpdate_;
-    systems.push_back({std::move(name), std::move(system)});
+    const auto timing = telemetry_.RegisterTiming((phase == SystemPhase::PreUpdate ? "system.pre." : "system.post.") + name);
+    systems.push_back({std::move(name), std::move(system), timing});
 }
 
 void World::RunSystems(SystemPhase phase, const FrameTime& time, const Input& input) {
     for (const SystemEntry& system : phase == SystemPhase::PreUpdate ? preUpdate_ : postUpdate_) {
+        const TelemetryScope measure(telemetry_,system.timing);
         system.run(*this, time, input);
     }
 }
 
 void World::Step(double delta, const Input& input) {
+    const TelemetryScope measure(telemetry_,stepMetric_);
     const FrameTime time{delta, 0.0, elapsed_, steps_};
     stepping_ = true;
     RunSystems(SystemPhase::PreUpdate, time, input);
     // A Behaviour class added during the step is updated from the next step on.
     const std::size_t classes = behaviours_.size();
-    for (std::size_t i = 0; i < classes; ++i) {
-        behaviours_[i].update(*this, time, input);
+    {
+        const TelemetryScope behaviours(telemetry_,behaviourMetric_);
+        for (std::size_t i = 0; i < classes; ++i) behaviours_[i].update(*this, time, input);
     }
     RunSystems(SystemPhase::PostUpdate, time, input);
     stepping_ = false;

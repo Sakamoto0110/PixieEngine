@@ -73,6 +73,10 @@ public:
     // Called after each fixed update: forgets the presses, releases, scroll, and movement it saw.
     void EndUpdate();
 
+    // A modal host UI or focus loss cancels held controls. Report their releases once, discard
+    // pending presses/movement/scroll, and keep the current cursor position.
+    void ReleaseAll();
+
     bool IsDown(Key key) const;
     // Pressed at least once since the previous update, even if released again.
     bool WasPressed(Key key) const;

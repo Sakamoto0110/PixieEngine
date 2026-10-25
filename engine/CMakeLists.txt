@@ -3,6 +3,8 @@
 # Its layout changes when the module split (PIXIE-PROPOSAL-001) is decided.
 
 add_library(pixie_engine STATIC
+    src/DebugConsole.cpp
+    src/DebugOverlay.cpp
     src/Camera2D.cpp
     src/Font.cpp
     src/FrameLimiter.cpp
@@ -25,6 +27,7 @@ add_library(pixie_engine STATIC
     src/ShapeRenderer.cpp
     src/SpriteRenderer.cpp
     src/TextRenderer.cpp
+    src/Telemetry.cpp
     src/Texture.cpp
     src/Window.cpp
 )
@@ -32,7 +35,7 @@ add_library(Pixie::Engine ALIAS pixie_engine)
 set_target_properties(pixie_engine PROPERTIES FOLDER engine)
 
 target_include_directories(pixie_engine PUBLIC include)
-target_link_libraries(pixie_engine PUBLIC glew pixie::pixie pixie::math EnTT::EnTT PRIVATE glfw stb_image stb_truetype)
+target_link_libraries(pixie_engine PUBLIC glew pixie::pixie pixie::math EnTT::EnTT PRIVATE glfw stb_image stb_truetype stb_easy_font)
 target_compile_definitions(pixie_engine PRIVATE GLFW_INCLUDE_NONE)
 
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)

@@ -1,6 +1,7 @@
 #include "FrameLimiter.hpp"
 
 #include <thread>
+#include <cmath>
 
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
@@ -18,16 +19,22 @@ constexpr auto kSpinMargin = std::chrono::microseconds(1500);
 } // namespace
 
 FrameLimiter::FrameLimiter(double maxFramesPerSecond) {
-    if (maxFramesPerSecond <= 0.0) {
+    SetRate(maxFramesPerSecond);
+}
+
+void FrameLimiter::SetRate(double maxFramesPerSecond) {
+    enabled_ = std::isfinite(maxFramesPerSecond) && maxFramesPerSecond > 0.0;
+    if (!enabled_) {
         return;
     }
-    enabled_ = true;
     period_ = std::chrono::duration_cast<Clock::duration>(
         std::chrono::duration<double>(1.0 / maxFramesPerSecond));
     deadline_ = Clock::now() + period_;
 #ifdef _WIN32
-    timer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
-                                    TIMER_ALL_ACCESS);
+    if (timer_ == nullptr) {
+        timer_ = CreateWaitableTimerExW(nullptr, nullptr, CREATE_WAITABLE_TIMER_HIGH_RESOLUTION,
+                                      TIMER_ALL_ACCESS);
+    }
 #endif
 }
 

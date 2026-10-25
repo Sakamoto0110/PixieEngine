@@ -52,6 +52,13 @@ void Input::EndUpdate() {
     cursorAtLastUpdate_ = cursor_;
 }
 
+void Input::ReleaseAll() {
+    for (auto& state : keys_) state = (state & kDown) != 0 ? kReleased : std::uint8_t{0};
+    for (auto& state : buttons_) state = (state & kDown) != 0 ? kReleased : std::uint8_t{0};
+    scroll_ = pxVec2(0.0);
+    cursorAtLastUpdate_ = cursor_;
+}
+
 bool Input::IsDown(Key key) const {
     return (StateOf(keys_, static_cast<int>(key)) & kDown) != 0;
 }

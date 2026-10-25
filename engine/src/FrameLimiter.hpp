@@ -13,6 +13,10 @@ public:
     explicit FrameLimiter(double maxFramesPerSecond);
     ~FrameLimiter();
 
+    // Changes the cap immediately and starts a fresh schedule. Zero disables waiting; the owned
+    // timer is reused if the cap is enabled again.
+    void SetRate(double maxFramesPerSecond);
+
     FrameLimiter(const FrameLimiter&) = delete;
     FrameLimiter& operator=(const FrameLimiter&) = delete;
 

@@ -1,0 +1,5 @@
+add_executable(telemetry-demo main.cpp)
+set_target_properties(telemetry-demo PROPERTIES FOLDER samples)
+target_link_libraries(telemetry-demo PRIVATE Pixie::Runtime)
+include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
+pixie_target_defaults(telemetry-demo)

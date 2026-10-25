@@ -20,6 +20,7 @@ public:
     void Update(const FrameTime& time, const Input& input) override;
     void Render(const FrameTime& time, const Input& input) override;
     void Stop() override;
+    Telemetry* GetTelemetry() override { return session_.GetTelemetry(); }
 
     ProjectSession& Session() { return session_; }
 
