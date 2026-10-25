@@ -30,7 +30,7 @@
 
 **Module dependencies:** none
 
-**Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes only)
+**Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes only), Box2D (private: collision backend)
 
 **Distribution:** shipped-runtime
 
@@ -54,6 +54,11 @@
 
 - Introduction: [`README.md`](README.md).
 - Contract: [`REFERENCE.md`](REFERENCE.md).
+- Unconfirmed observations: [`FINDINGS.md`](FINDINGS.md).
+- Collision and movement usage: [`collision-movement.md`](../../collision-movement.md).
+- Authored scene movement and laboratory boundaries: [`editor-movement.md`](../../editor-movement.md).
+- Body dynamics and world settings: [`body-dynamics.md`](../../body-dynamics.md).
+- Contact/sensor events and qualification: [`body-events.md`](../../body-events.md).
 - Build target: `pixie_runtime` (alias `Pixie::Runtime`) in `runtime/CMakeLists.txt`. It links
   the provisional engine library (`Pixie::Engine`: `FrameTime`, `Input`, `ShapeRenderer`,
   `SpriteRenderer`, `PathRenderer`, `TextRenderer`, `Font`, `Image`, `Texture`), which

@@ -44,9 +44,10 @@ static runtime chosen on 2026-10-11 ([record](../archive/static-msvc-runtime-202
 becomes the shared one (`/MD`), with the Visual C++ runtime shipped beside the game or installed.
 That reverses a recorded decision, which is why this is its own proposal.
 
-**Rationale:** Exporting a game is the step after sprites in `ROADMAP.md`; doing it on a shared
-engine makes each game small, keeps one copy of the engine per machine, and leaves the executable as
-what a player runs.
+**Rationale:** The original 2026-10-15 motivation was to reduce repeated engine copies when
+exporting games while keeping the executable as what a player runs. This remains an unpromoted
+distribution proposal; it is not the next approved execution step. Current direction and gates
+are in [ROADMAP.md](../../ROADMAP.md#conditional-investigations).
 
 **Constraints:** The editor keeps running any game without being rebuilt; the C API stays the
 boundary the editor sees.

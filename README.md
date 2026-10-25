@@ -29,6 +29,24 @@ editor/PixieEditor/bin/Release/net10.0/PixieEditor --game boids
 The configure step also writes `PixieEngine.slnx` at the root. Building,
 checking, and committing are in the [development guide](docs/development.md).
 
+In the native player, F3 shows FPS/UPS and F3+C opens a command bar at the top of the window.
+Try `-vsync false`, `-fps-cap true 60`, or `-fps-cap false`; Enter runs the command and Escape
+closes the bar. See the [player debug controls](docs/player-debug.md) for details.
+
+F3 also displays registered CPU metrics. `--telemetry on|off` or `-telemetry true|false` controls
+collection independently of visibility. Each World owns its collector; see the
+[telemetry guide](docs/telemetry.md) and [neutral sample](samples/telemetry/README.md).
+
+The [movement room](samples/movement/README.md) exercises the private Box2D collision backend
+and engine-owned capsule controller. See [ownership, units and current limits](docs/collision-movement.md).
+The [no-code movement laboratory](samples/movement-lab/README.md) opens in the editor and generic
+player; [scene authoring](docs/editor-movement.md) shares the native services between both hosts.
+The [body dynamics laboratory](samples/physics-lab/README.md) adds falling/rotating boxes,
+world gravity and a kinematic platform; [current dynamics limits](docs/body-dynamics.md)
+keep character coupling and remaining authoring gates explicit.
+The [compound laboratory](samples/compound-lab/README.md) adds an authored L-shaped
+body and editor controls for multiple shapes on one body, with save/history support.
+
 - [`ROADMAP.md`](ROADMAP.md): what the engine is and is not, and where it is going.
 - [`TODO.md`](TODO.md): promoted work. [`TASKLIST.md`](TASKLIST.md): its task breakdowns.
 - [`DEPENDENCIES.md`](DEPENDENCIES.md): every dependency, its status, and candidates.

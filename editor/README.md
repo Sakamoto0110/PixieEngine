@@ -187,3 +187,33 @@ BoidsScenario.rebuild=go` rebuilds the boids with 300. For example, `--game boid
 BoidControls.radius=300` turns the boids away from a pointer with a 300-unit reach, as if edited by
 hand in the inspector. With several entities selected, a `--set` changes all of them. Selection
 gestures and the viewport menu's actions are logged.
+
+## Collision and movement authoring
+
+Open [movement-lab](../samples/movement-lab/README.md) as a no-code project.
+Collider/Character creation buttons and matching empty-space viewport menu
+entries use native reflected components and one undo step per creation.
+Edit-mode gizmos show actual static geometry/capsules; invalid configuration
+appears in Session. Play uses the same native services as the generic player;
+Stop restores authored data. The editor now requires C API version 12, so game
+libraries must be rebuilt. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
+The **Physics...** menu adds static obstacles, dynamic boxes, kinematic platforms,
+compound boxes, sensor regions, characters and world settings. Conflicting motion components are
+disabled with a native explanation; collider size shows full width/height without
+changing saved half extents. Scripted commands accept `--do collider`, `character`,
+`dynamic`, `compoundbox`, `kinematic`, `sensor` and `world`. `compound` converts the
+selection, `addshape` appends a shape, `removeshape=<index>` removes one, and
+`shape=<index>:<field>:<value>` uses the item's descriptor-built control (including
+display units, for example `shape=1:rotation:30`). `wait=<seconds>` delays subsequent
+script commands while the session keeps running. See [compound-lab](../samples/compound-lab/README.md).
+
+
+Collision filters now use named **belongs to** and **collides with** checkboxes,
+including compound shapes and mixed selections. **Edit layer names...** creates
+or edits scene-native CollisionLayers2D configuration. Names use fixed slots
+1..31; clearing a name never clears filter bits or changes world gravity.
+See [named layer authoring](../docs/editor-movement.md#named-collision-layers).
+Scripted verification uses `layername=slot:name`,
+`layer=category|mask:slot:true|false` and
+`shapelayer=zeroBasedShape:category|mask:slot:true|false` through the same authoring
+and checkbox paths. These commands retain raw numeric save compatibility.

@@ -52,11 +52,14 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (8), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (12), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
-  version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines; a
+  version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines,
+  version 9 movement diagnostics and Edit-mode gizmo selection, and version 10 component
+  admission queries and singleton type metadata, version 11 typed record-list access, and
+  version 12 layer editor metadata, value-type flags and collision layer name queries; a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
@@ -163,6 +166,27 @@ Events are kept until the next step reads them.
   entity has (a type without a default value is an argument error), and `pixie_component_remove`
   removes it; both return `PIXIE_ERROR_NOT_FOUND` for a destroyed entity, and remove does for an
   entity without the component.
+  `pixie_component_add_status` reads the native authoring admission reason without changing
+  the entity; empty means allowed. `required` includes NUL, and null buffer/capacity 0 measures.
+  Invalid type/entity returns argument/not-found. Conflicts return text with `PIXIE_OK`;
+  `pixie_component_add` enforces the rule and returns `PIXIE_ERROR_ARGUMENT` on rejection.
+  Existing components are retained; scene/snapshot loading stays permissive for repair.
+  `PIXIE_TYPE_SINGLETON` marks a component limited to one entity, so hosts can preflight
+  multi-entity additions before applying any change.
+  `PIXIE_FIELD_RECORD_LIST` (12) carries no PixieValue. `pixie_record_info` returns
+  the registered item type and count; ordinary `pixie_field_*` metadata for that type
+  describes item fields. `pixie_record_edit` inserts a default item or removes one,
+  with a 256-item bound and validated indices. Numeric, point and text item data use
+  `pixie_record_get/set`, `pixie_record_get/set_points`, `pixie_record_get/set_text`.
+  Every call includes owner entity/type/list, item index and child field. Indices
+  are invalidated by structural list changes/restoration; no native pointers escape.
+  Point capacity/count is in points, stored as interleaved doubles; capacity 0 measures,
+  and smaller buffers receive a prefix with the full count, matching root point lists.
+  Record text `required` includes NUL; capacity 0 measures and truncation returns BUFFER.
+  Wrong kinds, negative/out-of-range indices and read-only writes return ARGUMENT;
+  stale entities return NOT_FOUND. The owner is marked changed after successful writes.
+  Default-constructible registered item types are required. This API edits one list
+  level; nested record data can be serialized but requires a future path-aware tool.
   `pixie_type_flags` returns `PIXIE_TYPE_SCENARIO` for a type that holds a scenario: values the
   scene is built from, which a host offers to rebuild with after an edit.
 - `pixie_field_info` fills a `PixieFieldInfo` (72 bytes): the kind, the editor
@@ -215,7 +239,8 @@ particles are not entities.
 - `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle, or,
   without a sprite, of a text's block of lines, as the last render drew it, in view pixels
   (`corners[0..7]`: the top-left, top-right, bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND`
-  for an entity with neither. The text's outline needed no new function, so the version stays 8.
+  for an entity with neither. In Edit, a collider/character gizmo may instead return
+  its world-axis-aligned outline bounds; Play keeps drawable-only behavior.
 - `pixie_entity_view_path(entity, xy, capacity, &count)` gives the line a path was last drawn along,
   corners rounded, in view pixels, filling and counting as `pixie_entities` does, or
   `PIXIE_ERROR_NOT_FOUND` for an entity without a path.
@@ -225,6 +250,30 @@ particles are not entities.
   returns `PIXIE_ERROR_NOT_FOUND`.
 - `pixie_spawn_at` asks the game to create something at a point (`Project::SpawnAt`) and reports
   through `created` whether it did.
+
+## Collision layer metadata (version 12)
+
+`PIXIE_EDITOR_LAYER_MASK` marks a native Int field as a 31-checkbox layer filter;
+its `references` text identifies CollisionLayers2D. Category and mask values and
+scene format remain unchanged. `PIXIE_EDITOR_LAYER_NAMES` marks the configuration's
+RecordList. Its CollisionLayer2D items contain `slot` (1..31) and UTF-8 `name`.
+Item order is not the bit number. Use the existing typed record APIs to author
+configuration; empty names never clear collider bits.
+
+`PIXIE_TYPE_VALUE` marks reflected record metadata rather than an addable component.
+The host omits these types from Add component menus; native admission rejects them.
+Their fields remain discoverable for record-list editors and serialization.
+
+`pixie_collision_layer_name(session, slot, buffer, capacity, &required)` resolves a
+slot to its current display name, including **Unnamed layer N** fallback. Without
+a configuration, slot 1 is **Default**. With an explicit empty configuration, all
+slots are unnamed. Duplicate slots are diagnosed and unnamed; duplicate
+configurations make all slots unnamed. These naming errors do not change filters.
+The query allocates no physics backend and advances no simulation. Capacity 0
+measures; required includes NUL. Negative capacity, slots outside 1..31, missing
+required output, or null buffer with positive capacity return ARGUMENT. A short
+buffer returns BUFFER with a terminated prefix. Movement status includes naming
+diagnostics even in scenes without geometry.
 
 ## Non-goals
 
@@ -284,3 +333,15 @@ project of its own against this engine (with the same generator and configuratio
 `bin/<config>/` holds the player, one C API library, and not the generic one, and runs `capi-test`
 on that library with `--project` and `--expect-type Spinner`. It builds the engine again, so it
 takes a minute or two.
+
+## Scene movement diagnostics
+
+`pixie_movement_status(session, buffer, capacity, &required)` returns a summary
+from the latest native movement synchronization/update, without stepping time.
+`required` includes the trailing NUL. Query with null buffer and capacity 0;
+then provide that capacity. A short buffer returns PIXIE_ERROR_BUFFER. The
+summary shows up to eight errors and a remaining count; an empty result needs
+one byte. The editor polls it separately from simulation. Edit-mode picking
+falls back to native collider/character outlines when no drawable was picked;
+box selection includes those gizmos. Current authoring and runtime ownership
+are documented in [scene movement](../../editor-movement.md).

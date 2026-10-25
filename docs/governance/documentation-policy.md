@@ -160,11 +160,20 @@ is given.
 ## Archive
 
 `docs/archive/` owns the history of the repository: what changed, what was
-completed, and why things changed. Every archived event is one file, however
-small: a decision, a promotion, a completed `TODO.md` entry with its
-`TASKLIST.md` section, a fix, a finding, a proposal outcome, a dependency
-change, or a roadmap change. Material imported from other repositories for
-provenance is archived the same way.
+completed, and why things changed. Each distinct archived event has one record:
+a decision, a promotion, a completed `TODO.md` entry with its `TASKLIST.md`
+section, a fix, a finding, a proposal outcome, a dependency change, or a roadmap
+change. An event need not be split into permission, promotion and completion
+records that repeat the same facts. Material imported from other repositories
+for provenance is archived the same way.
+
+Owner clarification, 2026-10-22: a plain authorization such as "you may
+implement" does not need a separate archive entry that repeats the scheduler and
+the eventual implementation report. Keep accepted scope in TODO/TASKLIST and
+preserve it in the completion snapshot. A distinct promotion record is useful
+when it preserves an actual scope/lifecycle transition or rationale that would
+otherwise be lost. Do not multiply decision, authorization and promotion records
+for the same fact. Existing historical records retain their IDs and bodies.
 
 Every record identifies what produced it, when, and in which commits:
 
@@ -248,6 +257,16 @@ and commit it ran with, and is recorded with them, as PIXIE-TODO-002 recorded
 its frame and update rates. A console or program written outside the
 repository, for a comparison or a deliberately broken copy, is evidence only
 when its result is recorded with its inputs; otherwise it is a working aid.
+
+Owner evidence clarification, 2026-10-22: an explicit written record that a
+result was visually checked using screenshots or reviewed by a human remains
+valid visual-review evidence even when the image file is no longer available.
+State who/what was checked when recorded, and distinguish this testimony from
+an inspectable artifact or a fresh independent reproduction. Do not retroactively
+claim that testimony is an available screenshot. If neither an artifact nor an
+explicit verification record supports the claimed evidence, reject the unsupported
+proof claim; retain the observation without inventing verification. This does
+not convert a visual review into timing measurements or automated test evidence.
 
 ## Commits
 

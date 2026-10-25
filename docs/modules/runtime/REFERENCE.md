@@ -22,6 +22,12 @@
 
 ## Mental model
 
+World owns a main-thread CPU telemetry collector, initially disabled. `GetTelemetry()` exposes it
+without involving rendering; it records inclusive whole-step, aggregate Behaviour and named-system
+durations when enabled. Resetting telemetry does not reset simulation time or scene state. The
+[telemetry guide](../../telemetry.md) describes registration, lifetime, export and native controls;
+the public API is [`Telemetry.hpp`](../../../engine/include/pixie/Telemetry.hpp).
+
 The object model is an EC-style API over ECS storage
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). Components are data-only structs, each
 type in its own contiguous EnTT storage. Game logic is a `Behaviour`: a class with `Update()` that
@@ -240,8 +246,16 @@ sets it; saved with every instance in a scene), a `find` function that returns t
 entity or null (null for a destroyed entity too), an `add` function that returns the component,
 added with its defaults when the entity has none (a Behaviour is added as `AddBehaviour` adds it;
 null for a type that is not default-constructible, and the result is null for a destroyed entity),
-and a `remove` function. `add` and `remove` are not for use during a step. A type is described in
-code, once:
+and a `remove` function. `add` and `remove` are not for use during a step.
+
+`CanAdd(check)` optionally registers a native authoring admission reason. The descriptor's
+`AdditionError(world, entity)` returns empty for an allowed or existing component, and a
+reason for a missing default, dead entity or rejected combination. `Singleton()` marks types
+that tools must not add to multiple entities. The C API enforces admission; scene loading
+and direct `Entity::Add` remain permissive so invalid legacy data can be diagnosed/repaired.
+Physics descriptors reject competing motor/body/collider owners and duplicate world settings.
+
+A type is described in code, once:
 
 ```cpp
 types.Add<Transform2D>("Transform2D")
@@ -249,23 +263,43 @@ types.Add<Transform2D>("Transform2D")
     .Field<&Transform2D::rotation>("rotation");
 ```
 
+`std::vector<ComponentRecord<T>>` fields reflect as RecordList, where T is a
+default-constructible registered descriptor type. `.ValueType()` registers record
+metadata without permitting independent ECS authoring: add is null, admission
+rejects it, and root scene encoding omits native ECS instances of that value type.
+An imported root value component is retained as unavailable data by the normal
+scene compatibility path. Record encoding/decoding still uses its full metadata.
+The record owns its value and
+unknown saved fields together, so removal/copying keeps compatibility data attached
+to the correct item. The descriptor exposes count/item access, insertion/removal
+and transactional list replacement. Lists contain at most 256 records; serialization
+supports nesting through eight levels. Malformed lists remain at their defaults with
+a warning rather than applying a partial list. Item unknown fields and future item
+version tags survive round trips. Root scene/snapshot identity/reference rules apply.
+
+CompoundCollider2D uses this facility for Collider2D records on one entity. It
+replaces a single Collider2D and supplies one static or explicitly configured
+RigidBody2D body, with per-shape material/filter/local pose and separate hit identities.
+MovementOutlines2D returns all valid authoring outlines; the legacy singular function
+returns the first. See the [workflow](../../editor-movement.md#compound-bodies).
+
 Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type (`bool`, other
 integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`, `entt::entity`,
-`std::string`; any other type does not compile), optional names for an enum's values 0, 1, ..., and
+`std::string`, point lists and registered record lists; unsupported types do not compile), optional names for an enum's values 0, 1, ..., and
 `read` and `write` functions that move the value in and out of a component instance as a
 `FieldValue` (four doubles; the kind says which are used). Colors are clamped to 0 to 255 and
-rounded when written. Two kinds are not a `FieldValue`: a `std::string` member is a `Text` field,
+rounded when written. Three kinds are not a `FieldValue`: a `std::string` member is a `Text` field,
 with `readText` and `writeText`, and a `std::vector<pxPoint>` member is a `PointList` field, with
-`readPoints` and `writePoints`; their `read` and `write` are null.
+`readPoints` and `writePoints`, and record lists use their record callbacks; their scalar `read` and `write` are null.
 
 Each field also carries a `FieldMetadata`: how a tool shows and edits it, in the vocabulary of
 PixieInspector's node options. Builder calls chained after a `Field` set it for that field:
 `Label`, `Tooltip`, `Help`, `Order` (by default the declaration position), `ReadOnly`, `Editor`
-(`FieldEditor`: Auto, Number, Slider, Toggle, Choice, Color, Arc), `Range(min, max, step)`,
+(`FieldEditor`: Auto, Number, Slider, Toggle, Choice, Color, Arc, LayerMask, LayerNames), `Range(min, max, step)`,
 `Scrub(perPixel, axis)`, `Unit(suffix, factor, offset)` (shown = held * factor + offset),
 `Degrees(suffix)` (radians shown in degrees), `Arc(spread)` (this angle is the center of an
 arc whose width is the sibling field `spread`), `References(type)` (for an entity field, the
-component type an entity needs to be a valid choice), and `Asset(extension)` (for a text field, the
+component type an entity needs to be a valid choice; for LayerMask, its scene name configuration), and `Asset(extension)` (for a text field, the
 kind of file it names, such as `"png"`; the path is relative to the project folder). Range, step, and scrub are in the displayed unit.
 The registry is the single source of this metadata
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)): the C API exports it and the editor builds
@@ -345,6 +379,11 @@ nothing. Then, per value:
 - A field missing from the file keeps its default; a value of the wrong type, an unknown enum name,
   or a reference to an ID that is not in the file adds a warning and keeps the default.
 - A component saved at a newer `v` than the descriptor's is read field by field, with a warning.
+- A component saved at an older `v` is read field by field and then passed to the descriptor's
+  upgrade, when it has one (`.Upgrade<&Convert>()`): it receives the saved fields this version
+  no longer knows that are numbers or arrays of up to four numbers, and removes those it converts,
+  so they are not also written back. Unconverted fields stay kept as below. CharacterMotor2D
+  version 1 converts its `gravity` acceleration this way.
 - Nothing the build does not know is lost: unknown components, unknown fields of known
   components, unknown keys of an entity (such as `parent`), and unknown keys of the document are
   kept, and written back unchanged by the next `WriteScene` of that World. A component that cannot
@@ -670,7 +709,7 @@ None. A World and its Behaviours are used from one thread at a time.
 
 ## Non-goals
 
-No prefabs, nested scenes, or hierarchy, no binary scene format, no undo, no physics, no multithreaded
+No prefabs, nested scenes, or hierarchy, no binary scene format, no native undo, no multithreaded
 systems, no long-range all-pairs forces between particles.
 
 ## Validation
@@ -716,3 +755,53 @@ font, measuring by advances and lines, the atlases (clamped sizes, premultiplied
 replacement glyph beyond Latin-1, and the layout's pens), the ladder, and text drawn into a render
 target, in a hidden window, lit only inside its glyph's rectangle. The particles sample draws its
 counts and its spawners' rates on its screen layer.
+
+## Static collision and character movement
+
+The caller-owned collision/controller APIs are
+[CollisionWorld2D.hpp](../../../runtime/include/pixie/runtime/CollisionWorld2D.hpp) and
+[CharacterController2D.hpp](../../../runtime/include/pixie/runtime/CharacterController2D.hpp).
+They provide static geometry queries and explicit capsule motion through a private
+Box2D adapter. [Usage and limits](../../collision-movement.md) describe integration.
+They do not attach components, replace World velocity integration, or install
+physics automatically in scene projects. Explicit rigid-body dynamics now extend
+the same collision world, as described below.
+
+## Authored scene movement
+
+[SceneMovement2D.hpp](../../../runtime/include/pixie/runtime/SceneMovement2D.hpp)
+owns Collider2D, CharacterMotor2D, KeyboardControl2D and the optional runtime-only
+CharacterCommand2D. ProjectSession installs the native scene service after Build;
+Edit synchronizes without advancing time and displays reusable gizmos. Play
+steps motors, and Stop/reload reconstructs their transient state from authored
+components. Motor positions are excluded from legacy Velocity2D/Acceleration2D
+integration. RigidBody2D entities are also excluded; other entities keep their existing integration.
+The low-level collision API remains independent. [The authoring guide](../../editor-movement.md)
+documents shapes/transforms, queries, diagnostics, persistence and lab UI limits.
+
+## Rigid body dynamics foundation
+
+[RigidBody2D.hpp](../../../runtime/include/pixie/runtime/RigidBody2D.hpp) defines
+body configuration, shape descriptions, settings and results. CollisionWorld2D
+owns opt-in bodies and their individual query shapes in the same backend scene.
+StepBodies advances explicitly; AddBox/Circle/Polygon remain static conveniences.
+BodyMass reports kg, local center in world units and center-of-mass inertia in
+kg*worldUnits². Forces/impulses scale once in length; torque/angular impulse and
+inertia scale twice. Body/shape IDs are runtime-only and remain stale after reset.
+
+The scene service synchronizes RigidBody2D plus Collider2D/Transform2D, steps once
+in PostUpdate, and publishes translation and rotation before the existing motor
+pass. One optional PhysicsSettings2D entity supplies gravity/scale/substeps;
+duplicates are invalid. CharacterMotor2D falls at that gravity times its gravityScale. Physics settings and initial body conditions serialize
+through ordinary descriptors. The initial scene schema has one collider per
+entity; compound geometry is currently native-only. Motor coupling remains pending.
+See [ownership, compatibility and limits](../../body-dynamics.md).
+
+CollisionWorld2D now also owns copied contact/sensor begin/end events, pair
+identities and reset generations. BodyShape2D/Collider2D.sensor excludes geometry
+from mass and blocking. RayCast/OverlapBox ignore sensors unless explicitly
+included; capsule queries always ignore them. Native Events spans survive queued
+mutation until StepBodies/Reset, and ScenePhysicsEvents2D adds copied entity
+identities, including removed entities. Contacts canonicalize shape order;
+sensor pairs are directional. [Lifetimes, reasons and qualification](../../body-events.md)
+define the usage limits; motor sensor registration and physical coupling remain pending.
