@@ -38,6 +38,7 @@ owns the authority table: which document owns which kind of fact.
 | [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
 | [`body-dynamics.md`](body-dynamics.md) | Initial native/scene body dynamics, world gravity, units, lifecycle and remaining delivery gates |
 | [`body-events.md`](body-events.md) | Contact/sensor lifetimes, queries, scene identities and bounded stack/material/fast-body qualification |
+| [`particle-memory-layout.md`](particle-memory-layout.md) | The particle's 40-byte layout, how pools are stepped and drawn, and the open directions for dynamic particles and SIMD; a handoff |
 | [`circuit-puzzle-requirements.md`](circuit-puzzle-requirements.md) | Existing consumer requirements analysis: atmosphere, lighting, movement and circuit panels; design input |
 | [`governance/`](governance/documentation-policy.md) | Documentation and commit rules |
 | [`schemas/`](schemas/README.md) | Documentation structure and vocabulary, and its derivation |
