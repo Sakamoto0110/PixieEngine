@@ -190,11 +190,14 @@ For SIMD, the useful batch is one field of eight particles, not one 64-byte
 particle in two registers: per-field arrays (`x[]`, `y[]`, `vx[]`, `vy[]`, ...)
 let AVX2 run `x += vx · dt` on eight particles in one fused multiply-add, with
 plain aligned loads. The owner's machine (Ryzen 7 5700X, Zen 3) has AVX2, FMA,
-SSE4.1, BMI2 and ABM, and no AVX-512; Zen 3 also has F16C, which converts eight
-half floats per instruction (not yet confirmed by CPUID here). The build compiles
-for the x64 baseline (SSE2) and uses no intrinsics; `/arch:AVX2` would enable all
-of the above for intrinsics and the auto-vectorizer, at the price of CPUs without
-AVX2.
+SSE4.1, BMI2, ABM and F16C (read by CPUID on 2026-10-26), and no AVX-512; F16C
+converts eight half floats per instruction, which the size's `ToHalf` and
+`FromHalf` could use instead of their portable bit work. **Compile for AVX2**:
+on the owner's decision of 2026-10-26, every engine target and every game built
+with `pixie_game` compiles with `/arch:AVX2` (`-mavx2 -mfma -mf16c` outside MSVC)
+through `cmake/PixieTargetDefaults.cmake`, so AVX2, FMA and F16C intrinsics and the
+auto-vectorizer's 256-bit code are available in particle loops; `-DPIXIE_AVX2=OFF`
+exists only to build for a CPU without AVX2. No loop uses intrinsics yet.
 
 Costs to weigh: the affector API (from `std::span<Particle>` to a view of
 streams, for both runtime affectors and any game's), swap-removal touching every
@@ -208,14 +211,20 @@ shader is the path to millions, at the price of how affectors are written.
 Your tests will differ from the ones written here; the numbers below are a
 reference from one machine, not targets. All were taken on the owner's machine
 (Ryzen 7 5700X, Radeon RX 7600, Windows 11), Release, vsync off, from the
-particles sample's log (`particles step: ... ms average` and the frame rate).
+particles sample's log (`particles step: ... ms average` and the frame rate). The
+32- and 40-byte columns were built for the x64 baseline (SSE2), before the switch
+to AVX2; the last column is the same 40-byte code compiled with `/arch:AVX2`.
 
-| Scenario | 32-byte particle | 40-byte particle |
-|---|---|---|
-| 100,000 particles, 1 attractor, no interaction: step | 0.71-0.84 ms | 0.84-0.88 ms |
-| same: frames per second | about 2,230 | about 1,840 |
-| 10,000 particles with interaction: step | 2.4-2.8 ms | 2.5 ms (within spread) |
-| 1,000,000 particles, 1 attractor, no interaction: step | | 14-16.5 ms (frames fall to about 5 per second as the fixed steps take the whole second) |
+| Scenario | 32-byte particle | 40-byte particle | 40-byte, AVX2 |
+|---|---|---|---|
+| 100,000 particles, 1 attractor, no interaction: step | 0.71-0.84 ms | 0.84-0.88 ms | 0.81-0.85 ms |
+| same: frames per second | about 2,230 | about 1,840 | about 1,850-1,900 |
+| 10,000 particles with interaction: step | 2.4-2.8 ms | 2.47-2.54 ms | 2.42-2.48 ms |
+| 1,000,000 particles, 1 attractor, no interaction: step | | 14-16.5 ms (frames fall to about 5 per second as the fixed steps take the whole second) | |
+
+AVX2 alone gains 3 to 5%: the step is memory-bound, and in the array of 40-byte
+structs the compiler finds little to vectorize; the gain section 6 expects needs
+per-field arrays.
 
 A dense spawner (3,000 per second, speed 40 to 80, interaction radius 4), mean
 speed after 1.5 s: 760 with a step's particles stacked on one point, 539 with the

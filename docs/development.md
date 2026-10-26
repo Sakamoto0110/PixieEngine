@@ -68,6 +68,11 @@ cmake --build --preset vs2026-release
   no Visual C++ Redistributable.
 - The project's own targets compile with `/W4 /WX`: a warning is an error.
   Third-party code under `external/` compiles with its own settings.
+- On x86-64 they also compile for AVX2 (`/arch:AVX2`; `-mavx2 -mfma -mf16c`
+  elsewhere), with FMA and F16C, so the binaries need a CPU with AVX2 (Intel
+  since 2013, AMD since 2015). `-DPIXIE_AVX2=OFF` builds for an older one. The
+  setting is in `cmake/PixieTargetDefaults.cmake`, which games built with
+  `pixie_game` share.
 
 `build/` and `bin/` can be deleted at any time; configure again.
 
