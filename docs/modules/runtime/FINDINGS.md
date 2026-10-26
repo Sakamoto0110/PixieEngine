@@ -84,6 +84,9 @@ draw style. In a blank project, a system and a spawner made with Create entity
 and Add component, with the system chosen and a nonzero rate and speed, emit
 on Play, with the edited color and size, and again after save and reopen
 ([completion record](../../archive/todo-044-particles-without-code-2026-10-26.md)).
-What remains is the sample's orbits: affectors (attractors, interaction) are
-still added only in code, and saving them needs its own design; it is not
-scheduled.
+What remained was the sample's orbits, since affectors were added only in code.
+PIXIE-TODO-045 makes both affectors scene components (`ParticleAttraction`,
+`ParticleInteraction`) and moves the sample onto them, so a project without
+code can author the whole effect
+([completion record](../../archive/todo-045-particle-affectors-2026-10-26.md)).
+Nothing of this finding remains open.

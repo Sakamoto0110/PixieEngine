@@ -6,9 +6,10 @@ thousand. It uses the `runtime` module's particle pools
 ([`docs/modules/runtime/REFERENCE.md`](../../docs/modules/runtime/REFERENCE.md#particles)).
 
 - The particles are not entities. One `particles` entity holds a `ParticleSystem`, a contiguous
-  pool, with two batch affectors: an `AttractorAffector`, which pulls every particle toward every
-  attractor with a force falling with the square of the distance, and an `InteractionAffector`, a
-  short-range push between particles closer than 4 world units, found through a spatial grid.
+  pool, with its look and two affectors, all in the scene: a `ParticleAttraction`, which pulls
+  every particle toward every attractor with a force falling with the square of the distance, and a
+  `ParticleInteraction`, a short-range push between particles closer than 4 world units, found
+  through a spatial grid. The project adds no affector in code.
 - Attractors are entities (`Transform2D`, `Attractor`, and a gold ring `Shape`), so they can be
   placed and moved like anything else. The ring is the attractor's body (`Attractor.size`); with
   "die on contact" set in the editor, particles that fall into it disappear.
@@ -17,8 +18,8 @@ thousand. It uses the `runtime` module's particle pools
   toward the attractors. In the editor, its direction and spread turn on a dial, and its system
   and target are chosen among the entities. More spawners can be placed with Alt + click; a new
   one is a copy of this one with a rate of 0, so it emits nothing until its rate is set.
-- The interaction's values live in a `ParticleControls` component on the `particles` entity, which
-  the project copies into the affector before each step, so a tool can change them.
+- The interaction's values are the `ParticleInteraction`'s, edited in the inspector; the I key
+  turns its `enabled` on and off.
 - A preset puts particles in nearly circular orbits, spread over the attractors in turn, between 40
   and 260 units out, at the circular speed `sqrt(strength / r)` give or take 8%. With one attractor
   and the interaction off, the disc keeps its shape while it turns; with the interaction on, the

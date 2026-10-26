@@ -179,8 +179,8 @@ Particles are not entities. A `ParticleSystem` component owns a contiguous `std:
 the engine library, whose `ParticleRenderer` reads it as its vertex format), up to `capacity`, with
 its draw `style` and its affectors. It is move-only, since it owns its affectors. `Emit` adds one
 particle directly, and fails while the pool is full. A scene saves its `capacity` and its style
-(`color`, `size` in world units, `additive`, `fade`); its particles and affectors are not saved, so
-a project adds affectors in code.
+(`color`, `size` in world units, `additive`, `fade`); its particles and the affectors added in code
+are not saved, while the affectors described as components (below) are.
 
 A `ParticleSpawner` is a component on an entity of its own, with a `Transform2D`, that feeds the
 system named by its `system` field; several spawners may feed one system, and a spawner whose
@@ -229,6 +229,15 @@ particle order. The runtime provides two:
   `stiffness * overlap`, and `damping` pulls their velocities together while in contact. It builds
   a `SpatialGrid` over the pool every step (the grid's ids are then pool indices: grid ids are
   opaque 32-bit values), computes every change from the state before it, then applies them all.
+
+Both are also scene components, for a project without code: on the entity that has the
+`ParticleSystem`, `ParticleAttraction` (`enabled`, and `scale`, which multiplies every attractor's
+strength for this pool: 1 is the attractor's own, 0 nothing, negative pushes away) and
+`ParticleInteraction` (`enabled`, `radius`, `stiffness`, `damping`). The particle step applies them
+after the affectors added in code, attraction before interaction, keeping their working buffers in
+the registry's context, out of the scene. Add component accepts them only on an entity with a
+`ParticleSystem`. A system with neither component and no affector in code is pulled by nothing:
+attractors act on the systems that ask for them.
 
 `DrawParticles(world, renderer, camera, alpha)` draws every pool with its `style`, interpolated on
 the GPU.
@@ -328,7 +337,7 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity and draw style), and
+`Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity and draw style), `ParticleAttraction`, `ParticleInteraction`, and
 `ParticleSpawner`. The C API and scenes read and
 write fields only through these descriptors.
 

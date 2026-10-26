@@ -48,15 +48,6 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** body/world ownership, dynamics/materials/events, editor/lifecycle/migration and character/platform scenarios satisfy the specification's qualified matrix; unmet requirements remain explicit. No claim of all physics completion from a native body demo.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
 
-### `PIXIE-TODO-045` — Particle affectors in scenes
-
-**Status:** promoted
-**Source:** owner request on 2026-10-26 ("arrume todos os affectors"), after PIXIE-TODO-044 left affectors code-only and RUNTIME-FINDING-001 kept the sample's orbits out of reach of a project without code.
-**Accepted scope:** both runtime affectors become scene components on a particle system's entity: `ParticleAttraction` (enabled, and a scale on every attractor's pull, negative pushing away) and `ParticleInteraction` (enabled, radius, stiffness, damping). The particle step applies them after the affectors added in code, attraction before interaction, with working buffers kept out of the scene; Add component accepts them only on an entity with a `ParticleSystem`. The particles sample moves to them: no affectors added in code, its `ParticleControls` replaced by `ParticleInteraction`, its scene rewritten, the I key and the panel unchanged in effect.
-**Dependencies and gates:** PIXIE-TODO-044; leave PIXIE-TODO-043's in-progress work untouched; projects with affectors added in code keep working as before.
-**Completion criteria:** (1) runtime tests show attraction pulling, disabled, and reversed by a negative scale, interaction pushing overlapping particles apart and not when disabled, the components round-tripping through a scene, and the Add component guard; (2) in the editor, a blank project with an attractor, a system with both components and a spawner shows particles bending toward the attractor on Play, through real input; (3) the particles sample orbits and interacts as before, with its keys and panel; (4) RUNTIME-FINDING-001 closed; (5) zero warnings, and ctest passes in Debug and Release.
-**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-045--particle-affectors-in-scenes)
-
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
@@ -108,3 +99,4 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-041` | collision and character movement foundation | 2026-10-22 | [Completion](docs/archive/todo-041-collision-movement-2026-10-22.md) |
 | `PIXIE-TODO-042` | scene collision and character authoring | 2026-10-22 | [Completion](docs/archive/todo-042-editor-movement-2026-10-22.md) |
 | `PIXIE-TODO-044` | particles in scenes without code | 2026-10-26 | [Completion](docs/archive/todo-044-particles-without-code-2026-10-26.md) |
+| `PIXIE-TODO-045` | particle affectors in scenes | 2026-10-26 | [Completion](docs/archive/todo-045-particle-affectors-2026-10-26.md) |
