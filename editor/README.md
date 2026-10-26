@@ -195,8 +195,27 @@ Collider/Character creation buttons and matching empty-space viewport menu
 entries use native reflected components and one undo step per creation.
 Edit-mode gizmos show actual static geometry/capsules; invalid configuration
 appears in Session. Play uses the same native services as the generic player;
-Stop restores authored data. The editor now requires C API version 12, so game
+Stop restores authored data. The editor now requires C API version 16, so game
 libraries must be rebuilt. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
+**Session > Physics debug** toggles collider/sensor outlines, origins, centers of
+mass, velocities, awake/asleep markers and contact normals in Edit and Play.
+These options belong to the session and do not change scene data. Use
+`--do physicsdebug=127` for all options or `physicsdebug=0` for none; native
+players accept `--physics-debug 127`. Velocity segments show 0.25 seconds of
+travel; contact normals may include speculative rigid-body manifold points.
+Enable **Collider handles** in Edit/Select mode with one entity selected. The
+square resizes its collider and the circle rotates it; Shift snaps rotation to
+15 degrees, Escape restores the pre-drag scene data, and release records one undo
+step. For compounds, choose **Shape N** in the toolbar. Visual size and entity
+transform remain unchanged. Polygons resize uniformly; circles have only radius
+resize. Upright character capsules expose a lateral square for radius and a top
+diamond for full height. Radius changes retain the straight segment; height
+changes retain radius and center, with a minimum full height of twice the radius.
+The radius respects the native world-scale minimum. Capsules cannot rotate.
+Selecting one rigid body shows its native effective mass, solid area, local center
+of mass and inertia as read-only values below its authored properties. The solid
+area excludes sensors and adds overlaps. Disabled/invalid bodies show unavailable
+data and direct the user to Session diagnostics. Multi-selection asks for one body.
 The **Physics...** menu adds static obstacles, dynamic boxes, kinematic platforms,
 compound boxes, sensor regions, characters and world settings. Conflicting motion components are
 disabled with a native explanation; collider size shows full width/height without

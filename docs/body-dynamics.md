@@ -127,15 +127,22 @@ available in the same service. The [editor workflow](editor-movement.md) now pro
 body creation presets, native component admission and full collider size presentation.
 Compound-shape authoring now uses native record lists, shared body motion and the
 [compound laboratory](../samples/compound-lab/README.md). Named-layer UI is delivered; computed-mass
-inspector views remain pending. Stack/material and representative fast-body fixtures qualify the
+inspector views are available through the native read-only mass query. The inspector
+shows effective mass (kg), solid area (m²), local center (world units) and inertia
+(kg*worldUnits²). Area sums nonsensor geometry, including zero-density shapes and
+overlaps. Static/kinematic bodies report zero effective mass and inertia. Invalid
+or disabled bodies show unavailable data; edits and undo/redo synchronize before
+reading, without advancing time. Stack/material and representative fast-body fixtures qualify the
 cases documented in that guide; broader stress qualification remains pending. Motor queries can see dynamic
 geometry, but pushing, loading and platform carrying are not implemented or
 claimed. Do not use this baseline as evidence of safe crushing behavior.
 
 Telemetry retains collision.static_bodies and adds physics.bodies and
 physics.solve; event collection and pair/sensor gauges extend them in D2.
-Full synchronization/coupling counters and budgets belong
-to later gates. A visible tumbling box proves that scenario, not general
+Scene sync/rebuild, motor, event-publication and pose-publication instrumentation
+and bounded sparse-world qualification are described in the
+[physics telemetry guide](physics-telemetry.md). D4 coupling and broader workload
+budgets remain separate gates. A visible tumbling box proves that scenario, not general
 stability or owner acceptance of character feel.
 
 The executable regression cases are in

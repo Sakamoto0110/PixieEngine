@@ -52,19 +52,83 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (12), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (16), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
   version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines,
   version 9 movement diagnostics and Edit-mode gizmo selection, and version 10 component
   admission queries and singleton type metadata, version 11 typed record-list access, and
-  version 12 layer editor metadata, value-type flags and collision layer name queries; a
+  version 12 layer editor metadata, value-type flags and collision layer name queries, and
+  version 13 the read-only body mass query, and version 14 native collider handle
+  queries and drag editing, and version 15 capsule radius/height handles and the
+  expanded handle-result layout, and version 16 session physics debug options; a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
 ## Session
+
+`pixie_physics_debug_get/set` read/write session presentation bits: colliders (1),
+body origins (2), dynamic centers of mass (4), velocities (8), sensors (16),
+awake/asleep (32), contact normals (64). The header provides named constants.
+Unknown bits or null outputs are ARGUMENT errors. Options are isolated per
+session, survive Play/Stop/rebuild, and are never saved into scene components or
+marked as authored edits. Explicit zero hides all native debug geometry.
+Before an explicit selection, Edit retains its legacy authored collider/sensor
+preview (reported as 17) and Play defaults to zero. After selection, geometry
+comes from the latest synchronized physics state in both modes; invalid or
+disabled backend bodies are omitted. Selection and manipulation overlays are
+separate editor presentation and may still be visible.
+
+Velocities show 0.25 seconds of travel; centers use dynamic backend mass data.
+Awake markers and solid outlines are green for awake dynamic bodies and gray for
+sleeping ones when enabled; sensors are pink. Contact segments show shape A to B
+manifold normals, length 12 world units, once per manifold point, including
+speculative contacts. They do not represent character/body coupling or all motor
+contacts. Native debug reads/rendering never solve physics or consume events.
+
+`pixie_collider_handles_2d` copies the shape origin, resize handle and rotation
+handle in world units. Shape -1 addresses Collider2D; 0..255 addresses a compound
+item. Drawables are not consulted. `pixie_collider_drag_2d` takes an absolute
+world pointer: kind 0 resizes symmetrically about the shape origin, kind 1 changes
+the shape's local rotation, and kind 2 edits an upright character capsule's height.
+The rotation snap flag uses 15-degree increments.
+Box dimensions resize independently; circles change radius and have no rotation
+handle; polygons scale uniformly about their local origin. Entity transforms,
+shape offsets, other compound items and compatibility data remain unchanged.
+
+For CharacterMotor2D, shape -1 returns a lateral radius handle and a top-cap
+height handle (`canHeight = 1`, `canRotate = 0`). Radius dragging changes radius
+from horizontal distance to the center while retaining halfSegment. Height
+dragging changes halfSegment from vertical distance minus radius, clamped at zero;
+the full height is 2*(halfSegment + radius). Radius clamps just above the strict
+float backend minimum at the world's unitsPerMeter. The same native capsule
+validator guards both tools and simulation without allocating a backend to query
+handles. Character transforms must be upright and unit-scale; conflicting motion
+or geometry owners and duplicate/invalid world scales have no capsule handles.
+
+Both calls require Edit mode. Missing/unsupported geometry returns NOT_FOUND;
+invalid arguments, rejected drags and Play-mode calls return ARGUMENT. Rejected
+drags do not change authored data. Successful drags mark an authored scene
+changed and never advance time. Singular transforms and nonuniformly scaled circles
+have no handles. These are authoring operations, not a
+claim of numerical qualification for every resulting physics configuration;
+normal scene physics validation and diagnostics still apply.
+
+`pixie_body_mass_2d(session, entity, &mass)` copies effective native body properties:
+mass in kg, solid area in m², body-local center in world units, and inertia about
+that center in kg*worldUnits². Area sums enabled nonsensor geometry, including
+zero-density shapes; overlaps add. Static/kinematic bodies have zero effective
+mass, center and inertia, while retaining their solid area. A mass override changes
+mass/inertia without changing area or center. Fixed rotation suppresses angular
+response; the query reports the backend's effective properties.
+
+In Edit the query synchronizes authored physics without stepping time or marking
+the scene unsaved. In Play it reads the latest synchronized state. Missing,
+disabled or invalid rigid bodies return `PIXIE_ERROR_NOT_FOUND` without writing
+the output; movement diagnostics explain invalid configuration. Null session or
+output returns `PIXIE_ERROR_ARGUMENT`. Results are copied, never serialized.
 
 `pixie_session_create(width, height, seed, &session)` loads the GL functions for the current
 context (`pixie::LoadGl`), creates the game's `Project` through `pixie::CreateProject`, and starts a

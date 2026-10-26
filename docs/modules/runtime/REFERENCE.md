@@ -27,6 +27,12 @@ without involving rendering; it records inclusive whole-step, aggregate Behaviou
 durations when enabled. Resetting telemetry does not reset simulation time or scene state. The
 [telemetry guide](../../telemetry.md) describes registration, lifetime, export and native controls;
 the public API is [`Telemetry.hpp`](../../../engine/include/pixie/Telemetry.hpp).
+Scene movement additionally records sync/rebuild, motor integration, event
+identity publication and body pose publication, with per-tick rebuild/sync and
+population gauges. Active-ID buffers retain capacity across syncs; the native
+scene scan and body publication still visit the full relevant set. Exact timing
+boundaries and immediate-command semantics are in the
+[physics telemetry guide](../../physics-telemetry.md). This adds no C API change.
 
 The object model is an EC-style API over ECS storage
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). Components are data-only structs, each
@@ -781,12 +787,43 @@ documents shapes/transforms, queries, diagnostics, persistence and lab UI limits
 
 ## Rigid body dynamics foundation
 
+[PhysicsDebug2D.hpp](../../../runtime/include/pixie/runtime/PhysicsDebug2D.hpp)
+defines copied typed line geometry and rendering for collider/sensor outlines,
+backend body origins, dynamic centers of mass, linear velocity segments,
+awake/asleep markers and current rigid-body manifold normals.
+CollisionWorld2D::DebugGeometry reads actual backend shapes and poses. The scene
+wrapper adds character geometry/velocity from synchronized controller settings
+and motion, including before pending authored changes are synchronized.
+It does not sync, step, change sleep state or consume events. Call after the
+normal scene sync when current authored data should be reflected. Disabled or
+invalid backend geometry is omitted. Contact normals may be speculative and are
+not character contact/coupling evidence. The copied data is usable without C#.
+ProjectSession controls presentation independently of saved scene data;
+the native generic player accepts `--physics-debug <0..127>`.
+
+[ColliderEditing2D.hpp](../../../runtime/include/pixie/runtime/ColliderEditing2D.hpp)
+provides native authored handle positions and absolute-pointer resize/rotation,
+independent of C# and drawable geometry. Shape -1 selects a root collider; a
+zero-based index selects a compound item. Full reflected/rotated/nonuniform
+entity transforms and collider-local pose are used in both directions. Resize
+keeps shape offsets and entity transforms fixed; polygon scaling is uniform
+about the local origin. Nonuniformly scaled circles are excluded. Upright,
+unit-scale CharacterMotor2D has radius and full-height handles at shape -1.
+Radius edits preserve halfSegment; height edits preserve radius and clamp the
+straight segment at zero. The motor center, transform and tuning stay fixed.
+The static ValidateMoverCapsule overload shares the backend's strict float
+radius guard with authoring tools, without allocating a collision World.
+Rejected edits leave data unchanged; normal physics admission remains applicable.
+
 [RigidBody2D.hpp](../../../runtime/include/pixie/runtime/RigidBody2D.hpp) defines
 body configuration, shape descriptions, settings and results. CollisionWorld2D
 owns opt-in bodies and their individual query shapes in the same backend scene.
 StepBodies advances explicitly; AddBox/Circle/Polygon remain static conveniences.
-BodyMass reports kg, local center in world units and center-of-mass inertia in
-kg*worldUnits². Forces/impulses scale once in length; torque/angular impulse and
+BodyMass reports kg, local center in world units, center-of-mass inertia in
+kg*worldUnits², and solid area in m². Area sums nonsensor shapes, including
+zero-density shapes and overlaps, and is cached when body geometry is created.
+Static/kinematic mass, center and inertia are zero; area remains available.
+Forces/impulses scale once in length; torque/angular impulse and
 inertia scale twice. Body/shape IDs are runtime-only and remain stale after reset.
 
 The scene service synchronizes RigidBody2D plus Collider2D/Transform2D, steps once

@@ -73,6 +73,9 @@ override applies to a newly exposed collector as well, including a replacement W
 VSync/frame-cap commands and input capture remain in effect; see [player debug](player-debug.md).
 
 The [telemetry sample](../samples/telemetry/README.md) is a neutral headless/native consumer.
+The [physics telemetry guide](physics-telemetry.md) defines scene sync/rebuild,
+solve, motor, event and publication boundaries, and a seeded headless benchmark
+with cold/warm samples and explicit allocation/overhead coverage limits.
 LogicSandbox's per-World collector carries its own timings and circuit counters. Circuit population
 sampling remains game code. Neither hiding nor enabling telemetry suspends circuit simulation.
 

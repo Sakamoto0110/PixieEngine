@@ -81,6 +81,73 @@ backend float conversion (0.32 world units at the default scale of 32). Invalid
 sizes are diagnosed in Edit and rejected before backend mover assertions. Increase
 radius to recover; a fixed inspector minimum cannot cover every world scale.
 
+## Physics debug views
+
+Expand **Session > Physics debug** to select collider outlines, body origins,
+dynamic centers of mass, velocities, sensors, awake/asleep state and contact
+normals independently. Options survive Play/Stop and rebuild within that session
+and are never serialized or marked as authored edits. The initial Edit preview
+retains authored gizmos; once options are selected, the debug view uses active
+native physics geometry. Explicit zero hides that debug layer; selection outlines
+and manipulation handles are separate controls. Invalid or disabled bodies have
+no active physics geometry; Session diagnostics still identify their errors.
+
+Velocity segments represent 0.25 seconds of travel. Awake dynamics show green,
+sleeping dynamics gray, and sensors pink. Contact normals are 12-world-unit
+segments from current rigid-body manifolds (shape A toward B), including possible
+speculative points. Character outlines/velocities use synchronized controller
+data; character contact normals and body coupling are not implied. Debug poses
+show the last synchronized/solved state and can differ from interpolated visuals.
+The view never advances physics or consumes contact/sensor events.
+
+The reusable native view also works in the generic player with
+`--physics-debug 127`; `--do physicsdebug=127` enables all flags in scripted editor
+runs. Use zero to disable. Performance qualification remains part of telemetry
+acceptance; debug visualization is optional presentation work.
+
+## Viewport collider handles
+
+In Edit/Select mode, enable **Collider handles** and select one entity. Use the
+square handle to resize its collider about the local origin, or the circle to
+rotate the collider locally; Shift snaps rotation to 15 degrees. Escape restores
+the pre-drag snapshot without adding a history step. Release commits one step;
+undo/redo uses scene IDs. Cancel/undo restores data but may leave the existing
+unsaved marker set until Save, as with other snapshot restoration.
+
+For a compound choose **Shape N** in the toolbar. Only that item changes; other
+items, offsets, unknown data, entity transforms and visual sizes stay fixed.
+Handles are calculated by native geometry, including reflected scales and local
+rotation before nonuniform entity scale. Box resize changes two half extents;
+circle resize changes radius; polygon resize scales its points uniformly about
+the local origin. Circles have no rotation handle. Singular transforms,
+degenerate polygons and nonuniformly scaled circles do not expose handles.
+Upright, unit-scale CharacterMotor2D uses a square lateral handle for radius and
+a diamond at the top cap for full height. Radius dragging preserves halfSegment;
+height dragging preserves radius and the motor center. The minimum height is
+the diameter (halfSegment zero); radius clamps just above the native strict float
+minimum for the World's unitsPerMeter. Shape -1 selects the motor's capsule.
+Rotation and scaled/tilted character transforms are unsupported. Conflicting
+geometry/motion components or duplicate/invalid world scale disable capsule
+handles. These tools do not advance Edit time; the regular physics diagnostics
+continue to qualify authored geometry and movement tuning.
+
+Scripted validation can enable the controls with `--do colliderhandles` and run
+the same native edit/history path with
+`--do colliderdrag=-1:resize:45,57` (root shape, absolute world pointer),
+`colliderdrag=0:rotate:100,50` (first compound item), or
+`colliderdrag=-1:height:25,-10` (capsule top cap). `cancel` and `cancelheight`
+exercise snapshot cancellation of resize and height respectively.
+Scripted edits exercise native authoring/history; they do not prove
+physical pointer hit testing or independent visual acceptance.
+
+With one RigidBody2D selected, its inspector shows native read-only effective
+mass (kg), solid area (m²), local center (world units), and center-of-mass inertia
+(kg*worldUnits²). Solid area includes zero-density shapes and sums overlaps;
+sensors are excluded. Authored edits and history restoration refresh these values
+without stepping Edit time. Invalid or disabled bodies show unavailable data;
+Session diagnostics identify configuration errors. Multi-selection requests one
+body rather than presenting one body's values as a shared result.
+
 ## Compound bodies
 
 **Physics... > Compound box** creates one dynamic body with CompoundCollider2D.
