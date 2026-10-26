@@ -48,6 +48,15 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** body/world ownership, dynamics/materials/events, editor/lifecycle/migration and character/platform scenarios satisfy the specification's qualified matrix; unmet requirements remain explicit. No claim of all physics completion from a native body demo.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
 
+### `PIXIE-TODO-047` — Each particle carries its look
+
+**Status:** promoted
+**Source:** owner correction on 2026-10-26: the shape was meant to live in the particle's data, in the 40-byte layout of the roadmap's particle data design note, not in the system's style as PIXIE-TODO-046 delivered it; approved as proposed ("go on with 47").
+**Accepted scope:** `Particle` grows from 32 to 40 bytes: RGBA8 color, size as a 16-bit half float, a flags byte (shape in two bits, a dynamic bit reserved and unused), and a spare byte. One function fills a new particle for every path; `ParticleSystem::Emit` gives it the system's look (`color`, `size`, `shape` of its style, which become the system's default look). `ParticleSpawner` gains `ownLook`, `particleColor`, `particleSize` and `particleShape`: with `ownLook`, its particles take its own look, otherwise the system's, so saved scenes do not change. The particle renderer reads color, size and flags per particle, so spawners of different looks share one pool and one draw; `additive`, `fade` and `minPixels` stay per system. The staggered births and `jitter` of PIXIE-TODO-046 stay as they are.
+**Dependencies and gates:** PIXIE-TODO-046; leave PIXIE-TODO-043's in-progress work untouched; the cost of the larger particle measured before and after on 100,000 particles.
+**Completion criteria:** (1) runtime tests show the layout's size and the half float's round trip, `Emit` taking the system's look, a spawner with `ownLook` its own, two spawners of different looks in one pool, and the spawner's look round-tripping through a scene; (2) in the editor, one system fed by spawners of different shapes and colors draws them all, through real input; (3) the step and frame cost on 100,000 particles measured before and after; (4) zero warnings, and ctest passes in Debug and Release.
+**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-047--each-particle-carries-its-look)
+
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
