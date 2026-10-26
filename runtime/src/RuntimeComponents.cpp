@@ -164,7 +164,18 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&ParticleSystem::capacity>("capacity")
         .Tooltip("Most particles the pool holds; spawners stop emitting while it is full.")
         .Range(0.0, 1000000.0, 1.0)
-        .Scrub(10.0);
+        .Scrub(10.0)
+        .Field<&ParticleSystem::style, &ParticleStyle::color>("color")
+        .Tooltip("The particles' color; a lower alpha makes them fainter.")
+        .Field<&ParticleSystem::style, &ParticleStyle::size>("size")
+        .Tooltip("A particle's radius, in world units; it is never drawn smaller than a pixel.")
+        .Range(0.0, 1000.0)
+        .Scrub(0.05)
+        .Field<&ParticleSystem::style, &ParticleStyle::additive>("additive")
+        .Tooltip("Adds the light of overlapping particles, so dense places glow; otherwise they "
+                 "cover each other.")
+        .Field<&ParticleSystem::style, &ParticleStyle::fade>("fade")
+        .Tooltip("Fades each particle out over its lifetime; particles that live forever do not fade.");
     types.Add<ParticleSpawner>("ParticleSpawner")
         .Field<&ParticleSpawner::system>("system")
         .References("ParticleSystem")

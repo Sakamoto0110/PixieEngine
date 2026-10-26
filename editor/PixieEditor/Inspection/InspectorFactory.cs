@@ -195,6 +195,11 @@ internal static class InspectorFactory
         if (info.Flags.HasFlag(PixieFieldFlags.ReadOnly))
             node.ReadOnly = true;
 
+        // A color edits with PixieInspector's color editor and its picker; left alone it would only
+        // be shown as text.
+        if (node.ValueType == typeof(PxColorRgba) && !node.ReadOnly)
+            node.Editor = EditorKind.Color;
+
         var numeric = node.ValueType == typeof(double) || node.ValueType == typeof(int);
         if (!numeric)
             return;

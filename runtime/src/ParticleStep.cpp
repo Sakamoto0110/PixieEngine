@@ -11,6 +11,9 @@ namespace pixie {
 
 namespace {
 
+// Marks a World whose particle step is installed.
+struct ParticleStepInstalled {};
+
 void Age(ParticleSystem& system, float dt) {
     auto& particles = system.particles;
     for (std::size_t i = 0; i < particles.size();) {
@@ -74,6 +77,11 @@ void StepParticles(World& world, const FrameTime& time, const Input&) {
 } // namespace
 
 void AddParticleStep(World& world) {
+    auto& context = world.Registry().ctx();
+    if (context.contains<ParticleStepInstalled>()) {
+        return;
+    }
+    context.emplace<ParticleStepInstalled>();
     world.AddSystem(SystemPhase::PostUpdate, "particles.step", &StepParticles);
 }
 

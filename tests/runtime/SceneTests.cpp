@@ -5,6 +5,7 @@
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
+#include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Shape.hpp"
@@ -50,7 +51,12 @@ void Fill(World& world) {
     pool.Add<Velocity2D>(Velocity2D{pxVec2(1.0, 2.0), 0.1});
     pool.Add<Acceleration2D>(Acceleration2D{pxVec2(-4.0, 9.81)});
     pool.Add<Shape>(Shape{ShapeKind::Ring, pxVec2(3.0, 4.0), pxColorRgba(10, 20, 30, 40)});
-    pool.Add<ParticleSystem>().capacity = 5000;
+    ParticleSystem& system = pool.Add<ParticleSystem>();
+    system.capacity = 5000;
+    system.style.color = pxColorRgba(255, 120, 40, 200);
+    system.style.size = 3.5f;
+    system.style.additive = false;
+    system.style.fade = false;
     Attractor& attractor = pool.Add<Attractor>();
     attractor.strength = -2.5e5;
     attractor.killOnContact = true;
@@ -136,8 +142,39 @@ TEST(ARoundTripKeepsEveryComponentAndValue) {
     CHECK(feed.lifetime == 0.6f && feed.rate == 120.0);
     CHECK(feed.shape == EmissionShape::Ring && feed.directionMode == DirectionMode::TowardTarget);
 
+    // The pool's draw style comes back too.
+    const ParticleStyle& style = pool.Get<ParticleSystem>().style;
+    CHECK(style.color == pxColorRgba(255, 120, 40, 200) && style.size == 3.5f);
+    CHECK(!style.additive && !style.fade);
+
     // Writing the loaded World gives the same text.
     CHECK(WriteScene(loaded, types) == text);
+}
+
+TEST(ASceneSpawnerEmitsWithTheParticleStepInstalledOnce) {
+    const ComponentTypes types = Types();
+    World original;
+    Entity pool = original.Create("pool");
+    pool.Add<ParticleSystem>();
+    AddToScene(pool);
+    Entity spawner = original.Create("spawner");
+    spawner.Add<Transform2D>();
+    ParticleSpawner& feed = spawner.Add<ParticleSpawner>();
+    feed.system = pool.Id();
+    feed.rate = 60.0; // one per step
+    AddToScene(spawner);
+
+    World loaded;
+    CHECK(ReadScene(loaded, types, WriteScene(original, types)).ok);
+    // As a project that adds the step itself, before the session adds it to every World.
+    AddParticleStep(loaded);
+    AddParticleStep(loaded);
+    for (int i = 0; i < 10; ++i) {
+        loaded.Step(1.0 / 60.0, kNoInput);
+    }
+    std::size_t particles = 0;
+    loaded.Each<const ParticleSystem>([&](Entity, const ParticleSystem& system) { particles += system.particles.size(); });
+    CHECK(particles == 10);
 }
 
 TEST(ABehaviourLoadedFromASceneRuns) {

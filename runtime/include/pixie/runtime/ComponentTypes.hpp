@@ -299,6 +299,19 @@ void Write(void* component, const FieldValue& value) {
     FromValue(static_cast<Class*>(component)->*Member, value);
 }
 
+// A value one level into a member, such as a style struct's color.
+template<auto Outer, auto Inner>
+FieldValue ReadNested(const void* component) {
+    using Class = typename MemberTraits<decltype(Outer)>::Class;
+    return ToValue((static_cast<const Class*>(component)->*Outer).*Inner);
+}
+
+template<auto Outer, auto Inner>
+void WriteNested(void* component, const FieldValue& value) {
+    using Class = typename MemberTraits<decltype(Outer)>::Class;
+    FromValue((static_cast<Class*>(component)->*Outer).*Inner, value);
+}
+
 template<auto Member>
 std::string ReadText(const void* component) {
     using Class = typename MemberTraits<decltype(Member)>::Class;
@@ -402,6 +415,32 @@ public:
             field.read = &detail::Read<Member>;
             field.write = &detail::Write<Member>;
         }
+        auto& fields = types_.types_[index_].fields;
+        field.metadata.order = static_cast<int>(fields.size());
+        fields.push_back(std::move(field));
+        return *this;
+    }
+
+    // Field<&T::member, &Member::field>("name"): a field one level into a member, such as a style
+    // struct's color, saved and shown as the component's own. Values only: numbers, booleans,
+    // enums, points, vectors, rectangles, colors, and entities.
+    template<auto Outer, auto Inner>
+    ComponentBuilder& Field(std::string name, std::vector<std::string> enumNames = {}) {
+        using OuterTraits = detail::MemberTraits<decltype(Outer)>;
+        using InnerTraits = detail::MemberTraits<decltype(Inner)>;
+        using Type = typename InnerTraits::Type;
+        static_assert(std::is_base_of_v<typename OuterTraits::Class, T>, "the member must belong to T");
+        static_assert(std::is_base_of_v<typename InnerTraits::Class, typename OuterTraits::Type>,
+                      "the inner field must belong to the member's type");
+        static_assert(!std::is_same_v<Type, std::string> && !std::is_same_v<Type, std::vector<pxPoint>> &&
+                          !detail::RecordListTraits<Type>::value,
+                      "only values reach into a member");
+        FieldDescriptor field;
+        field.name = std::move(name);
+        field.kind = detail::KindOf<Type>();
+        field.enumNames = std::move(enumNames);
+        field.read = &detail::ReadNested<Outer, Inner>;
+        field.write = &detail::WriteNested<Outer, Inner>;
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));

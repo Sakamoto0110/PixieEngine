@@ -109,6 +109,8 @@ void ProjectSession::Build(bool resetCamera) {
         }
     }
     project_->Build(*world_, camera_);
+    // After the project's Build, so a project that adds the step itself keeps its place.
+    AddParticleStep(*world_);
     InstallSceneMovement2D(*world_);
     SyncSceneMovement2D(*world_);
 }

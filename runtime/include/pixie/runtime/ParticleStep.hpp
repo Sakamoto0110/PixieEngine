@@ -15,6 +15,10 @@ class World;
 // 2. every ParticleSpawner pointing at the system emits into it;
 // 3. the system's enabled affectors run, in the order added, and the particles they killed leave;
 // 4. each particle moves by its velocity.
+//
+// It installs once per World: later calls do nothing. Every World a ProjectSession builds gets it,
+// after the project's Build, so a scene's particle systems run without project code, and a project
+// that adds it itself, earlier in its own order of systems, keeps that place.
 void AddParticleStep(World& world);
 
 // Draws every ParticleSystem's pool with its style, interpolated `alpha` of the way between steps.
