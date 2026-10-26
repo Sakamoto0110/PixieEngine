@@ -152,6 +152,48 @@ bool Near(double a, double b, double tolerance = 1e-4) {
 
 } // namespace
 
+TEST(AStepsParticlesAreSpacedAlongTheirPath) {
+    World world;
+    Fed fed = MakeFed(world, pxPoint(0.0, 0.0));
+    ParticleSpawner& spawner = fed.spawner.Get<ParticleSpawner>();
+    spawner.rate = 600.0; // ten per step
+    spawner.speedMin = spawner.speedMax = 60.0; // one unit per step
+    spawner.spread = 0.0;
+    world.Step(kStep, kNoInput);
+    const auto& particles = fed.system.Get<ParticleSystem>().particles;
+    CHECK(particles.size() == 10);
+    // The k-th came due at (k + 1) / 10 of the step: it ends 0.9, 0.8, ... 0 units out, all born at
+    // the spawner, each as old as the part of the step it lived.
+    std::vector<float> distances;
+    for (const Particle& p : particles) {
+        CHECK(p.previous == pxPointf(0.0f, 0.0f));
+        CHECK(std::abs(p.position.y) < 1e-6f);
+        CHECK(std::abs(p.age * 60.0f - p.position.x) < 1e-4f);
+        distances.push_back(p.position.x);
+    }
+    std::sort(distances.begin(), distances.end());
+    for (std::size_t k = 0; k < distances.size(); ++k) {
+        CHECK(std::abs(distances[k] - 0.1f * static_cast<float>(k)) < 1e-4f);
+    }
+}
+
+TEST(JitterScattersStartsAroundTheShapesPoint) {
+    const std::vector<Particle> particles = Emitted(4000, 0.0, [](World&, ParticleSpawner& s) { s.jitter = 10.0; });
+    CHECK(particles.size() == 4000);
+    std::size_t within = 0;
+    double total = 0.0;
+    for (const Particle& p : particles) {
+        const double distance = Distance(p.position, 50.0, 50.0);
+        within += distance <= 10.0 ? 1 : 0;
+        total += distance;
+    }
+    // A Gaussian of standard deviation 5 per axis: 86.5% within 10, a mean distance of 6.27.
+    const double share = static_cast<double>(within) / static_cast<double>(particles.size());
+    const double mean = total / static_cast<double>(particles.size());
+    CHECK(share > 0.84 && share < 0.89);
+    CHECK(mean > 6.0 && mean < 6.55);
+}
+
 TEST(EmissionShapesPlaceParticlesOnTheShape) {
     for (const Particle& p : Emitted(50, 0.0, [](World&, ParticleSpawner&) {})) {
         CHECK(Distance(p.position, 50.0, 50.0) < 1e-4);
@@ -417,4 +459,33 @@ TEST(SceneAffectorsAreAddedOnlyToAParticleSystem) {
         CHECK(!type.AdditionError(world, bare.Id()).empty());
         CHECK(type.AdditionError(world, system.Id()).empty());
     }
+}
+
+TEST(JitterKeepsADenseInteractingStreamFromExploding) {
+    // 3000 particles a second from one point, pushing each other apart: the mean speed after 1.5 s.
+    const auto meanSpeed = [](double jitter) {
+        World world;
+        Fed fed = MakeFed(world, pxPoint(0.0, 0.0));
+        ParticleSpawner& spawner = fed.spawner.Get<ParticleSpawner>();
+        spawner.rate = 3000.0;
+        spawner.lifetime = 1.5f;
+        spawner.speedMin = 40.0;
+        spawner.speedMax = 80.0;
+        spawner.jitter = jitter;
+        fed.system.Add<ParticleInteraction>();
+        for (int i = 0; i < 90; ++i) {
+            world.Step(kStep, kNoInput);
+        }
+        double sum = 0.0;
+        const auto& particles = fed.system.Get<ParticleSystem>().particles;
+        for (const Particle& p : particles) {
+            sum += std::hypot(p.velocity.x, p.velocity.y);
+        }
+        return particles.empty() ? 0.0 : sum / static_cast<double>(particles.size());
+    };
+    const double stacked = meanSpeed(0.0);
+    const double scattered = meanSpeed(4.0);
+    // Measured: about 540 without jitter, 200 with it; the rest is the pile's own pressure.
+    CHECK(scattered < 0.5 * stacked);
+    CHECK(scattered < 4.0 * 80.0);
 }

@@ -184,7 +184,10 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Tooltip("Adds the light of overlapping particles, so dense places glow; otherwise they "
                  "cover each other.")
         .Field<&ParticleSystem::style, &ParticleStyle::fade>("fade")
-        .Tooltip("Fades each particle out over its lifetime; particles that live forever do not fade.");
+        .Tooltip("Fades each particle out over its lifetime; particles that live forever do not fade.")
+        .Field<&ParticleSystem::style, &ParticleStyle::shape>("shape", {"Disc", "Square", "Ring", "Streak"})
+        .Tooltip("What each particle is drawn as: a disc, a square, a hollow ring, or a streak "
+                 "stretched behind it along its motion.");
     types.Add<ParticleAttraction>("ParticleAttraction")
         .CanAdd(NeedsParticleSystem)
         .Field<&ParticleAttraction::enabled>("enabled")
@@ -248,6 +251,12 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Label("segment end")
         .Tooltip("Where the segment ends, as an offset from the spawner, in world units.")
         .Scrub(0.5)
+        .Field<&ParticleSpawner::jitter>("jitter")
+        .Tooltip("Scatters each start around the point the shape chose, in world units: most "
+                 "particles land within this distance. At high rates, about the interaction radius "
+                 "keeps them from starting on top of each other.")
+        .Range(0.0, 10000.0)
+        .Scrub(0.1)
         .Field<&ParticleSpawner::directionMode>("directionMode", {"Fixed", "ShapeNormal", "TowardTarget"})
         .Label("direction mode")
         .Tooltip("What the direction is measured from: the spawner's rotation, the shape's outward "

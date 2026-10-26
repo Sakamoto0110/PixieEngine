@@ -53,6 +53,9 @@ struct ParticleSpawner {
     double radius = 0.0;
     pxVec2 size{0.0, 0.0};
     pxVec2 segmentEnd{0.0, 0.0};
+    // Scatters each start around the point the shape chose, in world units: a Gaussian offset with
+    // most particles (about 86%) within this distance. 0 keeps the shape's point.
+    double jitter = 0.0;
     DirectionMode directionMode = DirectionMode::Fixed;
     // Added to the mode's angle.
     double direction = 0.0;
@@ -64,6 +67,11 @@ struct ParticleSpawner {
     double pending = 0.0;
 };
 
+// Each particle it emits in a step has its own moment within the step, when its share of `rate`
+// came due: it is born there and then, so by the end of the step it has travelled, and aged, only
+// for the part of the step it lived, and a fast stream comes out evenly spaced rather than in a
+// stack per step. Its `previous` is its birth point, so it is drawn leaving the spawner.
+//
 // Emits the particles `spawner` owes for `delta` seconds into `system`, from `transform` (the
 // spawner's), aiming at `target` (the target's transform, or null). Returns how many it emitted.
 int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, const Transform2D* target,

@@ -8,9 +8,24 @@
 
 #include <pixie/pxColorRgba.hpp>
 
+#include <cstdint>
 #include <span>
 
 namespace pixie {
+
+// What each particle of a pool is drawn as, `size` being its radius (half the side of a square).
+enum class ParticleShape : std::uint8_t {
+    Disc,
+    Square,
+    // A hollow disc.
+    Ring,
+    // A disc stretched behind the particle along its velocity, over the distance it covers in
+    // kStreakSeconds: sparks, rain.
+    Streak,
+};
+
+// How long a Streak's tail is, in seconds of the particle's motion.
+inline constexpr float kStreakSeconds = 0.05f;
 
 // How a pool of particles looks: all of a pool share one style.
 struct ParticleStyle {
@@ -22,9 +37,10 @@ struct ParticleStyle {
     bool additive = true;
     // Fade out over the particle's lifetime (particles that live forever do not fade).
     bool fade = true;
+    ParticleShape shape = ParticleShape::Disc;
 };
 
-// Draws a pool of particles as instanced antialiased discs, straight from the pool's memory: the
+// Draws a pool of particles as instanced antialiased shapes, straight from the pool's memory: the
 // GPU interpolates each particle between its previous and current position, so the CPU does no
 // per-particle work to draw.
 class ParticleRenderer {

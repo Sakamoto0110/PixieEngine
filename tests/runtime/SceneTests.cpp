@@ -59,6 +59,7 @@ void Fill(World& world) {
     system.style.size = 3.5f;
     system.style.additive = false;
     system.style.fade = false;
+    system.style.shape = ParticleShape::Streak;
     pool.Add<ParticleAttraction>(ParticleAttraction{false, -0.5});
     pool.Add<ParticleInteraction>(ParticleInteraction{true, 6.5, 900.0, 1.25});
     Attractor& attractor = pool.Add<Attractor>();
@@ -149,7 +150,7 @@ TEST(ARoundTripKeepsEveryComponentAndValue) {
     // The pool's draw style comes back too.
     const ParticleStyle& style = pool.Get<ParticleSystem>().style;
     CHECK(style.color == pxColorRgba(255, 120, 40, 200) && style.size == 3.5f);
-    CHECK(!style.additive && !style.fade);
+    CHECK(!style.additive && !style.fade && style.shape == ParticleShape::Streak);
 
     // Writing the loaded World gives the same text.
     CHECK(WriteScene(loaded, types) == text);

@@ -6,6 +6,7 @@
 
 #include <pixie/math/pxSegment.hpp>
 
+#include <algorithm>
 #include <cmath>
 
 namespace pixie {
@@ -62,6 +63,14 @@ Start StartOnShape(const ParticleSpawner& s, Random& random) {
     return {};
 }
 
+// A Gaussian offset with a standard deviation of half `jitter` on each axis, so about 86% of the
+// offsets are within `jitter` (Box-Muller, from the World's random numbers).
+pxVec2 Jitter(double jitter, Random& random) {
+    const double sigma = 0.5 * jitter;
+    const double radius = sigma * std::sqrt(-2.0 * std::log(1.0 - random.NextDouble()));
+    return random.Direction() * radius;
+}
+
 pxVec2 Rotate(pxVec2 v, double angle) {
     const double c = std::cos(angle);
     const double s = std::sin(angle);
@@ -75,12 +84,18 @@ int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, cons
     if (spawner.rate <= 0.0) {
         return 0;
     }
+    const double owedBefore = spawner.pending;
     spawner.pending += spawner.rate * delta;
     int emitted = 0;
     while (spawner.pending >= 1.0) {
         spawner.pending -= 1.0;
+        // When within the step this particle came due: its share of the rate completed then.
+        const double due = std::clamp((emitted + 1 - owedBefore) / spawner.rate, 0.0, delta);
         const Start start = StartOnShape(spawner, random);
-        const pxPoint at = transform.position + Rotate(start.offset, transform.rotation);
+        pxPoint at = transform.position + Rotate(start.offset, transform.rotation);
+        if (spawner.jitter > 0.0) {
+            at = at + Jitter(spawner.jitter, random);
+        }
 
         double base = transform.rotation;
         if (spawner.directionMode == DirectionMode::ShapeNormal) {
@@ -93,11 +108,17 @@ int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, cons
         const double speed = random.Range(spawner.speedMin, spawner.speedMax);
         const pxVec2f velocity(static_cast<float>(std::cos(angle) * speed),
                                static_cast<float>(std::sin(angle) * speed));
-        if (!system.Emit(pxPointf(static_cast<float>(at.x), static_cast<float>(at.y)), velocity,
-                         spawner.lifetime)) {
+        // The step moves every particle a whole step after this; one born at `due` starts back by that
+        // much, so it ends the step where it would have got to, from its birth point.
+        const pxPointf born(static_cast<float>(at.x), static_cast<float>(at.y));
+        const auto early = static_cast<float>(due);
+        if (!system.Emit(born + velocity * -early, velocity, spawner.lifetime)) {
             spawner.pending = 0.0;
             break;
         }
+        Particle& particle = system.particles.back();
+        particle.previous = born;
+        particle.age = static_cast<float>(delta - due);
         ++emitted;
     }
     return emitted;
