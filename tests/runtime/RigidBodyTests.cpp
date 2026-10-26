@@ -38,6 +38,7 @@ TEST(BodyMassAndTorqueUseSquaredLengthConversion) {
         auto body = world.AddBody({}, 0, {}, {&shape, 1});
         const auto mass = world.BodyMass(body);
         CHECK(std::abs(mass.mass - 2) < 1e-5);
+        CHECK(std::abs(mass.area - 1) < 1e-5);
         CHECK(std::abs(mass.inertia - 2 * scale * scale / 6) < 0.001);
         world.ApplyTorque(body, mass.inertia * 3);
         world.StepBodies(1.0 / 60);
@@ -55,6 +56,7 @@ TEST(BodyCompoundShapesHaveDistinctQueryIdentityAndComputedCenter) {
     auto body = world.AddBody({}, 0, {}, shapes);
     const auto mass = world.BodyMass(body);
     CHECK(std::abs(mass.mass - 4) < 1e-5);
+    CHECK(std::abs(mass.area - 2) < 1e-5);
     CHECK(std::abs(mass.localCenter.x - 16) < 1e-5);
     CHECK(std::abs(mass.inertia - (4.0 * 1024 / 6 + 3072)) < 0.01);
     auto left = world.RayCast({-32, -100}, {0, 200});
@@ -74,11 +76,39 @@ TEST(BodyMassOverrideScalesInertiaAndImpulseResponse) {
     auto body = Box(world, {}, definition);
     auto mass = world.BodyMass(body);
     CHECK(std::abs(mass.mass - 10) < 0.001);
+    CHECK(std::abs(mass.area - 1) < 1e-5);
     CHECK(std::abs(mass.inertia - 10.0 * 1024 / 6) < 0.01);
     world.ApplyImpulse(body, {100, 0}, {0, 16});
     CHECK(std::abs(world.BodyMotion(body).velocity.x - 10) < 0.001);
     CHECK(world.BodyMotion(body).angularVelocity < -0.9);
 }
+TEST(BodyAreaCountsSolidGeometryIndependentlyOfDensityAndMotionType) {
+    CollisionWorld2D world;
+    std::array<BodyShape2D, 4> shapes;
+    // Three overlapping unit-area squares; the fourth is a sensor and contributes nothing.
+    shapes[0].density = 2;
+    shapes[1].density = 0;
+    shapes[2].density = 4;
+    shapes[3].sensor = true;
+    for (const auto type : {BodyType2D::Dynamic, BodyType2D::Static, BodyType2D::Kinematic}) {
+        RigidBody2D definition;
+        definition.type = type;
+        const auto body = world.AddBody({}, 0, definition, shapes);
+        const auto mass = world.BodyMass(body);
+        CHECK(std::abs(mass.area - 3) < 1e-5);
+        CHECK(std::abs(mass.mass - (type == BodyType2D::Dynamic ? 6 : 0)) < 1e-5);
+        CHECK(world.RemoveBody(body));
+    }
+    // Circle and capsule areas use backend geometry, not bounding boxes.
+    shapes[0].kind = BodyShapeKind2D::Circle;
+    shapes[0].radius = 32;
+    shapes[1].kind = BodyShapeKind2D::Capsule;
+    shapes[1].radius = 32;
+    shapes[1].halfSegment = 32;
+    const auto body = world.AddBody({}, 0, {}, {shapes.data(), 2});
+    CHECK(std::abs(world.BodyMass(body).area - (2 * std::acos(-1.0) + 4)) < 1e-4);
+}
+
 TEST(BodyGravityTypesAndScaleRemainDistinct) {
     CollisionWorld2D world;
     world.SetGravity({0, 600});

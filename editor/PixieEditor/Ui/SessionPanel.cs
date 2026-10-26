@@ -56,6 +56,22 @@ internal sealed class SessionPanel(EngineSession session, string game)
             ImGui.TextUnformatted($"Entities: {stats.Entities}");
             ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
             ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+            if (ImGui.CollapsingHeader("Physics debug"))
+            {
+                string[] labels = ["Collider outlines", "Body origins", "Centers of mass", "Velocities", "Sensors", "Awake/asleep", "Contact normals"];
+                var flags = session.PhysicsDebug;
+                for (var i = 0; i < labels.Length; i++)
+                {
+                    var bit = 1u << i;
+                    var enabled = (flags & bit) != 0;
+                    if (ImGui.Checkbox(labels[i], ref enabled))
+                    {
+                        flags = enabled ? flags | bit : flags & ~bit;
+                        session.PhysicsDebug = flags;
+                    }
+                }
+                ImGui.TextWrapped("Velocity: 0.25 s of travel. Green: awake; gray: asleep; pink: sensors. Contact normals may be speculative.");
+            }
             if (Environment.TickCount64 >= NextStatusRead)
             {
                 MovementStatus = session.MovementStatus;

@@ -10,7 +10,7 @@ internal enum PhysicsPreset { Static, Dynamic, Compound, Kinematic, Sensor, Char
 // moving entities, from the entity list, the viewport, the inspector, and the shortcuts. In a
 // project's edit mode, each change is one step of the history; while playing, or in a game opened
 // without a project, the same changes happen and nothing is recorded, since nothing of them is kept.
-internal sealed class Authoring(EngineSession session, Selection selection, History history)
+internal sealed partial class Authoring(EngineSession session, Selection selection, History history)
 {
     // A shape's default size is one unit: too small to see or click.
     private const double ShapeSize = 24;

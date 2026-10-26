@@ -18,6 +18,7 @@
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
+#include "pixie/runtime/ColliderEditing2D.hpp"
 
 #include <algorithm>
 #include <cmath>
@@ -31,6 +32,8 @@
 #include <vector>
 
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
+static_assert(sizeof(PixieBodyMass2D) == 40, "PixieBodyMass2D's layout is part of the C API");
+static_assert(sizeof(PixieColliderHandles2D) == 72, "PixieColliderHandles2D's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
 static_assert(static_cast<int>(pixie::FieldEditor::LayerMask) == PIXIE_EDITOR_LAYER_MASK);
 static_assert(static_cast<int>(pixie::FieldEditor::LayerNames) == PIXIE_EDITOR_LAYER_NAMES);
@@ -213,6 +216,19 @@ int32_t pixie_last_error(char* buffer, int32_t capacity) {
     return static_cast<int32_t>(lastError.size());
 }
 
+PixieResult pixie_physics_debug_get(PixieSession* s, uint32_t* flags) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!flags) return Fail(PIXIE_ERROR_ARGUMENT, "null physics debug output");
+    *flags = s->session.PhysicsDebug();
+    return PIXIE_OK;
+}
+PixieResult pixie_physics_debug_set(PixieSession* s, uint32_t flags) {
+    PIXIE_REQUIRE_SESSION(s);
+    if ((flags & ~PIXIE_PHYSICS_DEBUG_ALL) != 0) return Fail(PIXIE_ERROR_ARGUMENT, "unknown physics debug bits");
+    s->session.SetPhysicsDebug(flags);
+    return PIXIE_OK;
+}
+
 PixieResult pixie_movement_status(PixieSession* s, char* buffer, int32_t capacity, int32_t* required) {
     PIXIE_REQUIRE_SESSION(s);
     if (required == nullptr || capacity < 0 || (buffer == nullptr && capacity > 0))
@@ -225,6 +241,54 @@ PixieResult pixie_movement_status(PixieSession* s, char* buffer, int32_t capacit
         if (shown < errors.size()) summary += std::format("{} more movement errors\n", errors.size() - shown);
         *required = static_cast<int32_t>(summary.size() + 1);
         return capacity == 0 ? PIXIE_OK : Copy(summary, buffer, capacity);
+    });
+}
+
+PixieResult pixie_collider_handles_2d(PixieSession* s, uint32_t entity, int32_t shape, PixieColliderHandles2D* output) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!output || shape < -1 || shape > 255) return Fail(PIXIE_ERROR_ARGUMENT, "invalid collider handle query");
+    return Guard([&] {
+        if (s->session.Mode() != pixie::SessionMode::Edit) return Fail(PIXIE_ERROR_ARGUMENT, "collider tools require Edit mode");
+        const auto h = pixie::DescribeColliderHandles2D(s->session.GetWorld(), ToEntity(entity), shape);
+        if (!h) return Fail(PIXIE_ERROR_NOT_FOUND, "collider geometry has no supported handles");
+        *output = {h->center.x, h->center.y, h->resize.x, h->resize.y, h->rotate.x, h->rotate.y,
+            h->height.x, h->height.y, h->canRotate ? 1u : 0u, h->canHeight ? 1u : 0u};
+        return PIXIE_OK;
+    });
+}
+PixieResult pixie_collider_drag_2d(PixieSession* s, uint32_t entity, int32_t shape, int32_t kind,
+                                 double x, double y, int32_t snap) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (shape < -1 || shape > 255 || kind < 0 || kind > 2 || snap < 0 || snap > 1)
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid collider drag arguments");
+    return Guard([&] {
+        if (s->session.Mode() != pixie::SessionMode::Edit) return Fail(PIXIE_ERROR_ARGUMENT, "collider tools require Edit mode");
+        if (!pixie::DescribeColliderHandles2D(s->session.GetWorld(), ToEntity(entity), shape))
+            return Fail(PIXIE_ERROR_NOT_FOUND, "collider geometry has no supported handles");
+        if (!pixie::DragCollider2D(s->session.GetWorld(), ToEntity(entity), shape,
+                                 static_cast<pixie::ColliderDrag2D>(kind), {x, y}, snap != 0))
+            return Fail(PIXIE_ERROR_ARGUMENT, "collider drag rejected; keep finite, nondegenerate geometry within supported dimensions");
+        RecordChanged(s, entity);
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_body_mass_2d(PixieSession* s, uint32_t entity, PixieBodyMass2D* output) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!output) return Fail(PIXIE_ERROR_ARGUMENT, "null body mass output");
+    return Guard([&] {
+        auto& world = s->session.GetWorld();
+        const auto id = ToEntity(entity);
+        if (!world.Registry().valid(id) || !world.Registry().all_of<pixie::RigidBody2D>(id))
+            return Fail(PIXIE_ERROR_NOT_FOUND, "entity is gone or has no RigidBody2D");
+        if (s->session.Mode() == pixie::SessionMode::Edit) pixie::SyncSceneMovement2D(world);
+        const auto* physics = pixie::SceneCollisionWorld2D(world);
+        const auto body = pixie::SceneBody2D(world, id);
+        if (!physics || !physics->ContainsBody(body))
+            return Fail(PIXIE_ERROR_NOT_FOUND, "body unavailable; enable valid geometry and check movement diagnostics");
+        const auto mass = physics->BodyMass(body);
+        *output = {mass.mass, mass.area, mass.localCenter.x, mass.localCenter.y, mass.inertia};
+        return PIXIE_OK;
     });
 }
 

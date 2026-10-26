@@ -307,6 +307,7 @@ internal sealed class EditorWindow(EditorOptions options)
             previous = now;
             BeginFrame();
 
+            viewport.CloseColliderGestureBeforeCommands();
             if (inspector.RebuildRequested)
             {
                 inspector.RebuildRequested = false;
@@ -632,6 +633,26 @@ internal sealed class EditorWindow(EditorOptions options)
                 {
                     move.By(dx, dy);
                     authoring.EndMove(move);
+                }
+                break;
+            case "colliderhandles":
+                viewport.ColliderTools = true;
+                break;
+            case "physicsdebug" when uint.TryParse(argument, out var debugFlags) && debugFlags <= 127:
+                session.PhysicsDebug = debugFlags;
+                break;
+            case "colliderdrag" when chosen.Length == 1 && argument.Split(':') is [var shapeText, var operation, var target]
+                && int.TryParse(shapeText, out var colliderShapeIndex) && target.Split(',') is [var targetX, var targetY]
+                && double.TryParse(targetX, System.Globalization.CultureInfo.InvariantCulture, out var worldX)
+                && double.TryParse(targetY, System.Globalization.CultureInfo.InvariantCulture, out var worldY)
+                && operation is "resize" or "rotate" or "height" or "cancel" or "cancelheight":
+                viewport.ColliderTools = true;
+                viewport.ColliderShape = Math.Max(0, colliderShapeIndex);
+                if (authoring.BeginColliderDrag(chosen[0], colliderShapeIndex,
+                    operation == "rotate" ? 1 : operation is "height" or "cancelheight" ? 2 : 0) is { } colliderGesture)
+                {
+                    authoring.UpdateColliderDrag(colliderGesture, worldX, worldY, snap: false);
+                    authoring.EndColliderDrag(colliderGesture, cancel: operation is "cancel" or "cancelheight");
                 }
                 break;
             case "play":

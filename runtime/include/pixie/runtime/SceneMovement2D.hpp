@@ -90,6 +90,8 @@ void InstallSceneMovement2D(World& world);
 void SyncSceneMovement2D(World& world);
 std::vector<std::string> SceneMovementErrors2D(World& world);
 const CapsuleMotion2D* CharacterMotion2D(World& world, entt::entity entity);
+// Last synchronized controller settings, borrowed with the same lifetime as CharacterMotion2D.
+const CharacterSettings2D* CharacterTuning2D(World& world, entt::entity entity);
 // Borrowed query view after the latest sync; null until relevant components are synchronized.
 const CollisionWorld2D* SceneCollisionWorld2D(World& world);
 // Borrowed mutable service for game commands; reacquire after sync/reset. Empty handle if invalid/missing.

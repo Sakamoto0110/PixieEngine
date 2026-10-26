@@ -24,6 +24,8 @@ pixie_target_defaults(engine-tests)
 add_test(NAME engine-tests COMMAND engine-tests)
 
 add_executable(runtime-tests
+    runtime/ColliderEditingTests.cpp
+    runtime/PhysicsDebugTests.cpp
     runtime/PhysicsEventsTests.cpp
     runtime/BodyQualificationTests.cpp
     runtime/RigidBodyTests.cpp
@@ -57,6 +59,12 @@ target_compile_definitions(runtime-tests PRIVATE
     "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
+
+# Explicit headless qualification tool, not an implicit CTest performance budget.
+add_executable(physics-benchmark benchmarks/PhysicsTelemetry.cpp)
+set_target_properties(physics-benchmark PROPERTIES FOLDER tests)
+target_link_libraries(physics-benchmark PRIVATE Pixie::Runtime)
+pixie_target_defaults(physics-benchmark)
 
 # The C API's test: a C program that loads a game's capi library at run time. Each library
 # registers its own CTest test with it (see pixie_add_capi_library in capi/CMakeLists.txt).

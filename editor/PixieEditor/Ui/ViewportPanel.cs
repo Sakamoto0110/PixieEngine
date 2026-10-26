@@ -23,7 +23,7 @@ internal enum ViewportMode
 // session as input in the image's pixels in Game mode, and selects in Select mode; the keys go to the
 // session while the window has focus, in both. PNG files dropped on the window become sprites where
 // the mouse is, or in the middle of the view when it is elsewhere, in either mode.
-internal sealed unsafe class ViewportPanel(EngineSession session, Selection selection, Authoring authoring, AssetChooser files)
+internal sealed unsafe partial class ViewportPanel(EngineSession session, Selection selection, Authoring authoring, AssetChooser files)
 {
     // The grids Snap can round to, in world units.
     public static readonly double[] Grids = [8, 16, 32, 64];
@@ -113,6 +113,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             // GL's first row is the bottom of the image; ImGui draws top down, so flip the coordinates.
             ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
             DrawSelection();
+            DrawColliderHandles();
             DrawMenu();
             // A project at play is framed, so it is never mistaken for the scene being edited.
             if (session.ProjectFolder != null && !session.Editing)
@@ -123,6 +124,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
             Hovered = false;
             Focused = false;
             PressedAt = null;
+            FinishColliderDrag();
             SendInput();
         }
 
@@ -222,6 +224,7 @@ internal sealed unsafe class ViewportPanel(EngineSession session, Selection sele
     // Select mode's gestures with the left button.
     private void Select()
     {
+        if (HandleColliderInput()) return;
         var io = ImGui.GetIO();
         var mouse = MouseInView();
         if (Hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))

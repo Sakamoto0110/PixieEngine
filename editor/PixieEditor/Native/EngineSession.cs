@@ -55,6 +55,21 @@ public sealed unsafe class EngineSession : IDisposable
     public PixieMode Mode => (PixieMode)PixieCapi.SessionMode(Handle);
     public bool Editing => Mode == PixieMode.Edit;
     public bool Unsaved => PixieCapi.ProjectUnsaved(Handle) != 0;
+    public uint PhysicsDebug
+    {
+        get { Check(PixieCapi.PhysicsDebugGet(Handle, out var flags), "read physics debug options"); return flags; }
+        set => Check(PixieCapi.PhysicsDebugSet(Handle, value), "set physics debug options");
+    }
+
+    public PixieColliderHandles2D? ColliderHandles2D(uint entity, int shape) =>
+        Found(PixieCapi.ColliderHandles2D(Handle, entity, shape, out var handles), "read collider handles") ? handles : null;
+
+    public void DragCollider2D(uint entity, int shape, int kind, double x, double y, bool snap) =>
+        Check(PixieCapi.ColliderDrag2D(Handle, entity, shape, kind, x, y, snap ? 1 : 0), "drag collider geometry");
+
+    // Native effective properties, never saved or computed again by the editor.
+    public PixieBodyMass2D? BodyMass2D(uint entity) =>
+        Found(PixieCapi.BodyMass2D(Handle, entity, out var mass), "read body mass") ? mass : null;
 
     public void Play() => Check(PixieCapi.SessionPlay(Handle), "play");
     public void Stop() => Check(PixieCapi.SessionStop(Handle), "stop");

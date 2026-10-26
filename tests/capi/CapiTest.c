@@ -45,6 +45,11 @@ static void CloseLibrary(Library library) { dlclose(library); }
 /* The API, looked up by name, as P/Invoke does. */
 static struct {
     int32_t (*api_version)(void);
+    PixieResult (*physics_debug_get)(PixieSession*, uint32_t*);
+    PixieResult (*physics_debug_set)(PixieSession*, uint32_t);
+    PixieResult (*body_mass_2d)(PixieSession*, uint32_t, PixieBodyMass2D*);
+    PixieResult (*collider_handles_2d)(PixieSession*, uint32_t, int32_t, PixieColliderHandles2D*);
+    PixieResult (*collider_drag_2d)(PixieSession*, uint32_t, int32_t, int32_t, double, double, int32_t);
     int32_t (*last_error)(char*, int32_t);
     PixieResult (*movement_status)(PixieSession*, char*, int32_t, int32_t*);
     PixieResult (*collision_layer_name)(PixieSession*, int32_t, char*, int32_t, int32_t*);
@@ -142,6 +147,11 @@ static int Load(Library library) {
         missing = 1;                                                                               \
     }
     LOAD(api_version, "pixie_api_version")
+    LOAD(physics_debug_get, "pixie_physics_debug_get")
+    LOAD(physics_debug_set, "pixie_physics_debug_set")
+    LOAD(body_mass_2d, "pixie_body_mass_2d")
+    LOAD(collider_handles_2d, "pixie_collider_handles_2d")
+    LOAD(collider_drag_2d, "pixie_collider_drag_2d")
     LOAD(last_error, "pixie_last_error")
     LOAD(movement_status, "pixie_movement_status")
     LOAD(collision_layer_name, "pixie_collision_layer_name")
@@ -1085,6 +1095,41 @@ static void ExerciseOpen(const char* folder, int sceneOnly) {
     api.session_destroy(s);
 }
 
+static void CheckCharacterHandles(PixieSession* s, int32_t transform, int32_t motor) {
+    uint32_t actor = 0;
+    CHECK(api.entity_create(s, "capsule handle fixture", &actor) == PIXIE_OK);
+    CHECK(api.component_add(s, actor, transform) == PIXIE_OK);
+    CHECK(api.component_add(s, actor, motor) == PIXIE_OK);
+    const PixieValue at = {25, 40, 0, 0};
+    CHECK(api.field_set(s, actor, transform, FindField(s, transform, "position"), &at) == PIXIE_OK);
+    CHECK(api.project_save(s) == PIXIE_OK);
+    PixieStats before, after;
+    PixieColliderHandles2D handles;
+    CHECK(api.session_stats(s, &before) == PIXIE_OK);
+    CHECK(api.collider_handles_2d(s, actor, -1, &handles) == PIXIE_OK);
+    CHECK(handles.centerX == 25 && handles.centerY == 40 && handles.resizeX == 37 && handles.resizeY == 40);
+    CHECK(handles.heightX == 25 && handles.heightY == 16 && handles.canHeight == 1 && handles.canRotate == 0);
+    CHECK(api.project_unsaved(s) == 0);
+    CHECK(api.collider_drag_2d(s, actor, -1, 0, 45, 40, 0) == PIXIE_OK);
+    CHECK(api.collider_drag_2d(s, actor, -1, 2, 25, -10, 0) == PIXIE_OK);
+    PixieValue read;
+    const int32_t radius = FindField(s, motor, "radius"), half = FindField(s, motor, "halfSegment");
+    CHECK(api.field_get(s, actor, motor, radius, &read) == PIXIE_OK && read.x == 20);
+    CHECK(api.field_get(s, actor, motor, half, &read) == PIXIE_OK && read.x == 30);
+    CHECK(api.collider_handles_2d(s, actor, -1, &handles) == PIXIE_OK && handles.heightY == -10);
+    CHECK(api.collider_drag_2d(s, actor, -1, 1, 45, 40, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.collider_drag_2d(s, actor, -1, 2, 25, HUGE_VAL, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_get(s, actor, motor, half, &read) == PIXIE_OK && read.x == 30);
+    CHECK(api.collider_drag_2d(s, actor, -1, 2, 25, 35, 0) == PIXIE_OK);
+    CHECK(api.field_get(s, actor, motor, half, &read) == PIXIE_OK && read.x == 0);
+    CHECK(api.collider_drag_2d(s, actor, -1, 0, 25, 40, 0) == PIXIE_OK);
+    CHECK(api.field_get(s, actor, motor, radius, &read) == PIXIE_OK && (float)(read.x / 32) > 0.01f);
+    CHECK(api.session_stats(s, &after) == PIXIE_OK && before.steps == after.steps && before.elapsed == after.elapsed);
+    CHECK(api.project_unsaved(s) == 1);
+    CHECK(api.entity_destroy(s, actor) == PIXIE_OK);
+    CHECK(api.collider_handles_2d(s, actor, -1, &handles) == PIXIE_ERROR_NOT_FOUND);
+}
+
 static void ExerciseMovement(const char* folder) {
     Cleanup(folder);
     CHECK(api.project_create(folder) == PIXIE_OK);
@@ -1097,6 +1142,7 @@ static void ExerciseMovement(const char* folder) {
     CHECK(api.type_find(s, "CharacterMotor2D", &motor) == PIXIE_OK);
     CHECK(api.type_find(s, "KeyboardControl2D", &keyboard) == PIXIE_OK);
     CHECK(api.type_find(s, "Velocity2D", &velocity) == PIXIE_OK);
+    CheckCharacterHandles(s, transform, motor);
     const int32_t position = FindField(s, transform, "position");
     const int32_t halfSize = FindField(s, collider, "halfSize");
     uint32_t ground = 0, actor = 0;
@@ -1212,6 +1258,118 @@ static void CheckBodyAdmission(PixieSession* s, int32_t body, int32_t collider, 
     CHECK(api.entity_destroy(s, second) == PIXIE_OK);
 }
 
+static void CheckBodyMassQuery(PixieSession* s, int32_t transform, int32_t collider, int32_t body) {
+    uint32_t entity = 0;
+    CHECK(api.entity_create(s, "mass query fixture", &entity) == PIXIE_OK);
+    PixieBodyMass2D mass = {99, 99, 99, 99, 99};
+    CHECK(sizeof mass == 40);
+    CHECK(api.body_mass_2d(NULL, entity, &mass) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.body_mass_2d(s, entity, NULL) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_ERROR_NOT_FOUND && mass.mass == 99);
+    CHECK(api.component_add(s, entity, transform) == PIXIE_OK);
+    CHECK(api.component_add(s, entity, collider) == PIXIE_OK);
+    CHECK(api.component_add(s, entity, body) == PIXIE_OK);
+    const int32_t size = FindField(s, collider, "halfSize"), density = FindField(s, collider, "density");
+    const int32_t offset = FindField(s, collider, "offset"), enabled = FindField(s, collider, "enabled");
+    PixieValue value = {16, 16, 0, 0};
+    CHECK(api.field_set(s, entity, collider, size, &value) == PIXIE_OK);
+    value.x = 8; value.y = 4;
+    CHECK(api.field_set(s, entity, collider, offset, &value) == PIXIE_OK);
+    CHECK(api.project_save(s) == PIXIE_OK);
+    PixieStats before, after;
+    CHECK(api.session_stats(s, &before) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK);
+    CHECK(fabs(mass.mass - 1) < 1e-5 && fabs(mass.area - 1) < 1e-5);
+    CHECK(fabs(mass.localCenterX - 8) < 1e-5 && fabs(mass.localCenterY - 4) < 1e-5);
+    CHECK(fabs(mass.inertia - 1024.0 / 6) < 0.001);
+    CHECK(api.session_stats(s, &after) == PIXIE_OK && before.steps == after.steps && before.elapsed == after.elapsed);
+    CHECK(api.project_unsaved(s) == 0);
+    PixieColliderHandles2D handles;
+    CHECK(sizeof handles == 72);
+    CHECK(api.collider_handles_2d(s, entity, -1, &handles) == PIXIE_OK);
+    CHECK(handles.centerX == 8 && handles.centerY == 4 && handles.resizeX == 24 && handles.resizeY == 20 && handles.canRotate == 1);
+    CHECK(api.project_unsaved(s) == 0);
+    CHECK(api.collider_handles_2d(s, entity, -1, NULL) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.collider_handles_2d(s, entity, 256, &handles) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.collider_handles_2d(s, entity, 0, &handles) == PIXIE_ERROR_NOT_FOUND);
+    value.x = 3;
+    CHECK(api.field_set(s, entity, collider, density, &value) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.mass - 3) < 1e-5 && fabs(mass.area - 1) < 1e-5);
+    value.x = 12;
+    CHECK(api.field_set(s, entity, body, FindField(s, body, "massOverride"), &value) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.mass - 12) < 1e-5);
+    CHECK(fabs(mass.inertia - 2048) < 0.01 && fabs(mass.localCenterX - 8) < 1e-5);
+    char snapshot[8192];
+    int32_t snapshotLength = 0;
+    CHECK(api.entities_snapshot(s, &entity, 1, snapshot, sizeof snapshot, &snapshotLength) == PIXIE_OK);
+    value.x = 32; value.y = 16;
+    CHECK(api.field_set(s, entity, collider, size, &value) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.area - 2) < 1e-5);
+    value.x = 0;
+    CHECK(api.field_set(s, entity, collider, enabled, &value) == PIXIE_OK);
+    mass.mass = 99;
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_ERROR_NOT_FOUND && mass.mass == 99);
+    value.x = 1;
+    CHECK(api.field_set(s, entity, collider, enabled, &value) == PIXIE_OK);
+    value.x = -1;
+    CHECK(api.field_set(s, entity, collider, density, &value) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_ERROR_NOT_FOUND && mass.mass == 99);
+    value.x = 1;
+    CHECK(api.field_set(s, entity, collider, density, &value) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.mass - 12) < 1e-5);
+    uint32_t restored = 0;
+    int32_t restoredCount = 0;
+    // History removes the current entity before restoring the same scene ID.
+    CHECK(api.entity_destroy(s, entity) == PIXIE_OK);
+    CHECK(api.entities_restore(s, snapshot, PIXIE_RESTORE_SAME_IDS, &restored, 1, &restoredCount) == PIXIE_OK && restoredCount == 1);
+    entity = restored;
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.area - 1) < 1e-5 && fabs(mass.mass - 12) < 1e-5);
+    CHECK(api.collider_drag_2d(s, entity, -1, 0, 40, 36, 0) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_OK && fabs(mass.area - 4) < 1e-5);
+    CHECK(api.collider_drag_2d(s, entity, -1, 1, 8, 104, 1) == PIXIE_OK);
+    CHECK(api.field_get(s, entity, collider, FindField(s, collider, "rotation"), &value) == PIXIE_OK && fabs(value.x - 1.5707963267948966) < 1e-8);
+    CHECK(api.collider_drag_2d(s, entity, -1, 99, 40, 36, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.collider_drag_2d(s, entity, -1, 0, HUGE_VAL, 36, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entity_destroy(s, entity) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, entity, &mass) == PIXIE_ERROR_NOT_FOUND);
+}
+
+static void CheckPhysicsDebug(PixieSession* s) {
+    uint32_t flags = 999;
+    CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == 17);
+    CHECK(api.physics_debug_get(s, NULL) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.physics_debug_set(NULL, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.physics_debug_set(s, 128) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == 17);
+    CHECK(api.project_save(s) == PIXIE_OK);
+    PixieStats before, after;
+    CHECK(api.session_stats(s, &before) == PIXIE_OK);
+    for (uint32_t bit = 1; bit <= 64; bit <<= 1) {
+        CHECK(api.physics_debug_set(s, bit) == PIXIE_OK);
+        CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == bit);
+        uint32_t texture = 0;
+        CHECK(api.session_render(s, &texture) == PIXIE_OK && texture != 0);
+    }
+    CHECK(api.physics_debug_set(s, PIXIE_PHYSICS_DEBUG_ALL) == PIXIE_OK);
+    PixieSession* other = NULL;
+    CHECK(api.session_create(320, 200, 1, &other) == PIXIE_OK && other != NULL);
+    if (other) {
+        CHECK(api.physics_debug_get(other, &flags) == PIXIE_OK && flags == 0);
+        CHECK(api.physics_debug_set(other, PIXIE_PHYSICS_DEBUG_COLLIDERS) == PIXIE_OK);
+        CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == PIXIE_PHYSICS_DEBUG_ALL);
+        api.session_destroy(other);
+    }
+    CHECK(api.session_stats(s, &after) == PIXIE_OK && before.steps == after.steps && before.elapsed == after.elapsed);
+    CHECK(api.project_unsaved(s) == 0);
+    CHECK(api.session_play(s) == PIXIE_OK);
+    CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == PIXIE_PHYSICS_DEBUG_ALL);
+    CHECK(api.session_stop(s) == PIXIE_OK);
+    CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == PIXIE_PHYSICS_DEBUG_ALL);
+    CHECK(api.physics_debug_set(s, 0) == PIXIE_OK);
+    CHECK(api.physics_debug_get(s, &flags) == PIXIE_OK && flags == 0);
+    CHECK(api.project_unsaved(s) == 0);
+}
+
 static void ExerciseBodies(const char* folder) {
     Cleanup(folder);
     CHECK(api.project_create(folder) == PIXIE_OK);
@@ -1223,6 +1381,8 @@ static void ExerciseBodies(const char* folder) {
     CHECK(api.type_find(s, "Collider2D", &collider) == PIXIE_OK);
     CHECK(api.type_find(s, "RigidBody2D", &body) == PIXIE_OK);
     CHECK(api.type_find(s, "PhysicsSettings2D", &settings) == PIXIE_OK);
+    CheckBodyMassQuery(s, transform, collider, body);
+    CheckPhysicsDebug(s);
     CheckBodyAdmission(s, body, collider, settings);
     uint32_t box = 0, config = 0, sensor = 0;
     CHECK(api.entity_create(s, "body fixture", &box) == PIXIE_OK);
@@ -1256,6 +1416,9 @@ static void ExerciseBodies(const char* folder) {
     CHECK(api.session_play(s) == PIXIE_OK);
     box = FindEntity(s, "body fixture");
     for (int i = 0; i < 30; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    PixieBodyMass2D playingMass;
+    CHECK(api.body_mass_2d(s, box, &playingMass) == PIXIE_OK && playingMass.mass > 0);
+    CHECK(api.collider_drag_2d(s, box, -1, 0, 40, 36, 0) == PIXIE_ERROR_ARGUMENT);
     PixieValue value;
     CHECK(api.field_get(s, box, transform, FindField(s, transform, "position"), &value) == PIXIE_OK);
     CHECK(fabs(value.x) < 0.001 && value.y > 74 && value.y < 77);
@@ -1264,6 +1427,8 @@ static void ExerciseBodies(const char* folder) {
     CHECK(api.project_save(s) == PIXIE_OK); /* save authored pre-play pose, not falling/spinning pose */
     CHECK(api.session_stop(s) == PIXIE_OK);
     box = FindEntity(s, "body fixture");
+    PixieBodyMass2D stoppedMass;
+    CHECK(api.body_mass_2d(s, box, &stoppedMass) == PIXIE_OK && stoppedMass.mass == playingMass.mass);
     CHECK(api.field_get(s, box, transform, FindField(s, transform, "position"), &value) == PIXIE_OK);
     CHECK(value.x == 0 && value.y == 0);
     CHECK(api.field_get(s, box, transform, FindField(s, transform, "rotation"), &value) == PIXIE_OK && value.x == 0);
@@ -1312,6 +1477,10 @@ static void ExerciseCompounds(const char* folder) {
     const PixieValue secondOffset = {120, -40, 0, 0}, angle = {0.4, 0, 0, 0}, spin = {1, 0, 0, 0};
     CHECK(api.record_set(s, entity, compound, list, 1, offset, &secondOffset) == PIXIE_OK);
     CHECK(api.record_set(s, entity, compound, list, 1, rotation, &angle) == PIXIE_OK);
+    PixieBodyMass2D compoundMass;
+    CHECK(api.body_mass_2d(s, entity, &compoundMass) == PIXIE_OK);
+    CHECK(fabs(compoundMass.area - 7.5) < 1e-4 && fabs(compoundMass.mass - 7.5) < 1e-4);
+    CHECK(fabs(compoundMass.localCenterX - 60) < 1e-4 && fabs(compoundMass.localCenterY + 20) < 1e-4);
     CHECK(api.field_set(s, entity, body, FindField(s, body, "initialAngularVelocity"), &spin) == PIXIE_OK);
     PixieValue value;
     CHECK(api.record_get(s, entity, compound, list, 1, offset, &value) == PIXIE_OK && value.x == 120 && value.y == -40);

@@ -2,6 +2,7 @@
 
 #include "pixie/Telemetry.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
+#include "pixie/runtime/PhysicsDebug2D.hpp"
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxPoint.hpp>
 #include <cstdint>
@@ -74,6 +75,8 @@ public:
     // Mover queries require radius > 0.01 meters after float conversion; throws with the
     // scale-dependent world-unit minimum. Scene tools can validate without advancing time.
     void ValidateMoverCapsule(double radius, double halfSegment) const;
+    // Same validation for authoring tools before a backend exists; no World is allocated.
+    static void ValidateMoverCapsule(double radius, double halfSegment, double unitsPerMeter);
 
     ColliderHandle2D AddBox(pxPoint center, pxVec2 halfSize, double rotation = 0,
                             CollisionFilter2D filter = {});
@@ -106,6 +109,8 @@ public:
     // Engine-owned snapshot, invalidated only by the next StepBodies/Reset, not by queued removals.
     std::span<const PhysicsEvent2D> Events() const;
     PhysicsStats2D Stats() const;
+    // Copies backend geometry/manifolds without stepping, changing sleep state or consuming events.
+    std::vector<PhysicsDebugLine2D> DebugGeometry(std::uint32_t flags) const;
     std::uint64_t Generation() const;
     bool NeedsSimulation() const;
     // Publishes reset ends for old identities immediately, then starts a fresh generation.

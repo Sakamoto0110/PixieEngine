@@ -260,8 +260,9 @@ void ProjectSession::Render(double alpha) {
     SubmitShapes(*world_, shapes_, alpha, &view);
     if (mode_ == SessionMode::Edit) {
         SyncSceneMovement2D(*world_);
-        DrawMovementGizmos2D(*world_, shapes_, camera_);
+        if (!physicsDebugExplicit_) DrawMovementGizmos2D(*world_, shapes_, camera_);
     }
+    if (physicsDebugExplicit_) DrawPhysicsDebug2D(*world_, shapes_, camera_, physicsDebug_);
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_);
 

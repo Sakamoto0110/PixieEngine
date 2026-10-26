@@ -35,9 +35,20 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 12
+#define PIXIE_CAPI_VERSION 16
 
 typedef struct PixieSession PixieSession;
+
+/* Session-only debug bits: collider outlines, origins, centers of mass, velocities,
+ * sensors, awake/asleep markers, and current contact normals. No scene mutation. */
+#define PIXIE_PHYSICS_DEBUG_ALL 127u
+#define PIXIE_PHYSICS_DEBUG_COLLIDERS 1u
+#define PIXIE_PHYSICS_DEBUG_ORIGINS 2u
+#define PIXIE_PHYSICS_DEBUG_CENTERS 4u
+#define PIXIE_PHYSICS_DEBUG_VELOCITIES 8u
+#define PIXIE_PHYSICS_DEBUG_SENSORS 16u
+#define PIXIE_PHYSICS_DEBUG_AWAKE 32u
+#define PIXIE_PHYSICS_DEBUG_CONTACTS 64u
 
 typedef enum PixieResult {
     PIXIE_OK = 0,
@@ -135,6 +146,37 @@ typedef struct PixieStats {
     double timeScale;            /* simulated seconds per wall second */
 } PixieStats;
 
+/* Effective backend mass properties. Static/kinematic mass, center and inertia are zero.
+ * area sums solid shapes (including zero density), excludes sensors, and counts overlaps twice. */
+typedef struct PixieBodyMass2D {
+    double mass;         /* kg */
+    double area;         /* m^2, using the world's unitsPerMeter */
+    double localCenterX; /* world units, relative to the body origin */
+    double localCenterY;
+    double inertia;      /* kg * world units^2, about the center of mass */
+} PixieBodyMass2D;
+
+/* Read-only; synchronizes authored physics in Edit without advancing time or marking unsaved.
+ * In Play, reads the latest synchronized state. No output on failure: NOT_FOUND for missing,
+ * disabled or invalid rigid bodies (see movement_status for configuration errors). */
+PIXIE_API PixieResult pixie_body_mass_2d(PixieSession* session, uint32_t entity, PixieBodyMass2D* mass);
+
+typedef struct PixieColliderHandles2D {
+    double centerX, centerY, resizeX, resizeY, rotateX, rotateY, heightX, heightY; /* world units */
+    uint32_t canRotate;
+    uint32_t canHeight; /* upright CharacterMotor2D: resize is radius, height is the top cap */
+} PixieColliderHandles2D;
+/* shape=-1: root Collider2D or CharacterMotor2D; 0..255: compound item. Edit-only geometry tools, independent
+ * of drawable size. Missing/unsupported geometry returns NOT_FOUND, output unchanged. */
+PIXIE_API PixieResult pixie_collider_handles_2d(PixieSession* session, uint32_t entity, int32_t shape,
+                                               PixieColliderHandles2D* handles);
+/* Absolute world-space pointer. kind=0 resizes about the shape origin, kind=1 rotates,
+ * kind=2 changes capsule height with fixed radius. Character radius resize keeps halfSegment.
+ * snapRotation=1 snaps rotation to 15 degrees. A rejected drag writes nothing.
+ * Polygons resize uniformly. Characters cannot rotate. No simulation step occurs. */
+PIXIE_API PixieResult pixie_collider_drag_2d(PixieSession* session, uint32_t entity, int32_t shape,
+                                            int32_t kind, double x, double y, int32_t snapRotation);
+
 /* pixie_type_flags */
 #define PIXIE_TYPE_SCENARIO 1u /* values the scene is built from; offer to rebuild after editing */
 #define PIXIE_TYPE_SINGLETON 2u /* authoring allows at most one instance in the World */
@@ -142,6 +184,8 @@ typedef struct PixieStats {
 
 /* PIXIE_CAPI_VERSION of the library. */
 PIXIE_API int32_t pixie_api_version(void);
+PIXIE_API PixieResult pixie_physics_debug_get(PixieSession* session, uint32_t* flags);
+PIXIE_API PixieResult pixie_physics_debug_set(PixieSession* session, uint32_t flags);
 /* The last failure on this thread, as text. Returns the full length, which may exceed capacity. */
 PIXIE_API int32_t pixie_last_error(char* buffer, int32_t capacity);
 /* Scene movement diagnostics summary from the latest sync/update. required includes the null

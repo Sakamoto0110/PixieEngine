@@ -15,6 +15,7 @@
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/World.hpp"
+#include "pixie/runtime/PhysicsDebug2D.hpp"
 
 #include <chrono>
 #include <cstdint>
@@ -100,6 +101,9 @@ public:
     void StepOnce();
     void SetPaused(bool paused);
     bool IsPaused() const { return paused_; }
+    // Session presentation only; retained across World rebuilds and never saved to a scene.
+    void SetPhysicsDebug(std::uint32_t flags) { physicsDebug_ = flags & kPhysicsDebugAll2D; physicsDebugExplicit_ = true; }
+    std::uint32_t PhysicsDebug() const { return physicsDebugExplicit_ ? physicsDebug_ : mode_ == SessionMode::Edit ? 17u : 0u; }
 
     // How fast simulated time runs against wall time in Advance: 0.5 is half speed. The fixed step
     // stays the same; a faster scale runs more steps per frame. Clamped to [kMinTimeScale,
@@ -168,6 +172,8 @@ private:
     std::string playedFrom_;
     SessionMode mode_ = SessionMode::Play;
     bool unsaved_ = false;
+    std::uint32_t physicsDebug_ = 0;
+    bool physicsDebugExplicit_ = false;
     std::string error_;
 };
 

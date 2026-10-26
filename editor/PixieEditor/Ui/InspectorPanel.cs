@@ -92,6 +92,8 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                         }
                         DrawLayerMasks(section.Type, Entities.Select(id => new ComponentHandle(session, id, section.Type, recorder)).ToArray());
                         section.View.Draw();
+                        if (section.Name == "RigidBody2D")
+                            DrawBodyMass();
                         if (section.Name == "Collider2D" && session.TypeIndex("CompoundCollider2D") >= 0 && ImGui.Button("Make compound"))
                             makeCompound = true;
                     }

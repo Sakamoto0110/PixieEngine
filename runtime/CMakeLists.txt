@@ -5,6 +5,8 @@ add_library(pixie_runtime STATIC
     src/CharacterController2D.cpp
     src/SceneMovement2D.cpp
     src/MovementGizmos2D.cpp
+    src/ColliderEditing2D.cpp
+    src/PhysicsDebug2D.cpp
     src/AttractorAffector.cpp
     src/Fonts.cpp
     src/InteractionAffector.cpp

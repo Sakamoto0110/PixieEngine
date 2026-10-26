@@ -110,12 +110,43 @@ public struct PixieStats
     public double TimeScale;
 }
 
+[StructLayout(LayoutKind.Sequential)]
+public struct PixieBodyMass2D
+{
+    public double Mass;
+    public double Area;
+    public double LocalCenterX;
+    public double LocalCenterY;
+    public double Inertia;
+}
+
+[StructLayout(LayoutKind.Sequential)]
+public struct PixieColliderHandles2D
+{
+    public double CenterX, CenterY, ResizeX, ResizeY, RotateX, RotateY, HeightX, HeightY;
+    public uint CanRotate, CanHeight;
+}
+
 internal static unsafe partial class PixieCapi
 {
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 12;
+    internal const int Version = 16;
+
+    [LibraryImport(Library, EntryPoint = "pixie_physics_debug_get")]
+    internal static partial PixieResult PhysicsDebugGet(nint session, out uint flags);
+    [LibraryImport(Library, EntryPoint = "pixie_physics_debug_set")]
+    internal static partial PixieResult PhysicsDebugSet(nint session, uint flags);
+
+    [LibraryImport(Library, EntryPoint = "pixie_collider_handles_2d")]
+    internal static partial PixieResult ColliderHandles2D(nint session, uint entity, int shape, out PixieColliderHandles2D handles);
+
+    [LibraryImport(Library, EntryPoint = "pixie_collider_drag_2d")]
+    internal static partial PixieResult ColliderDrag2D(nint session, uint entity, int shape, int kind, double x, double y, int snap);
+
+    [LibraryImport(Library, EntryPoint = "pixie_body_mass_2d")]
+    internal static partial PixieResult BodyMass2D(nint session, uint entity, out PixieBodyMass2D mass);
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();

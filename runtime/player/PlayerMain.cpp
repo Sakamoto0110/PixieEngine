@@ -11,6 +11,7 @@
 #include "pixie/runtime/ProjectFile.hpp"
 
 #include <array>
+#include <charconv>
 #include <filesystem>
 #include <format>
 #include <string>
@@ -44,11 +45,17 @@ std::string PathText(const std::filesystem::path& path) {
 int main(int argc, char** argv) {
     pixie::RunConfig config;
     std::filesystem::path folder;
+    std::uint32_t physicsDebug = 0;
     const std::array extra = {
         pixie::RunOption{"--project", "<folder>", "the project to play (default: the one this player is in)",
                          [&](std::string_view v) {
                              folder = std::filesystem::path(std::u8string(v.begin(), v.end()));
                              return !v.empty();
+                         }},
+        pixie::RunOption{"--physics-debug", "<0..127>", "native physics debug bitmask (default 0)",
+                         [&](std::string_view v) {
+                             const auto result = std::from_chars(v.data(), v.data() + v.size(), physicsDebug);
+                             return result.ec == std::errc{} && result.ptr == v.data() + v.size() && physicsDebug <= pixie::kPhysicsDebugAll2D;
                          }},
     };
     if (!pixie::ParseRunOptions(argc, argv, "player", config, extra)) {
@@ -70,6 +77,7 @@ int main(int argc, char** argv) {
     pixie::SessionSettings session;
     session.updateRate = config.updateRate;
     pixie::ProjectApp app(pixie::CreateProject(), session);
+    app.Session().SetPhysicsDebug(physicsDebug);
     if (!app.Session().OpenProject(folder)) {
         pixie::LogError(std::format("player: {}: {}", PathText(folder), app.Session().Error()));
         return 1;

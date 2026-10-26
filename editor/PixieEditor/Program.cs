@@ -53,7 +53,8 @@ internal static class Program
           --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
           --do <command>           after the --set edits, one per frame: create, collider, character, dynamic, kinematic, sensor, world,
                                   compoundbox, compound, addshape, removeshape=<index>, shape=<index>:<field>:<value>, wait=<seconds>,
-                                  duplicate, delete, undo, redo,
+                                   duplicate, delete, undo, redo, colliderhandles, physicsdebug=<0..127>,
+                                   colliderdrag=<shape>:<resize|rotate|height|cancel|cancelheight>:<worldX>,<worldY> (shape -1 is the root),
                                    select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,
                                    add=<Type>, remove=<Type>, save, play, stop,
                                    drop=<file>[;<file>...]@<x>,<y> (as files dropped at a point of the view, in pixels),

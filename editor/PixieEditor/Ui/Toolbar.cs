@@ -95,6 +95,29 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport, Aut
                     : editing ? "The mouse plays the game in Play." : "The mouse plays the game.");
         }
 
+        var colliderTools = viewport.ColliderTools;
+        ImGui.BeginDisabled(!editing);
+        if (ImGui.Checkbox("Collider handles", ref colliderTools)) viewport.ColliderTools = colliderTools;
+        if (ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
+            ImGui.SetTooltip("Edit one collider: square resizes/radius, circle rotates, diamond changes capsule height. Drawables stay unchanged. Escape cancels.");
+        if (colliderTools && selection.Items.Count == 1 && session.TypeIndex("CompoundCollider2D") is var compound && compound >= 0
+            && session.Has(selection.Items[0], compound))
+        {
+            var (_, count) = session.RecordInfo(selection.Items[0], compound, session.FieldIndex(compound, "shapes"));
+            if (count > 0)
+            {
+                viewport.ColliderShape = Math.Clamp(viewport.ColliderShape, 0, count - 1);
+                ImGui.SetNextItemWidth(85);
+                if (ImGui.BeginCombo("##collider-shape", $"Shape {viewport.ColliderShape + 1}"))
+                {
+                    for (var i = 0; i < count; i++)
+                        if (ImGui.Selectable($"Shape {i + 1}", i == viewport.ColliderShape)) viewport.ColliderShape = i;
+                    ImGui.EndCombo();
+                }
+            }
+        }
+        ImGui.EndDisabled();
+
         // Snapping, for moves in Select mode.
         var snap = viewport.Snap;
         if (ImGui.Checkbox("Snap", ref snap))

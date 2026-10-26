@@ -10,6 +10,7 @@
 #include <format>
 #include <limits>
 #include <map>
+#include <numbers>
 #include <stdexcept>
 
 namespace pixie {
@@ -47,7 +48,7 @@ bool CollectPlane(b2ShapeId shape, const b2PlaneResult* result, void* context) {
 
 struct CollisionWorld2D::Impl {
     struct Shape { b2ShapeId shape{}; ColliderHandle2D handle; std::uint64_t body = 0; bool sensor = false; };
-    struct Body { b2BodyId body{}; std::vector<ColliderHandle2D> shapes; };
+    struct Body { b2BodyId body{}; std::vector<ColliderHandle2D> shapes; double area = 0; };
     double units;
     pxVec2 gravity{0, 0};
     b2WorldId world;
@@ -296,7 +297,7 @@ BodyHandle2D CollisionWorld2D::AddBody(pxPoint position, double rotation, const 
     def.motionLocks.angularZ = data.fixedRotation;
     def.isBullet = data.continuous;
     std::vector<Impl::Geometry> geometry;
-    double computedMass = 0;
+    double computedMass = 0, area = 0;
     for (const auto& shape : input) {
         if (p.Number(shape.density) < 0 || p.Number(shape.friction) < 0
             || p.Number(shape.restitution) < 0 || shape.restitution > 1 || shape.category == 0)
@@ -307,11 +308,17 @@ BodyHandle2D CollisionWorld2D::AddBody(pxPoint position, double rotation, const 
         if (g.kind == BodyShapeKind2D::Circle) computedMass += b2ComputeCircleMass(&g.circle, density).mass;
         else if (g.kind == BodyShapeKind2D::Capsule) computedMass += b2ComputeCapsuleMass(&g.capsule, density).mass;
         else computedMass += b2ComputePolygonMass(&g.polygon, density).mass;
+        if (!shape.sensor) {
+            if (g.kind == BodyShapeKind2D::Circle) area += b2ComputeCircleMass(&g.circle, 1).mass;
+            else if (g.kind == BodyShapeKind2D::Capsule) area += b2ComputeCapsuleMass(&g.capsule, 1).mass;
+            else area += b2ComputePolygonMass(&g.polygon, 1).mass;
+        }
     }
     if (data.type == BodyType2D::Dynamic && (!std::isfinite(computedMass) || computedMass < 0.000001 || computedMass > 1000000))
         throw std::invalid_argument("dynamic body requires computed mass in [0.000001, 1000000] kg");
     const BodyHandle2D handle{&p, Identity()};
     auto& record = p.bodies.try_emplace(handle.value).first->second;
+    record.area = area;
     record.body = b2CreateBody(p.world, &def);
     if (def.type == b2_staticBody) ++p.statics;
     try {
@@ -386,10 +393,111 @@ BodyMotion2D CollisionWorld2D::BodyMotion(BodyHandle2D body) const {
         {velocity.x * impl_->units, velocity.y * impl_->units}, b2Body_GetAngularVelocity(id), b2Body_IsAwake(id)};
 }
 BodyMass2D CollisionWorld2D::BodyMass(BodyHandle2D body) const {
-    const auto mass = b2Body_GetMassData(impl_->Get(body).body);
+    const auto& record = impl_->Get(body);
+    const auto mass = b2Body_GetMassData(record.body);
     return {mass.mass, mass.rotationalInertia * impl_->units * impl_->units,
-        {mass.center.x * impl_->units, mass.center.y * impl_->units}};
+        {mass.center.x * impl_->units, mass.center.y * impl_->units}, record.area};
 }
+std::vector<PhysicsDebugLine2D> CollisionWorld2D::DebugGeometry(std::uint32_t flags) const {
+    std::vector<PhysicsDebugLine2D> lines;
+    if ((flags & kPhysicsDebugAll2D) == 0) return lines;
+    const auto enabled = [&](PhysicsDebug2D kind) { return (flags & static_cast<std::uint32_t>(kind)) != 0; };
+    const auto point = [&](b2Pos p) { return pxPoint{p.x * impl_->units, p.y * impl_->units}; };
+    const auto line = [&](pxPoint a, pxPoint b, PhysicsDebug2D kind, pxColorRgba color) {
+        lines.push_back({a, b, kind, color});
+    };
+    const auto loop = [&](const std::vector<pxPoint>& points, PhysicsDebug2D kind, pxColorRgba color) {
+        for (std::size_t i = 0; i < points.size(); ++i) line(points[i], points[(i + 1) % points.size()], kind, color);
+    };
+    for (const auto& [identity, record] : impl_->bodies) {
+        (void)identity;
+        const auto body = record.body;
+        if (!b2Body_IsEnabled(body)) continue;
+        const bool dynamic = b2Body_GetType(body) == b2_dynamicBody;
+        const bool awake = b2Body_IsAwake(body);
+        const pxColorRgba stateColor = awake ? pxColorRgba{80, 240, 120} : pxColorRgba{130, 130, 150};
+        const auto origin = point(b2Body_GetPosition(body));
+        const auto center = point(b2Body_GetWorldCenter(body));
+        if (enabled(PhysicsDebug2D::Origins)) {
+            const auto x = point(b2Body_GetWorldPoint(body, {static_cast<float>(6 / impl_->units), 0}));
+            const auto y = point(b2Body_GetWorldPoint(body, {0, static_cast<float>(6 / impl_->units)}));
+            line(origin, x, PhysicsDebug2D::Origins, {255, 90, 90});
+            line(origin, y, PhysicsDebug2D::Origins, {90, 255, 90});
+        }
+        if (dynamic && enabled(PhysicsDebug2D::Centers)) {
+            line({center.x - 4, center.y - 4}, {center.x + 4, center.y + 4}, PhysicsDebug2D::Centers, {255, 150, 255});
+            line({center.x - 4, center.y + 4}, {center.x + 4, center.y - 4}, PhysicsDebug2D::Centers, {255, 150, 255});
+        }
+        if (enabled(PhysicsDebug2D::Velocities)) {
+            const auto v = b2Body_GetLinearVelocity(body);
+            if (v.x != 0 || v.y != 0)
+                line(center, {center.x + v.x * impl_->units * 0.25, center.y + v.y * impl_->units * 0.25}, PhysicsDebug2D::Velocities, {100, 220, 255});
+        }
+        if (dynamic && enabled(PhysicsDebug2D::Awake)) {
+            loop({{origin.x, origin.y - 5}, {origin.x + 5, origin.y}, {origin.x, origin.y + 5}, {origin.x - 5, origin.y}}, PhysicsDebug2D::Awake, stateColor);
+        }
+        for (auto handle : record.shapes) {
+            const auto& shape = impl_->shapes.at(handle.value);
+            const auto kind = shape.sensor ? PhysicsDebug2D::Sensors : PhysicsDebug2D::Colliders;
+            if (!enabled(kind)) continue;
+            const auto color = shape.sensor ? pxColorRgba{240, 100, 230}
+                : dynamic && enabled(PhysicsDebug2D::Awake) ? stateColor : pxColorRgba{100, 190, 255};
+            const auto worldPoint = [&](b2Vec2 p) { return point(b2Body_GetWorldPoint(body, p)); };
+            std::vector<pxPoint> outline;
+            switch (b2Shape_GetType(shape.shape)) {
+            case b2_polygonShape: {
+                const auto polygon = b2Shape_GetPolygon(shape.shape);
+                for (int i = 0; i < polygon.count; ++i) outline.push_back(worldPoint(polygon.vertices[i]));
+                break;
+            }
+            case b2_circleShape: {
+                const auto circle = b2Shape_GetCircle(shape.shape);
+                const auto c = worldPoint(circle.center);
+                const double radius = circle.radius * impl_->units;
+                for (int i = 0; i < 32; ++i) {
+                    const double angle = i * 2 * std::numbers::pi / 32;
+                    outline.emplace_back(c.x + radius * std::cos(angle), c.y + radius * std::sin(angle));
+                }
+                break;
+            }
+            case b2_capsuleShape: {
+                const auto capsule = b2Shape_GetCapsule(shape.shape);
+                const auto a = worldPoint(capsule.center1), b = worldPoint(capsule.center2);
+                const double axis = std::atan2(b.y - a.y, b.x - a.x), radius = capsule.radius * impl_->units;
+                for (int i = 0; i <= 16; ++i) {
+                    const double angle = axis + std::numbers::pi / 2 + i * std::numbers::pi / 16;
+                    outline.emplace_back(a.x + radius * std::cos(angle), a.y + radius * std::sin(angle));
+                }
+                for (int i = 0; i <= 16; ++i) {
+                    const double angle = axis - std::numbers::pi / 2 + i * std::numbers::pi / 16;
+                    outline.emplace_back(b.x + radius * std::cos(angle), b.y + radius * std::sin(angle));
+                }
+                break;
+            }
+            default: break;
+            }
+            loop(outline, kind, color);
+        }
+        if (enabled(PhysicsDebug2D::Contacts)) {
+            std::vector<b2ContactData> contacts(static_cast<std::size_t>(b2Body_GetContactCapacity(body)));
+            const int count = b2Body_GetContactData(body, contacts.data(), static_cast<int>(contacts.size()));
+            for (int i = 0; i < count; ++i) {
+                const auto& contact = contacts[static_cast<std::size_t>(i)];
+                // Each pair belongs to two bodies; emit it only from shape A's owner.
+                if (b2StoreBodyId(b2Shape_GetBody(contact.shapeIdA)) != b2StoreBodyId(body)) continue;
+                const auto c = b2Body_GetWorldCenter(body);
+                const auto normal = contact.manifold.normal;
+                for (int j = 0; j < contact.manifold.pointCount; ++j) {
+                    const auto anchor = contact.manifold.points[j].anchorA;
+                    const auto start = point(b2OffsetPos(c, anchor));
+                    line(start, {start.x + normal.x * 12, start.y + normal.y * 12}, PhysicsDebug2D::Contacts, {255, 230, 70});
+                }
+            }
+        }
+    }
+    return lines;
+}
+
 void CollisionWorld2D::SetBodyVelocity(BodyHandle2D body, pxVec2 velocity, double angular) {
     const auto id = impl_->Get(body).body;
     const auto v = impl_->Vector(velocity);
@@ -541,12 +649,21 @@ void CollisionWorld2D::Reset() {
 }
 
 void CollisionWorld2D::ValidateMoverCapsule(double radius, double halfSegment) const {
-    const float r = impl_->Scalar(radius), half = impl_->Scalar(halfSegment);
+    ValidateMoverCapsule(radius, halfSegment, impl_->units);
+}
+void CollisionWorld2D::ValidateMoverCapsule(double radius, double halfSegment, double units) {
+    Finite(units);
+    if (units < 0.001 || units > 1000000) throw std::invalid_argument("unitsPerMeter must be in [0.001, 1000000]");
+    Finite(radius);
+    Finite(halfSegment);
+    if (std::abs(radius / units) > 1000000 || std::abs(halfSegment / units) > 1000000)
+        throw std::invalid_argument("physics scalar exceeds supported range");
+    const float r = static_cast<float>(radius / units), half = static_cast<float>(halfSegment / units);
     // Box2D 3.2.0's mover queries require radius > 2 * B2_LINEAR_SLOP (0.01 m).
     // Check the converted float too: rounding a barely larger double can reach the assertion.
     if (r <= 0.01f)
-        throw std::invalid_argument(std::format("capsule radius must exceed {} world units at {} units per meter; increase the motor radius", 0.01 * impl_->units, impl_->units));
-    if (half < 0) throw std::invalid_argument("capsule half segment must be nonnegative");
+        throw std::invalid_argument(std::format("capsule radius must exceed {} world units at {} units per meter; increase the motor radius", 0.01 * units, units));
+    if (half < 0 || halfSegment < 0) throw std::invalid_argument("capsule half segment must be nonnegative");
 }
 
 CapsuleMotion2D CollisionWorld2D::MoveCapsule(pxPoint center, double radius, double halfSegment,

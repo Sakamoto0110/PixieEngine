@@ -50,5 +50,6 @@ struct BodyMotion2D {
 struct BodyMass2D {
     double mass = 0, inertia = 0; // kg and kg*worldUnits^2, about the center of mass.
     pxPoint localCenter;
+    double area = 0; // m^2 of solid shapes, including zero-density shapes; overlaps add, sensors do not.
 };
 }
