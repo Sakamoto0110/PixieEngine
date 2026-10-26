@@ -178,7 +178,9 @@ Particles are not entities. A `ParticleSystem` component owns a contiguous `std:
 `Particle` (32 bytes, in float: position, previous position, velocity, age, lifetime; declared by
 the engine library, whose `ParticleRenderer` reads it as its vertex format), up to `capacity`, with
 its draw `style` and its affectors. It is move-only, since it owns its affectors. `Emit` adds one
-particle directly, and fails while the pool is full.
+particle directly, and fails while the pool is full. A scene saves its `capacity` and its style
+(`color`, `size` in world units, `additive`, `fade`); its particles and affectors are not saved, so
+a project adds affectors in code.
 
 A `ParticleSpawner` is a component on an entity of its own, with a `Transform2D`, that feeds the
 system named by its `system` field; several spawners may feed one system, and a spawner whose
@@ -197,7 +199,10 @@ system named by its `system` field; several spawners may feed one system, and a 
 - The particle leaves at that angle plus `direction`, within a cone `spread` wide. Angles are in
   radians.
 
-`AddParticleStep(world)` adds the `particles.step` system to `PostUpdate`, after the World's
+`AddParticleStep(world)` installs the `particles.step` system once per World (later calls do
+nothing). Every World a `ProjectSession` builds gets it, after the project's `Build`, so a scene's
+systems and spawners run without project code, in the editor's Play and in the player; a project
+that adds it itself, earlier among its own systems, keeps that place. The system runs in `PostUpdate`, after the World's
 integration, so spawners and attractors are where the step left them. For each system, in turn:
 
 1. every particle's `previous` becomes its `position` and its age grows by the step; a particle
@@ -269,6 +274,11 @@ types.Add<Transform2D>("Transform2D")
     .Field<&Transform2D::rotation>("rotation");
 ```
 
+A field may reach one level into a member: `Field<&ParticleSystem::style, &ParticleStyle::color>("color")`
+reads and writes the member's field as the component's own, for values only (numbers, booleans,
+enums, points, vectors, rectangles, colors, and entities), so a struct declared where no reflection
+is available, such as the engine library's `ParticleStyle`, is described without copying it.
+
 `std::vector<ComponentRecord<T>>` fields reflect as RecordList, where T is a
 default-constructible registered descriptor type. `.ValueType()` registers record
 metadata without permitting independent ECS authoring: add is null, admission
@@ -318,7 +328,7 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity), and
+`Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity and draw style), and
 `ParticleSpawner`. The C API and scenes read and
 write fields only through these descriptors.
 

@@ -105,7 +105,8 @@ as it is. The editor creates no version-control files.
 - **Inspector.** For the selected entities, one section per component that all of them have: a PixieInspector built from the
   engine's field descriptors (`Inspection/InspectorFactory.cs`), with one `AddField` per field (two
   for a point or a vector, four for a rectangle) over a handle of the component, and the label,
-  tooltip, range, scrub, unit, and editor the descriptor carries. An entity field (a particle
+  tooltip, range, scrub, unit, and editor the descriptor carries. A color field edits with
+  PixieInspector's color editor: its four channels, and a picker on its swatch. An entity field (a particle
   spawner's system or target) is a choice among the live entities that have the component it
   references, shown as "name #index", or "(none)". With several entities selected, the inspector
   is bound to the first and to the rest with `AddBind`, so an edit changes all of them; a field

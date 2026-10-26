@@ -26,7 +26,7 @@ owns any promoted investigation or fix.
 
 ## RUNTIME-FINDING-001: Particle authoring in a blank project
 
-**Status:** deferred investigation
+**Status:** confirmed
 
 **Reported:** 2026-10-16; clarified by the owner on 2026-10-22
 
@@ -74,3 +74,16 @@ component defaults, pool/style/affector authoring and runtime-step installation.
 Save/reopen and Play/Stop must preserve the intended configuration. The goal is
 an editor-authorable effect; changing a screenshot's values alone is insufficient.
 This investigation is deferred and has no active TODO entry.
+
+### Outcome (2026-10-26)
+
+Reproduced and confirmed: a session's World never ran the particle step, so a
+blank project's spawner emitted nothing whatever its values. PIXIE-TODO-044
+installs the step in every World a session builds and describes the system's
+draw style. In a blank project, a system and a spawner made with Create entity
+and Add component, with the system chosen and a nonzero rate and speed, emit
+on Play, with the edited color and size, and again after save and reopen
+([completion record](../../archive/todo-044-particles-without-code-2026-10-26.md)).
+What remains is the sample's orbits: affectors (attractors, interaction) are
+still added only in code, and saving them needs its own design; it is not
+scheduled.
