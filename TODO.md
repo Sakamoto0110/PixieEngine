@@ -48,6 +48,15 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** body/world ownership, dynamics/materials/events, editor/lifecycle/migration and character/platform scenarios satisfy the specification's qualified matrix; unmet requirements remain explicit. No claim of all physics completion from a native body demo.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
 
+### `PIXIE-TODO-044` — Particles in scenes without code
+
+**Status:** promoted
+**Source:** owner authorization on 2026-10-26, after the owner asked how to make something emit particles and a scene without code could not: nothing installed the particle step outside the particles sample.
+**Accepted scope:** every World a session builds runs the particle step, so a scene's `ParticleSystem` and `ParticleSpawner` emit in the editor's Play and in the player without project code; `AddParticleStep` installs once per World, so a project that already calls it keeps a single step. `ParticleSystem` describes its draw style (color, size, additive, fade), so the inspector edits it and the scene saves it, through descriptor fields that reach one level into a member. Affectors (attractors, interaction) stay code-only: saving them needs its own design.
+**Dependencies and gates:** leave PIXIE-TODO-043's in-progress work and the untracked `samples/TEST`, `TEST2` and `tes` folders untouched; scenes saved before read unchanged (a missing field keeps its default).
+**Completion criteria:** (1) runtime tests show a World read from a scene with a system and a spawner emitting, `AddParticleStep` called twice stepping once, and the style fields round-tripping through a scene; (2) in the editor, a scene authored with Create entity and Add component emits on Play, with the edited color and size, through real input; (3) the particles sample behaves as before; (4) zero warnings, and ctest passes in Debug and Release.
+**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-044--particles-in-scenes-without-code)
+
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
