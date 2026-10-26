@@ -179,7 +179,9 @@ Particles are not entities. A `ParticleSystem` component owns a contiguous `std:
 the engine library, whose `ParticleRenderer` reads it as its vertex format), up to `capacity`, with
 its draw `style` and its affectors. It is move-only, since it owns its affectors. `Emit` adds one
 particle directly, and fails while the pool is full. A scene saves its `capacity` and its style
-(`color`, `size` in world units, `additive`, `fade`); its particles and the affectors added in code
+(`color`, `size` in world units, `additive`, `fade`, and `shape`: `Disc`, `Square`, `Ring`, a hollow
+disc, or `Streak`, stretched behind the particle along its velocity over `kStreakSeconds`, 0.05 s);
+its particles and the affectors added in code
 are not saved, while the affectors described as components (below) are.
 
 A `ParticleSpawner` is a component on an entity of its own, with a `Transform2D`, that feeds the
@@ -196,8 +198,15 @@ system named by its `system` field; several spawners may feed one system, and a 
   point, a circle, or a ring; the nearest edge's normal for a rectangle; the segment's left normal,
   +90 degrees); `TowardTarget`, toward the `target` entity's `Transform2D` (the rotation without
   one).
+- `jitter`, in world units, scatters each start around the point the shape chose: a Gaussian
+  offset with most particles (about 86%) within that distance; 0 keeps the shape's point.
 - The particle leaves at that angle plus `direction`, within a cone `spread` wide. Angles are in
   radians.
+- Each particle emitted in a step has its own moment within the step, when its share of `rate`
+  came due: it is born at its start point then, so by the end of the step it has moved, and aged,
+  only for the part of the step it lived, and its `previous` is its birth point. A fast stream
+  therefore comes out evenly spaced instead of a stack per step; with `jitter`, a high rate does
+  not start particles on top of each other, which an interaction would push apart all at once.
 
 `AddParticleStep(world)` installs the `particles.step` system once per World (later calls do
 nothing). Every World a `ProjectSession` builds gets it, after the project's `Build`, so a scene's
