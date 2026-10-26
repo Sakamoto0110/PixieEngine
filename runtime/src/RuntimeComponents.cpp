@@ -175,9 +175,11 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Range(0.0, 1000000.0, 1.0)
         .Scrub(10.0)
         .Field<&ParticleSystem::style, &ParticleStyle::color>("color")
-        .Tooltip("The particles' color; a lower alpha makes them fainter.")
+        .Tooltip("The color new particles take unless their spawner has its own look; a lower "
+                 "alpha makes them fainter.")
         .Field<&ParticleSystem::style, &ParticleStyle::size>("size")
-        .Tooltip("A particle's radius, in world units; it is never drawn smaller than a pixel.")
+        .Tooltip("The radius new particles take, in world units, unless their spawner has its own "
+                 "look; none is drawn smaller than a pixel.")
         .Range(0.0, 1000.0)
         .Scrub(0.05)
         .Field<&ParticleSystem::style, &ParticleStyle::additive>("additive")
@@ -186,8 +188,8 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&ParticleSystem::style, &ParticleStyle::fade>("fade")
         .Tooltip("Fades each particle out over its lifetime; particles that live forever do not fade.")
         .Field<&ParticleSystem::style, &ParticleStyle::shape>("shape", {"Disc", "Square", "Ring", "Streak"})
-        .Tooltip("What each particle is drawn as: a disc, a square, a hollow ring, or a streak "
-                 "stretched behind it along its motion.");
+        .Tooltip("What new particles are drawn as, unless their spawner has its own look: a disc, a "
+                 "square, a hollow ring, or a streak stretched behind each along its motion.");
     types.Add<ParticleAttraction>("ParticleAttraction")
         .CanAdd(NeedsParticleSystem)
         .Field<&ParticleAttraction::enabled>("enabled")
@@ -275,7 +277,23 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Scrub(1.0)
         .Field<&ParticleSpawner::target>("target")
         .References("Transform2D")
-        .Tooltip("The entity particles leave toward, in the TowardTarget mode.");
+        .Tooltip("The entity particles leave toward, in the TowardTarget mode.")
+        .Field<&ParticleSpawner::ownLook>("ownLook")
+        .Label("own look")
+        .Tooltip("Gives the particles this spawner's color, size and shape; off, they take their "
+                 "system's, so spawners of different looks can share one system.")
+        .Field<&ParticleSpawner::particleColor>("particleColor")
+        .Label("particle color")
+        .Tooltip("The particles' color, with own look; a lower alpha makes them fainter.")
+        .Field<&ParticleSpawner::particleSize>("particleSize")
+        .Label("particle size")
+        .Tooltip("A particle's radius in world units, with own look.")
+        .Range(0.0, 1000.0)
+        .Scrub(0.05)
+        .Field<&ParticleSpawner::particleShape>("particleShape", {"Disc", "Square", "Ring", "Streak"})
+        .Label("particle shape")
+        .Tooltip("What the particles are drawn as, with own look: a disc, a square, a hollow ring, or a "
+                 "streak stretched behind each along its motion.");
 
     types.Add<Collider2D>("Collider2D")
         .CanAdd([](const World& world, entt::entity entity) -> std::string {

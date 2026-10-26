@@ -27,6 +27,9 @@ public:
     // `binding`. Integer types are normalized to [0, 1] when `normalized` is set.
     void Attribute(GLuint location, GLuint binding, GLint components, GLenum type,
                    std::size_t offset, bool normalized = false);
+    // Attribute `location` reads `components` integers of `type` at `offset`, which the shader
+    // receives as integers (an `int` or `uint` input), not converted to floats.
+    void IntegerAttribute(GLuint location, GLuint binding, GLint components, GLenum type, std::size_t offset);
 
     GLuint Id() const { return id_; }
 

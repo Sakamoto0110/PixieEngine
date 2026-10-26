@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/Particle.hpp"
+
 #include <entt/entity/entity.hpp>
 
 #include <pixie/math/pxVec.hpp>
@@ -63,6 +65,12 @@ struct ParticleSpawner {
     double spread = 2.0 * std::numbers::pi;
     // For TowardTarget.
     entt::entity target = entt::null;
+    // With ownLook, the particles take this look; otherwise their system's (its style).
+    bool ownLook = false;
+    pxColorRgba particleColor{255, 255, 255};
+    // Radius in world units.
+    double particleSize = 2.0;
+    ParticleShape particleShape = ParticleShape::Disc;
     // Fraction of a particle carried to the next step.
     double pending = 0.0;
 };

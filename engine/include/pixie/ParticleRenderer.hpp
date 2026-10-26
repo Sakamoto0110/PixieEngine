@@ -8,29 +8,20 @@
 
 #include <pixie/pxColorRgba.hpp>
 
-#include <cstdint>
 #include <span>
 
 namespace pixie {
 
-// What each particle of a pool is drawn as, `size` being its radius (half the side of a square).
-enum class ParticleShape : std::uint8_t {
-    Disc,
-    Square,
-    // A hollow disc.
-    Ring,
-    // A disc stretched behind the particle along its velocity, over the distance it covers in
-    // kStreakSeconds: sparks, rain.
-    Streak,
-};
-
 // How long a Streak's tail is, in seconds of the particle's motion.
 inline constexpr float kStreakSeconds = 0.05f;
 
-// How a pool of particles looks: all of a pool share one style.
+// How a pool of particles is drawn. `color`, `size` (radius in world units) and `shape` are the pool's
+// default look, which a particle takes when it is born unless its creator gives it its own; each
+// particle carries its look, so changing these does not repaint the particles already alive. The rest
+// applies to the whole pool: no particle is drawn smaller than minPixels on screen, and the blending
+// and fading.
 struct ParticleStyle {
     pxColorRgba color{255, 255, 255};
-    // Radius in world units; a particle is never drawn smaller than minPixels on screen.
     float size = 2.0f;
     float minPixels = 1.0f;
     // Additive blending, so overlapping particles glow; otherwise alpha blending.

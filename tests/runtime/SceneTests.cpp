@@ -76,6 +76,10 @@ void Fill(World& world) {
     feed.shape = EmissionShape::Ring;
     feed.directionMode = DirectionMode::TowardTarget;
     feed.segmentEnd = pxVec2(5.0, -5.0);
+    feed.ownLook = true;
+    feed.particleColor = pxColorRgba(30, 60, 90, 120);
+    feed.particleSize = 4.5;
+    feed.particleShape = ParticleShape::Square;
     AddToScene(spawner);
 
     Entity spinner = world.Create();
@@ -146,6 +150,8 @@ TEST(ARoundTripKeepsEveryComponentAndValue) {
     CHECK(feed.target == entt::null);
     CHECK(feed.lifetime == 0.6f && feed.rate == 120.0);
     CHECK(feed.shape == EmissionShape::Ring && feed.directionMode == DirectionMode::TowardTarget);
+    CHECK(feed.ownLook && feed.particleColor == pxColorRgba(30, 60, 90, 120));
+    CHECK(feed.particleSize == 4.5 && feed.particleShape == ParticleShape::Square);
 
     // The pool's draw style comes back too.
     const ParticleStyle& style = pool.Get<ParticleSystem>().style;

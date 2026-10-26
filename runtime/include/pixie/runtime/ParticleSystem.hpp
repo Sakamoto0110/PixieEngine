@@ -32,17 +32,19 @@ struct ParticleSystem {
     std::vector<Particle> particles;
     std::vector<std::unique_ptr<ParticleAffector>> affectors;
 
-    // Adds one particle now; returns false, adding nothing, when the pool is full.
+    // Adds one particle now, with the system's look (its style's color, size and shape); returns
+    // false, adding nothing, when the pool is full.
     bool Emit(pxPointf position, pxVec2f velocity, float particleLifetime) {
+        return Emit(position, velocity, particleLifetime, style.color, style.size, style.shape);
+    }
+
+    // The same, with a look of its own instead of the system's.
+    bool Emit(pxPointf position, pxVec2f velocity, float particleLifetime, pxColorRgba color, float size,
+              ParticleShape shape) {
         if (particles.size() >= static_cast<std::size_t>(capacity)) {
             return false;
         }
-        Particle particle;
-        particle.position = position;
-        particle.previous = position;
-        particle.velocity = velocity;
-        particle.lifetime = particleLifetime;
-        particles.push_back(particle);
+        particles.push_back(MakeParticle(position, velocity, particleLifetime, color, size, shape));
         return true;
     }
 

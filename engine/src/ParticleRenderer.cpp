@@ -15,13 +15,14 @@ layout(location = 1) in vec2 aPrevious;
 layout(location = 2) in float aAge;
 layout(location = 3) in float aLifetime;
 layout(location = 4) in vec2 aVelocity;
+layout(location = 5) in vec4 aColor;
+layout(location = 6) in float aSize;
+layout(location = 7) in uint aFlags;
 
 layout(location = 0) uniform mat4 uViewProjection;
 layout(location = 1) uniform float uAlpha;
-layout(location = 2) uniform float uRadius;
-layout(location = 3) uniform vec4 uColor;
+layout(location = 2) uniform float uMinRadius;
 layout(location = 4) uniform int uFade;
-layout(location = 5) uniform int uShape;
 layout(location = 6) uniform float uStreakSeconds;
 
 const int kStreak = 3;
@@ -36,24 +37,26 @@ flat out float vTail;
 void main() {
     vec2 corner = vec2((gl_VertexID & 1) == 0 ? -1.0 : 1.0, (gl_VertexID & 2) == 0 ? -1.0 : 1.0);
     vec2 center = mix(aPrevious, aPosition, uAlpha);
+    float radius = max(aSize, uMinRadius);
+    int shape = int(aFlags & 3u);
     vec2 axis = vec2(1.0, 0.0);
     float tail = 0.0;
-    if (uShape == kStreak) {
+    if (shape == kStreak) {
         float speed = length(aVelocity);
         if (speed > 1e-6) {
             axis = aVelocity / speed;
         }
-        tail = speed * uStreakSeconds / uRadius;
+        tail = speed * uStreakSeconds / radius;
     }
     // The quad reaches back over the tail; the across direction keeps its width.
     vec2 local = vec2(corner.x < 0.0 ? -(1.0 + tail) : 1.0, corner.y);
     vec2 across = vec2(-axis.y, axis.x);
-    gl_Position = uViewProjection * vec4(center + (axis * local.x + across * local.y) * uRadius, 0.0, 1.0);
+    gl_Position = uViewProjection * vec4(center + (axis * local.x + across * local.y) * radius, 0.0, 1.0);
     vLocal = local;
-    vShape = uShape;
+    vShape = shape;
     vTail = tail;
     float life = (uFade != 0 && aLifetime > 0.0) ? clamp(1.0 - aAge / aLifetime, 0.0, 1.0) : 1.0;
-    vColor = vec4(uColor.rgb, uColor.a * life);
+    vColor = vec4(aColor.rgb, aColor.a * life);
 }
 )";
 
@@ -102,10 +105,8 @@ void main() {
 
 constexpr GLint kViewProjection = 0;
 constexpr GLint kAlpha = 1;
-constexpr GLint kRadius = 2;
-constexpr GLint kColor = 3;
+constexpr GLint kMinRadius = 2;
 constexpr GLint kFade = 4;
-constexpr GLint kShape = 5;
 constexpr GLint kStreakTime = 6;
 
 } // namespace
@@ -122,6 +123,9 @@ bool ParticleRenderer::Create() {
     vertexArray_.Attribute(2, 0, 1, GL_FLOAT, offsetof(Particle, age));
     vertexArray_.Attribute(3, 0, 1, GL_FLOAT, offsetof(Particle, lifetime));
     vertexArray_.Attribute(4, 0, 2, GL_FLOAT, offsetof(Particle, velocity));
+    vertexArray_.Attribute(5, 0, 4, GL_UNSIGNED_BYTE, offsetof(Particle, color), true);
+    vertexArray_.Attribute(6, 0, 1, GL_HALF_FLOAT, offsetof(Particle, size));
+    vertexArray_.IntegerAttribute(7, 0, 1, GL_UNSIGNED_BYTE, offsetof(Particle, flags));
     return true;
 }
 
@@ -143,11 +147,8 @@ void ParticleRenderer::Draw(std::span<const Particle> particles, const ParticleS
     const float minRadius = static_cast<float>(style.minPixels / camera.Zoom());
     glProgramUniformMatrix4fv(id, kViewProjection, 1, GL_FALSE, glm::value_ptr(viewProjection));
     glProgramUniform1f(id, kAlpha, static_cast<float>(alpha));
-    glProgramUniform1f(id, kRadius, style.size > minRadius ? style.size : minRadius);
-    glProgramUniform4f(id, kColor, style.color.r / 255.0f, style.color.g / 255.0f,
-                       style.color.b / 255.0f, style.color.a / 255.0f);
+    glProgramUniform1f(id, kMinRadius, minRadius);
     glProgramUniform1i(id, kFade, style.fade ? 1 : 0);
-    glProgramUniform1i(id, kShape, static_cast<GLint>(style.shape));
     glProgramUniform1f(id, kStreakTime, kStreakSeconds);
 
     glEnable(GL_BLEND);

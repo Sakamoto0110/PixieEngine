@@ -44,4 +44,11 @@ void GlVertexArray::Attribute(GLuint location, GLuint binding, GLint components,
     glVertexArrayAttribBinding(id_, location, binding);
 }
 
+void GlVertexArray::IntegerAttribute(GLuint location, GLuint binding, GLint components, GLenum type,
+                                     std::size_t offset) {
+    glEnableVertexArrayAttrib(id_, location);
+    glVertexArrayAttribIFormat(id_, location, components, type, static_cast<GLuint>(offset));
+    glVertexArrayAttribBinding(id_, location, binding);
+}
+
 } // namespace pixie

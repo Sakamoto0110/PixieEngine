@@ -152,6 +152,64 @@ bool Near(double a, double b, double tolerance = 1e-4) {
 
 } // namespace
 
+TEST(AParticleIs40BytesWithItsSizeAsAHalfFloat) {
+    CHECK(sizeof(Particle) == 40);
+    CHECK(ToHalf(2.0f) == 0x4000 && ToHalf(-1.0f) == 0xBC00 && ToHalf(0.0f) == 0);
+    for (const float value : {0.5f, 1.0f, 2.0f, 3.3f, 6.0f, 123.4f, 1000.0f, 65504.0f, 0.001f}) {
+        CHECK(std::abs(FromHalf(ToHalf(value)) - value) <= value / 2048.0f);
+    }
+    // Ties round to even: 1 + 2^-11 lies halfway between 1 and the next half float.
+    CHECK(ToHalf(1.0f + 1.0f / 2048.0f) == ToHalf(1.0f));
+    CHECK(std::isinf(FromHalf(ToHalf(1.0e6f))));
+    CHECK(FromHalf(ToHalf(1.0e-6f)) > 0.0f); // a subnormal half survives
+    const Particle made = MakeParticle(pxPointf(1.0f, 2.0f), pxVec2f(3.0f, 4.0f), 5.0f, pxColorRgba(10, 20, 30, 40),
+                                       2.5f, ParticleShape::Ring);
+    CHECK(made.previous == made.position && made.age == 0.0f && made.lifetime == 5.0f);
+    CHECK(made.color == pxColorRgba(10, 20, 30, 40) && made.Size() == 2.5f && made.Shape() == ParticleShape::Ring);
+    CHECK((made.flags & Particle::kDynamic) == 0);
+}
+
+TEST(ParticlesTakeTheSystemsLookOrTheirSpawnersOwn) {
+    World world;
+    Fed fed = MakeFed(world, pxPoint(0.0, 0.0));
+    ParticleSystem& system = fed.system.Get<ParticleSystem>();
+    system.style.color = pxColorRgba(255, 0, 0);
+    system.style.size = 3.0f;
+    system.style.shape = ParticleShape::Ring;
+    fed.spawner.Get<ParticleSpawner>().rate = 60.0;
+    // A second spawner, 100 units away, with a look of its own, feeding the same pool.
+    Entity other = world.Create();
+    other.Add<Transform2D>(Transform2D{pxPoint(100.0, 0.0)});
+    ParticleSpawner& own = other.Add<ParticleSpawner>();
+    own.system = fed.system.Id();
+    own.rate = 60.0;
+    own.ownLook = true;
+    own.particleColor = pxColorRgba(0, 255, 0);
+    own.particleSize = 5.0;
+    own.particleShape = ParticleShape::Streak;
+    for (int i = 0; i < 3; ++i) {
+        world.Step(kStep, kNoInput);
+    }
+    int systems = 0;
+    int owns = 0;
+    for (const Particle& p : fed.system.Get<ParticleSystem>().particles) {
+        if (p.position.x == 0.0f) {
+            systems += (p.color == pxColorRgba(255, 0, 0) && p.Size() == 3.0f && p.Shape() == ParticleShape::Ring) ? 1 : 0;
+        } else {
+            owns += (p.color == pxColorRgba(0, 255, 0) && p.Size() == 5.0f && p.Shape() == ParticleShape::Streak) ? 1 : 0;
+        }
+    }
+    CHECK(systems == 3 && owns == 3);
+    // A particle keeps the look it was born with.
+    fed.system.Get<ParticleSystem>().style.color = pxColorRgba(0, 0, 255);
+    world.Step(kStep, kNoInput);
+    int red = 0;
+    for (const Particle& p : fed.system.Get<ParticleSystem>().particles) {
+        red += p.color == pxColorRgba(255, 0, 0) ? 1 : 0;
+    }
+    CHECK(red == 3);
+}
+
 TEST(AStepsParticlesAreSpacedAlongTheirPath) {
     World world;
     Fed fed = MakeFed(world, pxPoint(0.0, 0.0));
