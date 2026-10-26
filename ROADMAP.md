@@ -85,14 +85,14 @@ preserves the decisions and the earlier design suggestions.
 | 2D lighting | Scene lighting and occlusion with readable gameplay and panels | Compositing, shadows, occluders, editor preview and quality budgets |
 | Fluid movement | Responsive traversal and reliable platform interactions | Character rules, controller design and representative movement tests |
 | Atmosphere and presentation | Coherent world composition, sound and camera behavior | Art/sound direction and the smallest reusable audio, camera and animation facilities |
-| Particle attributes and dynamic particles | A spawner sets each particle's color, size, shape and whether it is dynamic; static and dynamic particles share one pool, and only the dynamic ones feel gravity and colliders | Particle layout, per-kind payload, collider responses (bounce, stop, die), and how the dynamic part's cost is reported |
+| Dynamic particles | A spawner marks its particles dynamic; static and dynamic particles share one pool, and only the dynamic ones feel gravity and colliders (each particle's look, set by its spawner, was delivered by PIXIE-TODO-047) | Per-kind payload, collider responses (bounce, stop, die), and how the dynamic part's cost is reported |
 
 **Particle data design note (owner discussion, 2026-10-26).** A particle is born complete: a
 `ParticleSpawner` creates almost all of them, and `ParticleSystem::Emit` (code and tools) shares the
 same field-filling function; whoever creates a particle sets its kind, which does not change during
 its life. After birth the system owns it, and the step and affectors only evolve it (age, velocity,
-death). The intended layout grows `Particle` from 32 to 40 bytes: RGBA8 color (4), size as a 16-bit
-half float (2), a flags byte (1), and one spare byte. The flags byte holds the dynamic bit and the
+death). PIXIE-TODO-047 delivered the 40-byte layout: RGBA8 color (4), size as a 16-bit half float
+(2), a flags byte (1), and one spare byte. The flags byte holds the dynamic bit and the
 shape (2 bits for 4 shapes, up to 7 bits for 128), so with 4 shapes 13 bits remain free; 48 bytes
 would be needed only for data that does not fit, such as a float size, rotation, or a second color.
 Data for mutually exclusive kinds of particle shares a fixed payload slot read through typed

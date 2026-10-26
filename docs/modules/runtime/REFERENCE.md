@@ -175,14 +175,21 @@ every step, from each entity with a `Transform2D` and a `Member` component.
 ## Particles
 
 Particles are not entities. A `ParticleSystem` component owns a contiguous `std::vector` of
-`Particle` (32 bytes, in float: position, previous position, velocity, age, lifetime; declared by
-the engine library, whose `ParticleRenderer` reads it as its vertex format), up to `capacity`, with
-its draw `style` and its affectors. It is move-only, since it owns its affectors. `Emit` adds one
-particle directly, and fails while the pool is full. A scene saves its `capacity` and its style
-(`color`, `size` in world units, `additive`, `fade`, and `shape`: `Disc`, `Square`, `Ring`, a hollow
-disc, or `Streak`, stretched behind the particle along its velocity over `kStreakSeconds`, 0.05 s);
-its particles and the affectors added in code
-are not saved, while the affectors described as components (below) are.
+`Particle`, up to `capacity`, with its draw `style` and its affectors; it is move-only, since it
+owns its affectors. A `Particle` is 40 bytes, declared by the engine library, whose
+`ParticleRenderer` reads it as its vertex format: position, previous position, velocity, age and
+lifetime in float, then its look: an RGBA8 `color`, its radius as a 16-bit half float (`ToHalf`,
+`FromHalf`; `Size()` reads it), a flags byte with its shape in the low two bits (`Shape()`) and a
+dynamic bit reserved for later, and a spare byte. A particle is born complete, through
+`MakeParticle`, and keeps its look for life. Shapes are `Disc`, `Square`, `Ring`, a hollow disc,
+and `Streak`, stretched behind the particle along its velocity over `kStreakSeconds`, 0.05 s.
+
+`Emit` adds one particle directly, with the system's look, or with a color, size and shape given,
+and fails while the pool is full. The style's `color`, `size` and `shape` are the system's default
+look, which a new particle takes unless its spawner has its own, so changing them does not repaint
+the particles already alive; `additive`, `fade` and `minPixels` apply to the whole pool. A scene
+saves the system's `capacity` and its style; its particles and the affectors added in code are not
+saved, while the affectors described as components (below) are.
 
 A `ParticleSpawner` is a component on an entity of its own, with a `Transform2D`, that feeds the
 system named by its `system` field; several spawners may feed one system, and a spawner whose
@@ -198,6 +205,9 @@ system named by its `system` field; several spawners may feed one system, and a 
   point, a circle, or a ring; the nearest edge's normal for a rectangle; the segment's left normal,
   +90 degrees); `TowardTarget`, toward the `target` entity's `Transform2D` (the rotation without
   one).
+- With `ownLook`, its particles take its `particleColor`, `particleSize` (radius in world units)
+  and `particleShape`; otherwise their system's look. Spawners of different looks can feed one
+  system, drawn together in one call.
 - `jitter`, in world units, scatters each start around the point the shape chose: a Gaussian
   offset with most particles (about 86%) within that distance; 0 keeps the shape's point.
 - The particle leaves at that angle plus `direction`, within a cone `spread` wide. Angles are in
