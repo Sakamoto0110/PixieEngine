@@ -1,11 +1,14 @@
 #include "pixie/runtime/ParticleStep.hpp"
 
+#include "pixie/runtime/AttractorAffector.hpp"
+#include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <cmath>
+#include <unordered_map>
 
 namespace pixie {
 
@@ -13,6 +16,48 @@ namespace {
 
 // Marks a World whose particle step is installed.
 struct ParticleStepInstalled {};
+
+// The working state (grids, buffers) of the affectors that scene components describe, by system
+// entity, kept in the registry's context so it is never saved.
+struct SceneAffectors {
+    std::unordered_map<entt::entity, AttractorAffector> attraction;
+    std::unordered_map<entt::entity, InteractionAffector> interaction;
+};
+
+SceneAffectors& SceneAffectorsOf(entt::registry& registry) {
+    auto& context = registry.ctx();
+    if (!context.contains<SceneAffectors>()) {
+        context.emplace<SceneAffectors>();
+    }
+    return context.get<SceneAffectors>();
+}
+
+// The affectors a system's entity describes: its attraction, then its interaction.
+void ApplySceneAffectors(World& world, Entity entity, ParticleSystem& system, const FrameTime& time) {
+    entt::registry& registry = world.Registry();
+    SceneAffectors& state = SceneAffectorsOf(registry);
+    const entt::entity id = entity.Id();
+    if (const auto* attraction = registry.try_get<ParticleAttraction>(id)) {
+        if (attraction->enabled) {
+            AttractorAffector& affector = state.attraction[id];
+            affector.scale = attraction->scale;
+            affector.Apply(world, entity, system.particles, time);
+        }
+    } else {
+        state.attraction.erase(id);
+    }
+    if (const auto* interaction = registry.try_get<ParticleInteraction>(id)) {
+        if (interaction->enabled) {
+            InteractionAffector& affector = state.interaction[id];
+            affector.radius = interaction->radius;
+            affector.stiffness = interaction->stiffness;
+            affector.damping = interaction->damping;
+            affector.Apply(world, entity, system.particles, time);
+        }
+    } else {
+        state.interaction.erase(id);
+    }
+}
 
 void Age(ParticleSystem& system, float dt) {
     auto& particles = system.particles;
@@ -67,6 +112,7 @@ void StepParticles(World& world, const FrameTime& time, const Input&) {
                 affector->Apply(world, entity, system.particles, time);
             }
         }
+        ApplySceneAffectors(world, entity, system, time);
         RemoveExpired(system);
         for (Particle& particle : system.particles) {
             particle.position = particle.position + particle.velocity * dt;

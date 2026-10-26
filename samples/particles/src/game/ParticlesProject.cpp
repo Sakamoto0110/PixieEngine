@@ -5,7 +5,6 @@
 #include "pixie/Log.hpp"
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
-#include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Scene.hpp"
@@ -45,22 +44,6 @@ void ParticlesProject::Describe(pixie::ComponentTypes& types) const {
         .Scrub(10.0)
         .Field<&ParticlesScenario::interaction>("interaction")
         .Tooltip("Whether the scene starts with particle-to-particle interaction.");
-    types.Add<ParticleControls>("ParticleControls")
-        .Field<&ParticleControls::interaction>("interaction")
-        .Tooltip("Whether particles closer than the interaction radius push each other apart.")
-        .Field<&ParticleControls::interactionRadius>("interactionRadius")
-        .Label("interaction radius")
-        .Tooltip("Contact distance between two particles' centers, in world units.")
-        .Range(0.5, 50.0)
-        .Scrub(0.05)
-        .Field<&ParticleControls::stiffness>("stiffness")
-        .Tooltip("Push at full overlap, in world units per second squared.")
-        .Range(0.0, 20000.0)
-        .Scrub(10.0)
-        .Field<&ParticleControls::damping>("damping")
-        .Tooltip("How much of the relative velocity contact removes per second.")
-        .Range(0.0, 50.0)
-        .Scrub(0.05);
 }
 
 void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {
@@ -76,13 +59,8 @@ void ParticlesProject::Build(pixie::World& world, pixie::Camera2D&) {
         AddAttractor(world, pxPoint(0.0, 0.0));
     }
     dragged_ = {};
-    if (!emitter_.Has<ParticleControls>()) {
-        emitter_.Add<ParticleControls>();
-    }
     // The scenario says whether the scene starts with the interaction.
-    ParticleControls& controls = emitter_.Get<ParticleControls>();
-    controls.interaction = scenario.interaction;
-    SetInteraction(emitter_, controls.interaction);
+    SetInteraction(emitter_, scenario.interaction);
     Respawn(world, scenario.count);
     pixie::LogInfo("particles: 1-5 for 1, 10, 100, 10000, 100000 particles; I interaction; "
                    "left click adds or drags an attractor, Alt + left click adds a spawner, "
@@ -162,19 +140,17 @@ void ParticlesProject::HandleMouse(pixie::World& world, pixie::Camera2D& camera,
 }
 
 void ParticlesProject::HandleKeys(pixie::World& world, const pixie::Input& input) {
-    ParticleControls& controls = emitter_.Get<ParticleControls>();
     for (std::size_t i = 0; i < kPresets.size(); ++i) {
         if (input.WasPressed(kPresetKeys[i])) {
             if (kPresets[i] > kInteractionLimit) {
-                controls.interaction = false;
                 SetInteraction(emitter_, false);
             }
             Respawn(world, kPresets[i]);
         }
     }
     if (input.WasPressed(pixie::Key::I)) {
-        controls.interaction = !controls.interaction;
-        pixie::LogInfo(std::format("particles: interaction {}", controls.interaction ? "on" : "off"));
+        SetInteraction(emitter_, !InteractionOn(emitter_));
+        pixie::LogInfo(std::format("particles: interaction {}", InteractionOn(emitter_) ? "on" : "off"));
     }
     if (input.WasPressed(pixie::Key::R)) {
         Respawn(world, count_);
@@ -196,15 +172,6 @@ void ParticlesProject::BeforeStep(pixie::World& world, pixie::Camera2D& camera, 
             shape.size = pxVec2(attractor.size, attractor.size);
         });
 
-    // The controls are the source of truth; the affector follows them.
-    const ParticleControls& controls = emitter_.Get<ParticleControls>();
-    auto* interaction = emitter_.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>();
-    if (interaction != nullptr) {
-        interaction->SetEnabled(controls.interaction);
-        interaction->radius = controls.interactionRadius;
-        interaction->stiffness = controls.stiffness;
-        interaction->damping = controls.damping;
-    }
 }
 
 std::unique_ptr<pixie::Project> pixie::CreateProject() {
@@ -217,7 +184,7 @@ void ParticlesProject::DrawScreen(pixie::World& world, pixie::ScreenCanvas& scre
     const int particles = static_cast<int>(emitter_.Get<pixie::ParticleSystem>().particles.size());
     const std::string counts = std::format("{} particles\n{} attractors, {} spawners\ninteraction {}", particles,
                                            AttractorCount(world), SpawnerCount(world),
-                                           emitter_.Get<ParticleControls>().interaction ? "on" : "off");
+                                           InteractionOn(emitter_) ? "on" : "off");
 
     // A panel sized to what it holds, in the top-left corner.
     constexpr double kMargin = 12.0;

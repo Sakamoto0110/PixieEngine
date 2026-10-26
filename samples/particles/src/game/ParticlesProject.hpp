@@ -13,18 +13,10 @@ struct ParticlesScenario {
     bool interaction = true;
 };
 
-// The interaction's tunable values, on the emitter entity, so a tool can change them; the project
-// copies them into the InteractionAffector before each step.
-struct ParticleControls {
-    bool interaction = true;
-    double interactionRadius = 4.0;
-    double stiffness = 1200.0;
-    double damping = 3.0;
-};
-
 // Anchor 3 as a Project: particles in orbit around attractors, and spawners feeding them, that the
 // user places, drags, and removes. The scene (samples/particles/scenes/main.scene) holds the
-// scenario, the particle system with its controls, the attractors, and the spawners; the particles
+// scenario, the particle system with its look, attraction, and interaction, the attractors, and the
+// spawners; the particles
 // are generated from the scenario's count. The same project runs in the particles player and,
 // through the C API, in the editor. Its screen layer shows the counts, and labels each spawner.
 class ParticlesProject final : public pixie::Project {

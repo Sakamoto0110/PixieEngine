@@ -26,4 +26,14 @@ private:
     std::vector<pxVec2f> change_;
 };
 
+// The interaction of a particle system, as a scene component on the system's entity: while
+// enabled, the particle step pushes the system's particles apart as an InteractionAffector with
+// these values would, after the affectors added in code and the attraction.
+struct ParticleInteraction {
+    bool enabled = true;
+    double radius = 4.0;
+    double stiffness = 1200.0;
+    double damping = 3.0;
+};
+
 } // namespace pixie

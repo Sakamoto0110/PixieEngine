@@ -1,6 +1,8 @@
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Attractor.hpp"
+#include "pixie/runtime/AttractorAffector.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/Path.hpp"
@@ -23,6 +25,13 @@ void UpgradeCharacterMotor(CharacterMotor2D& motor, int savedVersion, LegacyFiel
         motor.gravityScale = gravity->second.x / 1100.0;
         legacy.erase(gravity);
     }
+}
+
+// The particle affectors act on the particles of a system on the same entity.
+std::string NeedsParticleSystem(const World& world, entt::entity entity) {
+    return world.Registry().all_of<ParticleSystem>(entity)
+        ? ""
+        : "Add a ParticleSystem first: this acts on the particles of a system on the same entity.";
 }
 
 } // namespace
@@ -176,6 +185,31 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
                  "cover each other.")
         .Field<&ParticleSystem::style, &ParticleStyle::fade>("fade")
         .Tooltip("Fades each particle out over its lifetime; particles that live forever do not fade.");
+    types.Add<ParticleAttraction>("ParticleAttraction")
+        .CanAdd(NeedsParticleSystem)
+        .Field<&ParticleAttraction::enabled>("enabled")
+        .Tooltip("Whether this system's particles are pulled toward the attractors.")
+        .Field<&ParticleAttraction::scale>("scale")
+        .Tooltip("How strongly they are pulled: 1 is each attractor's own strength, 0 nothing, and a "
+                 "negative scale pushes them away.")
+        .Range(-10.0, 10.0)
+        .Scrub(0.01);
+    types.Add<ParticleInteraction>("ParticleInteraction")
+        .CanAdd(NeedsParticleSystem)
+        .Field<&ParticleInteraction::enabled>("enabled")
+        .Tooltip("Whether this system's particles closer than the radius push each other apart.")
+        .Field<&ParticleInteraction::radius>("radius")
+        .Tooltip("Contact distance between two particles' centers, in world units.")
+        .Range(0.5, 50.0)
+        .Scrub(0.05)
+        .Field<&ParticleInteraction::stiffness>("stiffness")
+        .Tooltip("Push at full overlap, in world units per second squared.")
+        .Range(0.0, 20000.0)
+        .Scrub(10.0)
+        .Field<&ParticleInteraction::damping>("damping")
+        .Tooltip("How much of the relative velocity contact removes per second, so piles settle.")
+        .Range(0.0, 50.0)
+        .Scrub(0.05);
     types.Add<ParticleSpawner>("ParticleSpawner")
         .Field<&ParticleSpawner::system>("system")
         .References("ParticleSystem")

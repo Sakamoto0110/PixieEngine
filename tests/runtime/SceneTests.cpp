@@ -2,6 +2,8 @@
 
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Attractor.hpp"
+#include "pixie/runtime/AttractorAffector.hpp"
+#include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
@@ -57,6 +59,8 @@ void Fill(World& world) {
     system.style.size = 3.5f;
     system.style.additive = false;
     system.style.fade = false;
+    pool.Add<ParticleAttraction>(ParticleAttraction{false, -0.5});
+    pool.Add<ParticleInteraction>(ParticleInteraction{true, 6.5, 900.0, 1.25});
     Attractor& attractor = pool.Add<Attractor>();
     attractor.strength = -2.5e5;
     attractor.killOnContact = true;

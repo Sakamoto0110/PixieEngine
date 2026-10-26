@@ -2,6 +2,7 @@
 
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/AttractorAffector.hpp"
+#include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
@@ -339,4 +340,81 @@ TEST(AParticleFlyingIntoTheBodyIsRemovedThatStep) {
         }
     }
     CHECK(reached);
+}
+
+namespace {
+
+// A system entity with one particle at rest at `at`, with the particle step installed.
+Entity SystemWithParticleAt(World& world, pxPointf at) {
+    AddParticleStep(world);
+    Entity system = world.Create("system");
+    system.Add<ParticleSystem>().Emit(at, pxVec2f(0.0f), 0.0f);
+    return system;
+}
+
+// The x velocity of the first particle after one step, with an attractor at the origin and the
+// system's ParticleAttraction set by `setUp`.
+template<typename SetUp>
+float PullAfterOneStep(SetUp&& setUp) {
+    World world;
+    Entity system = SystemWithParticleAt(world, pxPointf(100.0f, 0.0f));
+    setUp(system.Add<ParticleAttraction>());
+    Entity attractor = world.Create("attractor");
+    attractor.Add<Transform2D>();
+    attractor.Add<Attractor>();
+    world.Step(kStep, kNoInput);
+    return system.Get<ParticleSystem>().particles.front().velocity.x;
+}
+
+} // namespace
+
+TEST(SceneAttractionPullsTowardTheAttractorsWithItsScale) {
+    const float pulled = PullAfterOneStep([](ParticleAttraction&) {});
+    CHECK(pulled < 0.0f);
+    CHECK(PullAfterOneStep([](ParticleAttraction& a) { a.enabled = false; }) == 0.0f);
+    CHECK(PullAfterOneStep([](ParticleAttraction& a) { a.scale = -1.0; }) == -pulled);
+    CHECK(std::abs(PullAfterOneStep([](ParticleAttraction& a) { a.scale = 2.0; }) - 2.0f * pulled) < 1e-4f * std::abs(pulled));
+    // Without the component, nothing pulls: attractors act only on systems that ask for them.
+    World world;
+    Entity system = SystemWithParticleAt(world, pxPointf(100.0f, 0.0f));
+    Entity attractor = world.Create();
+    attractor.Add<Transform2D>();
+    attractor.Add<Attractor>();
+    world.Step(kStep, kNoInput);
+    CHECK(system.Get<ParticleSystem>().particles.front().velocity.x == 0.0f);
+}
+
+TEST(SceneInteractionPushesOverlappingParticlesApart) {
+    for (const bool enabled : {true, false}) {
+        World world;
+        Entity system = SystemWithParticleAt(world, pxPointf(0.0f, 0.0f));
+        system.Get<ParticleSystem>().Emit(pxPointf(1.0f, 0.0f), pxVec2f(0.0f), 0.0f);
+        ParticleInteraction& interaction = system.Add<ParticleInteraction>();
+        interaction.enabled = enabled;
+        interaction.radius = 4.0;
+        world.Step(kStep, kNoInput);
+        const auto& particles = system.Get<ParticleSystem>().particles;
+        const float left = std::min(particles[0].velocity.x, particles[1].velocity.x);
+        const float right = std::max(particles[0].velocity.x, particles[1].velocity.x);
+        CHECK(enabled ? (left < 0.0f && right > 0.0f) : (left == 0.0f && right == 0.0f));
+    }
+}
+
+TEST(SceneAffectorsAreAddedOnlyToAParticleSystem) {
+    ComponentTypes types;
+    DescribeRuntimeComponents(types);
+    World world;
+    Entity bare = world.Create();
+    Entity system = world.Create();
+    system.Add<ParticleSystem>();
+    for (const char* name : {"ParticleAttraction", "ParticleInteraction"}) {
+        const int index = types.IndexOf(name);
+        CHECK(index >= 0);
+        if (index < 0) {
+            continue;
+        }
+        const ComponentDescriptor& type = types.All()[static_cast<std::size_t>(index)];
+        CHECK(!type.AdditionError(world, bare.Id()).empty());
+        CHECK(type.AdditionError(world, system.Id()).empty());
+    }
 }

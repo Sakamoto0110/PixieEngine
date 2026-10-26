@@ -26,12 +26,21 @@
         },
         "ParticleSystem": {
           "v": 1,
-          "capacity": 200000
+          "capacity": 200000,
+          "color": [120, 175, 255, 200],
+          "size": 2.0,
+          "additive": true,
+          "fade": true
         },
-        "ParticleControls": {
+        "ParticleAttraction": {
           "v": 1,
-          "interaction": true,
-          "interactionRadius": 4.0,
+          "enabled": true,
+          "scale": 1.0
+        },
+        "ParticleInteraction": {
+          "v": 1,
+          "enabled": true,
+          "radius": 4.0,
           "stiffness": 1200.0,
           "damping": 3.0
         }

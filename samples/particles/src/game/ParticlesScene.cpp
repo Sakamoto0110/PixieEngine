@@ -30,15 +30,17 @@ void SetUpParticles(pixie::World& world, pixie::Entity system, bool defaults) {
         system.Add<pixie::Transform2D>();
     }
     pixie::ParticleSystem& pool = system.Get<pixie::ParticleSystem>();
-    if (defaults) {
-        pool.capacity = 200000;
-    }
-    pool.style.color = kParticleColor;
-    pool.style.size = 2.0f;
+    // Not described, so not in the scene: far particles stay visible.
     pool.style.minPixels = 1.2f;
-    pool.style.additive = true;
-    pool.AddAffector<pixie::AttractorAffector>();
-    pool.AddAffector<pixie::InteractionAffector>();
+    if (defaults) {
+        // What the scene holds: the look, the pull of the attractors, and the interaction.
+        pool.capacity = 200000;
+        pool.style.color = kParticleColor;
+        pool.style.size = 2.0f;
+        pool.style.additive = true;
+        system.Add<pixie::ParticleAttraction>();
+        system.Add<pixie::ParticleInteraction>();
+    }
 
     if (defaults) {
         // A spawner on the left: particles leave a small ring outward and fall toward the attractors.
@@ -115,12 +117,14 @@ void SpawnOrbits(pixie::World& world, pixie::Entity emitter, int count) {
 }
 
 void SetInteraction(pixie::Entity emitter, bool on) {
-    if (auto* interaction = emitter.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>()) {
-        interaction->SetEnabled(on);
+    if (auto* interaction = emitter.TryGet<pixie::ParticleInteraction>()) {
+        interaction->enabled = on;
+    } else if (on) {
+        emitter.Add<pixie::ParticleInteraction>();
     }
 }
 
 bool InteractionOn(pixie::Entity emitter) {
-    const auto* interaction = emitter.Get<pixie::ParticleSystem>().FindAffector<pixie::InteractionAffector>();
-    return interaction != nullptr && interaction->IsEnabled();
+    const auto* interaction = emitter.TryGet<pixie::ParticleInteraction>();
+    return interaction != nullptr && interaction->enabled;
 }

@@ -11,6 +11,10 @@ namespace pixie {
 // killOnContact removes the particles that come within its body.
 class AttractorAffector final : public ParticleAffector {
 public:
+    // Multiplies every attractor's strength for this pool: 0 pulls nothing, negative pushes away.
+    // Killing on contact does not depend on it.
+    double scale = 1.0;
+
     void Apply(World& world, Entity system, std::span<Particle> particles,
                const FrameTime& time) override;
 
@@ -25,6 +29,14 @@ private:
         float killSquared;
     };
     std::vector<Source> sources_;
+};
+
+// The attraction of a particle system, as a scene component on the system's entity: while
+// enabled, the particle step pulls the system's particles toward every attractor, as an
+// AttractorAffector with this scale would, after the affectors added in code.
+struct ParticleAttraction {
+    bool enabled = true;
+    double scale = 1.0;
 };
 
 } // namespace pixie

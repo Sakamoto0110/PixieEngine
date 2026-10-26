@@ -11,10 +11,10 @@ class World;
 inline constexpr int kMaxAttractors = 16;
 inline constexpr int kMaxSpawners = 16;
 
-// Builds what the scene does not hold: the particle step, and the pool of `system` (the
-// "particles" entity, with a ParticleSystem) with its look, an AttractorAffector, and an
-// InteractionAffector. With `defaults`, for a World built without a scene, it also gives the pool
-// its capacity and adds a spawner, "spawner", that feeds it from a ring on the left.
+// Builds what the scene does not hold: the particle step, and the pool's smallest on-screen size.
+// With `defaults`, for a World built without a scene, it also gives `system` (the "particles"
+// entity, with a ParticleSystem) what the scene holds: its capacity and look, a ParticleAttraction
+// and a ParticleInteraction, and a spawner, "spawner", that feeds it from a ring on the left.
 void SetUpParticles(pixie::World& world, pixie::Entity system, bool defaults);
 
 // An attractor entity of the scene at `position`: Transform2D, Attractor, and a ring Shape.
@@ -31,6 +31,7 @@ int SpawnerCount(pixie::World& world);
 // in turn (around the origin if there is none). Call it outside a step.
 void SpawnOrbits(pixie::World& world, pixie::Entity emitter, int count);
 
-// Turns the particle-to-particle interaction on or off.
+// Turns the particle-to-particle interaction (the system's ParticleInteraction) on or off, adding
+// one with its defaults when there is none to turn on.
 void SetInteraction(pixie::Entity emitter, bool on);
 bool InteractionOn(pixie::Entity emitter);

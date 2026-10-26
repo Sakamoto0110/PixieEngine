@@ -13,7 +13,8 @@ class World;
 // 1. each particle's previous position becomes its current one, and its age grows; particles
 //    past their lifetime leave the pool (the last one takes the freed place);
 // 2. every ParticleSpawner pointing at the system emits into it;
-// 3. the system's enabled affectors run, in the order added, and the particles they killed leave;
+// 3. the system's enabled affectors run, in the order added, then the ParticleAttraction and
+//    ParticleInteraction on its entity, and the particles they killed leave;
 // 4. each particle moves by its velocity.
 //
 // It installs once per World: later calls do nothing. Every World a ProjectSession builds gets it,

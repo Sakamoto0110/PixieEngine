@@ -18,7 +18,7 @@ void AttractorAffector::Apply(World& world, Entity, std::span<Particle> particle
         const double body = attractor.size * std::max(std::abs(transform.scale.x), std::abs(transform.scale.y));
         sources_.push_back({static_cast<float>(transform.position.x),
                             static_cast<float>(transform.position.y),
-                            static_cast<float>(attractor.strength),
+                            static_cast<float>(attractor.strength * scale),
                             static_cast<float>(attractor.softening * attractor.softening),
                             static_cast<float>(reachSquared),
                             attractor.killOnContact ? static_cast<float>(body * body) : -1.0f});
