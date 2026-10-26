@@ -48,6 +48,15 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** body/world ownership, dynamics/materials/events, editor/lifecycle/migration and character/platform scenarios satisfy the specification's qualified matrix; unmet requirements remain explicit. No claim of all physics completion from a native body demo.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
 
+### `PIXIE-TODO-046` — Spawner distribution and particle shapes
+
+**Status:** promoted
+**Source:** owner request on 2026-10-26: a spawner at a high rate stacks its particles on one spot, and their interaction makes them explode; particles should have a shape. Approved as proposed ("go ahead with TODO-046").
+**Accepted scope:** (1) a spawner gives each particle it emits in a step its own moment within the step: the particle starts at its birth point and travels only the part of the step it lived, with its age to match, so a fast stream comes out continuous instead of in stacks; always on, no field. (2) `ParticleSpawner.jitter`, in world units: a Gaussian offset around the point the emission shape chose, most particles within `jitter` of it; 0 by default, so saved scenes do not change. (3) `ParticleStyle.shape`, per system, edited in the inspector and saved in scenes: `Disc` (today's), `Square`, `Ring` (hollow) and `Streak`, stretched behind the particle along its motion over the last 0.05 s. Per-spawner color, size and shape, and dynamic particles, stay in the roadmap direction.
+**Dependencies and gates:** PIXIE-TODO-045; leave PIXIE-TODO-043's in-progress work untouched; `Particle` stays 32 bytes.
+**Completion criteria:** (1) runtime tests show a step's particles spaced along their path, born at the spawner, with ages matching, and the jitter's spread; existing emission tests unchanged in meaning; (2) the shape round-trips through a scene; (3) each shape seen in the editor through real input, and a high-rate Point spawner with interaction no longer exploding; (4) zero warnings, and ctest passes in Debug and Release.
+**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-046--spawner-distribution-and-particle-shapes)
+
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
