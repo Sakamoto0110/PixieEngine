@@ -76,6 +76,9 @@ struct CharacterMotor2D {
     double maxSlopeDegrees = 45;
     double coyoteSeconds = 0.08;
     double jumpBufferSeconds = 0.1;
+    double effectiveMass = 1;
+    double maxPushForce = 1200, maxPushSpeed = 200, maxSupportForce = 1200;
+    double maxInheritedSpeed = 512, maxCarryStep = 8, maxRecoveryDistance = 8;
     bool operator==(const CharacterMotor2D&) const = default;
 };
 
@@ -88,10 +91,14 @@ struct CharacterCommand2D { double horizontal = 0; bool jumpPressed = false; };
 void InstallSceneMovement2D(World& world);
 // Refreshes authored geometry/settings without advancing time, including while editing.
 void SyncSceneMovement2D(World& world);
+// Rebuilds transient bodies, contacts and motor state from current authored components/poses.
+// Call outside a World step. Borrowed collision/motor views must be reacquired afterward.
+void ResetSceneMovement2D(World& world);
 std::vector<std::string> SceneMovementErrors2D(World& world);
 const CapsuleMotion2D* CharacterMotion2D(World& world, entt::entity entity);
 // Last synchronized controller settings, borrowed with the same lifetime as CharacterMotion2D.
 const CharacterSettings2D* CharacterTuning2D(World& world, entt::entity entity);
+const CharacterCouplingState2D* CharacterCoupling2D(World& world, entt::entity entity);
 // Borrowed query view after the latest sync; null until relevant components are synchronized.
 const CollisionWorld2D* SceneCollisionWorld2D(World& world);
 // Borrowed mutable service for game commands; reacquire after sync/reset. Empty handle if invalid/missing.

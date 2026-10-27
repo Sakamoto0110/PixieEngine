@@ -1,0 +1,6 @@
+{
+  "format": "pixie-project",
+  "version": 1,
+  "name": "Sparks - A/D move | Space jump | RMB sparks | LMB drag | R reset",
+  "startScene": "scenes/main.scene"
+}

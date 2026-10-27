@@ -112,11 +112,12 @@ int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, cons
         // much, so it ends the step where it would have got to, from its birth point.
         const pxPointf born(static_cast<float>(at.x), static_cast<float>(at.y));
         const auto early = static_cast<float>(due);
-        const pxPointf startsAt = born + velocity * -early;
+        const pxPointf startsAt = spawner.dynamic ? born : born + velocity * -early;
         const bool emittedOne = spawner.ownLook
             ? system.Emit(startsAt, velocity, spawner.lifetime, spawner.particleColor,
-                          static_cast<float>(spawner.particleSize), spawner.particleShape)
-            : system.Emit(startsAt, velocity, spawner.lifetime);
+                          static_cast<float>(spawner.particleSize), spawner.particleShape, spawner.dynamic)
+            : system.Emit(startsAt, velocity, spawner.lifetime, system.style.color, system.style.size,
+                          system.style.shape, spawner.dynamic);
         if (!emittedOne) {
             spawner.pending = 0.0;
             break;

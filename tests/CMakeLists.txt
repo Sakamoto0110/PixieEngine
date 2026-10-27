@@ -24,12 +24,15 @@ pixie_target_defaults(engine-tests)
 add_test(NAME engine-tests COMMAND engine-tests)
 
 add_executable(runtime-tests
+    benchmarks/PhysicsWorkload2D.cpp
+    runtime/PhysicsWorkloadTests.cpp
     runtime/ColliderEditingTests.cpp
     runtime/PhysicsDebugTests.cpp
     runtime/PhysicsEventsTests.cpp
     runtime/BodyQualificationTests.cpp
     runtime/RigidBodyTests.cpp
     runtime/CollisionMovementTests.cpp
+    runtime/CharacterCouplingTests.cpp
     runtime/SceneMovementTests.cpp
     runtime/MotorGravityTests.cpp
     TestMain.cpp
@@ -38,6 +41,7 @@ add_executable(runtime-tests
     runtime/CollisionLayersTests.cpp
     runtime/OrderIndependenceTests.cpp
     runtime/ParticleTests.cpp
+    runtime/ParticlePhysicsTests.cpp
     runtime/PathTests.cpp
     runtime/CullingTests.cpp
     runtime/PickingTests.cpp
@@ -61,7 +65,7 @@ pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 
 # Explicit headless qualification tool, not an implicit CTest performance budget.
-add_executable(physics-benchmark benchmarks/PhysicsTelemetry.cpp)
+add_executable(physics-benchmark benchmarks/PhysicsTelemetry.cpp benchmarks/PhysicsWorkload2D.cpp)
 set_target_properties(physics-benchmark PROPERTIES FOLDER tests)
 target_link_libraries(physics-benchmark PRIVATE Pixie::Runtime)
 pixie_target_defaults(physics-benchmark)

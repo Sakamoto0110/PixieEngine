@@ -1,0 +1,165 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 12345,
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "scenario",
+      "components": {
+        "SparksScenario": {
+          "v": 1,
+          "burstCount": 48
+        }
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "floor",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            0,
+            150
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            430,
+            10
+          ],
+          "friction": 0.6
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            430,
+            10
+          ],
+          "color": [
+            75,
+            95,
+            120,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "drag box",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -120,
+            122
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            18,
+            18
+          ],
+          "friction": 0.6
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Dynamic",
+          "massOverride": 1,
+          "fixedRotation": true
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            18,
+            18
+          ],
+          "color": [
+            90,
+            180,
+            245,
+            255
+          ]
+        }
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "sparks",
+      "components": {
+        "ParticleSystem": {
+          "v": 1,
+          "capacity": 10000,
+          "shape": "Streak",
+          "additive": true,
+          "fade": true
+        },
+        "ParticlePhysics2D": {
+          "v": 1,
+          "gravityScale": 1,
+          "collisionRadius": 1.5,
+          "restitution": 0.6,
+          "friction": 0.2,
+          "bounceThreshold": 35
+        }
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "world physics",
+      "components": {
+        "PhysicsSettings2D": {
+          "v": 1,
+          "gravity": [
+            0,
+            1100
+          ],
+          "unitsPerMeter": 32,
+          "substeps": 4
+        }
+      }
+    },
+    {
+      "id": "0000000000000006",
+      "name": "player",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -220,
+            116
+          ]
+        },
+        "CharacterMotor2D": {
+          "v": 3,
+          "acceleration": 4500,
+          "maxPushForce": 2500
+        },
+        "KeyboardControl2D": {
+          "v": 1,
+          "enabled": true
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            24
+          ],
+          "color": [
+            245,
+            220,
+            100,
+            255
+          ]
+        }
+      }
+    }
+  ]
+}

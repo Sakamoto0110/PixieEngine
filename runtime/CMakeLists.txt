@@ -14,6 +14,7 @@ add_library(pixie_runtime STATIC
     src/Culling.cpp
     src/Picking.cpp
     src/ParticleStep.cpp
+    src/ParticlePhysics2D.cpp
     src/PathDrawing.cpp
     src/ProjectApp.cpp
     src/ProjectFile.cpp

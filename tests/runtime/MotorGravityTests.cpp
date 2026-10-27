@@ -81,7 +81,7 @@ TEST(LegacyMotorGravityBecomesWorldGravityScaleWithoutChangingTheFall) {
     }
 }
 
-TEST(MigratedMotorSavesAsVersionTwoOnceAndKeepsUnknownData) {
+TEST(MigratedMotorSavesAsCurrentVersionOnceAndKeepsUnknownData) {
     const auto types = Types();
     World world;
     const auto report = ReadScene(world, types,
@@ -89,14 +89,14 @@ TEST(MigratedMotorSavesAsVersionTwoOnceAndKeepsUnknownData) {
     CHECK(report.ok && report.warnings.empty());
     const auto text = WriteScene(world, types);
     const auto saved = SavedMotor(text);
-    CHECK(saved["v"] == 2);
+    CHECK(saved["v"] == 3);
     CHECK(saved["gravityScale"] == 0.5);
     CHECK(saved["maxSpeed"] == 250);
     CHECK(!saved.contains("gravity"));
     // Unknown fields, even numeric ones offered to the upgrade, survive unchanged.
     CHECK(saved["futureTuning"] == Json::array({1, 2}));
     CHECK(saved["futureName"] == "x");
-    // A version 2 save is not converted again.
+    // A current-version save is not converted again.
     World reopened;
     CHECK(ReadScene(reopened, types, text).ok);
     for (auto [id, motor] : reopened.Registry().view<const CharacterMotor2D>().each()) {
@@ -109,17 +109,40 @@ TEST(MigratedMotorSavesAsVersionTwoOnceAndKeepsUnknownData) {
 // Sensitivity: the conversion depends on the saved version, not on the presence of a "gravity" key.
 TEST(OnlyOlderMotorVersionsConvertLegacyGravity) {
     const auto types = Types();
-    for (const int version : {2, 3}) {
+    for (const int version : {2, 3, 4}) {
         World world;
         const auto report = ReadScene(world, types, Scene({Motor("b1", 0, R"("gravity": 550)", version)}));
         CHECK(report.ok);
-        CHECK(report.warnings.empty() == (version == 2)); // a newer version warns
+        CHECK(report.warnings.empty() == (version <= 3)); // a newer version warns
         for (auto [id, motor] : world.Registry().view<const CharacterMotor2D>().each()) {
             (void)id;
             CHECK(motor.gravityScale == 1);
         }
         CHECK(SavedMotor(WriteScene(world, types))["gravity"] == 550); // kept as unknown data
     }
+}
+
+TEST(VersionTwoMotorGetsCouplingDefaultsAndCurrentSaveKeepsAuthoredLimits) {
+    const auto types = Types();
+    World world;
+    CHECK(ReadScene(world, types, Scene({Motor("b1", 0,
+        R"("gravityScale": 0.5, "futureCoupling": [7, 8])", 2)})).ok);
+    for (auto [id, motor] : world.Registry().view<CharacterMotor2D>().each()) {
+        (void)id;
+        CHECK(motor.effectiveMass == 1 && motor.maxPushForce == 1200 && motor.maxPushSpeed == 200);
+        CHECK(motor.maxSupportForce == 1200 && motor.maxInheritedSpeed == 512);
+        CHECK(motor.maxCarryStep == 8 && motor.maxRecoveryDistance == 8);
+        motor.effectiveMass = 2;
+        motor.maxPushForce = 321;
+    }
+    const auto text = WriteScene(world, types);
+    const auto saved = SavedMotor(text);
+    CHECK(saved["v"] == 3 && saved["gravityScale"] == 0.5);
+    CHECK(saved["effectiveMass"] == 2 && saved["maxPushForce"] == 321);
+    CHECK(saved["futureCoupling"] == Json::array({7, 8}));
+    World reopened;
+    CHECK(ReadScene(reopened, types, text).ok);
+    CHECK(SavedMotor(WriteScene(reopened, types)) == saved);
 }
 
 // A frozen copy of the movement laboratory as saved before version 2, kept for comparison: the

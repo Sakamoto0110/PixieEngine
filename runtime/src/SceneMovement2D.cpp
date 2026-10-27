@@ -26,6 +26,13 @@ constexpr CharacterSettings2D MotorSettings(const CharacterMotor2D& motor, doubl
     settings.maxSlopeDegrees = motor.maxSlopeDegrees;
     settings.coyoteSeconds = motor.coyoteSeconds;
     settings.jumpBufferSeconds = motor.jumpBufferSeconds;
+    settings.effectiveMass = motor.effectiveMass;
+    settings.maxPushForce = motor.maxPushForce;
+    settings.maxPushSpeed = motor.maxPushSpeed;
+    settings.maxSupportForce = motor.maxSupportForce;
+    settings.maxInheritedSpeed = motor.maxInheritedSpeed;
+    settings.maxCarryStep = motor.maxCarryStep;
+    settings.maxRecoveryDistance = motor.maxRecoveryDistance;
     return settings;
 }
 // A default motor under the default world gravity, PhysicsSettings2D's (0, 1100), is the default
@@ -45,11 +52,12 @@ struct RigidRecord {
 };
 struct MovementMetrics {
     Telemetry& telemetry;
-    MetricHandle sync, rebuild, publish, motors, events, rebuilds, syncCalls, published, motorCount, pendingCommands;
+    MetricHandle sync, rebuild, publish, motors, prepare, events, rebuilds, syncCalls, published, motorCount, pendingCommands;
     std::uint64_t rebuilt = 0, synchronized = 0;
     explicit MovementMetrics(Telemetry& t) : telemetry(t),
         sync(t.RegisterTiming("physics.scene.sync")), rebuild(t.RegisterTiming("physics.scene.rebuild")),
         publish(t.RegisterTiming("physics.scene.publish")), motors(t.RegisterTiming("physics.scene.motors")),
+        prepare(t.RegisterTiming("physics.scene.coupling.prepare")),
         events(t.RegisterTiming("physics.scene.events.publish")), rebuilds(t.RegisterGauge("physics.scene.rebuilds", "objects/step")),
         syncCalls(t.RegisterGauge("physics.scene.sync_calls", "calls/step")),
         published(t.RegisterGauge("physics.scene.bodies_published", "bodies/step")),
@@ -77,6 +85,7 @@ struct MovementState {
     bool validSettings = true;
     bool hasStepped = false;
     std::map<entt::entity, CharacterController2D> characters;
+    std::vector<entt::entity> preparedCharacters;
     std::vector<entt::entity> activeColliders, activeCharacters, activeBodies;
     std::vector<std::string> errors, lastLogged;
 };
@@ -188,32 +197,9 @@ void MoveCharacters(World& world, const FrameTime& time, const Input& input) {
     state.pendingResetEvents.clear();
     if (!state.collision || !state.validSettings) { PublishErrors(state); return; }
     state.hasStepped = true;
-    try {
-        if (state.collision->NeedsSimulation()) {
-            state.collision->StepBodies(time.delta, state.settings.substeps);
-            {
-                const TelemetryScope measure(state.metrics.telemetry, state.metrics.events);
-                CopyEvents(state, state.collision->Events(), state.events);
-            }
-        }
-        const TelemetryScope measure(state.metrics.telemetry, state.metrics.publish);
-        for (auto retired : state.retired) state.owners.erase(retired);
-        state.retired.clear();
-        for (auto& [id, record] : state.bodies) {
-            const auto motion = state.collision->BodyMotion(record.handle);
-            auto& transform = world.Registry().get<Transform2D>(id);
-            transform.position = motion.position;
-            transform.rotation = motion.rotation;
-            record.transform = transform; // Physics owns this pose; the next sync must not teleport it back.
-        }
-        state.metrics.telemetry.SetGauge(state.metrics.published, static_cast<double>(state.bodies.size()));
-    } catch (const std::exception& error) {
-        state.errors.push_back(error.what());
-        PublishErrors(state);
-        return;
-    }
-    {
-        const TelemetryScope measure(state.metrics.telemetry, state.metrics.motors);
+    state.preparedCharacters.clear();
+    if (!state.characters.empty()) {
+        const TelemetryScope measure(state.metrics.telemetry, state.metrics.prepare);
         for (auto& [id, controller] : state.characters) {
             auto* command = world.Registry().try_get<CharacterCommand2D>(id);
             double horizontal = command ? command->horizontal : 0;
@@ -224,16 +210,57 @@ void MoveCharacters(World& world, const FrameTime& time, const Input& input) {
                 jump = jump || input.WasPressed(Key::Space);
             }
             try {
-                controller.Step(*state.collision, horizontal, jump, time.delta);
-                world.Registry().get<Transform2D>(id).position = controller.State().position;
-            } catch (const std::exception& error) {
-                Error(state, id, error.what());
-            }
+                controller.PrepareStep(*state.collision, horizontal, jump, time.delta);
+                state.preparedCharacters.push_back(id);
+            } catch (const std::exception& error) { Error(state, id, error.what()); }
             if (command) command->jumpPressed = false;
         }
     }
+    try {
+        if (state.collision->NeedsSimulation()) {
+            state.collision->StepBodies(time.delta, state.settings.substeps);
+            const TelemetryScope measure(state.metrics.telemetry, state.metrics.events);
+            CopyEvents(state, state.collision->Events(), state.events);
+        }
+    } catch (const std::exception& error) {
+        for (auto id : state.preparedCharacters) {
+            auto& controller = state.characters.at(id);
+            controller.Teleport(controller.State().position); // Cancel the pending phase after a failed world step.
+        }
+        state.errors.push_back(error.what()); PublishErrors(state); return;
+    }
+    {
+        const TelemetryScope measure(state.metrics.telemetry, state.metrics.motors);
+        for (auto id : state.preparedCharacters) {
+            auto& controller = state.characters.at(id);
+            try {
+                controller.FinishStep(*state.collision);
+                world.Registry().get<Transform2D>(id).position = controller.State().position;
+                if (controller.Coupling().blocked == CharacterBlocked2D::SupportStepLimit)
+                    Error(state, id, "character support displacement exceeds maxCarryStep; last completed pose retained");
+                else if (controller.Coupling().unsafePlacement)
+                    Error(state, id, "character coupling could not establish a safe placement; last completed pose retained");
+                else if (controller.Coupling().blocked != CharacterBlocked2D::None)
+                    Error(state, id, "character support movement was blocked");
+            } catch (const std::exception& error) { Error(state, id, error.what()); }
+        }
+    }
+    {
+        const TelemetryScope measure(state.metrics.telemetry, state.metrics.publish);
+        for (auto retired : state.retired) state.owners.erase(retired);
+        state.retired.clear();
+        for (auto& [id, record] : state.bodies) {
+            const auto motion = state.collision->BodyMotion(record.handle);
+            auto& transform = world.Registry().get<Transform2D>(id);
+            transform.position = motion.position;
+            transform.rotation = motion.rotation;
+            record.transform = transform; // The solved pose is published once; the next sync must not teleport it back.
+        }
+        state.metrics.telemetry.SetGauge(state.metrics.published, static_cast<double>(state.bodies.size()));
+    }
     PublishErrors(state);
 }
+
 }
 
 void InstallSceneMovement2D(World& world) {
@@ -242,7 +269,7 @@ void InstallSceneMovement2D(World& world) {
     state.installed = true;
     world.AddSystem(SystemPhase::PreUpdate, "scene.collision.sync",
         [](World& w, const FrameTime&, const Input&) { State(w).metrics.BeginStep(); SyncSceneMovement2D(w); });
-    world.AddSystem(SystemPhase::PostUpdate, "scene.character.move", &MoveCharacters);
+    world.AddSystem(SystemPhase::Physics, "scene.character.move", &MoveCharacters);
 }
 
 void SyncSceneMovement2D(World& world) {
@@ -501,9 +528,27 @@ const CapsuleMotion2D* CharacterMotion2D(World& world, entt::entity entity) {
     const auto found = characters.find(entity);
     return found == characters.end() ? nullptr : &found->second.State();
 }
+void ResetSceneMovement2D(World& world) {
+    if (world.IsStepping()) throw std::logic_error("reset scene movement outside a World step");
+    auto& state = State(world);
+    ResetCollision(state);
+    state.hasStepped = false;
+    state.events.clear();
+    SyncSceneMovement2D(world);
+    for (auto [id, transform] : world.Registry().view<const Transform2D>().each()) {
+        (void)transform;
+        if (world.Registry().any_of<RigidBody2D, CharacterMotor2D>(id)) world.ResetInterpolation(world.Wrap(id));
+    }
+}
 const CharacterSettings2D* CharacterTuning2D(World& world, entt::entity entity) {
     const auto& characters = State(world).characters;
     const auto found = characters.find(entity);
     return found == characters.end() ? nullptr : &found->second.Settings();
 }
+const CharacterCouplingState2D* CharacterCoupling2D(World& world, entt::entity entity) {
+    const auto& characters = State(world).characters;
+    const auto found = characters.find(entity);
+    return found == characters.end() ? nullptr : &found->second.Coupling();
+}
+
 }

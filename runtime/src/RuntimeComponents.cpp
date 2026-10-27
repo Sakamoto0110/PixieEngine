@@ -5,6 +5,7 @@
 #include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/ParticlePhysics2D.hpp"
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
@@ -215,6 +216,15 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Tooltip("How much of the relative velocity contact removes per second, so piles settle.")
         .Range(0.0, 50.0)
         .Scrub(0.05);
+    types.Add<ParticlePhysics2D>("ParticlePhysics2D")
+        .CanAdd(NeedsParticleSystem)
+        .Field<&ParticlePhysics2D::gravityScale>("gravityScale").Label("gravity scale").Tooltip("Multiplies the shared world's gravity for dynamic particles.").Range(0, 100).Scrub(0.05)
+        .Field<&ParticlePhysics2D::collisionRadius>("collisionRadius").Label("collision radius").Tooltip("Circle radius in world units; must exceed the native world-scale mover minimum.").Range(0.01, 100).Scrub(0.05)
+        .Field<&ParticlePhysics2D::restitution>("restitution").Tooltip("Bounce from 0 to 1; contacts use the greater particle/surface value.").Range(0, 1).Scrub(0.01)
+        .Field<&ParticlePhysics2D::friction>("friction").Tooltip("Contact friction; combines with surface friction through the geometric mean.").Range(0, 10).Scrub(0.01)
+        .Field<&ParticlePhysics2D::bounceThreshold>("bounceThreshold").Label("bounce threshold").Tooltip("Below this incoming normal speed, bounce is suppressed so particles settle.").Range(0, 1000).Scrub(1)
+        .Field<&ParticlePhysics2D::category>("category").Tooltip("Collision category bits used by dynamic particle queries.").Range(1, 2147483647)
+        .Field<&ParticlePhysics2D::mask>("mask").Tooltip("Collision categories that block dynamic particles; zero passes through everything.").Range(0, 2147483647);
     types.Add<ParticleSpawner>("ParticleSpawner")
         .Field<&ParticleSpawner::system>("system")
         .References("ParticleSystem")
@@ -278,6 +288,7 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&ParticleSpawner::target>("target")
         .References("Transform2D")
         .Tooltip("The entity particles leave toward, in the TowardTarget mode.")
+        .Field<&ParticleSpawner::dynamic>("dynamic").Tooltip("New particles use gravity/bounce when the receiving system has ParticlePhysics2D; existing particles keep their birth kind.")
         .Field<&ParticleSpawner::ownLook>("ownLook")
         .Label("own look")
         .Tooltip("Gives the particles this spawner's color, size and shape; off, they take their "
@@ -348,7 +359,7 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&RigidBody2D::fixedRotation>("fixedRotation").Label("lock rotation").Tooltip("Prevents solver-driven angular movement.")
         .Field<&RigidBody2D::continuous>("continuous").Label("fast body").Tooltip("Enables additional backend continuous collision handling; supported speeds still need qualification.");
     types.Add<CharacterMotor2D>("CharacterMotor2D")
-        .Version(2)
+        .Version(3)
         .Upgrade<&UpgradeCharacterMotor>()
         .CanAdd([](const World& world, entt::entity entity) -> std::string {
             if (world.Registry().all_of<RigidBody2D>(entity))
@@ -369,7 +380,14 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&CharacterMotor2D::jumpSpeed>("jumpSpeed").Tooltip("Upward takeoff speed in world units/s.").Label("jump speed").Range(0, 100000).Scrub(1)
         .Field<&CharacterMotor2D::maxSlopeDegrees>("maxSlopeDegrees").Tooltip("Maximum angle of walkable ground in degrees.").Label("max slope").Range(0, 89).Scrub(1)
         .Field<&CharacterMotor2D::coyoteSeconds>("coyoteSeconds").Tooltip("Grace interval for jumping after leaving support.").Label("ledge grace").Unit("s").Range(0, 1).Scrub(0.01)
-        .Field<&CharacterMotor2D::jumpBufferSeconds>("jumpBufferSeconds").Tooltip("Time an early jump command remains pending.").Label("jump buffer").Unit("s").Range(0, 1).Scrub(0.01);
+        .Field<&CharacterMotor2D::jumpBufferSeconds>("jumpBufferSeconds").Tooltip("Time an early jump command remains pending.").Label("jump buffer").Unit("s").Range(0, 1).Scrub(0.01)
+        .Field<&CharacterMotor2D::effectiveMass>("effectiveMass").Label("effective push mass").Tooltip("Coupling mass in kg; no second simulated character body.").Unit("kg").Range(0, 1000000).Scrub(0.1)
+        .Field<&CharacterMotor2D::maxPushForce>("maxPushForce").Label("push force limit").Tooltip("Total horizontal push budget per tick: this force times dt, in kg*worldUnits/s^2.").Range(0, 100000000).Scrub(10)
+        .Field<&CharacterMotor2D::maxPushSpeed>("maxPushSpeed").Label("push speed limit").Tooltip("Maximum targeted contact-point speed from a motor impulse, in world units/s.").Range(0, 100000).Scrub(1)
+        .Field<&CharacterMotor2D::maxSupportForce>("maxSupportForce").Label("support load limit").Tooltip("Caps effective downward weight on dynamic support, in kg*worldUnits/s^2.").Range(0, 100000000).Scrub(10)
+        .Field<&CharacterMotor2D::maxInheritedSpeed>("maxInheritedSpeed").Label("inherited speed limit").Tooltip("Caps support-point velocity added once at jump takeoff, in world units/s.").Range(0, 100000).Scrub(1)
+        .Field<&CharacterMotor2D::maxCarryStep>("maxCarryStep").Label("carry step limit").Tooltip("Maximum qualified support-point displacement per fixed tick, in world units.").Range(0, 100000).Scrub(0.1)
+        .Field<&CharacterMotor2D::maxRecoveryDistance>("maxRecoveryDistance").Label("recovery limit").Tooltip("Maximum extra overlap correction before reporting unsafe placement, in world units.").Range(0, 100000).Scrub(0.1);
     types.Add<KeyboardControl2D>("KeyboardControl2D")
         .Field<&KeyboardControl2D::enabled>("enabled")
         .Tooltip("A/D or arrows move; Space jumps. Remove this component when game code supplies commands.");

@@ -98,7 +98,7 @@ struct Particle {
     pxColorRgba color{255, 255, 255};
     // Radius in world units, as a half float (ToHalf); Size() reads it.
     std::uint16_t size = ToHalf(2.0f);
-    // The shape in the low two bits (kShapeBits), and kDynamic, reserved for dynamic particles.
+    // Shape in the low two bits; kDynamic opts this birth into the pool's native physics settings.
     std::uint8_t flags = 0;
     // Unused, for the particle data design note's later fields.
     std::uint8_t spare = 0;
@@ -115,7 +115,7 @@ static_assert(std::is_trivially_copyable_v<Particle> && sizeof(Particle) == 40);
 // A new particle at `position` with `velocity`, living `lifetime` seconds (0 is forever), with its
 // look. Every path that creates a particle goes through here, so a particle is born complete.
 inline Particle MakeParticle(pxPointf position, pxVec2f velocity, float lifetime, pxColorRgba color,
-                             float size, ParticleShape shape) {
+                             float size, ParticleShape shape, bool dynamic = false) {
     Particle particle;
     particle.position = position;
     particle.previous = position;
@@ -124,6 +124,7 @@ inline Particle MakeParticle(pxPointf position, pxVec2f velocity, float lifetime
     particle.color = color;
     particle.size = ToHalf(size);
     particle.flags = static_cast<std::uint8_t>(static_cast<std::uint8_t>(shape) & Particle::kShapeBits);
+    if (dynamic) particle.flags |= Particle::kDynamic;
     return particle;
 }
 

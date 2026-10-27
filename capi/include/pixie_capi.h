@@ -188,7 +188,7 @@ PIXIE_API PixieResult pixie_physics_debug_get(PixieSession* session, uint32_t* f
 PIXIE_API PixieResult pixie_physics_debug_set(PixieSession* session, uint32_t flags);
 /* The last failure on this thread, as text. Returns the full length, which may exceed capacity. */
 PIXIE_API int32_t pixie_last_error(char* buffer, int32_t capacity);
-/* Scene movement diagnostics summary from the latest sync/update. required includes the null
+/* Scene movement and particle-physics diagnostics from the latest sync/update. required includes the null
  * terminator. Query with null buffer/capacity 0; no simulation step is performed. */
 PIXIE_API PixieResult pixie_movement_status(PixieSession* session, char* buffer, int32_t capacity,
                                            int32_t* required);
