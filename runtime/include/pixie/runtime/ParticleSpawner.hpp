@@ -67,6 +67,8 @@ struct ParticleSpawner {
     entt::entity target = entt::null;
     // With ownLook, the particles take this look; otherwise their system's (its style).
     bool ownLook = false;
+    // Birth kind; physical motion requires ParticlePhysics2D on the receiving pool.
+    bool dynamic = false;
     pxColorRgba particleColor{255, 255, 255};
     // Radius in world units.
     double particleSize = 2.0;

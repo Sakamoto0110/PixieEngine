@@ -38,13 +38,17 @@ struct ParticleSystem {
         return Emit(position, velocity, particleLifetime, style.color, style.size, style.shape);
     }
 
+    bool EmitDynamic(pxPointf position, pxVec2f velocity, float particleLifetime) {
+        return Emit(position, velocity, particleLifetime, style.color, style.size, style.shape, true);
+    }
+
     // The same, with a look of its own instead of the system's.
     bool Emit(pxPointf position, pxVec2f velocity, float particleLifetime, pxColorRgba color, float size,
-              ParticleShape shape) {
+              ParticleShape shape, bool dynamic = false) {
         if (particles.size() >= static_cast<std::size_t>(capacity)) {
             return false;
         }
-        particles.push_back(MakeParticle(position, velocity, particleLifetime, color, size, shape));
+        particles.push_back(MakeParticle(position, velocity, particleLifetime, color, size, shape, dynamic));
         return true;
     }
 

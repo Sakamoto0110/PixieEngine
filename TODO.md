@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-22
+**Last promotion decision:** 2026-10-26
 
 ## Purpose and admission rule
 
@@ -102,3 +102,4 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-045` | particle affectors in scenes | 2026-10-26 | [Completion](docs/archive/todo-045-particle-affectors-2026-10-26.md) |
 | `PIXIE-TODO-046` | spawner distribution and particle shapes | 2026-10-26 | [Completion](docs/archive/todo-046-spawner-distribution-shapes-2026-10-26.md) |
 | `PIXIE-TODO-047` | each particle carries its look | 2026-10-26 | [Completion](docs/archive/todo-047-particle-look-2026-10-26.md) |
+| `PIXIE-TODO-048` | lightweight dynamic particles and native contact sparks room | 2026-10-27 | [Completion](docs/archive/todo-048-dynamic-contact-sparks-2026-10-27.md) |

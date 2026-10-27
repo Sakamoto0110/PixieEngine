@@ -95,11 +95,13 @@ Use `Entity`'s templates through `World.hpp`, which defines them.
 2. Behaviours: for each Behaviour class, in the order the classes were first added to the World,
    every instance in its storage's order. An instance's `Start` runs right before its first
    `Update`. A class first added during a step is updated from the next step on.
-3. `PostUpdate` systems, in the order added. The first is the World's own: it adds each
+3. `Physics` systems, in the order added. The first is the World's own: it adds each
    `Acceleration2D` to its `Velocity2D` (`linear += acceleration * delta`), then integrates every
    `Velocity2D` into its `Transform2D` (`position += linear * delta`, `rotation += angular *
    delta`), so the position moves with the new velocity (semi-implicit Euler).
-4. The destructions requested during the step, then the deferred actions, in request order.
+   The installed scene movement service follows, resolving native bodies and character coupling.
+4. `PostUpdate` systems, in registration order, consume completed movement (including particles).
+5. The destructions requested during the step, then the deferred actions, in request order.
 
 Each system and Behaviour receives the World's `FrameTime`: `delta`, `elapsed` (the World's
 simulated seconds before this step), and `index` (the World's step count before this step); `alpha`
@@ -161,7 +163,7 @@ paused one, keep separate clocks.
 
 A step's result does not depend on the order Behaviours run in when each Behaviour writes only its
 own components and reads others' state that no Behaviour writes during the step. The runtime is
-shaped for that: positions and velocities change only in `PostUpdate`, and a steering Behaviour
+shaped for that: positions and velocities change in `Physics` and `PostUpdate`, and a steering Behaviour
 writes its `Acceleration2D`.
 
 Neighbour queries read a snapshot. `SpatialGrid` is a uniform grid of square cells whose occupied
@@ -260,6 +262,19 @@ attractors act on the systems that ask for them.
 
 `DrawParticles(world, renderer, camera, alpha)` draws every pool with its `style`, interpolated on
 the GPU.
+
+### Native dynamic particles
+
+ParticleSpawner.dynamic or ParticleSystem.EmitDynamic chooses the dynamic bit
+at birth without changing the 40-byte layout. ParticlePhysics2D on the receiving
+pool enables shared-world gravity and bounded circle-sweep bounce/friction for
+that subset; static particles make no collider queries. The native scene physics
+step precedes particles; no particle body or second world step is created.
+Newborn dynamic particles integrate only their lived fraction, preserving their
+birth previous position. Collider material and point velocity participate in
+response. See [algorithm, telemetry and limits](../../particle-dynamics.md) and
+[the playable sparks room](../../../samples/sparks/README.md). Per-particle
+profiles/streams and character-capsule particle obstacles remain later work.
 
 ## Picking
 
@@ -820,7 +835,10 @@ Edit synchronizes without advancing time and displays reusable gizmos. Play
 steps motors, and Stop/reload reconstructs their transient state from authored
 components. Motor positions are excluded from legacy Velocity2D/Acceleration2D
 integration. RigidBody2D entities are also excluded; other entities keep their existing integration.
-The low-level collision API remains independent. [The authoring guide](../../editor-movement.md)
+ResetSceneMovement2D rebuilds transient bodies, contacts and motor state from current
+authored poses outside a step; borrowed handles/views must be reacquired. This
+is the native reset used by the sparks room. Host elapsed/telemetry counters stay
+independent. The low-level collision API remains independent. [The authoring guide](../../editor-movement.md)
 documents shapes/transforms, queries, diagnostics, persistence and lab UI limits.
 
 ## Rigid body dynamics foundation
@@ -865,11 +883,15 @@ Forces/impulses scale once in length; torque/angular impulse and
 inertia scale twice. Body/shape IDs are runtime-only and remain stale after reset.
 
 The scene service synchronizes RigidBody2D plus Collider2D/Transform2D, steps once
-in PostUpdate, and publishes translation and rotation before the existing motor
-pass. One optional PhysicsSettings2D entity supplies gravity/scale/substeps;
+in Physics, after legacy velocity integration and before PostUpdate effects. It prepares motor intent/body impulses before that step, finishes
+query-based support carry and motor motion afterward, then publishes completed poses. One optional PhysicsSettings2D entity supplies gravity/scale/substeps;
 duplicates are invalid. CharacterMotor2D falls at that gravity times its gravityScale. Physics settings and initial body conditions serialize
-through ordinary descriptors. The initial scene schema has one collider per
-entity; compound geometry is currently native-only. Motor coupling remains pending.
+through ordinary descriptors. CompoundCollider2D stores native descriptor records for shared-body geometry.
+CharacterMotor2D version 3 appends bounded coupling limits; version 2 receives
+defaults, and version 1 retains its gravity upgrade. Native CharacterCoupling2D
+exposes borrowed support, carried displacement, actual world velocity, impulse/load
+and blocked/unsafe state; SceneMovementErrors2D and the existing C API movement
+status report blocked placement. See the [D4 algorithm](../../character-body-coupling.md).
 See [ownership, compatibility and limits](../../body-dynamics.md).
 
 CollisionWorld2D now also owns copied contact/sensor begin/end events, pair
@@ -879,4 +901,30 @@ included; capsule queries always ignore them. Native Events spans survive queued
 mutation until StepBodies/Reset, and ScenePhysicsEvents2D adds copied entity
 identities, including removed entities. Contacts canonicalize shape order;
 sensor pairs are directional. [Lifetimes, reasons and qualification](../../body-events.md)
-define the usage limits; motor sensor registration and physical coupling remain pending.
+define the usage limits; motor sensor registration remains pending. The motor
+is query-based and does not add a backend sensor/contact participant.
+
+
+### Physics phase, contact snapshots and pool diagnostics
+
+Physics precedes every PostUpdate system regardless of cross-phase registration
+order. A standalone collision-enabled World installs InstallSceneMovement2D
+explicitly; AddParticleStep installs only its particle system. ProjectSession
+continues to install the scene service for scene components. The built-in legacy
+Velocity2D integrator runs first in Physics, before native geometry is refreshed.
+
+CollisionWorld2D::BodyContacts copies actual native manifold points on demand,
+without stepping or waking bodies. Each PhysicsContactPoint2D has sorted collider
+endpoints, a representative world point, a unit normal from a to b, separation,
+point identity and total normal impulse in kg*worldUnits/s. Speculative points
+can exist; positive impulse identifies a solver interaction. These copies are
+caller-owned and handles still follow normal generation/lifetime rules. The
+query does not enable contact-hit events or allocate any particle bodies.
+
+ParticlePhysicsErrors2D returns per-pool errors from the last particle tick.
+Invalid settings are validated before moving any particle in that pool; the
+scene step falls back to ballistic motion and continues other pools. The direct
+MoveDynamicParticles2D API retains throwing validation. A corrected next tick
+clears the diagnostic. World::Step always restores IsStepping on an exception;
+it does not roll back earlier work or complete a failed tick. Deferred actions
+are retained for a later successful finish. General systems may still throw.

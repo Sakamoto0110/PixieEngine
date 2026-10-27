@@ -38,8 +38,10 @@ std::vector<PhysicsDebugLine2D> ScenePhysicsDebug2D(World& world, std::uint32_t 
             lines.push_back({p, {p.x + 6, p.y}, PhysicsDebug2D::Origins, {255, 90, 90}});
             lines.push_back({p, {p.x, p.y + 6}, PhysicsDebug2D::Origins, {90, 255, 90}});
         }
-        if (enabled(PhysicsDebug2D::Velocities) && (motion->velocity.x != 0 || motion->velocity.y != 0))
-            lines.push_back({p, {p.x + motion->velocity.x * 0.25, p.y + motion->velocity.y * 0.25}, PhysicsDebug2D::Velocities, {100, 220, 255}});
+        const auto* coupling = CharacterCoupling2D(world, id);
+        const auto velocity = coupling ? coupling->worldVelocity : motion->velocity;
+        if (enabled(PhysicsDebug2D::Velocities) && (velocity.x != 0 || velocity.y != 0))
+            lines.push_back({p, {p.x + velocity.x * 0.25, p.y + velocity.y * 0.25}, PhysicsDebug2D::Velocities, {100, 220, 255}});
     }
     return lines;
 }

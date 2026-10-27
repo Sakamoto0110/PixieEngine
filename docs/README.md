@@ -33,11 +33,13 @@ owns the authority table: which document owns which kind of fact.
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
 | [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |
+| [`character-body-coupling.md`](character-body-coupling.md) | D4 motor preparation, bounded body impulses, support carry and unsafe-placement policy |
 | [`collision-movement.md`](collision-movement.md) | Static collision queries, capsule movement, controller ownership and neutral room |
 | [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
 | [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
 | [`body-dynamics.md`](body-dynamics.md) | Initial native/scene body dynamics, world gravity, units, lifecycle and remaining delivery gates |
 | [`body-events.md`](body-events.md) | Contact/sensor lifetimes, queries, scene identities and bounded stack/material/fast-body qualification |
+| [`particle-dynamics.md`](particle-dynamics.md) | Native dynamic particles, world gravity, bounded circle-sweep bounce and the playable sparks room |
 | [`particle-memory-layout.md`](particle-memory-layout.md) | The particle's 40-byte layout, how pools are stepped and drawn, and the open directions for dynamic particles and SIMD; a handoff |
 | [`circuit-puzzle-requirements.md`](circuit-puzzle-requirements.md) | Existing consumer requirements analysis: atmosphere, lighting, movement and circuit panels; design input |
 | [`governance/`](governance/documentation-policy.md) | Documentation and commit rules |

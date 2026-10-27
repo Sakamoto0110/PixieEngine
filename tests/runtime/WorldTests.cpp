@@ -7,6 +7,7 @@
 
 #include <algorithm>
 #include <string>
+#include <stdexcept>
 #include <vector>
 
 using namespace pixie;
@@ -190,4 +191,33 @@ TEST(EntityHandleReachesComponents) {
     CHECK(!e.Has<Counter>());
     Entity copy = e;
     CHECK(copy == e && copy.IsAlive());
+}
+
+
+TEST(PhysicsPhasePrecedesPostUpdateRegardlessOfRegistrationOrder) {
+    World world; std::vector<int> order;
+    world.AddSystem(SystemPhase::PostUpdate, "early-post", [&](World&, const FrameTime&, const Input&) { order.push_back(2); });
+    world.AddSystem(SystemPhase::Physics, "late-physics", [&](World&, const FrameTime&, const Input&) { order.push_back(1); });
+    world.AddSystem(SystemPhase::PostUpdate, "late-post", [&](World&, const FrameTime&, const Input&) { order.push_back(3); });
+    world.Step(1.0/60, {});
+    CHECK((order == std::vector<int>{1, 2, 3}));
+}
+TEST(ThrownSystemRestoresSteppingAndAllowsRecoveryOutsideTheStep) {
+    World world; bool fail = true;
+    world.AddSystem(SystemPhase::Physics, "throw-once", [&](World&, const FrameTime&, const Input&) {
+        if (fail) { fail = false; throw std::runtime_error("deliberate failure"); }
+    });
+    bool threw = false;
+    try { world.Step(1.0/60, {}); } catch (const std::runtime_error&) { threw = true; }
+    CHECK(threw && !world.IsStepping());
+    bool immediate = false; world.Defer([&](World&) { immediate = true; }); CHECK(immediate);
+    world.Step(1.0/60, {}); CHECK(!world.IsStepping());
+}
+
+TEST(LegacyVelocityIntegrationPrecedesNativePhysicsAndPostConsumers) {
+    World world; auto entity = world.Create(); entity.Add<Transform2D>(); entity.Add<Velocity2D>().linear = {60,0};
+    bool physicsSawMoved = false, postSawMoved = false;
+    world.AddSystem(SystemPhase::PostUpdate, "consumer", [&](World&, const FrameTime&, const Input&) { postSawMoved = entity.Get<Transform2D>().position.x == 1; });
+    world.AddSystem(SystemPhase::Physics, "native-observer", [&](World&, const FrameTime&, const Input&) { physicsSawMoved = entity.Get<Transform2D>().position.x == 1; });
+    world.Step(1.0/60, {}); CHECK(physicsSawMoved && postSawMoved);
 }

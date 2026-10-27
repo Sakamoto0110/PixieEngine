@@ -1,3 +1,4 @@
+#include "pixie/runtime/ParticleStep.hpp"
 // The C API over a ProjectSession. Every exported function converts its arguments, runs inside
 // Guard (so no exception crosses into the caller), and reports failures through a result code and
 // the thread's last error.
@@ -234,7 +235,9 @@ PixieResult pixie_movement_status(PixieSession* s, char* buffer, int32_t capacit
     if (required == nullptr || capacity < 0 || (buffer == nullptr && capacity > 0))
         return Fail(PIXIE_ERROR_ARGUMENT, "invalid movement status output");
     return Guard([&] {
-        const auto errors = pixie::SceneMovementErrors2D(s->session.GetWorld());
+        auto errors = pixie::SceneMovementErrors2D(s->session.GetWorld());
+        const auto particleErrors = pixie::ParticlePhysicsErrors2D(s->session.GetWorld());
+        errors.insert(errors.end(), particleErrors.begin(), particleErrors.end());
         std::string summary;
         const std::size_t shown = std::min(errors.size(), std::size_t{8});
         for (std::size_t i = 0; i < shown; ++i) summary += errors[i] + "\n";

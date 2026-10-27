@@ -67,6 +67,7 @@ static struct {
     PixieResult (*session_stats)(PixieSession*, PixieStats*);
     PixieResult (*input_cursor)(PixieSession*, double, double);
     PixieResult (*input_key)(PixieSession*, int32_t, int32_t);
+    PixieResult (*input_mouse_button)(PixieSession*, int32_t, int32_t);
     PixieResult (*entities)(PixieSession*, uint32_t*, int32_t, int32_t*);
     PixieResult (*entity_name)(PixieSession*, uint32_t, char*, int32_t);
     int32_t (*entity_alive)(PixieSession*, uint32_t);
@@ -169,6 +170,7 @@ static int Load(Library library) {
     LOAD(session_stats, "pixie_session_stats")
     LOAD(input_cursor, "pixie_input_cursor")
     LOAD(input_key, "pixie_input_key")
+    LOAD(input_mouse_button, "pixie_input_mouse_button")
     LOAD(entities, "pixie_entities")
     LOAD(entity_name, "pixie_entity_name")
     LOAD(entity_alive, "pixie_entity_alive")
@@ -333,9 +335,163 @@ static const unsigned char kGreenPng[] = {
     0x44, 0x41, 0x54, 0x78, 0xda, 0x63, 0xd0, 0x38, 0x51, 0xf1, 0x1f, 0x19, 0x33, 0x90, 0x2e, 0x00, 0x00, 0x09, 0xc7,
     0x26, 0x71, 0xde, 0x34, 0xac, 0x79, 0x00, 0x00, 0x00, 0x00, 0x49, 0x45, 0x4e, 0x44, 0xae, 0x42, 0x60, 0x82};
 
+static int RemoveSparks(PixieSession* s) {
+    int count = 0;
+    while (count < 10001 && api.particle_remove_at(s, 0, 0, 100000) == PIXIE_OK) ++count;
+    return count;
+}
+
+static void CheckSparksControls(PixieSession* s) {
+    int32_t transform = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK);
+    const int32_t position = FindField(s, transform, "position");
+    uint32_t box = FindEntity(s, "drag box"), player = FindEntity(s, "player");
+    double sx = 0, sy = 0;
+    CHECK(api.world_to_view(s, 0, -80, &sx, &sy) == PIXIE_OK);
+    CHECK(api.input_cursor(s, sx, sy) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 1, 1) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 1, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(RemoveSparks(s) == 48);
+    CHECK(api.input_key(s, 68, 1) == PIXIE_OK);
+    for (int i = 0; i < 120; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    PixieValue value;
+    CHECK(api.field_get(s, box, transform, position, &value) == PIXIE_OK && value.x > -110);
+    CHECK(api.field_get(s, player, transform, position, &value) == PIXIE_OK && value.x > -180);
+    CHECK(RemoveSparks(s) > 0);
+    int32_t created = 0;
+    CHECK(api.spawn_at(s, sx, sy, &created) == PIXIE_OK && created == 1);
+    /* R clears live particles and physical motion, even while D remains held. */
+    CHECK(api.input_key(s, 82, 1) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.input_key(s, 82, 0) == PIXIE_OK);
+    CHECK(api.input_key(s, 68, 0) == PIXIE_OK);
+    CHECK(RemoveSparks(s) == 0);
+    CHECK(api.field_get(s, box, transform, position, &value) == PIXIE_OK && fabs(value.x + 120) < 0.01);
+    CHECK(api.field_get(s, player, transform, position, &value) == PIXIE_OK && fabs(value.x + 220) < 0.01);
+    for (int i = 0; i < 20; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.field_get(s, box, transform, position, &value) == PIXIE_OK && fabs(value.x + 120) < 0.01);
+    CHECK(api.field_get(s, player, transform, position, &value) == PIXIE_OK && fabs(value.x + 220) < 0.01);
+    for (int i = 0; i < 60; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    const uint32_t rectangle = FindEntity(s, "rectangle 1");
+    const int32_t rotation = FindField(s, transform, "rotation");
+    CHECK(api.field_get(s, rectangle, transform, rotation, &value) == PIXIE_OK && fabs(value.x-0.24) > 0.05);
+    CHECK(api.field_get(s, rectangle, transform, position, &value) == PIXIE_OK);
+    CHECK(api.world_to_view(s, value.x, value.y, &sx, &sy) == PIXIE_OK);
+    CHECK(api.input_cursor(s, sx, sy) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 0, 1) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 0, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    PixieBodyMass2D originalMass, editedMass;
+    CHECK(api.body_mass_2d(s, rectangle, &originalMass) == PIXIE_OK && originalMass.inertia > 0);
+    CHECK(api.input_cursor(s, 30, 55) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 0, 1) == PIXIE_OK);
+    CHECK(api.input_mouse_button(s, 0, 0) == PIXIE_OK);
+    CHECK(api.input_key(s, 53, 1) == PIXIE_OK); CHECK(api.input_key(s, 53, 0) == PIXIE_OK);
+    CHECK(api.input_key(s, 257, 1) == PIXIE_OK); CHECK(api.input_key(s, 257, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, rectangle, &editedMass) == PIXIE_OK && fabs(editedMass.mass-5) < 0.0001);
+    CHECK(fabs(editedMass.inertia/originalMass.inertia-5) < 0.001 && fabs(editedMass.area-originalMass.area) < 0.0001);
+    /* A rejected zero must not change backend mass; Escape exits the field. */
+    CHECK(api.input_mouse_button(s, 0, 1) == PIXIE_OK); CHECK(api.input_mouse_button(s, 0, 0) == PIXIE_OK);
+    CHECK(api.input_key(s, 48, 1) == PIXIE_OK); CHECK(api.input_key(s, 48, 0) == PIXIE_OK);
+    CHECK(api.input_key(s, 257, 1) == PIXIE_OK); CHECK(api.input_key(s, 257, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, rectangle, &editedMass) == PIXIE_OK && fabs(editedMass.mass-5) < 0.0001);
+    CHECK(api.input_key(s, 256, 1) == PIXIE_OK); CHECK(api.input_key(s, 256, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.input_key(s, 82, 1) == PIXIE_OK); CHECK(api.input_key(s, 82, 0) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.body_mass_2d(s, rectangle, &editedMass) == PIXIE_OK && fabs(editedMass.mass-1) < 0.0001);
+    CHECK(api.field_get(s, rectangle, transform, rotation, &value) == PIXIE_OK && fabs(value.x-0.24) < 0.0001);
+    CHECK(api.field_get(s, rectangle, transform, position, &value) == PIXIE_OK);
+    const double initialY = value.y;
+    CHECK(api.world_to_view(s, value.x, value.y, &sx, &sy) == PIXIE_OK);
+    CHECK(api.input_cursor(s, sx, sy) == PIXIE_OK); CHECK(api.input_mouse_button(s, 0, 1) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.world_to_view(s, value.x, initialY-80, &sx, &sy) == PIXIE_OK);
+    CHECK(api.input_cursor(s, sx, sy) == PIXIE_OK);
+    for (int i = 0; i < 40; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.field_get(s, rectangle, transform, position, &value) == PIXIE_OK && value.y < initialY-30);
+    const double releaseY = value.y;
+    CHECK(api.input_mouse_button(s, 0, 0) == PIXIE_OK);
+    for (int i = 0; i < 40; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.field_get(s, rectangle, transform, position, &value) == PIXIE_OK && value.y > releaseY+10);
+    int32_t particlePhysics = -1;
+    CHECK(api.type_find(s, "ParticlePhysics2D", &particlePhysics) == PIXIE_OK);
+    const uint32_t pool = FindEntity(s, "sparks");
+    const int32_t radius = FindField(s, particlePhysics, "collisionRadius");
+    value.x = 0.2; CHECK(api.field_set(s, pool, particlePhysics, radius, &value) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    char diagnostics[2048]; int32_t needed = 0;
+    CHECK(api.movement_status(s, diagnostics, sizeof diagnostics, &needed) == PIXIE_OK && strstr(diagnostics, "ParticlePhysics2D") != NULL);
+    value.x = 1.5; CHECK(api.field_set(s, pool, particlePhysics, radius, &value) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    CHECK(api.movement_status(s, diagnostics, sizeof diagnostics, &needed) == PIXIE_OK && diagnostics[0] == 0);
+    CHECK(api.session_reset(s) == PIXIE_OK);
+}
+
+static void CheckSparksContactFixtures(PixieSession* s) {
+    int lightTotal = 0;
+    for (int mode = 0; mode < 5; ++mode) {
+        int32_t transform = -1, body = -1;
+        CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK);
+        CHECK(api.type_find(s, "RigidBody2D", &body) == PIXIE_OK);
+        const int32_t position = FindField(s, transform, "position");
+        const uint32_t rectangle = FindEntity(s, mode == 4 ? "drag box" : "rectangle 1");
+        const char* removed[] = {"drag box", "rectangle 2", "rectangle 3", "drop box", "left ramp", "drop platform"};
+        for (unsigned i=0; i<sizeof removed/sizeof removed[0]; ++i) {
+            if (mode == 4 && strcmp(removed[i], "drag box") == 0) continue;
+            CHECK(api.entity_destroy(s, FindEntity(s, removed[i])) == PIXIE_OK);
+        }
+        if (mode == 4) CHECK(api.entity_destroy(s, FindEntity(s, "rectangle 1")) == PIXIE_OK);
+        if (mode != 1) CHECK(api.entity_destroy(s, FindEntity(s, "right ramp")) == PIXIE_OK);
+        if (mode != 2) CHECK(api.entity_destroy(s, FindEntity(s, "stack base")) == PIXIE_OK);
+        PixieValue value = {mode == 0 || mode == 3 ? -50 : mode == 1 ? 165 : 300, mode == 1 ? -20 : 0, 0, 0};
+        if (mode == 4) { value.x = -120; value.y = 122; }
+        CHECK(api.field_set(s, rectangle, transform, position, &value) == PIXIE_OK);
+        if (mode == 3) {
+            value.x = 4; CHECK(api.field_set(s, rectangle, body, FindField(s, body, "massOverride"), &value) == PIXIE_OK);
+        }
+        if (mode == 2) {
+            value.x = 0; CHECK(api.field_set(s, rectangle, transform, FindField(s, transform, "rotation"), &value) == PIXIE_OK);
+            value.x = 1;
+            CHECK(api.field_set(s, rectangle, body, FindField(s, body, "fixedRotation"), &value) == PIXIE_OK);
+            CHECK(api.field_set(s, FindEntity(s, "stack base"), body, FindField(s, body, "fixedRotation"), &value) == PIXIE_OK);
+        }
+        RemoveSparks(s);
+        if (mode == 4) {
+            for (int tick=0; tick<30; ++tick) { CHECK(api.session_step(s) == PIXIE_OK); CHECK(RemoveSparks(s) == 0); }
+            CHECK(api.input_key(s, 68, 1) == PIXIE_OK);
+        }
+        int total = 0, first = -1;
+        for (int tick=0; tick<180; ++tick) {
+            if (mode == 4 && tick == 120) CHECK(api.input_key(s, 68, 0) == PIXIE_OK);
+            CHECK(api.session_step(s) == PIXIE_OK);
+            const int emitted = RemoveSparks(s); CHECK(emitted <= 256);
+            if (emitted > 0 && first < 0) {
+                first = tick;
+                CHECK(api.field_get(s, rectangle, transform, position, &value) == PIXIE_OK);
+                if (mode == 1 || mode == 2) CHECK(value.y < 115); /* ramp / box contact before reaching the floor */
+            }
+            total += emitted;
+        }
+        if (mode == 0) lightTotal = total;
+        if (mode == 3) CHECK(total > lightTotal);
+        CHECK(first >= 0 && total > 0); /* the blue box was deleted in every fixture */
+        for (int tick=0; tick<60; ++tick) {
+            CHECK(api.session_step(s) == PIXIE_OK); CHECK(RemoveSparks(s) == 0);
+        }
+        printf("sparks contact fixture %d: first tick %d, total %d; quiet stack passed\n", mode, first, total);
+        CHECK(api.session_reset(s) == PIXIE_OK);
+    }
+}
+
 static void Exercise(PixieSession* s) {
     char name[128];
     CHECK(api.project_name(s, name, (int32_t)sizeof name) == PIXIE_OK && name[0] != '\0');
+    if (strcmp(name, "sparks") == 0) { CheckSparksControls(s); CheckSparksContactFixtures(s); }
     printf("project: %s\n", name);
 
     /* Types and fields. */
@@ -548,7 +704,7 @@ static void Exercise(PixieSession* s) {
     CHECK(api.spawn_at(s, px, py, &created) == PIXIE_OK && created == 1);
     char game[64];
     CHECK(api.project_name(s, game, (int32_t)sizeof game) == PIXIE_OK);
-    const int particles = strcmp(game, "particles") == 0;
+    const int particles = strcmp(game, "particles") == 0 || strcmp(game, "sparks") == 0;
     CHECK(api.particle_remove_at(s, px, py, 1.0) == (particles ? PIXIE_OK : PIXIE_ERROR_NOT_FOUND));
     CHECK(api.particle_remove_at(s, px, py, -1.0) == PIXIE_ERROR_ARGUMENT);
     CHECK(api.session_set_paused(s, 0) == PIXIE_OK);
@@ -1130,6 +1286,54 @@ static void CheckCharacterHandles(PixieSession* s, int32_t transform, int32_t mo
     CHECK(api.collider_handles_2d(s, actor, -1, &handles) == PIXIE_ERROR_NOT_FOUND);
 }
 
+static void CheckCharacterCouplingLifecycle(PixieSession* s) {
+    int32_t transform = -1, collider = -1, body = -1, motor = -1;
+    CHECK(api.type_find(s, "Transform2D", &transform) == PIXIE_OK);
+    CHECK(api.type_find(s, "Collider2D", &collider) == PIXIE_OK);
+    CHECK(api.type_find(s, "RigidBody2D", &body) == PIXIE_OK);
+    CHECK(api.type_find(s, "CharacterMotor2D", &motor) == PIXIE_OK);
+    uint32_t ground = FindEntity(s, "test floor"), actor = FindEntity(s, "test character");
+    const PixieValue kinematic = {1, 0, 0, 0}, velocity = {60, 0, 0, 0};
+    const PixieValue actorAt = {0, 76, 0, 0}, pushLimit = {321, 0, 0, 0};
+    const int32_t position = FindField(s, transform, "position");
+    const int32_t initialVelocity = FindField(s, body, "initialVelocity");
+    const int32_t maxPushForce = FindField(s, motor, "maxPushForce");
+    CHECK(api.component_add(s, ground, body) == PIXIE_OK);
+    CHECK(api.field_set(s, ground, body, FindField(s, body, "type"), &kinematic) == PIXIE_OK);
+    CHECK(api.field_set(s, ground, body, initialVelocity, &velocity) == PIXIE_OK);
+    CHECK(api.field_set(s, actor, transform, position, &actorAt) == PIXIE_OK);
+    CHECK(api.field_set(s, actor, motor, maxPushForce, &pushLimit) == PIXIE_OK);
+    PixieValue value;
+    CHECK(api.field_get(s, actor, motor, FindField(s, motor, "maxCarryStep"), &value) == PIXIE_OK && value.x == 8);
+    CHECK(api.project_save(s) == PIXIE_OK);
+    CHECK(api.session_play(s) == PIXIE_OK);
+    for (int i = 0; i < 60; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    actor = FindEntity(s, "test character");
+    CHECK(api.field_get(s, actor, transform, position, &value) == PIXIE_OK && fabs(value.x - 60) < 0.4);
+    CHECK(api.project_save(s) == PIXIE_OK); /* Saving Play keeps authored poses and tuning. */
+    CHECK(api.session_stop(s) == PIXIE_OK);
+    actor = FindEntity(s, "test character");
+    CHECK(api.field_get(s, actor, transform, position, &value) == PIXIE_OK && value.x == 0 && value.y == 76);
+    CHECK(api.field_get(s, actor, motor, maxPushForce, &value) == PIXIE_OK && value.x == 321);
+    CHECK(api.session_play(s) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    actor = FindEntity(s, "test character");
+    CHECK(api.field_get(s, actor, transform, position, &value) == PIXIE_OK && fabs(value.x - 1) < 0.01);
+    CHECK(api.session_stop(s) == PIXIE_OK);
+    ground = FindEntity(s, "test floor");
+    const PixieValue excessive = {1200, 0, 0, 0};
+    CHECK(api.field_set(s, ground, body, initialVelocity, &excessive) == PIXIE_OK);
+    CHECK(api.session_play(s) == PIXIE_OK);
+    CHECK(api.session_step(s) == PIXIE_OK);
+    char status[512];
+    int32_t required = 0;
+    CHECK(api.movement_status(s, status, (int32_t)sizeof status, &required) == PIXIE_OK);
+    CHECK(strstr(status, "maxCarryStep") != NULL && strstr(status, "last completed pose") != NULL);
+    actor = FindEntity(s, "test character");
+    CHECK(api.field_get(s, actor, transform, position, &value) == PIXIE_OK && value.x == 0 && value.y == 76);
+    CHECK(api.session_stop(s) == PIXIE_OK);
+}
+
 static void ExerciseMovement(const char* folder) {
     Cleanup(folder);
     CHECK(api.project_create(folder) == PIXIE_OK);
@@ -1219,6 +1423,7 @@ static void ExerciseMovement(const char* folder) {
         CHECK(api.entity_has(s, actor, motor) == 1);
         CHECK(api.field_get(s, actor, transform, position, &read) == PIXIE_OK && read.y == 0);
         CHECK(api.field_get(s, ground, collider, halfSize, &read) == PIXIE_OK && read.x == 200);
+        CheckCharacterCouplingLifecycle(s);
         api.session_destroy(s);
     }
 }

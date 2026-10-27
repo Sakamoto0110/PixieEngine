@@ -22,8 +22,9 @@ namespace pixie {
 enum class SystemPhase {
     // Before the Behaviours: shared state they read (the previous transform, spatial queries).
     PreUpdate,
-    // After the Behaviours: what applies their results (integration, bounds).
+    // After Physics: effects, bounds and other consumers of completed movement.
     PostUpdate,
+    Physics, // After Behaviours, before every PostUpdate system.
 };
 
 // A system: a function over the whole World, run once per step in its phase.
@@ -36,7 +37,7 @@ using System = std::function<void(World& world, const FrameTime& time, const Inp
 // A step runs, in order: the PreUpdate systems, then every Behaviour (class by class), then the
 // PostUpdate systems, then the destructions and deferred actions requested during the step. The
 // World's own systems come first in their phase: in PreUpdate, copying each Transform2D into its
-// PreviousTransform2D; in PostUpdate, integrating Velocity2D into Transform2D for entities without
+// PreviousTransform2D; in Physics, integrating Velocity2D into Transform2D for entities without
 // CharacterMotor2D and RigidBody2D, whose physics service owns motion instead.
 class World {
 public:
@@ -118,6 +119,7 @@ private:
     MetricHandle stepMetric_, behaviourMetric_;
     std::vector<SystemEntry> preUpdate_;
     std::vector<SystemEntry> postUpdate_;
+    std::vector<SystemEntry> physics_;
     std::vector<BehaviourClass> behaviours_;
     std::vector<entt::entity> pendingDestroy_;
     std::vector<std::function<void(World&)>> deferred_;

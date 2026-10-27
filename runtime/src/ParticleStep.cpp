@@ -4,10 +4,13 @@
 #include "pixie/runtime/InteractionAffector.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
+#include "pixie/runtime/ParticlePhysics2D.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <cmath>
+#include <stdexcept>
 #include <unordered_map>
 
 namespace pixie {
@@ -16,6 +19,17 @@ namespace {
 
 // Marks a World whose particle step is installed.
 struct ParticleStepInstalled {};
+struct ParticlePhysicsStatus { std::vector<std::string> errors; };
+struct ParticlePhysicsMetrics {
+    MetricHandle time, dynamic, queries, contacts, expired, exhausted;
+    explicit ParticlePhysicsMetrics(Telemetry& t)
+        : time(t.RegisterTiming("particles.physics")),
+          dynamic(t.RegisterGauge("particles.physics.dynamic", "particles")),
+          queries(t.RegisterGauge("particles.physics.queries", "queries")),
+          contacts(t.RegisterGauge("particles.physics.contacts", "contacts")),
+          expired(t.RegisterGauge("particles.physics.expired", "particles")),
+          exhausted(t.RegisterGauge("particles.physics.exhausted", "particles")) {}
+};
 
 // The working state (grids, buffers) of the affectors that scene components describe, by system
 // entity, kept in the registry's context so it is never saved.
@@ -101,8 +115,18 @@ void Spawn(World& world, entt::entity id, ParticleSystem& system, double delta) 
     }
 }
 
+void Ballistic(ParticleSystem& system, float dt) {
+    for (Particle& particle : system.particles) {
+        const float lived = (particle.flags & Particle::kDynamic) != 0 ? std::min(dt, particle.age) : dt;
+        particle.position = particle.position + particle.velocity * lived;
+    }
+}
 void StepParticles(World& world, const FrameTime& time, const Input&) {
     const auto dt = static_cast<float>(time.delta);
+    ParticlePhysicsStats2D stats;
+    auto& errors = world.Registry().ctx().get<ParticlePhysicsStatus>().errors; errors.clear();
+    auto& telemetry = world.GetTelemetry();
+    const auto& metrics = world.Registry().ctx().get<ParticlePhysicsMetrics>();
     for (auto [id, system] : world.Registry().view<ParticleSystem>().each()) {
         const Entity entity = world.Wrap(id);
         Age(system, dt);
@@ -114,10 +138,28 @@ void StepParticles(World& world, const FrameTime& time, const Input&) {
         }
         ApplySceneAffectors(world, entity, system, time);
         RemoveExpired(system);
-        for (Particle& particle : system.particles) {
-            particle.position = particle.position + particle.velocity * dt;
+        if (const auto* physics = world.Registry().try_get<ParticlePhysics2D>(id)) {
+            const TelemetryScope measure(telemetry, metrics.time);
+            const auto* collision = SceneCollisionWorld2D(world);
+            pxVec2 gravity = PhysicsSettings2D{}.gravity;
+            const auto settings = world.Registry().view<const PhysicsSettings2D>();
+            if (settings.begin() != settings.end()) gravity = settings.get<const PhysicsSettings2D>(*settings.begin()).gravity;
+            if (collision) gravity = collision->Gravity();
+            try {
+                MoveDynamicParticles2D(system, *physics, collision, gravity, time.delta, stats);
+            } catch (const std::invalid_argument& error) {
+                errors.push_back("ParticlePhysics2D entity " + std::to_string(static_cast<std::uint32_t>(id)) + ": " + error.what());
+                Ballistic(system, dt);
+            }
+        } else {
+            Ballistic(system, dt);
         }
     }
+    telemetry.SetGauge(metrics.dynamic, static_cast<double>(stats.dynamic));
+    telemetry.SetGauge(metrics.queries, static_cast<double>(stats.queries));
+    telemetry.SetGauge(metrics.contacts, static_cast<double>(stats.contacts));
+    telemetry.SetGauge(metrics.expired, static_cast<double>(stats.expired));
+    telemetry.SetGauge(metrics.exhausted, static_cast<double>(stats.exhausted));
 }
 
 } // namespace
@@ -127,8 +169,15 @@ void AddParticleStep(World& world) {
     if (context.contains<ParticleStepInstalled>()) {
         return;
     }
+    context.emplace<ParticlePhysicsMetrics>(world.GetTelemetry());
     context.emplace<ParticleStepInstalled>();
+    context.emplace<ParticlePhysicsStatus>();
     world.AddSystem(SystemPhase::PostUpdate, "particles.step", &StepParticles);
+}
+
+std::vector<std::string> ParticlePhysicsErrors2D(World& world) {
+    const auto* status = world.Registry().ctx().find<ParticlePhysicsStatus>();
+    return status ? status->errors : std::vector<std::string>{};
 }
 
 void DrawParticles(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha) {

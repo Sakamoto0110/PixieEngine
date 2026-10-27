@@ -31,8 +31,9 @@ does not reconstruct physics or change simulation time. The C API stays at 16.
 |---|---|
 | `physics.scene.sync` | One native scene synchronization; normally two calls per World tick, before gameplay and before solving |
 | `physics.scene.rebuild` | Backend world creation/reset, body creation/replacement, and new controller creation; nested inside sync |
-| `physics.solve` | Existing native backend solve |
-| `physics.scene.motors` | Existing motor commands/input, controller integration and motor pose write-back; this is not D4 body coupling |
+| `physics.solve` | Native backend step, including backend sensor processing; not only awake-body constraint solving |
+| `physics.scene.coupling.prepare` | D4 motor input/timers/intent, support queries, prediction and bounded body commands; recorded when motors exist |
+| `physics.scene.motors` | D4 final support carry, motor motion, placement diagnostics and motor pose write-back; before D4 this included commands/input and integration |
 | `physics.events.collect` | Existing backend contact/sensor event collection |
 | `physics.scene.events.publish` | Copying native events to scene identities |
 | `physics.scene.publish` | Retiring old shape identities and publishing rigid-body poses |
@@ -71,7 +72,9 @@ bin/Release/physics-benchmark.exe 500 sleeping off 1200 output-off.csv
 ```
 
 Arguments are population (0..500), state (`awake`/`sleeping`), collection
-(`on`/`off`), warm sample count (100..100000), and CSV path. The fixture is a
+(`on`/`off`), warm sample count (100..100000), and CSV path. An optional final
+argument selects `sparse` (the compatible default), `compound`, `stack` or
+`sensors`. The default fixture is a
 native World with seed 12345, zero gravity, scale 32 units/m, a 1/60-second tick
 and four solver substeps. Unit-mass 32x32 boxes use a sparse 128-unit grid with
 seeded X jitter. Awake boxes move at 10 units/s with no damping; sleeping boxes
@@ -83,6 +86,47 @@ wall time brackets World::Step; stage measurements use timing-total differences
 so both sync calls are included. Samples and output storage are prepared outside
 the measured work; CSV output happens after sampling. A companion `.metrics.csv`
 contains the final collector snapshot.
+
+## Extended native workloads
+
+The optional fixtures exercise authored topology and native pair lifetimes;
+they add no runtime API, rendering or character coupling. Scale (32 units/m),
+substeps (four), seed, tick, cold and warm intervals are explicit. The population
+argument always counts dynamic bodies; supporting static bodies are additional.
+
+| Workload | Geometry and motion | Expected backend population |
+|---|---|---|
+| `sparse` | Original 32x32 boxes at 128-unit grid spacing; initial X speed 10 or zero, no gravity | N bodies, N shapes |
+| `compound` | Two adjacent 16x32 half-boxes make each 32x32 body; same sparse motion | N bodies, 2N shapes |
+| `stack` | Up to ten columns, 32.25-unit spacing with seeded X jitter; gravity 1100 down; a floor with top Y=0 | N+1 bodies/shapes, no sensors |
+| `sensors` | One static 32x32 sensor per dynamic box on the sparse grid; two-sided filters exclude solid body/body contacts | 2N bodies/shapes, N sensors |
+
+For `stack`, `awake` adds an in-tick zero-force wake request to each body;
+`sleeping` leaves the initially still pile unforced. These labels are requests,
+not guarantees that the pile stays fully awake or has settled after 300 ticks.
+The CSV records actual end-of-tick awake counts; bodies may wake and sleep inside
+the solve, so that count is not an active-solver-work counter.
+
+For active `sensors`, bodies start 40 units left of their sensor, move at
+80 units/s and reverse every 60 ticks. The periodic crossing creates real sensor
+begin/end churn without solid contacts. The still variant starts centered and
+can sleep while its sensor pairs remain present. All command-driver work is
+inside the measured World tick; `benchmark.commands` measures it separately.
+Comparing these variants includes command overhead and changed physics work.
+It is not a pure sleeping/awake solver comparison.
+
+```powershell
+bin/Release/physics-benchmark.exe 500 awake on 1200 stack.csv stack
+bin/Release/physics-benchmark.exe 500 awake on 1200 sensors.csv sensors
+```
+
+CSV schema 2 adds the fixture/driver, gravity/scale, sensor population and the
+four begin/end event counts. Raw population/transition snapshots are read after
+the timed step; final retained poses/velocities are checked for finiteness
+outside measurement. That audit does not establish penetration limits or stack
+stability. Runtime regressions check stable topology/handles, actual contact and
+sensor generation, finite poses and enabled/disabled collection trace agreement.
+Dense contact and sensor churn may allocate even when no geometry is rebuilt.
 
 Ordinary C++ new/new[] calls are counted inside the tick. Backend malloc and
 over-aligned allocations are outside this counter's coverage. All variants use
@@ -111,4 +155,9 @@ machine metadata, reference diff and allocation-regression sensitivity evidence.
 Those files are machine-local executed evidence, not a portable performance
 guarantee. The sparse fixture establishes neither dense contact/sensor churn,
 coupled-character performance, render/GPU latency nor a universal body budget.
-Those workloads and owner acceptance remain separate gates under TODO-043.
+The extended workload qualification is recorded separately under
+`.local/validation/physics-workloads-2026-10-26/`. Any other active compiler or
+application can affect wall-clock tails on the same machine; process sampling
+is context, not proof of uninterrupted idle or causal attribution of a spike.
+Mixed kinematic/character performance qualification, renderer behavior and owner acceptance remain
+separate gates under TODO-043.

@@ -30,7 +30,10 @@ struct CollisionHit2D {
     pxVec2 normal;
     double fraction = 0;
     bool sensor = false;
+    BodyHandle2D body;
 };
+
+struct CollisionMaterial2D { double friction = 0, restitution = 0; };
 
 enum class PhysicsEventKind2D { Begin, End };
 enum class PhysicsPairKind2D { Contact, Sensor };
@@ -47,6 +50,14 @@ struct PhysicsEvent2D {
     PhysicsEndpoint2D a, b; // Contacts sort shape IDs; sensor pairs keep the sensor in a.
     std::uint64_t step = 0, generation = 0;
 };
+// On-demand post-solve manifold point. Normal points from a to b; impulse is kg*worldUnits/s.
+struct PhysicsContactPoint2D {
+    PhysicsEndpoint2D a, b;
+    pxPoint point;
+    pxVec2 normal;
+    double separation = 0, normalImpulse = 0;
+    std::uint16_t pointId = 0;
+};
 struct PhysicsStats2D {
     std::size_t bodies = 0, shapes = 0, sensors = 0, contactPairs = 0, sensorPairs = 0;
     int awakeBodies = 0;
@@ -59,6 +70,16 @@ struct CapsuleMotion2D {
     bool grounded = false;
     int planeCount = 0;
     int solverIterations = 0;
+};
+
+// Query snapshot; normals point from the obstacle toward the capsule. Separation and point
+// use world units. Contains only nonsensor shapes, in stable collider-identity order.
+struct CapsuleContact2D {
+    ColliderHandle2D collider;
+    BodyHandle2D body;
+    pxPoint point;
+    pxVec2 normal;
+    double separation = 0;
 };
 
 // Caller-owned collision/query scene, main-thread only. Public distances use world units,
@@ -94,8 +115,18 @@ public:
     bool RemoveBody(BodyHandle2D body, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
     bool ContainsBody(BodyHandle2D body) const;
     std::vector<ColliderHandle2D> BodyColliders(BodyHandle2D body) const;
+    CollisionMaterial2D Material(ColliderHandle2D collider) const;
     BodyMotion2D BodyMotion(BodyHandle2D body) const;
     BodyMass2D BodyMass(BodyHandle2D body) const;
+    // Copies actual contact manifolds without stepping or waking bodies; may include speculative points.
+    std::vector<PhysicsContactPoint2D> BodyContacts(BodyHandle2D body) const;
+    BodyType2D BodyType(BodyHandle2D body) const;
+    bool BodyEnabled(BodyHandle2D body) const;
+    // Explicit teleport/filter/enabled-state revision; ordinary solver motion does not increment it.
+    std::uint64_t BodyRevision(BodyHandle2D body) const;
+    pxPoint BodyLocalPoint(BodyHandle2D body, pxPoint worldPoint) const;
+    pxPoint BodyWorldPoint(BodyHandle2D body, pxPoint localPoint) const;
+    pxVec2 BodyPointVelocity(BodyHandle2D body, pxPoint worldPoint) const;
     void SetBodyVelocity(BodyHandle2D body, pxVec2 velocity, double angularVelocity);
     void SetBodyEnabled(BodyHandle2D body, bool enabled);
     void SetCollisionFilter(ColliderHandle2D collider, CollisionFilter2D filter);
@@ -105,6 +136,7 @@ public:
     void ApplyTorque(BodyHandle2D body, double torque);
     void ApplyAngularImpulse(BodyHandle2D body, double impulse);
     void SetGravity(pxVec2 gravity);
+    pxVec2 Gravity() const;
     void StepBodies(double delta, int substeps = 4);
     // Engine-owned snapshot, invalidated only by the next StepBodies/Reset, not by queued removals.
     std::span<const PhysicsEvent2D> Events() const;
@@ -117,6 +149,9 @@ public:
     void Reset();
     std::optional<CollisionHit2D> RayCast(pxPoint origin, pxVec2 translation,
                                          CollisionFilter2D filter = {}, bool includeSensors = false) const;
+    std::optional<CollisionHit2D> CircleCast(pxPoint origin, double radius, pxVec2 translation,
+                                           CollisionFilter2D filter = {}) const;
+    bool OverlapsCircle(pxPoint center, double radius, CollisionFilter2D filter = {}) const;
     std::vector<ColliderHandle2D> OverlapBox(pxPoint center, pxVec2 halfSize,
                                             CollisionFilter2D filter = {}, bool includeSensors = false) const;
     // Capsule is vertical: segment endpoints at center Y +/- halfSegment, plus radius.
@@ -126,6 +161,9 @@ public:
                                 pxVec2 translation, pxVec2 velocity,
                                 double minGroundNormal = 0.70710678,
                                 CollisionFilter2D filter = {}) const;
+    std::vector<CapsuleContact2D> CapsuleContacts(pxPoint center, double radius, double halfSegment,
+                                               CollisionFilter2D filter = {}) const;
+    double CapsuleSlop() const; // Same touching tolerance as MoveCapsule, in world units.
 private:
     struct Impl;
     // Sole ownership keeps backend headers and lifetime out of the public API.
