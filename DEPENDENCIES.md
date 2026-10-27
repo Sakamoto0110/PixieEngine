@@ -90,7 +90,7 @@ host that provides that works.
 
 The C# editor (`editor/`, since 2026-10-13) takes one PixieInspector view
 package, and its host uses the binding and the version that package brings:
-`PixieInspector.ImGui` 0.2.1 brings Hexa.NET.ImGui 2.2.9, which the editor uses
+`PixieInspector.ImGui` 0.3.0 brings Hexa.NET.ImGui 2.2.9, which the editor uses
 with Hexa.NET.GLFW 1.0.5 and Hexa.NET.ImGui.Backends and
 Hexa.NET.ImGui.Backends.GLFW 1.0.18, the versions PixieInspector's own ImGui
 host uses (`editor/PixieEditor/PixieEditor.csproj`). `PixieInspector.Avalonia`
@@ -115,3 +115,20 @@ adopts it.
 |---|---|---|---|
 | glad 2 | GL function loader, if GLEW is replaced | v2.0.8 (2024-09-29); `glad2` branch active (2026-09-28) | Generated for exactly `gl:core=4.5`, so a call outside 4.5 core fails to compile; takes any loader callback, independent of who created the context. |
 | miniaudio | Audio | 0.11.25 (2026-03-03) | Single header; no shared library to ship. |
+
+
+### Inspector 0.3.0 consumer adoption (2026-10-27)
+
+The editor selects PixieInspector.ImGui 0.3.0 and its exact core pair [0.3.0],
+from the coordinated core/four-view release. The existing Hexa.NET binding and
+backends remain pinned as above; this is not a GUI binding migration. The core
+still requires the compatible PixieLib 0.2.0 managed package. The separate
+PixieLib 0.2.1 release includes a native Forward correction and does not imply
+that the Engine's vendored C++ snapshot was replaced.
+
+The adoption gate requires an isolated restore using only the public nuget.org
+source, package repository-commit verification, an Editor Release build, bounded
+EngineSession/native checks and PR/main CI. GitHub release-asset validation is
+separate evidence and cannot satisfy the public-restore gate by itself.
+Runtime-named category/mask bridging for particle profiles remains a separate
+Engine UI integration task; selecting the package does not implement that bridge.
