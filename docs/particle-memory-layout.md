@@ -85,7 +85,7 @@ vertex format. `static_assert` pins it at 40 bytes and trivially copyable.
 | 28 | 4 | `lifetime` | float, seconds, 0 is forever | `location 3` |
 | 32 | 4 | `color` | RGBA8 | `location 5`, normalized `vec4` |
 | 36 | 2 | `size` | half float, radius in world units (`ToHalf`, `FromHalf`, `Size()`) | `location 6`, `GL_HALF_FLOAT` |
-| 38 | 1 | `flags` | bits 0-1 shape (`kShapeBits`), bit 2 `kDynamic` (reserved, unused), bits 3-7 free | `location 7`, integer `uint` |
+| 38 | 1 | `flags` | bits 0-1 shape (`kShapeBits`), bit 2 `kDynamic` (native gravity/bounce opt-in), bits 3-7 free | `location 7`, integer `uint` |
 | 39 | 1 | `spare` | free | not bound |
 
 Free today, without growing: **5 bits** of `flags` and the **8 bits** of `spare`,
@@ -145,6 +145,11 @@ ring (hole at 0.6 of the radius) or a capsule fading toward its tail. Per-system
 uniforms: view-projection, interpolation alpha, minimum radius, fade.
 
 ## 5. Dynamic particles: the open design
+
+The first bounded gravity/bounce increment is now being delivered through
+[ParticlePhysics2D and the sparks room](particle-dynamics.md). The profile-table,
+stream and per-particle payload ideas below remain open; they are not implied by
+that first shared-settings implementation.
 
 The roadmap direction is: a spawner marks its particles dynamic; static and
 dynamic particles share one pool; only the dynamic ones feel gravity and

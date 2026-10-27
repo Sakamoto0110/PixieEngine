@@ -401,7 +401,9 @@ takes a minute or two.
 ## Scene movement diagnostics
 
 `pixie_movement_status(session, buffer, capacity, &required)` returns a summary
-from the latest native movement synchronization/update, without stepping time.
+from the latest native movement synchronization/update and last particle-physics
+tick, without stepping time. Invalid particle pool settings appear with their
+entity number; the pool falls back to ballistic motion until corrected.
 `required` includes the trailing NUL. Query with null buffer and capacity 0;
 then provide that capacity. A short buffer returns PIXIE_ERROR_BUFFER. The
 summary shows up to eight errors and a remaining count; an empty result needs

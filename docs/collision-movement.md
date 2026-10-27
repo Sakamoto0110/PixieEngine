@@ -37,7 +37,7 @@ queries immediately. A supplied Telemetry collector must outlive the scene.
 Step a controller once per fixed update after setting the current geometry.
 Use its returned position to present the character; interpolate from the prior
 position when drawing between steps. The neutral sample does this through a
-named World PostUpdate system. It does not attach Velocity2D to the character.
+named World Physics-phase system. It does not attach Velocity2D to the character.
 Do not integrate the same position through both the controller and Velocity2D.
 Existing World integration/order and existing entities are unchanged.
 
@@ -98,8 +98,10 @@ cross-platform bitwise determinism or owner acceptance of movement feel.
 
 [Explicit rigid-body simulation](body-dynamics.md) is now available in the shared
 query world. [Contact/sensor lifecycle events](body-events.md) are available for
-physics shapes; player-capsule sensor registration, one-way surfaces and
-moving-platform attachment/crushing remain later stages. Scene serialization and
+physics shapes. [Bounded character/body coupling](character-body-coupling.md) now
+adds platform carry, push/load and blocked/unsafe placement through the two-phase
+native API; the standalone const Step path remains query-only. Player-capsule
+sensor registration and one-way surfaces remain later stages. Scene serialization and
 editor authoring are available through the linked scene layer. SetTransform can move static geometry between queries;
 that alone is not a moving-platform controller.
 

@@ -75,9 +75,10 @@ Edit-mode scale changes rebuild safely without advancing time.
 
 The legacy velocity/acceleration integrator excludes both motor and rigid-body
 entities. PreUpdate synchronizes authored state for queries. After gameplay and
-legacy non-physics integration, PostUpdate refreshes changes, steps bodies once,
-publishes position/rotation, then moves existing character motors. This is the
-initial uncoupled order, not the future character pushing/platform-carry contract.
+legacy non-physics integration, the Physics-phase service refreshes changes,
+prepares character intent and bounded body impulses, steps bodies once, then
+finishes support carry/motor movement and publishes completed poses. PostUpdate
+effects consume those poses. See the [character/body coupling guide](character-body-coupling.md) for limits.
 
 SceneBody2D maps an entity to its runtime body handle. ScenePhysicsWorld2D returns
 a borrowed mutable service for commands; reacquire after synchronization/reset.
@@ -93,12 +94,12 @@ scale defaults to 1, may be 0, and must be finite and nonnegative. Version 1
 motors saved their own acceleration as `gravity`; reading one converts it to
 gravityScale = gravity / 1100, so each motor keeps the fall it had without
 settings and the factor the earlier bridge gave it with them. Differing and zero
-legacy values stay distinct. Saving writes version 2 without the old field;
+legacy values stay distinct. Saving writes version 3 without the old field;
 version 2 or newer saves are never reconverted, and unknown fields are kept.
 Checked-in version 1 saves, such as the movement laboratory, are read in place.
 A frozen copy of that laboratory's version 1 save,
 [movement-lab-v1.scene](../tests/runtime/fixtures/movement-lab-v1.scene), keeps the
-comparison available after the sample itself is saved at version 2.
+comparison available after the sample itself is saved at the current version.
 Native CharacterSettings2D keeps its own `gravity` acceleration.
 Upright motors reject sideways or upward world gravity. Ordinary dynamic bodies
 support vector gravity. A motor and rigid body on one entity is diagnosed rather
@@ -133,16 +134,17 @@ shows effective mass (kg), solid area (m²), local center (world units) and iner
 overlaps. Static/kinematic bodies report zero effective mass and inertia. Invalid
 or disabled bodies show unavailable data; edits and undo/redo synchronize before
 reading, without advancing time. Stack/material and representative fast-body fixtures qualify the
-cases documented in that guide; broader stress qualification remains pending. Motor queries can see dynamic
-geometry, but pushing, loading and platform carrying are not implemented or
-claimed. Do not use this baseline as evidence of safe crushing behavior.
+cases documented in that guide; broader stress qualification remains pending. Native motors now support bounded platform carrying, jump momentum inheritance,
+pushing and effective support loading. The [D4 algorithm](character-body-coupling.md)
+defines limits, blocked/unsafe placement and compatibility. An unsafe retained
+pose may remain occupied; game damage, reversal and respawn remain host policy.
 
 Telemetry retains collision.static_bodies and adds physics.bodies and
 physics.solve; event collection and pair/sensor gauges extend them in D2.
 Scene sync/rebuild, motor, event-publication and pose-publication instrumentation
-and bounded sparse-world qualification are described in the
-[physics telemetry guide](physics-telemetry.md). D4 coupling and broader workload
-budgets remain separate gates. A visible tumbling box proves that scenario, not general
+and bounded sparse/compound/contact/sensor qualification are described in the
+[physics telemetry guide](physics-telemetry.md). Coupled workload performance and broader workload
+budgets remain separate qualification gates. A visible tumbling box proves that scenario, not general
 stability or owner acceptance of character feel.
 
 The executable regression cases are in
