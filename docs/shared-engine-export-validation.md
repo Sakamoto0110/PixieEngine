@@ -47,7 +47,10 @@ not TODO-051 completion. Follow-up source commit
 `9abd26f540d1db4ffcf72ee831bc25ad7a83a89f` sets position-independent code
 before creating the embedded native dependencies, covering static GLEW,
 PixieLib math and Box2D as well as the engine objects. This corrects the
-shared-library build wiring; it is not a Linux build qualification.
+shared-library build wiring. The coordinator reported successful Windows
+configure and pixie_shared builds in Debug and Release with zero warnings
+after that configuration-only fix; this was not another complete CTest run
+and is not a Linux build qualification.
 Documentation is committed separately. The executed
 matrix below distinguishes earlier full runs, final targeted reruns and work
 not performed; the code commit alone is not proof of the remaining gates.
