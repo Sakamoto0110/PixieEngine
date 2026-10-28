@@ -6,6 +6,9 @@ set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
+# Static third-party objects are embedded in the shared engine on ELF platforms.
+set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+
 # A game's project adds the engine with add_subdirectory (cmake/PixieProject.cmake); then the engine
 # is not the top-level project, and builds neither its samples nor its tests by default.
 # Samples only exercise what the engine already has; turn them off to build the engine alone.
