@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/render/2d/Font.hpp"
 
 #include <filesystem>
@@ -17,15 +19,15 @@ namespace pixie {
 class Fonts {
 public:
     // Resolves paths against `folder` from now on, and forgets every font.
-    void SetFolder(std::filesystem::path folder);
+    PIXIE_RUNTIME_API void SetFolder(std::filesystem::path folder);
     const std::filesystem::path& Folder() const { return folder_; }
     // The file a path names.
-    std::filesystem::path Resolve(std::string_view path) const;
+    PIXIE_RUNTIME_API std::filesystem::path Resolve(std::string_view path) const;
 
     // The font at `path`; nothing when it cannot be read.
-    Font* Find(std::string_view path);
+    PIXIE_RUNTIME_API Font* Find(std::string_view path);
     // Why the font at `path` cannot be read; empty when it can.
-    std::string Problem(std::string_view path);
+    PIXIE_RUNTIME_API std::string Problem(std::string_view path);
 
 private:
     struct Entry {
@@ -33,7 +35,7 @@ private:
         std::string problem;
     };
 
-    Entry& Read(std::string_view path);
+    PIXIE_RUNTIME_API Entry& Read(std::string_view path);
 
     std::filesystem::path folder_;
     std::unordered_map<std::string, Entry> entries_;

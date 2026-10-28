@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <pixie/math/pxVec.hpp>
 
 #include <array>
@@ -13,20 +15,20 @@ class Random {
 public:
     explicit Random(std::uint64_t seed = 0) { Reseed(seed); }
 
-    void Reseed(std::uint64_t seed);
+    PIXIE_RUNTIME_API void Reseed(std::uint64_t seed);
     std::uint64_t Seed() const { return seed_; }
 
-    std::uint64_t NextU64();
+    PIXIE_RUNTIME_API std::uint64_t NextU64();
     // In [0, 1).
-    double NextDouble();
+    PIXIE_RUNTIME_API double NextDouble();
     // In [min, max).
     double Range(double min, double max) { return min + (max - min) * NextDouble(); }
     // In [min, max], both included.
-    int Int(int min, int max);
+    PIXIE_RUNTIME_API int Int(int min, int max);
     // True with probability p.
     bool Chance(double p) { return NextDouble() < p; }
     // A vector of length 1 in a uniformly random direction.
-    pxVec2 Direction();
+    PIXIE_RUNTIME_API pxVec2 Direction();
 
 private:
     std::uint64_t seed_ = 0;

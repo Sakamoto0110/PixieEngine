@@ -17,20 +17,48 @@ option(PIXIE_ENGINE_BUILD_TESTS "Build the tests under tests/ and register them 
 # generated build tree. Under a game's project, they land where that project says: its own bin/.
 if(PROJECT_IS_TOP_LEVEL)
     set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/$<CONFIG>)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/$<CONFIG>)
 endif()
 
-# MSVC: link the C++ runtime statically (/MT, /MTd) into every target, third-party ones included, so
-# an executable runs without the Visual C++ Redistributable installed.
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+# Shared C++ boundaries require the same dynamic runtime in every native target.
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 
 # Visual Studio: group projects into solution folders.
 set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
+option(PIXIE_DEVELOPMENT "Build development-only game modules and loading" ON)
+option(PIXIE_DEV_CHANNEL "Build the local development channel" ON)
+if(PIXIE_DEV_CHANNEL AND NOT PIXIE_DEVELOPMENT)
+    message(FATAL_ERROR "PIXIE_DEV_CHANNEL requires PIXIE_DEVELOPMENT; disable both for shipping")
+endif()
+include(cmake/PixieTargetDefaults.cmake)
+add_library(pixie_shared SHARED)
+set_target_properties(pixie_shared PROPERTIES OUTPUT_NAME pixie)
+add_library(Pixie::Shared ALIAS pixie_shared)
+pixie_target_defaults(pixie_shared)
 add_subdirectory(external)
 add_subdirectory(engine)
 add_subdirectory(runtime)
 add_subdirectory(capi)
-# pixie_game(): a game as its library, player, and C API library.
+foreach(boundary core platform render app runtime)
+    target_sources(pixie_shared PRIVATE $<TARGET_OBJECTS:pixie_${boundary}>)
+    target_include_directories(pixie_shared PUBLIC $<TARGET_PROPERTY:pixie_${boundary},INTERFACE_INCLUDE_DIRECTORIES>)
+    target_compile_definitions(pixie_${boundary} PRIVATE PIXIE_CORE_BUILD PIXIE_PLATFORM_BUILD
+        PIXIE_RENDER_BUILD PIXIE_APP_BUILD PIXIE_RUNTIME_BUILD GLEW_STATIC)
+    set_target_properties(pixie_${boundary} PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endforeach()
+target_sources(pixie_shared PRIVATE $<TARGET_OBJECTS:pixie_capi_objects>)
+target_link_libraries(pixie_shared PUBLIC pixie::pixie pixie::math EnTT::EnTT glew_headers
+    PRIVATE glew glfw box2d ${CMAKE_DL_LIBS})
+if(WIN32)
+    target_link_libraries(pixie_shared PRIVATE shell32 ole32)
+endif()
+target_include_directories(pixie_shared PUBLIC "${PROJECT_SOURCE_DIR}/capi/include")
+if(PIXIE_DEVELOPMENT)
+    target_compile_definitions(pixie_shared PUBLIC PIXIE_DEVELOPMENT)
+    target_compile_definitions(pixie_capi_objects PRIVATE PIXIE_DEVELOPMENT)
+endif()
+# pixie_game(): directly linked game code, a player and an optional development module.
 include(cmake/PixieGame.cmake)
 if(PIXIE_ENGINE_BUILD_TESTS)
     enable_testing()
@@ -45,3 +73,7 @@ endif()
 # PixieEngine.slnx at the repository root; see the module for what it shows and why.
 include(cmake/PixieRootSolution.cmake)
 pixie_write_root_solution()
+if(TARGET module-lifetime AND TARGET boids-module)
+    add_test(NAME module-lifetime COMMAND module-lifetime
+        $<TARGET_FILE:boids-module> $<TARGET_FILE:pixie_shared> $<TARGET_FILE:null-game-module>)
+endif()

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/render/View.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
@@ -18,17 +20,17 @@ namespace pixie {
 class ShapeRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
-    bool Create();
-    void Destroy();
+    PIXIE_RENDER_API bool Create();
+    PIXIE_RENDER_API void Destroy();
 
     // Draws every instance in `instances` as `kind`, seen through `view`.
-    void Draw(ShapeKind kind, std::span<const ShapeInstance> instances, const View& view);
+    PIXIE_RENDER_API void Draw(ShapeKind kind, std::span<const ShapeInstance> instances, const View& view);
 
-    void Submit(ShapeKind kind, const ShapeInstance& instance);
+    PIXIE_RENDER_API void Submit(ShapeKind kind, const ShapeInstance& instance);
     // Draws what was submitted since the last flush, then forgets it.
-    void Flush(const View& view);
+    PIXIE_RENDER_API void Flush(const View& view);
     // How many shapes wait for the next flush.
-    std::size_t PendingCount() const;
+    PIXIE_RENDER_API std::size_t PendingCount() const;
 
 private:
     ShaderProgram program_;

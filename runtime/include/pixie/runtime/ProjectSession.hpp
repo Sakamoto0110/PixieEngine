@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/core/FixedStepper.hpp"
 #include "pixie/platform/Input.hpp"
@@ -50,56 +52,56 @@ enum class SessionMode { Play, Edit };
 // Start and every later call need the GL context current; Stop releases the GL objects.
 class ProjectSession {
 public:
-    ProjectSession(std::unique_ptr<Project> project, SessionSettings settings);
-    ~ProjectSession();
+    PIXIE_RUNTIME_API ProjectSession(std::unique_ptr<Project> project, SessionSettings settings);
+    PIXIE_RUNTIME_API ~ProjectSession();
     ProjectSession(const ProjectSession&) = delete;
     ProjectSession& operator=(const ProjectSession&) = delete;
 
     // Opens the project in `folder`, before or after Start, in Edit. Returns false, and sets
     // Error, when the project or its start scene cannot be read.
-    bool OpenProject(const std::filesystem::path& folder);
+    PIXIE_RUNTIME_API bool OpenProject(const std::filesystem::path& folder);
     bool HasProject() const { return opened_.has_value(); }
     // The open project; only when HasProject.
     const OpenedProject& OpenedProjectInfo() const { return *opened_; }
     // The project file's name when a project is open, else the Project's.
-    std::string_view ProjectName() const;
+    PIXIE_RUNTIME_API std::string_view ProjectName() const;
     // Why the last OpenProject, Play, StopPlaying, or Save failed.
     const std::string& Error() const { return error_; }
 
     // Creates the renderers and builds the World for a viewport of `size` pixels.
-    bool Start(FramebufferSize size);
-    void Stop();
+    PIXIE_RUNTIME_API bool Start(FramebufferSize size);
+    PIXIE_RUNTIME_API void Stop();
 
     // Throws the World away and builds it again, with the same seed, after the project has captured
     // what it starts from (Project::Capture). With a project open, it is built from the scene's
     // entities as they are now.
-    void Reset();
+    PIXIE_RUNTIME_API void Reset();
 
     SessionMode Mode() const { return mode_; }
     // From Edit to Play; needs a project.
-    bool Play();
+    PIXIE_RUNTIME_API bool Play();
     // From Play back to Edit, with the scene as it was at Play; needs a project.
-    bool StopPlaying();
+    PIXIE_RUNTIME_API bool StopPlaying();
 
     // Writes the scene's entities to the start scene's file; in Play, the ones Play kept.
-    bool Save();
+    PIXIE_RUNTIME_API bool Save();
     // Whether the scene was edited since it was opened or saved.
     bool HasUnsavedChanges() const { return unsaved_; }
     // Notes that the scene was edited; ignored outside Edit.
-    void MarkChanged();
+    PIXIE_RUNTIME_API void MarkChanged();
 
     // Sets the viewport the camera maps the World into.
-    void Resize(FramebufferSize size);
+    PIXIE_RUNTIME_API void Resize(FramebufferSize size);
 
     // The host's input. Events go here; Advance forgets presses after each step.
     Input& GetInput() { return input_; }
 
     // Adds a frame of wall time and runs the fixed steps it makes due, unless paused. In Edit it
     // runs no step; the middle button and the wheel move the camera.
-    void Advance(double frameDelta);
+    PIXIE_RUNTIME_API void Advance(double frameDelta);
     // Runs one fixed step now, paused or not; nothing in Edit.
-    void StepOnce();
-    void SetPaused(bool paused);
+    PIXIE_RUNTIME_API void StepOnce();
+    PIXIE_RUNTIME_API void SetPaused(bool paused);
     bool IsPaused() const { return paused_; }
     // Session presentation only; retained across World rebuilds and never saved to a scene.
     void SetPhysicsDebug(std::uint32_t flags) { physicsDebug_ = flags & kPhysicsDebugAll2D; physicsDebugExplicit_ = true; }
@@ -108,24 +110,24 @@ public:
     // How fast simulated time runs against wall time in Advance: 0.5 is half speed. The fixed step
     // stays the same; a faster scale runs more steps per frame. Clamped to [kMinTimeScale,
     // kMaxTimeScale].
-    void SetTimeScale(double scale);
+    PIXIE_RUNTIME_API void SetTimeScale(double scale);
     double TimeScale() const { return timeScale_; }
     static constexpr double kMinTimeScale = 0.01;
     static constexpr double kMaxTimeScale = 8.0;
 
     // One step with the caller's time and input: the project's BeforeStep, then World::Step;
     // nothing in Edit.
-    void Update(double delta, const Input& input);
+    PIXIE_RUNTIME_API void Update(double delta, const Input& input);
 
     // Draws the World into the bound framebuffer, interpolated `alpha` of the way between steps:
     // sprites of negative layers, then paths, then the other sprites, then particles, then shapes,
     // then the project's overlay, then its screen layer (Project::DrawScreen). Images whose files changed
     // are read again first, checked at most every SpriteImages::kCheckInterval seconds.
-    void Render(double alpha);
+    PIXIE_RUNTIME_API void Render(double alpha);
     // Draws into the session's own render target, sized to the viewport, and returns its texture.
-    unsigned RenderToTarget();
+    PIXIE_RUNTIME_API unsigned RenderToTarget();
     // The interpolation of the last Advance, for Render.
-    double Alpha() const;
+    PIXIE_RUNTIME_API double Alpha() const;
 
     World& GetWorld() { return *world_; }
     // Optional view, including before Start and after Stop. Reacquire after rebuilding the World.
@@ -143,7 +145,7 @@ public:
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
 
 private:
-    void Build(bool resetCamera);
+    PIXIE_RUNTIME_API void Build(bool resetCamera);
 
     std::unique_ptr<Project> project_;
     SessionSettings settings_;

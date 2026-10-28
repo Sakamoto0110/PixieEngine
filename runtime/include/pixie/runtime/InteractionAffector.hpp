@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/runtime/ParticleAffector.hpp"
 #include "pixie/runtime/SpatialGrid.hpp"
 
@@ -18,7 +20,7 @@ public:
     // Fraction of the relative velocity removed per second while in contact, so piles settle.
     double damping = 3.0;
 
-    void Apply(World& world, Entity system, std::span<Particle> particles,
+    PIXIE_RUNTIME_API void Apply(World& world, Entity system, std::span<Particle> particles,
                const FrameTime& time) override;
 
 private:

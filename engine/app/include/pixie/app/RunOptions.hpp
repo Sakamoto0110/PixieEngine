@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/app/Export.hpp"
+
 #include "pixie/app/RunConfig.hpp"
 
 #include <functional>
@@ -20,12 +22,12 @@ struct RunOption {
 // Parses the options every player takes (--ups, --fps, --vsync, --telemetry, --quit-after, --screenshot) into
 // `config`, and the player's own `extra` ones. On an unknown option or a bad value, prints the
 // usage to stderr and returns false; the player then exits with code 2.
-bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig& config,
+PIXIE_APP_API bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig& config,
                      std::span<const RunOption> extra = {});
 
 // A non-negative number.
-bool ParseNumber(std::string_view text, double& value);
+PIXIE_APP_API bool ParseNumber(std::string_view text, double& value);
 // A whole number in [min, max].
-bool ParseCount(std::string_view text, int& value, int min, int max);
+PIXIE_APP_API bool ParseCount(std::string_view text, int& value, int min, int max);
 
 } // namespace pixie

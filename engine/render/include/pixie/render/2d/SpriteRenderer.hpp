@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/render/View.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
@@ -51,14 +53,14 @@ static_assert(std::is_trivially_copyable_v<SpriteInstance> && sizeof(SpriteInsta
 class SpriteRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
-    bool Create();
-    void Destroy();
+    PIXIE_RENDER_API bool Create();
+    PIXIE_RENDER_API void Destroy();
 
-    void Submit(unsigned texture, SpriteFilter filter, int layer, const SpriteInstance& instance);
+    PIXIE_RENDER_API void Submit(unsigned texture, SpriteFilter filter, int layer, const SpriteInstance& instance);
     // Draws what was submitted since the last flush on layers below `belowLayer`, seen through
     // `view`, and forgets it; the rest stays for a later flush. With no limit, draws everything.
     // Something else can be drawn between two flushes, such as paths over backgrounds.
-    void Flush(const View& view, int belowLayer = INT_MAX);
+    PIXIE_RENDER_API void Flush(const View& view, int belowLayer = INT_MAX);
 
     // Draw calls made by the last Flush.
     int LastDrawCalls() const { return lastDrawCalls_; }

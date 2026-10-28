@@ -455,7 +455,7 @@ public sealed unsafe class EngineSession : IDisposable
         return true;
     }
 
-    private static void Check(PixieResult result, string what)
+    internal static void Check(PixieResult result, string what)
     {
         if (result != PixieResult.Ok)
             throw new EngineException($"Could not {what}: {result}, {LastError()}");

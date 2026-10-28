@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/core/FramebufferSize.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
@@ -15,8 +17,8 @@ struct OverlayVertex {
     std::array<unsigned char, 4> color;
 };
 
-bool CreateOverlayDrawing(ShaderProgram& program, GlBuffer& buffer, GlVertexArray& array);
-void DrawOverlay(std::span<const OverlayVertex> vertices, FramebufferSize size,
+PIXIE_RENDER_API bool CreateOverlayDrawing(ShaderProgram& program, GlBuffer& buffer, GlVertexArray& array);
+PIXIE_RENDER_API void DrawOverlay(std::span<const OverlayVertex> vertices, FramebufferSize size,
                  GlBuffer& buffer, const GlVertexArray& array, const ShaderProgram& program);
 
 } // namespace pixie

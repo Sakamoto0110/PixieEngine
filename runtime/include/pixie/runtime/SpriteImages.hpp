@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/core/Image.hpp"
 #include "pixie/render/gl/Texture.hpp"
 
@@ -26,28 +28,28 @@ public:
     SpriteImages() = default;
     SpriteImages(const SpriteImages&) = delete;
     SpriteImages& operator=(const SpriteImages&) = delete;
-    ~SpriteImages();
+    PIXIE_RUNTIME_API ~SpriteImages();
 
     // Resolves paths against `folder` from now on, and forgets every image.
-    void SetFolder(std::filesystem::path folder);
+    PIXIE_RUNTIME_API void SetFolder(std::filesystem::path folder);
     const std::filesystem::path& Folder() const { return folder_; }
     // The file a Sprite's path names.
-    std::filesystem::path Resolve(std::string_view path) const;
+    PIXIE_RUNTIME_API std::filesystem::path Resolve(std::string_view path) const;
 
     // The size of the image at `path`, in pixels; nothing when it cannot be read.
-    std::optional<pxVec2> Size(std::string_view path);
+    PIXIE_RUNTIME_API std::optional<pxVec2> Size(std::string_view path);
     // Why the image at `path` cannot be read; empty when it can.
-    std::string Problem(std::string_view path);
+    PIXIE_RUNTIME_API std::string Problem(std::string_view path);
     // The texture drawn for `path`: the image's, or the checkerboard when it cannot be read.
-    const Texture& TextureOf(std::string_view path);
+    PIXIE_RUNTIME_API const Texture& TextureOf(std::string_view path);
 
     // Reads again every image whose file changed, appeared, or disappeared since it was read;
     // returns how many did. A session calls it at most every kCheckInterval seconds.
-    int CheckForChanges();
+    PIXIE_RUNTIME_API int CheckForChanges();
     static constexpr double kCheckInterval = 0.5;
 
     // Releases the textures; the images are read again when next used.
-    void Destroy();
+    PIXIE_RUNTIME_API void Destroy();
 
     // The side, in pixels, of what is drawn for an image that cannot be read, when the sprite's
     // region does not give a size.
@@ -65,8 +67,8 @@ private:
         Texture texture;
     };
 
-    Entry& Find(std::string_view path);
-    void Read(std::string_view path, Entry& entry);
+    PIXIE_RUNTIME_API Entry& Find(std::string_view path);
+    PIXIE_RUNTIME_API void Read(std::string_view path, Entry& entry);
 
     std::filesystem::path folder_;
     std::unordered_map<std::string, Entry> entries_;

@@ -32,7 +32,8 @@ endforeach()
 add_library(boundary-engine SHARED ${sources} "${ENGINE}/capi/src/Capi.cpp" GateEngine.cpp)
 target_compile_options(boundary-engine PRIVATE /MP /W4 /WX /permissive- /utf-8)
 set_target_properties(boundary-engine PROPERTIES WINDOWS_EXPORT_ALL_SYMBOLS ON)
-target_compile_definitions(boundary-engine PRIVATE PIXIE_CAPI_BUILD GLFW_INCLUDE_NONE)
+target_compile_definitions(boundary-engine PRIVATE GLEW_STATIC PIXIE_CAPI_BUILD GLFW_INCLUDE_NONE PIXIE_CAPI_FACTORY
+    PIXIE_CORE_BUILD PIXIE_PLATFORM_BUILD PIXIE_RENDER_BUILD PIXIE_APP_BUILD PIXIE_RUNTIME_BUILD)
 target_link_libraries(boundary-engine PUBLIC pixie::pixie pixie::math EnTT::EnTT glew
     PRIVATE glfw stb_truetype nlohmann_json::nlohmann_json box2d shell32 ole32)
 foreach(part core platform render app)
@@ -49,5 +50,7 @@ endif()
 target_link_libraries(boundary-module PRIVATE boundary-engine)
 add_executable(boundary-host GateHost.cpp)
 target_link_libraries(boundary-host PRIVATE boundary-engine glfw)
+add_custom_command(TARGET boundary-host POST_BUILD COMMAND ${CMAKE_COMMAND} -E copy_if_different
+    $<TARGET_FILE:glfw> $<TARGET_FILE_DIR:boundary-host>)
 enable_testing()
 add_test(NAME shared-boundary COMMAND boundary-host $<TARGET_FILE:boundary-module>)

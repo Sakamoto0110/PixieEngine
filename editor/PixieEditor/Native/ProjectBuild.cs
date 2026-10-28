@@ -4,7 +4,7 @@ namespace PixieEditor.Native;
 
 // A project's code, built with CMake against the engine the editor runs from: the project never
 // records where the engine is, so it builds with whichever engine opens it. A build configures
-// <project>/build, builds the editor's own configuration, and leaves the game's C API library in
+// <project>/build, builds the editor's own configuration, and leaves the game's development game module in
 // <project>/bin/<config>/. It runs in the background; its output arrives line by line.
 internal sealed class ProjectBuild : IDisposable
 {
@@ -47,13 +47,13 @@ internal sealed class ProjectBuild : IDisposable
     // Whether the project has code of its own.
     public static bool HasCode(string folder) => File.Exists(Path.Combine(folder, "CMakeLists.txt"));
 
-    // The game's C API library the last build left, or null.
+    // The game's development game module the last build left, or null.
     public static string? Library(string folder)
     {
         var directory = Path.Combine(folder, "bin", Configuration);
         if (!Directory.Exists(directory))
             return null;
-        var pattern = OperatingSystem.IsWindows() ? "*-capi.dll" : "lib*-capi.so";
+        var pattern = OperatingSystem.IsWindows() ? "*-module.dll" : "lib*-module.so";
         var found = Directory.GetFiles(directory, pattern);
         return found.Length == 1 ? found[0] : null;
     }
@@ -114,7 +114,7 @@ internal sealed class ProjectBuild : IDisposable
 
         if (Library(Folder) == null)
         {
-            Problem = $"The build left no C API library in bin/{Configuration}.";
+            Problem = $"The build left no development game module in bin/{Configuration}.";
             return;
         }
 

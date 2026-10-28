@@ -19,13 +19,13 @@ endfunction()
 
 # Script mode knows no target platform, only the host's, which is the one the engine was built on.
 if(CMAKE_HOST_WIN32)
-    set(library_pattern "*-capi.dll")
+    set(library_pattern "*-module.dll")
     set(executable_suffix ".exe")
-    set(generic_library "pixie-scene-capi.dll")
+    set(generic_library "pixie.dll")
 else()
-    set(library_pattern "lib*-capi.so")
+    set(library_pattern "lib*-module.so")
     set(executable_suffix "")
-    set(generic_library "libpixie-scene-capi.so")
+    set(generic_library "libpixie.so")
 endif()
 
 set(project "${WORK}/Code Test")
@@ -33,6 +33,15 @@ file(REMOVE_RECURSE "${WORK}")
 file(MAKE_DIRECTORY "${project}")
 file(WRITE "${project}/Code Test.pixie"
      "{\n  \"format\": \"pixie-project\",\n  \"version\": 1,\n  \"name\": \"Code Test\",\n  \"startScene\": \"scenes/main.scene\"\n}\n")
+file(MAKE_DIRECTORY "${project}/scenes")
+file(WRITE "${project}/scenes/main.scene" [=[
+{"format":"pixie-scene","version":1,"seed":1,"entities":[
+ {"id":"0123456789abcdef","name":"spinner","components":{
+  "Transform2D":{"v":1,"position":[0,0],"rotation":0,"scale":[1,1]},
+  "Shape":{"v":1,"kind":"Triangle","size":[24,24]},
+  "Spinner":{"v":1,"speed":1.5}}}
+]}
+]=])
 
 run(${CMAKE_COMMAND} "-DPIXIE_PROJECT_DIR=${project}" -P "${ENGINE}/cmake/PixieAddCode.cmake")
 foreach(file CMakeLists.txt src/CodeTestProject.hpp src/CodeTestProject.cpp)
@@ -63,8 +72,9 @@ if(NOT EXISTS "${project}/bin/${CONFIG}/CodeTest${executable_suffix}")
     message(FATAL_ERROR "the player CodeTest was not built in ${project}/bin/${CONFIG}")
 endif()
 # The engine's own bin/ is left alone: the game's project builds no generic library.
-if(EXISTS "${project}/bin/${CONFIG}/${generic_library}")
-    message(FATAL_ERROR "the game's project built the engine's generic library")
+if(NOT EXISTS "${project}/bin/${CONFIG}/${generic_library}")
+    message(FATAL_ERROR "the game's project did not deploy the shared engine")
 endif()
 
-run("${CAPI_TEST}" "${libraries}" --project "${WORK}/opened" --expect-type Spinner)
+run("${CAPI_TEST}" "${project}/bin/${CONFIG}/${generic_library}" --project "${WORK}/opened" --expect-type Spinner --module "${libraries}")
+run("${project}/bin/${CONFIG}/CodeTest${executable_suffix}" --project "${project}" --quit-after 0.1)

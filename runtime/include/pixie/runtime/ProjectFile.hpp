@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -30,24 +32,24 @@ struct OpenedProject {
     std::filesystem::path path;
 
     // The start scene's file.
-    std::filesystem::path StartScenePath() const;
+    PIXIE_RUNTIME_API std::filesystem::path StartScenePath() const;
 };
 
 // Reads the one `.pixie` file in `folder`. Fails when there is none, more than one, or it cannot be
 // read; when its format or version is not this engine's; or when its start scene is not a relative
 // path inside the folder.
-OpenedProject OpenProjectFolder(const std::filesystem::path& folder);
+PIXIE_RUNTIME_API OpenedProject OpenProjectFolder(const std::filesystem::path& folder);
 
 // Writes a project file; returns what went wrong, or nothing.
-std::string WriteProjectFile(const std::filesystem::path& path, const ProjectFile& project);
+PIXIE_RUNTIME_API std::string WriteProjectFile(const std::filesystem::path& path, const ProjectFile& project);
 
 // Makes a new project in `folder`, which must be empty or not exist yet: the project takes the
 // folder's name, and gets `<Name>.pixie` and `scenes/main.scene`, whose one entity is a shape at
 // the origin. Returns the project as OpenProjectFolder would.
-OpenedProject CreateProjectFolder(const std::filesystem::path& folder);
+PIXIE_RUNTIME_API OpenedProject CreateProjectFolder(const std::filesystem::path& folder);
 
 // True when `path` is relative, uses forward slashes, and has no "." or ".." part, so it stays
 // inside the folder it is relative to.
-bool IsProjectRelativePath(std::string_view path);
+PIXIE_RUNTIME_API bool IsProjectRelativePath(std::string_view path);
 
 } // namespace pixie

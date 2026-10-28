@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/render/View.hpp"
 
 #include <pixie/math/pxMat.hpp>
@@ -22,28 +24,28 @@ public:
     pxPoint Center() const { return center_; }
 
     // Pixels per world unit; clamped to [kMinZoom, kMaxZoom].
-    void SetZoom(double zoom);
+    PIXIE_RENDER_API void SetZoom(double zoom);
     double Zoom() const { return zoom_; }
 
-    pxPoint ScreenToWorld(pxPoint screen) const;
-    pxPoint WorldToScreen(pxPoint world) const;
+    PIXIE_RENDER_API pxPoint ScreenToWorld(pxPoint screen) const;
+    PIXIE_RENDER_API pxPoint WorldToScreen(pxPoint world) const;
 
     // Moves the view by a cursor movement in pixels, so the world follows the cursor.
-    void Pan(pxVec2 screenDelta);
+    PIXIE_RENDER_API void Pan(pxVec2 screenDelta);
     // Multiplies the zoom by factor, keeping the world point under the screen point where it is.
-    void ZoomAt(pxPoint screen, double factor);
+    PIXIE_RENDER_API void ZoomAt(pxPoint screen, double factor);
 
     // The part of the world inside the viewport.
-    pxRect VisibleWorld() const;
+    PIXIE_RENDER_API pxRect VisibleWorld() const;
     // World to clip space, for the GPU.
-    pxMat4f ViewProjection() const;
-    View MakeView() const;
+    PIXIE_RENDER_API pxMat4f ViewProjection() const;
+    PIXIE_RENDER_API View MakeView() const;
 
     static constexpr double kMinZoom = 1e-4;
     static constexpr double kMaxZoom = 1e4;
 
 private:
-    pxVec2 HalfViewport() const;
+    PIXIE_RENDER_API pxVec2 HalfViewport() const;
 
     FramebufferSize viewport_;
     pxPoint center_;

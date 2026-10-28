@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/PhysicsDebug2D.hpp"
@@ -88,82 +90,82 @@ struct CapsuleContact2D {
 // This never changes a World/Velocity2D directly. Geometry changes are explicit.
 class CollisionWorld2D {
 public:
-    explicit CollisionWorld2D(double unitsPerMeter = 32, Telemetry* telemetry = nullptr);
-    ~CollisionWorld2D();
+    PIXIE_RUNTIME_API explicit CollisionWorld2D(double unitsPerMeter = 32, Telemetry* telemetry = nullptr);
+    PIXIE_RUNTIME_API ~CollisionWorld2D();
     CollisionWorld2D(const CollisionWorld2D&) = delete;
     CollisionWorld2D& operator=(const CollisionWorld2D&) = delete;
 
     // Mover queries require radius > 0.01 meters after float conversion; throws with the
     // scale-dependent world-unit minimum. Scene tools can validate without advancing time.
-    void ValidateMoverCapsule(double radius, double halfSegment) const;
+    PIXIE_RUNTIME_API void ValidateMoverCapsule(double radius, double halfSegment) const;
     // Same validation for authoring tools before a backend exists; no World is allocated.
-    static void ValidateMoverCapsule(double radius, double halfSegment, double unitsPerMeter);
+    PIXIE_RUNTIME_API static void ValidateMoverCapsule(double radius, double halfSegment, double unitsPerMeter);
 
-    ColliderHandle2D AddBox(pxPoint center, pxVec2 halfSize, double rotation = 0,
+    PIXIE_RUNTIME_API ColliderHandle2D AddBox(pxPoint center, pxVec2 halfSize, double rotation = 0,
                             CollisionFilter2D filter = {});
-    ColliderHandle2D AddCircle(pxPoint center, double radius, CollisionFilter2D filter = {});
+    PIXIE_RUNTIME_API ColliderHandle2D AddCircle(pxPoint center, double radius, CollisionFilter2D filter = {});
     // 3..8 points forming a convex hull, in local world units; degenerate input is rejected.
-    ColliderHandle2D AddPolygon(pxPoint center, std::span<const pxPoint> points,
+    PIXIE_RUNTIME_API ColliderHandle2D AddPolygon(pxPoint center, std::span<const pxPoint> points,
                                 double rotation = 0, CollisionFilter2D filter = {});
-    bool Remove(ColliderHandle2D collider, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
-    bool Contains(ColliderHandle2D collider) const;
-    void SetTransform(ColliderHandle2D collider, pxPoint center, double rotation = 0);
-    std::size_t Size() const;
+    PIXIE_RUNTIME_API bool Remove(ColliderHandle2D collider, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
+    PIXIE_RUNTIME_API bool Contains(ColliderHandle2D collider) const;
+    PIXIE_RUNTIME_API void SetTransform(ColliderHandle2D collider, pxPoint center, double rotation = 0);
+    PIXIE_RUNTIME_API std::size_t Size() const;
     // All shapes share this query world; no second backend simulation is created.
-    BodyHandle2D AddBody(pxPoint position, double rotation, const RigidBody2D& definition,
+    PIXIE_RUNTIME_API BodyHandle2D AddBody(pxPoint position, double rotation, const RigidBody2D& definition,
                          std::span<const BodyShape2D> shapes);
-    bool RemoveBody(BodyHandle2D body, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
-    bool ContainsBody(BodyHandle2D body) const;
-    std::vector<ColliderHandle2D> BodyColliders(BodyHandle2D body) const;
-    CollisionMaterial2D Material(ColliderHandle2D collider) const;
-    BodyMotion2D BodyMotion(BodyHandle2D body) const;
-    BodyMass2D BodyMass(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API bool RemoveBody(BodyHandle2D body, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
+    PIXIE_RUNTIME_API bool ContainsBody(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API std::vector<ColliderHandle2D> BodyColliders(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API CollisionMaterial2D Material(ColliderHandle2D collider) const;
+    PIXIE_RUNTIME_API BodyMotion2D BodyMotion(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API BodyMass2D BodyMass(BodyHandle2D body) const;
     // Copies actual contact manifolds without stepping or waking bodies; may include speculative points.
-    std::vector<PhysicsContactPoint2D> BodyContacts(BodyHandle2D body) const;
-    BodyType2D BodyType(BodyHandle2D body) const;
-    bool BodyEnabled(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API std::vector<PhysicsContactPoint2D> BodyContacts(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API BodyType2D BodyType(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API bool BodyEnabled(BodyHandle2D body) const;
     // Explicit teleport/filter/enabled-state revision; ordinary solver motion does not increment it.
-    std::uint64_t BodyRevision(BodyHandle2D body) const;
-    pxPoint BodyLocalPoint(BodyHandle2D body, pxPoint worldPoint) const;
-    pxPoint BodyWorldPoint(BodyHandle2D body, pxPoint localPoint) const;
-    pxVec2 BodyPointVelocity(BodyHandle2D body, pxPoint worldPoint) const;
-    void SetBodyVelocity(BodyHandle2D body, pxVec2 velocity, double angularVelocity);
-    void SetBodyEnabled(BodyHandle2D body, bool enabled);
-    void SetCollisionFilter(ColliderHandle2D collider, CollisionFilter2D filter);
-    void TeleportBody(BodyHandle2D body, pxPoint position, double rotation, bool clearVelocity = true);
-    void ApplyForce(BodyHandle2D body, pxVec2 force, pxPoint worldPoint);
-    void ApplyImpulse(BodyHandle2D body, pxVec2 impulse, pxPoint worldPoint);
-    void ApplyTorque(BodyHandle2D body, double torque);
-    void ApplyAngularImpulse(BodyHandle2D body, double impulse);
-    void SetGravity(pxVec2 gravity);
-    pxVec2 Gravity() const;
-    void StepBodies(double delta, int substeps = 4);
+    PIXIE_RUNTIME_API std::uint64_t BodyRevision(BodyHandle2D body) const;
+    PIXIE_RUNTIME_API pxPoint BodyLocalPoint(BodyHandle2D body, pxPoint worldPoint) const;
+    PIXIE_RUNTIME_API pxPoint BodyWorldPoint(BodyHandle2D body, pxPoint localPoint) const;
+    PIXIE_RUNTIME_API pxVec2 BodyPointVelocity(BodyHandle2D body, pxPoint worldPoint) const;
+    PIXIE_RUNTIME_API void SetBodyVelocity(BodyHandle2D body, pxVec2 velocity, double angularVelocity);
+    PIXIE_RUNTIME_API void SetBodyEnabled(BodyHandle2D body, bool enabled);
+    PIXIE_RUNTIME_API void SetCollisionFilter(ColliderHandle2D collider, CollisionFilter2D filter);
+    PIXIE_RUNTIME_API void TeleportBody(BodyHandle2D body, pxPoint position, double rotation, bool clearVelocity = true);
+    PIXIE_RUNTIME_API void ApplyForce(BodyHandle2D body, pxVec2 force, pxPoint worldPoint);
+    PIXIE_RUNTIME_API void ApplyImpulse(BodyHandle2D body, pxVec2 impulse, pxPoint worldPoint);
+    PIXIE_RUNTIME_API void ApplyTorque(BodyHandle2D body, double torque);
+    PIXIE_RUNTIME_API void ApplyAngularImpulse(BodyHandle2D body, double impulse);
+    PIXIE_RUNTIME_API void SetGravity(pxVec2 gravity);
+    PIXIE_RUNTIME_API pxVec2 Gravity() const;
+    PIXIE_RUNTIME_API void StepBodies(double delta, int substeps = 4);
     // Engine-owned snapshot, invalidated only by the next StepBodies/Reset, not by queued removals.
-    std::span<const PhysicsEvent2D> Events() const;
-    PhysicsStats2D Stats() const;
+    PIXIE_RUNTIME_API std::span<const PhysicsEvent2D> Events() const;
+    PIXIE_RUNTIME_API PhysicsStats2D Stats() const;
     // Copies backend geometry/manifolds without stepping, changing sleep state or consuming events.
-    std::vector<PhysicsDebugLine2D> DebugGeometry(std::uint32_t flags) const;
-    std::uint64_t Generation() const;
-    bool NeedsSimulation() const;
+    PIXIE_RUNTIME_API std::vector<PhysicsDebugLine2D> DebugGeometry(std::uint32_t flags) const;
+    PIXIE_RUNTIME_API std::uint64_t Generation() const;
+    PIXIE_RUNTIME_API bool NeedsSimulation() const;
     // Publishes reset ends for old identities immediately, then starts a fresh generation.
-    void Reset();
-    std::optional<CollisionHit2D> RayCast(pxPoint origin, pxVec2 translation,
+    PIXIE_RUNTIME_API void Reset();
+    PIXIE_RUNTIME_API std::optional<CollisionHit2D> RayCast(pxPoint origin, pxVec2 translation,
                                          CollisionFilter2D filter = {}, bool includeSensors = false) const;
-    std::optional<CollisionHit2D> CircleCast(pxPoint origin, double radius, pxVec2 translation,
+    PIXIE_RUNTIME_API std::optional<CollisionHit2D> CircleCast(pxPoint origin, double radius, pxVec2 translation,
                                            CollisionFilter2D filter = {}) const;
-    bool OverlapsCircle(pxPoint center, double radius, CollisionFilter2D filter = {}) const;
-    std::vector<ColliderHandle2D> OverlapBox(pxPoint center, pxVec2 halfSize,
+    PIXIE_RUNTIME_API bool OverlapsCircle(pxPoint center, double radius, CollisionFilter2D filter = {}) const;
+    PIXIE_RUNTIME_API std::vector<ColliderHandle2D> OverlapBox(pxPoint center, pxVec2 halfSize,
                                             CollisionFilter2D filter = {}, bool includeSensors = false) const;
     // Capsule is vertical: segment endpoints at center Y +/- halfSegment, plus radius.
     // Resolves initial overlap, casts towards target and clips velocity. Slopes are grounded only
     // when their upward normal meets minGroundNormal. Maximum 64 simultaneous planes; throws on overflow.
-    CapsuleMotion2D MoveCapsule(pxPoint center, double radius, double halfSegment,
+    PIXIE_RUNTIME_API CapsuleMotion2D MoveCapsule(pxPoint center, double radius, double halfSegment,
                                 pxVec2 translation, pxVec2 velocity,
                                 double minGroundNormal = 0.70710678,
                                 CollisionFilter2D filter = {}) const;
-    std::vector<CapsuleContact2D> CapsuleContacts(pxPoint center, double radius, double halfSegment,
+    PIXIE_RUNTIME_API std::vector<CapsuleContact2D> CapsuleContacts(pxPoint center, double radius, double halfSegment,
                                                CollisionFilter2D filter = {}) const;
-    double CapsuleSlop() const; // Same touching tolerance as MoveCapsule, in world units.
+    PIXIE_RUNTIME_API double CapsuleSlop() const; // Same touching tolerance as MoveCapsule, in world units.
 private:
     struct Impl;
     // Sole ownership keeps backend headers and lifetime out of the public API.

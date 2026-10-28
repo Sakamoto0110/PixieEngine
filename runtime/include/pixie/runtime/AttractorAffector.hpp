@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/runtime/ParticleAffector.hpp"
 
 #include <vector>
@@ -15,7 +17,7 @@ public:
     // Killing on contact does not depend on it.
     double scale = 1.0;
 
-    void Apply(World& world, Entity system, std::span<Particle> particles,
+    PIXIE_RUNTIME_API void Apply(World& world, Entity system, std::span<Particle> particles,
                const FrameTime& time) override;
 
 private:

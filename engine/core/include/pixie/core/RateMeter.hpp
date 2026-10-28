@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/core/Export.hpp"
+
 #include <chrono>
 #include <cstdint>
 
@@ -10,13 +12,13 @@ class RateMeter {
 public:
     using Clock = std::chrono::steady_clock;
 
-    explicit RateMeter(Clock::time_point start);
+    PIXIE_CORE_API explicit RateMeter(Clock::time_point start);
 
     void CountUpdate() { ++updates_; }
     void CountFrame() { ++frames_; }
 
     // Closes the current window when at least one second has passed; returns true if it did.
-    bool Sample(Clock::time_point now);
+    PIXIE_CORE_API bool Sample(Clock::time_point now);
 
     double UpdatesPerSecond() const { return updatesPerSecond_; }
     double FramesPerSecond() const { return framesPerSecond_; }

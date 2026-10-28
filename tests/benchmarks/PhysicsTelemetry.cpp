@@ -18,8 +18,9 @@ namespace {
 std::atomic<bool> countAllocations{false};
 std::atomic<std::uint64_t> allocations{0};
 }
-// Counts ordinary C++ new/new[] calls in this executable. Backend malloc/aligned
-// allocations are not covered, so zero is not proof of zero total heap activity.
+// Counts ordinary C++ new/new[] calls in this executable. The shared engine has
+// its own allocation call sites; neither those nor backend malloc/aligned calls
+// are observed. Zero is not proof of zero engine or total heap activity.
 void* operator new(std::size_t size) {
     if (countAllocations.load(std::memory_order_relaxed)) allocations.fetch_add(1, std::memory_order_relaxed);
     if (void* p = std::malloc(size == 0 ? 1 : size)) return p;
@@ -56,6 +57,7 @@ int Run(int argc, char** argv) {
     if (count < 0 || count > 500 || steps < 100 || steps > 100000
         || (mode != "awake" && mode != "sleeping") || (collection != "on" && collection != "off")
         || !pixie::benchmark::IsPhysicsWorkload2D(scenario)) return 2;
+    std::cerr << "Allocation scope: host executable new/new[] only; shared-engine and backend allocations are not observed.\n";
     pixie::World world(12345);
     const auto setup = pixie::benchmark::BuildPhysicsWorkload2D(world, count, scenario, mode == "awake");
     auto& telemetry = world.GetTelemetry();

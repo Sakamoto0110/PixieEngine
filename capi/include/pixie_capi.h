@@ -1,9 +1,8 @@
 /*
- * The C API of PixieEngine: a shared library, one per game, whose interface is C only, so any
+ * The C API of PixieEngine: one shared engine whose interface is C only, so any
  * language that calls C (the C# editor through P/Invoke, tools, tests) can run the game, draw it
- * into a texture, feed it input, and read and write its components. A game's library can also open
- * a project folder and edit, play, and save its scene; the engine's generic library,
- * pixie-scene-capi, runs a project folder that has no code.
+ * into a texture, feed it input, and read and write its components. A development host selects a
+ * game module before creating a session; without one, projects use only their scenes.
  *
  * Rules for every function:
  * - The OpenGL 4.5 core context the session was created with must be current on the calling
@@ -35,7 +34,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 16
+#define PIXIE_CAPI_VERSION 17
 
 typedef struct PixieSession PixieSession;
 
@@ -59,6 +58,12 @@ typedef enum PixieResult {
     PIXIE_ERROR_INTERNAL = 5,  /* an unexpected failure inside the engine */
     PIXIE_ERROR_IO = 6         /* a project or scene could not be read or written */
 } PixieResult;
+
+#ifdef PIXIE_DEVELOPMENT
+/* Selects the development game module for subsequent sessions. Null restores the
+ * scene-only project. Existing sessions retain their module until destruction. */
+PIXIE_API PixieResult pixie_module_load(const char* path);
+#endif
 
 /* What a session does with time, for pixie_session_mode. */
 typedef enum PixieMode {

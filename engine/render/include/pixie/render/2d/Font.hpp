@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/core/Image.hpp"
 
 #include <pixie/math/pxVec.hpp>
@@ -44,7 +46,7 @@ struct FontAtlas {
     Image image;
 
     // The glyph drawn for `codepoint`.
-    const AtlasGlyph& Glyph(char32_t codepoint) const;
+    PIXIE_RENDER_API const AtlasGlyph& Glyph(char32_t codepoint) const;
 
     static constexpr char32_t kFirst = 0x20;
     static constexpr char32_t kLast = 0xFF;
@@ -73,38 +75,38 @@ class Font {
 public:
     // Reads the font in `bytes`; nothing, with `error` set, when it is not a TrueType font that can
     // be rasterized (only outlines in a `glyf` table are).
-    static std::optional<Font> FromBytes(std::vector<std::uint8_t> bytes, std::string& error);
+    PIXIE_RENDER_API static std::optional<Font> FromBytes(std::vector<std::uint8_t> bytes, std::string& error);
     // FromBytes with the file at `path`.
-    static std::optional<Font> Load(const std::filesystem::path& path, std::string& error);
+    PIXIE_RENDER_API static std::optional<Font> Load(const std::filesystem::path& path, std::string& error);
 
-    Font(Font&&) noexcept;
-    Font& operator=(Font&&) noexcept;
-    ~Font();
+    PIXIE_RENDER_API Font(Font&&) noexcept;
+    PIXIE_RENDER_API Font& operator=(Font&&) noexcept;
+    PIXIE_RENDER_API ~Font();
 
     // Different for every Font made, never reused, so a cache of textures can key on it.
     std::uint64_t Id() const { return id_; }
 
     // The atlas at `pixelSize` (clamped to [kMinPixelSize, kMaxPixelSize]).
-    const FontAtlas& Atlas(int pixelSize);
+    PIXIE_RENDER_API const FontAtlas& Atlas(int pixelSize);
     static constexpr int kMinPixelSize = 4;
     static constexpr int kMaxPixelSize = 256;
 
     // `text` laid out at `pixelSize`: lines from the top-left, the first baseline at the atlas's
     // ascent, each line aligned within the widest (whose width Measure gives) by `align`.
-    std::vector<PlacedGlyph> Layout(std::string_view text, int pixelSize, TextAlign align = TextAlign::Left);
+    PIXIE_RENDER_API std::vector<PlacedGlyph> Layout(std::string_view text, int pixelSize, TextAlign align = TextAlign::Left);
     // The size of `text` at `pixelSize`, in pixels: the widest line's advance, and the lines' height.
     // Empty text measures zero.
-    pxVec2 Measure(std::string_view text, int pixelSize);
+    PIXIE_RENDER_API pxVec2 Measure(std::string_view text, int pixelSize);
 
 private:
     struct Data;
-    explicit Font(std::unique_ptr<Data> data);
+    PIXIE_RENDER_API explicit Font(std::unique_ptr<Data> data);
 
     std::unique_ptr<Data> data_;
     std::uint64_t id_ = 0;
 };
 
 // The code points of UTF-8 `text`; each byte that does not start a valid sequence is U+FFFD.
-std::vector<char32_t> DecodeUtf8(std::string_view text);
+PIXIE_RENDER_API std::vector<char32_t> DecodeUtf8(std::string_view text);
 
 } // namespace pixie

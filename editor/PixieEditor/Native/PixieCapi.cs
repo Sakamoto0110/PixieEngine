@@ -2,8 +2,8 @@ using System.Runtime.InteropServices;
 
 namespace PixieEditor.Native;
 
-// The C API of a game's library (capi/include/pixie_capi.h), through source-generated P/Invoke. The
-// library name is resolved by GameLibrary to the game the editor was opened with.
+// The shared engine C API (capi/include/pixie_capi.h), through source-generated P/Invoke.
+// GameLibrary resolves its location and selects a development module before session creation.
 
 public enum PixieResult
 {
@@ -132,7 +132,10 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 16;
+    internal const int Version = 17;
+
+    [LibraryImport(Library, EntryPoint = "pixie_module_load", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult ModuleLoad(string? path);
 
     [LibraryImport(Library, EntryPoint = "pixie_physics_debug_get")]
     internal static partial PixieResult PhysicsDebugGet(nint session, out uint flags);

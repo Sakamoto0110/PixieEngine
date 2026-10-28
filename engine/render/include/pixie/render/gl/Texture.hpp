@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/render/gl/Gl.hpp"
 
 namespace pixie {
@@ -16,13 +18,13 @@ public:
     Texture() = default;
     Texture(const Texture&) = delete;
     Texture& operator=(const Texture&) = delete;
-    Texture(Texture&& other) noexcept;
-    Texture& operator=(Texture&& other) noexcept;
-    ~Texture();
+    PIXIE_RENDER_API Texture(Texture&& other) noexcept;
+    PIXIE_RENDER_API Texture& operator=(Texture&& other) noexcept;
+    PIXIE_RENDER_API ~Texture();
 
     // Creates or recreates the texture from `image`; returns false for an empty image.
-    bool Create(const Image& image);
-    void Destroy();
+    PIXIE_RENDER_API bool Create(const Image& image);
+    PIXIE_RENDER_API void Destroy();
 
     GLuint Id() const { return id_; }
     int Width() const { return width_; }

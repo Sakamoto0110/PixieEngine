@@ -4,6 +4,7 @@
 // the thread's last error.
 
 #include "pixie_capi.h"
+#include "GameModules.hpp"
 
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/platform/HostSurface.hpp"
@@ -46,6 +47,9 @@ static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECO
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
+#ifdef PIXIE_DEVELOPMENT
+    std::shared_ptr<PixieGameModule> module;
+#endif
     pixie::HostSurface surface{{0, 0}};
     pixie::ProjectSession session;
     explicit PixieSession(std::unique_ptr<pixie::Project> project, pixie::SessionSettings settings)
@@ -53,6 +57,10 @@ struct PixieSession {
 };
 
 namespace {
+
+#ifdef PIXIE_DEVELOPMENT
+std::shared_ptr<PixieGameModule> loadedModule;
+#endif
 
 thread_local std::string lastError;
 
@@ -147,7 +155,21 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
     }
     pixie::SessionSettings settings;
     settings.seed = seed;
-    auto created = std::make_unique<PixieSession>(pixie::CreateProject(), settings);
+    std::unique_ptr<pixie::Project> project;
+#ifdef PIXIE_CAPI_FACTORY
+    project = pixie::CreateProject();
+#endif
+#ifdef PIXIE_DEVELOPMENT
+    if (loadedModule) {
+        project.reset(loadedModule->create());
+        if (!project) return Fail(PIXIE_ERROR_INTERNAL, "game module factory returned no project");
+    }
+#endif
+    if (!project) project = std::make_unique<pixie::SceneProject>();
+    auto created = std::make_unique<PixieSession>(std::move(project), settings);
+#ifdef PIXIE_DEVELOPMENT
+    created->module = loadedModule;
+#endif
     if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
         return Fail(PIXIE_ERROR_IO, created->session.Error());
     }
@@ -212,6 +234,29 @@ extern "C" {
 int32_t pixie_api_version(void) {
     return PIXIE_CAPI_VERSION;
 }
+
+#ifdef PIXIE_DEVELOPMENT
+PixieResult pixie_module_load(const char* path) {
+    return Guard([&]() -> PixieResult {
+        if (!path) { loadedModule.reset(); return PIXIE_OK; }
+        auto module = std::make_shared<PixieGameModule>();
+#ifdef _WIN32
+        const auto absolute = std::filesystem::absolute(FromUtf8(path));
+        module->handle = LoadLibraryExW(absolute.c_str(), nullptr,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+#else
+        module->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+#endif
+        if (!module->handle) return Fail(PIXIE_ERROR_IO, "game module could not be loaded");
+        const auto version = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_api_version"));
+        module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
+        if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
+            return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible");
+        loadedModule = std::move(module);
+        return PIXIE_OK;
+    });
+}
+#endif
 
 int32_t pixie_last_error(char* buffer, int32_t capacity) {
     if (buffer != nullptr && capacity > 0) {

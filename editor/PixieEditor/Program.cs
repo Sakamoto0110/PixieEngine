@@ -86,7 +86,7 @@ internal static class Program
 
     // A game's name, from its name or its library's path.
     public static string GameName(string game) =>
-        File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-capi", "") : game;
+        File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-module", "") : game;
 
     private static bool TryParse(string[] args, out EditorOptions options)
     {

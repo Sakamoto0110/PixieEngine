@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <filesystem>
 #include <string>
 #include <string_view>
@@ -14,11 +16,11 @@ namespace pixie {
 //
 // `projectName` is the project's name, in UTF-8; characters a file name cannot hold become `_`.
 // Returns an empty path, after logging why, when the name is empty or the folder cannot be made.
-std::filesystem::path UserDataFolder(std::string_view projectName);
+PIXIE_RUNTIME_API std::filesystem::path UserDataFolder(std::string_view projectName);
 
 // `name` as a folder name: every character Windows refuses in a file name (`<>:"/\|?*` and control
 // characters) becomes `_`, and trailing dots and spaces are dropped; empty when nothing is left, or
 // for "." and "..".
-std::string UserDataFolderName(std::string_view name);
+PIXIE_RUNTIME_API std::string UserDataFolderName(std::string_view name);
 
 } // namespace pixie

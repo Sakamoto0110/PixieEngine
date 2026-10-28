@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/platform/Export.hpp"
+
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxPoint.hpp>
 
@@ -64,27 +66,27 @@ public:
     static constexpr int kButtonCount = 8;
 
     // Host side: report events as they arrive. Codes outside the known range are ignored.
-    void SetKey(int code, bool down);
-    void SetMouseButton(int button, bool down);
+    PIXIE_PLATFORM_API void SetKey(int code, bool down);
+    PIXIE_PLATFORM_API void SetMouseButton(int button, bool down);
     // The cursor in framebuffer pixels, origin at the top-left corner, Y down.
-    void SetCursor(pxPoint position);
-    void AddScroll(pxVec2 offset);
+    PIXIE_PLATFORM_API void SetCursor(pxPoint position);
+    PIXIE_PLATFORM_API void AddScroll(pxVec2 offset);
 
     // Called after each fixed update: forgets the presses, releases, scroll, and movement it saw.
-    void EndUpdate();
+    PIXIE_PLATFORM_API void EndUpdate();
 
     // A modal host UI or focus loss cancels held controls. Report their releases once, discard
     // pending presses/movement/scroll, and keep the current cursor position.
-    void ReleaseAll();
+    PIXIE_PLATFORM_API void ReleaseAll();
 
-    bool IsDown(Key key) const;
+    PIXIE_PLATFORM_API bool IsDown(Key key) const;
     // Pressed at least once since the previous update, even if released again.
-    bool WasPressed(Key key) const;
-    bool WasReleased(Key key) const;
+    PIXIE_PLATFORM_API bool WasPressed(Key key) const;
+    PIXIE_PLATFORM_API bool WasReleased(Key key) const;
 
-    bool IsDown(MouseButton button) const;
-    bool WasPressed(MouseButton button) const;
-    bool WasReleased(MouseButton button) const;
+    PIXIE_PLATFORM_API bool IsDown(MouseButton button) const;
+    PIXIE_PLATFORM_API bool WasPressed(MouseButton button) const;
+    PIXIE_PLATFORM_API bool WasReleased(MouseButton button) const;
 
     // Where the cursor is now, in framebuffer pixels.
     pxPoint Cursor() const { return cursor_; }
@@ -96,7 +98,7 @@ public:
 private:
     enum : std::uint8_t { kDown = 1, kPressed = 2, kReleased = 4 };
 
-    static void Set(std::uint8_t& state, bool down);
+    PIXIE_PLATFORM_API static void Set(std::uint8_t& state, bool down);
 
     std::array<std::uint8_t, kKeyCount> keys_{};
     std::array<std::uint8_t, kButtonCount> buttons_{};

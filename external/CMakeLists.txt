@@ -6,7 +6,11 @@ find_package(OpenGL REQUIRED)
 # which also builds a shared library, utilities, and install rules.
 add_library(glew STATIC glew/src/glew.c)
 target_include_directories(glew SYSTEM PUBLIC glew/include)
-target_compile_definitions(glew PUBLIC GLEW_STATIC GLEW_NO_GLU)
+target_compile_definitions(glew PUBLIC GLEW_NO_GLU PRIVATE GLEW_BUILD)
+add_library(glew_headers INTERFACE)
+target_include_directories(glew_headers SYSTEM INTERFACE glew/include)
+target_compile_definitions(glew_headers INTERFACE GLEW_NO_GLU)
+target_link_libraries(glew_headers INTERFACE OpenGL::GL)
 target_link_libraries(glew PUBLIC OpenGL::GL)
 
 # GLFW: built through its own CMake project, without docs, tests, or examples.
@@ -14,7 +18,9 @@ set(GLFW_BUILD_DOCS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_TESTS OFF CACHE BOOL "" FORCE)
 set(GLFW_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
 set(GLFW_INSTALL OFF CACHE BOOL "" FORCE)
-set(USE_MSVC_RUNTIME_LIBRARY_DLL OFF CACHE BOOL "" FORCE)
+set(USE_MSVC_RUNTIME_LIBRARY_DLL ON CACHE BOOL "" FORCE)
+# Hosts and the shared engine must observe one GLFW context/callback state.
+set(GLFW_LIBRARY_TYPE SHARED CACHE STRING "One shared GLFW instance across native hosts" FORCE)
 add_subdirectory(glfw)
 
 # stb_easy_font: header-only.

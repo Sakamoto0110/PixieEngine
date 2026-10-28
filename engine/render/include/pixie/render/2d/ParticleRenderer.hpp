@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/render/Export.hpp"
+
 #include "pixie/render/View.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
@@ -37,11 +39,11 @@ struct ParticleStyle {
 class ParticleRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
-    bool Create();
-    void Destroy();
+    PIXIE_RENDER_API bool Create();
+    PIXIE_RENDER_API void Destroy();
 
     // `alpha` interpolates from Particle::previous to Particle::position, as FrameTime::alpha does.
-    void Draw(std::span<const Particle> particles, const ParticleStyle& style, double alpha,
+    PIXIE_RENDER_API void Draw(std::span<const Particle> particles, const ParticleStyle& style, double alpha,
               const View& view);
 
 private:

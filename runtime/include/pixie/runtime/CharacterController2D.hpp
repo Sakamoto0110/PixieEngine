@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/runtime/CollisionWorld2D.hpp"
 
 namespace pixie {
@@ -38,23 +40,23 @@ struct CharacterCouplingState2D {
 // position through Velocity2D. Jump is an optional command, not an engine input binding or game rule.
 class CharacterController2D {
 public:
-    explicit CharacterController2D(pxPoint position = {}, CharacterSettings2D settings = {});
+    PIXIE_RUNTIME_API explicit CharacterController2D(pxPoint position = {}, CharacterSettings2D settings = {});
     // Validates new tuning while preserving current motion. Call between completed steps.
-    void Configure(CharacterSettings2D settings);
-    void Teleport(pxPoint position);
-    void Step(const CollisionWorld2D& collision, double horizontal, bool jumpPressed, double delta,
+    PIXIE_RUNTIME_API void Configure(CharacterSettings2D settings);
+    PIXIE_RUNTIME_API void Teleport(pxPoint position);
+    PIXIE_RUNTIME_API void Step(const CollisionWorld2D& collision, double horizontal, bool jumpPressed, double delta,
               CollisionFilter2D filter = {});
     // Coupled path: prepare all motors, step this same physics world once, then finish all motors.
     // Preparation integrates intent once and applies bounded body commands; finish only queries.
-    void PrepareStep(CollisionWorld2D& collision, double horizontal, bool jumpPressed, double delta,
+    PIXIE_RUNTIME_API void PrepareStep(CollisionWorld2D& collision, double horizontal, bool jumpPressed, double delta,
                      CollisionFilter2D filter = {});
-    void FinishStep(const CollisionWorld2D& collision);
+    PIXIE_RUNTIME_API void FinishStep(const CollisionWorld2D& collision);
     // Motor velocity excludes carry while supported; Coupling().worldVelocity includes solved displacement.
     const CapsuleMotion2D& State() const { return state_; }
     const CharacterSettings2D& Settings() const { return settings_; }
     const CharacterCouplingState2D& Coupling() const { return coupling_; }
 private:
-    bool IntegrateIntent(double horizontal, bool jumpPressed, double delta);
+    PIXIE_RUNTIME_API bool IntegrateIntent(double horizontal, bool jumpPressed, double delta);
     CharacterSettings2D settings_;
     CapsuleMotion2D state_;
     double coyote_ = 0;
