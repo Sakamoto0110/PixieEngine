@@ -20,7 +20,7 @@ as it is. The editor creates no version-control files.
     pressed. The project takes the folder's name, and its scene starts with one shape.
   - **Open project** takes a folder that holds a `.pixie` file; project folders are marked in the
     picker, and Open waits until the current folder is one.
-- A project runs on the engine's generic library, `pixie-scene-capi`, so it opens without a
+- A project runs on the shared engine's generic scene project, so it opens without a
   compiler. The recent projects and the place of the last one are kept in the user's settings
   (`PixieEditor/settings.json` under the application data folder), never in a project.
 - **Edit and play.** A project opens in edit mode: time stands still, the time bar and Game wait,
@@ -147,8 +147,9 @@ The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings 
 
 ## Build and run
 
-Build the engine first: the editor looks for `<game>-capi.dll`, and for a project
-`pixie-scene-capi.dll`, in `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
+Build the engine first: the editor looks for `<game>-module.dll`, with
+`pixie.dll` beside it; scene-only projects load the shared engine directly.
+It searches `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
 with the .NET 10 SDK:
 
 ```bash
@@ -165,7 +166,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | Option | Default | Meaning |
 |---|---|---|
 | `--project <folder>` | none | Opens the project in this folder, in edit mode; its code, if it has any, is built first |
-| `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a game's C API library; with neither option, the start screen |
+| `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a development game module; with neither option, the start screen |
 | `--seed <n>` | `1` | Seed of a game's World; a project's comes from its scene |
 | `--select <name>` | none | Selects the entity with this name at the start |
 | `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`; a list of points is `x,y;x,y;...`); repeatable |

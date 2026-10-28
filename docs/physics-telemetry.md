@@ -128,10 +128,23 @@ stability. Runtime regressions check stable topology/handles, actual contact and
 sensor generation, finite poses and enabled/disabled collection trace agreement.
 Dense contact and sensor churn may allocate even when no geometry is rebuilt.
 
-Ordinary C++ new/new[] calls are counted inside the tick. Backend malloc and
-over-aligned allocations are outside this counter's coverage. All variants use
-the same allocation counter, so its cost is part of the measured fixture.
-Zero counted calls does not prove zero total heap activity.
+Ordinary C++ new/new[] calls intercepted by the benchmark executable are
+counted inside the tick. Backend malloc and over-aligned allocations are
+outside this counter's coverage. All variants use the same allocation counter,
+so its cost is part of the measured fixture. Zero counted calls does not prove
+zero total heap activity.
+
+**Shared-engine scope change, 2026-10-28.** The counter replaces global new
+only in the benchmark executable. With Runtime now in pixie.dll, it does not
+intercept Engine/backend allocation sites in that DLL; new CSV runs describe
+host new/new[] activity only, even though the CSV shape is retained. Do not
+compare those counts with the pre-DLL qualification as evidence of unchanged
+Engine allocations. The earlier allocation/sensitivity results remain valid
+for their statically linked baseline, not the new distribution. CPU timing and
+population telemetry still come from the native collector; their instrumentation
+is distinct from this allocation counter. Requalification of Engine allocation
+sites would require an explicitly scoped instrument in the DLL. No such new
+allocator infrastructure or closure of physics acceptance is claimed here.
 
 For a qualification report, run 0/100/500 populations in both states with
 collection on/off, interleaving at least three serial replicates. Preserve raw

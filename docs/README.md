@@ -52,5 +52,9 @@ owns the authority table: which document owns which kind of fact.
 | `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
 | [`modules/runtime/`](modules/runtime/README.md) | The `runtime` module: World, entities, Behaviours, update phases, particles, reflection, and projects |
 | [`modules/runtime/FINDINGS.md`](modules/runtime/FINDINGS.md) | Unconfirmed runtime observations and deferred investigations |
-| [`modules/capi/`](modules/capi/README.md) | The `capi` module: one shared library per game, with a C-only interface |
+| [`modules/core/`](modules/core/README.md) | CPU timing, logging, telemetry and images |
+| [`modules/platform/`](modules/platform/README.md) | Window/context ownership, input and frame limiting |
+| [`modules/render/`](modules/render/README.md) | GL resources, dimension-neutral View/readback and 2D renderers |
+| [`modules/app/`](modules/app/README.md) | Native player loop and debug/input composition |
+| [`modules/capi/`](modules/capi/README.md) | The C interface in the shared engine and development game modules |
 | `modules/` | One directory per decided engine boundary |

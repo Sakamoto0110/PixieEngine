@@ -24,11 +24,11 @@
 
 **Language:** cpp
 
-**Artifact:** static-library
+**Artifact:** shared-library
 
 **Platforms:** windows, linux
 
-**Module dependencies:** none
+**Module dependencies:** core, platform, render, app
 
 **Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes only), Box2D (private: collision backend)
 
@@ -42,7 +42,7 @@
 
 **Technical reference:** docs/modules/runtime/REFERENCE.md
 
-**Related boundaries:** capi
+**Related boundaries:** core, platform, render, app, capi
 
 **Source:** runtime/src
 
@@ -59,10 +59,11 @@
 - Authored scene movement and laboratory boundaries: [`editor-movement.md`](../../editor-movement.md).
 - Body dynamics and world settings: [`body-dynamics.md`](../../body-dynamics.md).
 - Contact/sensor events and qualification: [`body-events.md`](../../body-events.md).
-- Build target: `pixie_runtime` (alias `Pixie::Runtime`) in `runtime/CMakeLists.txt`. It links
-  the provisional engine library (`Pixie::Engine`: `FrameTime`, `Input`, `ShapeRenderer`,
-  `SpriteRenderer`, `PathRenderer`, `TextRenderer`, `Font`, `Image`, `Texture`), which
-  belongs to no decided boundary yet, so it is not listed under module dependencies.
+- Build: internal `pixie_runtime` object target in `runtime/CMakeLists.txt`,
+  compiled with the lower App/Render/Platform/Core dependencies. The public
+  `Pixie::Runtime` facade links the root shared engine, containing Runtime
+  rather than a separate runtime DLL. Headers and templates remain consumable
+  by directly linked game code and development modules.
 - Tests: `runtime-tests`, from `tests/runtime/`, run through CTest.
 - Origin: [PIXIE-PROPOSAL-004](../../proposals/scene-model-and-anchors.md), part 1, and the
   `runtime` boundary of [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md);

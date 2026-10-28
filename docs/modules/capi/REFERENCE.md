@@ -8,7 +8,7 @@
 
 **Lifecycle:** current
 
-**Subject:** the contract of the capi module: building a game's library, the session, rendering, input, reflection, errors, and threading
+**Subject:** the C interface in the shared engine, development game modules, sessions, rendering, reflection, errors and threading
 
 **Surface:** technical-reference
 
@@ -23,24 +23,38 @@
 The header `capi/include/pixie_capi.h` owns the exact declarations; this reference owns their
 meaning.
 
-## Building a game's library
+## Shared engine and development game modules
 
-`pixie_add_capi_library(<name> <game>)` (in `capi/CMakeLists.txt`) makes the shared library
-`<name>` in `bin/<config>/` from the API's object files and the static library `<game>`, which must
-define `pixie::CreateProject()` (see the runtime's `Project.hpp`). The API's code is an object
-library rather than a static one, so the exported functions, which nothing in the library calls,
-are not dropped by the linker. On Windows the functions are exported with `__declspec(dllexport)`
-(`PIXIE_CAPI_BUILD`); elsewhere with default visibility. The library links the C++ runtime
-statically, like every target, so a host needs no Visual C++ Redistributable. A game's project calls
-it through `pixie_game` ([runtime reference](../runtime/REFERENCE.md#projects-with-code)); it works
-from outside the engine's tree, and the library then lands in that project's `bin/<config>/`.
+The root `pixie_shared` target produces `pixie.dll` on Windows (`libpixie.so`
+on the other native path). It contains the Core/Platform/Render/App, Runtime
+and C API objects. `pixie_capi_objects` keeps every exported C function in
+that shared artifact. Windows uses `PIXIE_CAPI_BUILD`/`__declspec(dllexport)`;
+other platforms use default symbol visibility. Native targets share /MDd in
+Debug and /MD in Release. C++ game extensions require matching toolchain,
+headers and runtime configuration; the C API remains the editor boundary.
 
-When it is the top-level project, the engine builds one library of its own, `pixie-scene-capi`, from
-the game `pixie-scene-game`,
-whose project is the runtime's `SceneProject`: a World that is only its scene. It runs a project
-folder that has no code. Beside it, `pixie-player` links the same game with the engine's player
-(`runtime/player/PlayerMain.cpp`), so such a project also plays on its own:
-`pixie-player --project <folder>`.
+`pixie_game` builds directly linked game players and, only with
+`PIXIE_DEVELOPMENT`, `<game>-module` libraries containing the game's code and
+a versioned factory entry. They replace per-game copies of the C API/engine.
+The old `pixie_add_capi_library` path is no longer the build contract. The
+generic `pixie-player --project <folder>` still runs a scene-only project.
+
+In a development-enabled engine, `pixie_module_load(path)` selects a game
+factory for subsequent sessions. A null path resets that selection to the
+scene-only project. A missing/unloadable image returns an I/O error; a missing
+factory/version entry or incompatible API version returns an argument error.
+A failed load does not replace the current selection. Each created session
+retains its module until its ProjectSession, World, descriptors, callbacks and
+game objects are destroyed. Changing or clearing the default module does not
+invalidate an existing session. Hosts must destroy sessions before releasing
+their remaining library/context ownership.
+
+Module loading is development-only, not a player export mechanism. Ordinary
+game players link their game directly. App-local runtime packaging and
+development-free export/MCP barriers remain separately qualified under
+[PIXIE-TODO-051](../../../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+See the [qualification matrix](../../shared-engine-export-validation.md) for
+configuration-specific evidence and pending delivery gates.
 
 ## Rules for every function
 
@@ -52,7 +66,7 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (16), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (17), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -62,7 +76,8 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
   version 12 layer editor metadata, value-type flags and collision layer name queries, and
   version 13 the read-only body mass query, and version 14 native collider handle
   queries and drag editing, and version 15 capsule radius/height handles and the
-  expanded handle-result layout, and version 16 session physics debug options; a
+  expanded handle-result layout, version 16 session physics debug options,
+  and version 17 development module loading in the shared engine; a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
@@ -347,7 +362,8 @@ No Name editing, no choice of scene other than the start scene, and no fields of
 ## Validation
 
 `tests/capi/CapiTest.c` is a C11 program that includes only `pixie_capi.h` from the engine, loads a
-game's library at run time (`LoadLibrary` or `dlopen`, as P/Invoke does), creates a hidden GLFW
+shared engine at run time (`LoadLibrary` or `dlopen`, as P/Invoke does), optionally selects a
+development module with `--module`, creates a hidden GLFW
 window with an OpenGL 4.5 core context, and checks: the version; type and field lookup; the
 metadata of a field shown in degrees, and a tooltip on every field; the entity
 list and the oldest entity's name; writing a field and reading it back; time, the 0.25 s clamp,
@@ -357,9 +373,9 @@ into its transform's position and back; an entity's scene ID found again, a rena
 that brings the entity back under the same ID after it is destroyed (and is refused while it
 exists); that a session without a project
 plays and refuses play, stop, and save; creating an entity, adding and removing a component, and
-destroying it; and reset. CTest runs it once per game library.
+destroying it; and reset. CTest runs it against the shared engine with each selected game module.
 
-With `--project <folder>`, on `pixie-scene-capi`, it drives a whole project instead: it creates one
+With `--project <folder>`, on the shared engine without a game module, it drives a whole project instead: it creates one
 (and fails to create it again in the same folder), opens it in edit mode with its one shape drawn
 and no step run, creates an entity with a transform and a velocity, saves, plays 24 steps and finds
 the entity moved 40 units without marking the scene unsaved, stops and finds it back at the origin,

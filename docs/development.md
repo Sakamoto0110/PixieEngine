@@ -64,8 +64,13 @@ cmake --build --preset vs2026-release
 - `-DPIXIE_BUILD_SAMPLES=OFF` builds the engine alone, and
   `-DPIXIE_ENGINE_BUILD_TESTS=OFF` leaves out the tests (PixieLib owns the name
   `PIXIE_BUILD_TESTS`, for its own tests, which stay off).
-- Every target links the C++ runtime statically (`/MT`), so an executable needs
-  no Visual C++ Redistributable.
+- Native targets use the shared C++ runtime: `/MDd` in Debug and `/MD` in
+  Release. The engine is built once as `pixie.dll`; game players link their
+  code directly and development builds also produce `<game>-module.dll`.
+  The shared native dependency `glfw3.dll` belongs beside the corresponding
+  binaries. App-local Visual C++ runtime export deployment is being qualified
+  under [PIXIE-TODO-051](../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel);
+  a development build directory is not yet a qualified standalone export.
 - The project's own targets compile with `/W4 /WX`: a warning is an error.
   Third-party code under `external/` compiles with its own settings.
 - On x86-64 they also compile for AVX2 (`/arch:AVX2`; `-mavx2 -mfma -mf16c`
@@ -77,7 +82,7 @@ cmake --build --preset vs2026-release
 `build/` and `bin/` can be deleted at any time; configure again.
 
 The C# editor builds on its own, with the .NET 10 SDK, after the engine (it
-loads the games' C API libraries from `bin/`):
+loads the shared engine and selected development game module from `bin/`):
 
 ```bash
 dotnet build editor/PixieEditor.slnx -c Release

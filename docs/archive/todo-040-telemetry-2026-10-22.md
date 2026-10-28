@@ -32,7 +32,7 @@
 
 **Commits:** `9d022c1639383f3397cfe7ac52057db1b20860be`, and this record in `a18fe6ba9ecadb94b148f6cce7d23019bd277c70`
 
-**Current state:** [telemetry guide](../telemetry.md), [public API](../../engine/include/pixie/Telemetry.hpp)
+**Current state:** [telemetry guide](../telemetry.md), [public API](../../engine/core/include/pixie/core/Telemetry.hpp)
 
 ## Accepted entry
 

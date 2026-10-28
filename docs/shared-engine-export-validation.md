@@ -40,6 +40,18 @@ production migration remains unstarted at the safe checkpoint below. The
 shared engine/export work does not close physics D3/D4/D5,
 owner feel acceptance or coupled workload qualification under PIXIE-TODO-043.
 
+The resumed DLL/module foundation is preserved in local code commit
+`70e3524455386e648ff8bb1ec62cc1c0e1b89014`, parent
+`ce85c8442970f8c49e8858cd190f01f9ae573e7d`. It is a partial delivery checkpoint,
+not TODO-051 completion. Follow-up source commit
+`9abd26f540d1db4ffcf72ee831bc25ad7a83a89f` sets position-independent code
+before creating the embedded native dependencies, covering static GLEW,
+PixieLib math and Box2D as well as the engine objects. This corrects the
+shared-library build wiring; it is not a Linux build qualification.
+Documentation is committed separately. The executed
+matrix below distinguishes earlier full runs, final targeted reruns and work
+not performed; the code commit alone is not proof of the remaining gates.
+
 ## Qualification matrix
 
 | Claim | Required evidence and failure signal | Dependency |
@@ -65,6 +77,112 @@ owner feel acceptance or coupled workload qualification under PIXIE-TODO-043.
 | Consumers and documentation can resume accurately | PixieLib/Inspector responses distinguish recommendations from executed acceptance. Record final full code hashes, package/binary provenance, LogicSandbox header/build/loading breaks without migrating it, documentation checks and unmet rows. | Final implementation and consumer feedback |
 
 ## Evidence and recovery
+
+### Resumed production DLL/module foundation, 2026-10-28
+
+The implementation working tree built vs2026 Debug and Release with zero
+warnings/errors. Debug CTest passed 17/17 in 94.05 seconds; Release passed
+17/17 in 91.29 seconds. These runs include the external project-code build,
+shared-engine game modules, engine/runtime tests and module-lifetime fixture.
+The lifetime fixture rejects an invalid factory image, clears the default
+module selection while a live boids session still steps/resets and reads its
+descriptors, then destroys the session. It does not by itself qualify arbitrary
+hot reload or mixed compiler/configuration modules.
+
+An earlier Debug run passed 14/15 but failed player-input tests because static
+GLFW was duplicated between the host and DLL. Sharing glfw3.dll corrected that
+state/TLS split; the complete rerun above passed. GLEW state is embedded/exported
+once by the engine. No vendored source edit or suppression of class-export
+warnings was used for those fixes.
+
+The editor Release build passed with zero warnings. Launches for boids,
+particles and sparks exited zero and produced viewport captures, inspected
+by the principal coordinator. The bare --game particles/sparks logs reported
+missing font assets, so those captures prove geometry/viewport opening but
+do not qualify complete HUD/text display. Asset-root/project launches and the
+project-with-code editor opening remain to be closed. The initial code-project
+fixture lacked a start scene; it is being extended and requalified before an
+editor opening is counted.
+
+The code-project fixture was then extended with a Spinner/triangle scene and
+player execution. Its targeted Release CTest passed 1/1 in 75.12 seconds.
+The editor opened that project through CodeTest-module.dll and exited zero;
+its log records a Spinner.speed edit through the existing Inspector path,
+undo/redo and Play/Stop with retained history labels. The captured frame shows
+the project/Inspector. This is module/editor lifecycle evidence, not an MCP
+execution or an independent proof of every post-gesture native value.
+
+Before the next checkpoint, the coordinator added an ABI-valid module whose
+factory returns null. Session creation rejects it with an internal error and
+null output rather than silently falling back to the scene-only project.
+The affected module-lifetime/generic/boids cases passed 3/3 in Debug (5.33
+seconds) and Release (4.33 seconds) after that change. These targeted reruns
+do not relabel the earlier complete matrices as executions of later source.
+
+The active solution's generated native project settings were inspected for
+34 targets in both configurations: 68 entries, zero runtime mismatches
+against MultiThreadedDebugDLL in Debug and MultiThreadedDLL in Release. This
+checks selected build properties, not the final exported folder's runtime
+dependency closure. The gate fixture was also rebuilt against the current
+sources and passed Debug 1/1 in 2.83 seconds; its current-source Release gate
+was not rerun. The earlier pre-migration Release gate remains historical.
+
+At the owner's subsequent checkpoint request, stop after this DLL/module
+foundation. CI-preset qualification, development-free output/configuration,
+manifest export and four barrier sensitivities, MCP, deterministic capture,
+snapshot approvals and full sample-project asset-root visual checks remain
+pending. Bare --game font warnings above are not treated as fixed. No push
+or publication accompanies the checkpoint.
+
+These are staged milestone results, not the final CI/export/MCP or
+deterministic snapshot matrix. Later edits require the corresponding checks
+again. The foundation code hash is recorded above; its full-matrix versus
+targeted-rerun limits remain part of the evidence. No TODO-051 completion is
+inferred here.
+
+The physics benchmark's executable-local replacement of global new/new[] no
+longer observes Runtime allocation sites moved into pixie.dll. Its new runs
+are host-allocation observations only, not a repetition of the pre-DLL Engine
+allocation qualification. CPU/population collectors retain their native
+scope. See [physics instrumentation limits](physics-telemetry.md) before
+interpreting allocation CSV. No new cross-DLL allocator instrument or physics
+acceptance is implied by passing the build/test matrix.
+
+### Resumed Inspector contract review, 2026-10-28
+
+The Inspector collaborator rechecked public API 0.3.0 at
+`d9716b130d7ee4d426e1e71c8dd90cf3772075fe`, with all-route VAW compatibility,
+and supplied a proposed host integration contract and 26 acceptance cases.
+That review ran no executable tests and changed no API, code, package or
+published artifact. The cases are a preparation/acceptance plan; they are not
+26 passed tests or a new mandatory Inspector feature set.
+
+The plan separates held/view values from explicit live/storage reads, creation
+failures in Inspector.Report from current node/command failures, and handler
+execution from binding success. Host responses must not erase command-local
+refusals through a later successful read, imply multi-edit rollback, apply
+pending edits while reading or reuse nodes across selection/session generations.
+Existing --set/--do handlers and EditRecorder remain the write/history path.
+Those observations qualify the already accepted readback/history semantics;
+they do not require exact widget-formatted text or a new public Inspector API.
+Any generic fixture result still needs separate real editor/MCP qualification.
+
+### Inspector managed fixture qualification, 2026-10-28
+
+The next Inspector execution used the public 0.3.0 package in an isolated cache
+and passed five public-API fixture cases (I03, I08, I10, I14 and I15), totaling
+26 assertions: view/storage units, pending manual binding without implicit
+apply, rule refusal despite a handler returning true, partial multi-target
+effects and preservation of a failed-command receipt through later reads and
+recovery. A copied harness using only handler true as the success oracle
+failed I10 as intended. Restoring its source and explicitly rebuilding passed
+again; the evidence distinguishes stale incremental output from the rebuilt
+restoration.
+
+This is managed fixture evidence from the Inspector collaborator, not the
+real Engine handler, native state, EditRecorder/history, IPC/MCP or widget
+acceptance. Those host checks remain pending. No source/API/package/version
+change or publication accompanied the fixture run.
 
 ### Observed EnTT prerequisite and safe stop, 2026-10-28
 
@@ -113,11 +231,32 @@ native rerun by this documentation writer.
 
 Do not describe that PixieLib Debug result as /MDd. The isolated Engine gate
 qualified /MDd Debug separately; these are different input configurations.
-TASK-202 remains open for the production migration, app-local runtime closure
-and, if standalone PixieLib evidence is required, explicit /MDd Debug
-qualification. The collaborator reported publishing its documentation record;
+At that checkpoint TASK-202 remained open for the production migration,
+app-local runtime closure and explicit standalone /MDd Debug qualification.
+The resumed result below closes the last of those prerequisites only.
+The collaborator reported publishing its documentation record;
 that does not broaden this task's remote authority, and the coordinator
 requested no further pushes.
+
+### Resumed PixieLib /MDd prerequisite, 2026-10-28
+
+After resumption, the PixieLib thread performed a separate standalone Debug
+build at `21634516bf00014102b056ced02a0f44ad36d614` with
+`CMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDebugDLL`. Its effective generated
+properties and compiler command records confirm /MDd for `pixie_math`,
+`pixie_tests_module` and `pixie_tests`. Configure/build/test exited zero,
+with zero warnings/errors and CTest 1/1 passing (1.26 seconds total), including
+the existing events-across-modules checks. Directive/import inspection reports
+MSVCRTD and Debug runtime dependencies. The toolchain was MSVC 19.51.36260.0,
+toolset 14.51.36231, Visual Studio 18 2026 x64 and CMake 4.3.1-msvc1.
+
+The coordinator read the result, effective target properties and CTest log;
+the execution belongs to the PixieLib thread. No API/CMake/versioned-source
+change, commit, push or publication occurred in this resumed validation.
+Release was not repeated. This new /MDd result remains separate from the
+earlier /MD-in-both-configurations run. It qualifies the standalone checkout,
+not the Engine vendor snapshot, production target migration, final DLL ABI,
+runtime deployment or MCP/export exclusion. TASK-202 remains in progress.
 
 Keep in-progress commands, logs, snapshots and measurements in unversioned
 working evidence. No versioned link points into that local evidence. A recovered
