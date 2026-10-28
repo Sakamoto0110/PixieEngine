@@ -30,6 +30,7 @@ owns the authority table: which document owns which kind of fact.
 | [`../TASKLIST.md`](../TASKLIST.md) | Task breakdowns of promoted work |
 | [`../DEPENDENCIES.md`](../DEPENDENCIES.md) | Dependencies, versions, status, and candidates |
 | [`development.md`](development.md) | How to build, check, and commit a change |
+| [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | Qualification plan for PIXIE-TODO-051: shared engine, export barriers and separately isolated local MCP development |
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
 | [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |
