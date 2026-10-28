@@ -1,8 +1,8 @@
 #include "Check.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/Scene.hpp"
-#include "pixie/ShapeRenderer.hpp"
-#include "pixie/Camera2D.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
 #include <nlohmann/json.hpp>
 #include <cmath>
 #include <numbers>

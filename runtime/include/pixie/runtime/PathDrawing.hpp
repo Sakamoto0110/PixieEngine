@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/PathRenderer.hpp"
+#include "pixie/render/2d/PathRenderer.hpp"
 
 #include <pixie/pxPoint.hpp>
 #include <pixie/pxRect.hpp>

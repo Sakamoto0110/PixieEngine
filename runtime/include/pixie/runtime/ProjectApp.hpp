@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/App.hpp"
+#include "pixie/app/App.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 
 #include <chrono>

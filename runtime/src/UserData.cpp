@@ -1,6 +1,6 @@
 #include "pixie/runtime/UserData.hpp"
 
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 
 #include <cstdlib>
 #include <format>

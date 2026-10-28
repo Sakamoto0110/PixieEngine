@@ -1,6 +1,6 @@
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/World.hpp"
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 #include <algorithm>
 #include <cmath>
 #include <format>

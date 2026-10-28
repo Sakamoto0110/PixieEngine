@@ -1,6 +1,6 @@
 #include "Check.hpp"
 
-#include "pixie/PathRenderer.hpp"
+#include "pixie/render/2d/PathRenderer.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/PathDrawing.hpp"

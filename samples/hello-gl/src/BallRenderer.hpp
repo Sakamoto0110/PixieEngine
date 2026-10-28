@@ -3,8 +3,8 @@
 #include "Color.hpp"
 #include "Vec2.hpp"
 
-#include "pixie/Gl.hpp"
-#include "pixie/Window.hpp"
+#include "pixie/render/gl/Gl.hpp"
+#include "pixie/platform/Window.hpp"
 
 #include <span>
 

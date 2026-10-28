@@ -1,7 +1,8 @@
-#include "pixie/Run.hpp"
-#include "pixie/RunOptions.hpp"
-#include "pixie/Gl.hpp"
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/app/Run.hpp"
+#include "pixie/app/RunOptions.hpp"
+#include "pixie/render/RenderTarget.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 #include "pixie/runtime/World.hpp"
 #include <array>
 #include <cmath>
@@ -23,12 +24,12 @@ public:
     bool Start(pixie::Window& window) override { window_=&window;return shapes_.Create(); }
     void Update(const pixie::FrameTime& time,const pixie::Input& input) override { world_.Step(time.delta,input); }
     void Render(const pixie::FrameTime&,const pixie::Input&) override {
-        glClearColor(0.035f,0.05f,0.085f,1);glClear(GL_COLOR_BUFFER_BIT);
+        pixie::ClearColor(0.035f,0.05f,0.085f,1);
         camera_.SetViewport(window_->GetFramebufferSize());
         pixie::ShapeInstance shape;
         shape.position={static_cast<float>(180*std::sin(world_.Elapsed())),70};
         shape.scale={45,45};shape.rotation=static_cast<float>(world_.Elapsed());shape.color={50,220,210};
-        shapes_.Submit(pixie::ShapeKind::Quad,shape);shapes_.Flush(camera_);
+        shapes_.Submit(pixie::ShapeKind::Quad,shape);shapes_.Flush(camera_.MakeView());
     }
     void Stop() override { shapes_.Destroy(); }
     pixie::Telemetry* GetTelemetry() override { return &world_.GetTelemetry(); }

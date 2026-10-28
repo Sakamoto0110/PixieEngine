@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/Gl.hpp"
+#include "pixie/render/gl/Gl.hpp"
 
 #include <string_view>
 

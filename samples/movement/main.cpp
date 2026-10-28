@@ -1,7 +1,8 @@
-#include "pixie/Gl.hpp"
-#include "pixie/Run.hpp"
-#include "pixie/RunOptions.hpp"
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/render/RenderTarget.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/app/Run.hpp"
+#include "pixie/app/RunOptions.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 #include "pixie/runtime/CharacterController2D.hpp"
 #include "pixie/runtime/World.hpp"
 #include <array>
@@ -44,7 +45,7 @@ public:
     void Stop() override { shapes_.Destroy(); }
     void Update(const pixie::FrameTime& time, const pixie::Input& input) override { world_.Step(time.delta, input); }
     void Render(const pixie::FrameTime& time, const pixie::Input&) override {
-        glClearColor(0.025f, 0.035f, 0.06f, 1); glClear(GL_COLOR_BUFFER_BIT);
+        pixie::ClearColor(0.025f, 0.035f, 0.06f, 1);
         camera_.SetViewport(window_->GetFramebufferSize());
         for (const auto& block : kRoom) {
             pixie::ShapeInstance shape;
@@ -66,7 +67,7 @@ public:
             body.position.y = static_cast<float>(position.y + offset);
             shapes_.Submit(pixie::ShapeKind::Circle, body);
         }
-        shapes_.Flush(camera_);
+        shapes_.Flush(camera_.MakeView());
     }
     pixie::Telemetry* GetTelemetry() override { return &world_.GetTelemetry(); }
     void Headless() { for (int i = 0; i < 600; ++i) world_.Step(1.0 / 60, {}); }

@@ -1,8 +1,8 @@
 #pragma once
 
-#include "pixie/FrameTime.hpp"
-#include "pixie/Input.hpp"
-#include "pixie/Telemetry.hpp"
+#include "pixie/core/FrameTime.hpp"
+#include "pixie/platform/Input.hpp"
+#include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/Behaviour.hpp"
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"

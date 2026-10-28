@@ -1,8 +1,8 @@
 #pragma once
 
-#include "pixie/App.hpp"
-#include "pixie/Camera2D.hpp"
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/app/App.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 
 #include <cstdint>
 #include <vector>

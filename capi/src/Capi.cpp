@@ -5,7 +5,8 @@
 
 #include "pixie_capi.h"
 
-#include "pixie/GlLoader.hpp"
+#include "pixie/render/gl/GlLoader.hpp"
+#include "pixie/platform/HostSurface.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/PathDrawing.hpp"
@@ -45,6 +46,7 @@ static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECO
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
 struct PixieSession {
+    pixie::HostSurface surface{{0, 0}};
     pixie::ProjectSession session;
     explicit PixieSession(std::unique_ptr<pixie::Project> project, pixie::SessionSettings settings)
         : session(std::move(project), settings) {}
@@ -138,6 +140,8 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
         return Fail(PIXIE_ERROR_ARGUMENT, "null output or empty view");
     }
     *session = nullptr;
+    pixie::HostSurface surface({width, height});
+    surface.MakeCurrent();
     if (!pixie::LoadGl()) {
         return Fail(PIXIE_ERROR_GL, "OpenGL 4.5 core functions could not be loaded for the current context");
     }
@@ -147,7 +151,8 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
     if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
         return Fail(PIXIE_ERROR_IO, created->session.Error());
     }
-    if (!created->session.Start({width, height})) {
+    created->surface.Resize(surface.GetFramebufferSize());
+    if (!created->session.Start(created->surface.GetFramebufferSize())) {
         created->session.Stop();
         return Fail(PIXIE_ERROR_GL, "the renderers could not be created");
     }
@@ -379,7 +384,8 @@ PixieResult pixie_session_resize(PixieSession* s, int32_t width, int32_t height)
         return Fail(PIXIE_ERROR_ARGUMENT, "empty view");
     }
     return Guard([&] {
-        s->session.Resize({width, height});
+        s->surface.Resize({width, height});
+        s->session.Resize(s->surface.GetFramebufferSize());
         return PIXIE_OK;
     });
 }
@@ -436,6 +442,7 @@ PixieResult pixie_session_render(PixieSession* s, uint32_t* texture) {
         return Fail(PIXIE_ERROR_ARGUMENT, "null output");
     }
     return Guard([&] {
+        s->surface.MakeCurrent();
         *texture = s->session.RenderToTarget();
         return *texture != 0 ? PIXIE_OK : Fail(PIXIE_ERROR_GL, "the render target could not be made");
     });

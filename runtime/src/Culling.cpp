@@ -1,6 +1,6 @@
 #include "pixie/runtime/Culling.hpp"
 
-#include "pixie/Camera2D.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"

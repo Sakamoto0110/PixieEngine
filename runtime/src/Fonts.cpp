@@ -1,6 +1,6 @@
 #include "pixie/runtime/Fonts.hpp"
 
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 
 #include <format>
 #include <utility>

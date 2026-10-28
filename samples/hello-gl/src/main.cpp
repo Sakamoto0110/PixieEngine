@@ -1,7 +1,7 @@
 #include "HelloGlApp.hpp"
 
-#include "pixie/Log.hpp"
-#include "pixie/Run.hpp"
+#include "pixie/core/Log.hpp"
+#include "pixie/app/Run.hpp"
 
 #include <charconv>
 #include <cstdio>
@@ -10,7 +10,7 @@
 namespace {
 
 constexpr const char* kUsage =
-    "usage: hello-gl [--ups <hz>] [--fps <hz>] [--vsync on|off] [--quit-after <seconds>]\n"
+    "usage: hello-gl [--screenshot <file.png>] [--ups <hz>] [--fps <hz>] [--vsync on|off] [--quit-after <seconds>]\n"
     "  --ups         updates per second (default 60)\n"
     "  --fps         frame cap; 0 means none (default 0)\n"
     "  --vsync       on or off (default on)\n"
@@ -46,6 +46,8 @@ bool ParseArguments(int argc, char** argv, pixie::RunConfig& config) {
             if (!ParseNumber(value, config.quitAfterSeconds)) {
                 return false;
             }
+        } else if (option == "--screenshot") {
+            config.screenshotPath = value;
         } else {
             return false;
         }

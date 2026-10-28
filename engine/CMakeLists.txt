@@ -1,42 +1,9 @@
-# Provisional engine library: window, GL context, main loop, input, 2D camera, and shape, particle,
-# sprite, path, and text rendering, with PNG images and TrueType fonts.
-# Its layout changes when the module split (PIXIE-PROPOSAL-001) is decided.
-
-add_library(pixie_engine STATIC
-    src/DebugConsole.cpp
-    src/DebugOverlay.cpp
-    src/Camera2D.cpp
-    src/Font.cpp
-    src/FrameLimiter.cpp
-    src/GlBuffer.cpp
-    src/GlDebugOutput.cpp
-    src/GlLoader.cpp
-    src/GlVertexArray.cpp
-    src/Image.cpp
-    src/Input.cpp
-    src/LibraryCheck.cpp
-    src/Log.cpp
-    src/ParticleRenderer.cpp
-    src/PathRenderer.cpp
-    src/RateMeter.cpp
-    src/RenderTarget.cpp
-    src/RunOptions.cpp
-    src/Run.cpp
-    src/Screenshot.cpp
-    src/ShaderProgram.cpp
-    src/ShapeRenderer.cpp
-    src/SpriteRenderer.cpp
-    src/TextRenderer.cpp
-    src/Telemetry.cpp
-    src/Texture.cpp
-    src/Window.cpp
-)
-add_library(Pixie::Engine ALIAS pixie_engine)
-set_target_properties(pixie_engine PROPERTIES FOLDER engine)
-
-target_include_directories(pixie_engine PUBLIC include)
-target_link_libraries(pixie_engine PUBLIC glew pixie::pixie pixie::math EnTT::EnTT PRIVATE glfw stb_image stb_truetype stb_easy_font)
-target_compile_definitions(pixie_engine PRIVATE GLFW_INCLUDE_NONE)
-
+# One-way native library boundaries; existing consumers keep the umbrella target.
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
-pixie_target_defaults(pixie_engine)
+add_subdirectory(core)
+add_subdirectory(platform)
+add_subdirectory(render)
+add_subdirectory(app)
+add_library(pixie_engine INTERFACE)
+add_library(Pixie::Engine ALIAS pixie_engine)
+target_link_libraries(pixie_engine INTERFACE Pixie::App)

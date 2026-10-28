@@ -1,6 +1,6 @@
 #include "Check.hpp"
 
-#include "pixie/Camera2D.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
 
 #include <cmath>
 

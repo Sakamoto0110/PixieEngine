@@ -1,6 +1,6 @@
 #include "Check.hpp"
 
-#include "pixie/FixedStepper.hpp"
+#include "pixie/core/FixedStepper.hpp"
 
 #include <cmath>
 #include <vector>

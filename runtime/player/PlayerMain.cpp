@@ -4,9 +4,9 @@
 // scene in a window, with the options every player takes. Not part of the runtime library: only a
 // game's executable has it.
 
-#include "pixie/Log.hpp"
-#include "pixie/Run.hpp"
-#include "pixie/RunOptions.hpp"
+#include "pixie/core/Log.hpp"
+#include "pixie/app/Run.hpp"
+#include "pixie/app/RunOptions.hpp"
 #include "pixie/runtime/ProjectApp.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 

@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/Telemetry.hpp"
+#include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/PhysicsDebug2D.hpp"
 #include <pixie/math/pxVec.hpp>

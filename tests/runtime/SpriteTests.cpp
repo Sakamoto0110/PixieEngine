@@ -1,6 +1,6 @@
 #include "Check.hpp"
 
-#include "pixie/Image.hpp"
+#include "pixie/core/Image.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Picking.hpp"
 #include "pixie/runtime/Scene.hpp"

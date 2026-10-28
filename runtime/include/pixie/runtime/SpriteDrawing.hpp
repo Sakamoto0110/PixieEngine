@@ -2,7 +2,7 @@
 
 #include <pixie/pxRect.hpp>
 
-#include "pixie/SpriteRenderer.hpp"
+#include "pixie/render/2d/SpriteRenderer.hpp"
 
 #include <entt/entity/entity.hpp>
 

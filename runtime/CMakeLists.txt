@@ -1,6 +1,7 @@
 # The runtime module (docs/modules/runtime/): the World, entities, Behaviours, and update phases.
 
 add_library(pixie_runtime STATIC
+    src/LibraryCheck.cpp
     src/CollisionWorld2D.cpp
     src/CharacterController2D.cpp
     src/SceneMovement2D.cpp

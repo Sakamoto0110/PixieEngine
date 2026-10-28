@@ -1,6 +1,6 @@
 #include "HelloGlApp.hpp"
 
-#include "pixie/Gl.hpp"
+#include "pixie/render/gl/Gl.hpp"
 
 #include <cmath>
 #include <format>

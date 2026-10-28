@@ -6,7 +6,7 @@
 #include <vector>
 #include <map>
 #include <tuple>
-#include "pixie/Telemetry.hpp"
+#include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 

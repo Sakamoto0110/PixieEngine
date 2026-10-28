@@ -1,10 +1,10 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
-#include "pixie/PathRenderer.hpp"
-#include "pixie/ShapeRenderer.hpp"
-#include "pixie/SpriteRenderer.hpp"
-#include "pixie/TextRenderer.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/PathRenderer.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
+#include "pixie/render/2d/SpriteRenderer.hpp"
+#include "pixie/render/2d/TextRenderer.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxColorRgba.hpp>

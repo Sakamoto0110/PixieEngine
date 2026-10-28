@@ -1,7 +1,7 @@
 #include "Check.hpp"
-#include "pixie/Run.hpp"
-#include "pixie/Gl.hpp"
-#include "pixie/Telemetry.hpp"
+#include "pixie/app/Run.hpp"
+#include "pixie/render/gl/Gl.hpp"
+#include "pixie/core/Telemetry.hpp"
 
 #include <GLFW/glfw3.h>
 #include <array>

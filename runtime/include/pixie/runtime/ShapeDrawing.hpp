@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 
 #include <pixie/pxRect.hpp>
 

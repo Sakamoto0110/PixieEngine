@@ -182,7 +182,7 @@ std::vector<std::string> ParticlePhysicsErrors2D(World& world) {
 
 void DrawParticles(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha) {
     for (auto [id, system] : world.Registry().view<const ParticleSystem>().each()) {
-        renderer.Draw(system.particles, system.style, alpha, camera);
+        renderer.Draw(system.particles, system.style, alpha, camera.MakeView());
     }
 }
 

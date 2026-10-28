@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/Image.hpp"
-#include "pixie/Texture.hpp"
+#include "pixie/core/Image.hpp"
+#include "pixie/render/gl/Texture.hpp"
 
 #include <pixie/math/pxVec.hpp>
 

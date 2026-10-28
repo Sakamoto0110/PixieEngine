@@ -1,8 +1,8 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
-#include "pixie/Input.hpp"
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/platform/Input.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 
 #include <pixie/pxColorRgba.hpp>
 #include <pixie/pxPoint.hpp>

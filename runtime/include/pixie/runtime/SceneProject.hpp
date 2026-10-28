@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
-#include "pixie/Input.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/platform/Input.hpp"
 #include "pixie/runtime/Project.hpp"
 
 #include <string>

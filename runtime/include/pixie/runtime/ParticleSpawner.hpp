@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/Particle.hpp"
+#include "pixie/render/2d/Particle.hpp"
 
 #include <entt/entity/entity.hpp>
 

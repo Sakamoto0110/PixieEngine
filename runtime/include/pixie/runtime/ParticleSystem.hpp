@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/Particle.hpp"
-#include "pixie/ParticleRenderer.hpp"
+#include "pixie/render/2d/Particle.hpp"
+#include "pixie/render/2d/ParticleRenderer.hpp"
 #include "pixie/runtime/ParticleAffector.hpp"
 
 #include <cstddef>

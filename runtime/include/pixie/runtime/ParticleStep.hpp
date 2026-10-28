@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
-#include "pixie/ParticleRenderer.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/ParticleRenderer.hpp"
 
 #include <string>
 #include <vector>
