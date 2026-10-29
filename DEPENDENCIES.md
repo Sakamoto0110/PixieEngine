@@ -115,6 +115,27 @@ host uses (`editor/PixieEditor/PixieEditor.csproj`). `PixieInspector.Avalonia`
 project, not of the engine. A change of binding is PixieInspector's decision;
 its own `DEPENDENCIES.md` lists them.
 
+## Local development MCP tool
+
+The development-only `tools/pixie-mcp/PixieMcp.csproj` targets .NET 10 independently
+of the native Engine and editor. Its initial explicit public-source NuGet
+restore resolved `ModelContextProtocol` 2.3.0 and
+`Microsoft.Extensions.Hosting` 10.0.14. `packages.lock.json` records the
+resolved dependency graph and content hashes. The coordinator read the
+restore log and source/SHA-512 provenance for both direct packages. These
+are implementation pins, not an upstream latest-version audit. A locked restore
+passed, and local player-host SDK-client integration passed twenty-six cases
+against both Debug and Release. Editor-host integration remains pending. The official SDK source is
+[modelcontextprotocol/csharp-sdk](https://github.com/modelcontextprotocol/csharp-sdk).
+
+No native or editor package reference to this tool is introduced. Its SDK,
+hosting dependencies, configuration and executable must remain absent from
+game exports and editor publish/remote-release artifacts. Both ordinary and
+NoBuild local publication of the tool were rejected with zero files produced
+in their requested destinations. Windows export contamination checks cover the
+native channel; future editor-channel code and actual remote-release producers
+still require their own exclusion evidence.
+
 ## Own projects
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |

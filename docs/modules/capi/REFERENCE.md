@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (17), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (18), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -77,10 +77,50 @@ configuration-specific evidence and pending delivery gates.
   version 13 the read-only body mass query, and version 14 native collider handle
   queries and drag editing, and version 15 capsule radius/height handles and the
   expanded handle-result layout, version 16 session physics debug options,
-  and version 17 development module loading in the shared engine; a
+  version 17 development module loading in the shared engine, and version 18
+  development-only in-memory World dispatch; a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
+
+## Development-only World dispatch
+
+With `PIXIE_DEV_CHANNEL`, `pixie_dev_dispatch` executes one owner-thread
+JSON-RPC request over an existing session. It does not create a listener,
+transport thread, host frame hook or MCP server. The private borrowed adapter
+does not own, stop or destroy the underlying ProjectSession. Owned C API
+sessions retain their module lease through native session teardown.
+
+Requests are bounded to 64 KiB. The response buffer must provide at least
+4 MiB before execution; unlike ordinary string queries, a short buffer is
+rejected before a command can mutate state. Do not probe response size by
+executing a write twice. If post-write readback exceeds the response bound,
+the dispatcher returns a bounded error with `possibly_applied`, without retry.
+ABI/framing failures use the function's PixieResult; method failures are
+JSON-RPC errors carrying the immediately captured native result/error text.
+Valid notifications execute without a response body.
+
+`world.hello` reports the Engine dispatch protocol, API version and actual
+capabilities. It is distinct from a future MCP handshake. This adapter serves
+only `world.*`, using scene IDs and named component fields through existing
+C API operations. It neither assigns scene IDs during reads nor exposes save,
+export or arbitrary filesystem operations. World writes do not establish
+Inspector binding/history behavior.
+
+Snapshot tokens are local to the dispatcher and expire after a World rebuild.
+Restoring selected scene IDs can change runtime handles; incoming references
+from outside the selection are refused before replacement, including tracked
+handles destroyed during an experiment. Recovery on failure is restricted to
+the selected IDs and reports possible partial effects or failed rollback. It
+does not promise transactional rollback of arbitrary game-code side effects.
+See the [qualification record](../../shared-engine-export-validation.md) for
+executed fixtures and remaining host/transport/Inspector gates.
+
+The player host composes this dispatcher with development-only local transport
+and render hooks. That composition, rather than this C function, implements
+fixed-folder alpha-one PNG capture and frame receipts. Only the player World
+path and local SDK-client integration are qualified at the current milestone;
+there is no active editor listener or qualified Inspector channel yet.
 
 ## Session
 

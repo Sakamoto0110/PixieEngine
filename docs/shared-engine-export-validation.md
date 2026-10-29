@@ -309,6 +309,178 @@ identity breaking disabled. The coordinator read both final CTest summaries.
 This closes the historical missing current-Release gate run; the earlier
 broken-identity sensitivity remains evidence at its recorded older baseline.
 
+### Native dispatcher resumption, 2026-10-29
+
+The owner explicitly resumed after the pause. The coordinator verified clean
+main at `4bc18a76b5877ba79de64c66a39364dda04f14a9`, the preserved eight-file
+013 scaffold manifest and all seven VAW routes. The implementation writer
+acknowledged sole code/build ownership; the coordinator retains documentation
+and read-only review. The scaffold was not buildable when paused and does not
+establish API-18 or dispatcher delivery merely by being restored.
+
+The first bounded increment is native World dispatch in memory, with borrowed
+session lifetime, owner-thread rejection, response-buffer preflight, immediate
+native error receipts and snapshot failure semantics qualified before IPC.
+Runtime must not acquire a C API/editor dependency; owned sessions retain module
+leases through destruction of native objects and descriptors. Save and indirect
+save/export/build/import aliases remain unavailable over the channel. Inspector
+handler/history qualification, once-per-frame host dispatch, local single-client
+transport and actual MCP compatibility are later integration gates. None is
+claimed by this resumption record. The completed capture checkpoint and all
+unapproved candidate/reference boundaries remain intact.
+
+The initial in-memory implementation subsequently built in Debug and its
+targeted CTest passed 1/1 (2.43 seconds total), wrapping thirteen native fixtures.
+The coordinator read the final test summary, dispatcher and fixtures. Coverage
+includes owner-thread/buffer preflight, native named-field and scene-ID access,
+actual step/time-scale receipts, text/point/record operations, borrowed teardown,
+input/view commands, lifecycle/unsaved state and disabled save aliases.
+
+Review strengthened restore handling before qualification: tokens are tied to
+the session's World revision, while ordinary experiment edits remain possible.
+Incoming references outside the snapshot are refused before replacement,
+including handles of entities already destroyed during an experiment. Internal
+and outgoing references use native restoration. Recreating entities may change
+runtime handles; it does not change their scene IDs. Failure injection covers
+partial native restore, cleanup restricted to the selected scene IDs, successful
+recovery of prior values and explicitly failed rollback. This is bounded
+recovery over the declared surface, not a transaction for arbitrary game code
+or its side effects.
+
+A greater-than-4-MiB post-write readback produces a small error receipt marked
+possibly_applied; the fixture confirms the mutation ran once without retry.
+Earlier iterations included a mistaken collider-default expectation and a
+constructor-injection failure that exposed partial restore; the later targeted
+pass does not erase those attempts. Release and broader integration/exclusion
+qualification remain pending. There is still no listener, host drain or MCP
+wrapper in this increment.
+
+A later response-buffer preflight mutant was detected: short-buffer writes
+caused three failed assertions. Restoring source bytes initially preserved an
+older timestamp, so the subsequent incremental build reused the mutated C API
+object. That intermediate full Debug run is not final-restoration evidence.
+The writer identified the stale object and is forcing effective recompilation
+before repeating qualification. A correct source hash alone does not establish
+that the executed binary has been restored; retain the distinct mutation,
+intermediate failure and final rebuild results.
+The subsequent restoration build log explicitly compiles Capi.cpp. The targeted
+module-lifetime and dispatcher tests then passed 2/2 in 2.13 seconds total;
+the coordinator read both the compilation line and test summary. The preceding
+full Debug run remains recorded as 19/20 with the known stale-mutant failure,
+not relabeled as an all-pass run. The following full Release matrix passed
+20/20 in 272.12 seconds (dispatcher 1.56, export 162.29, capture 10.35 seconds).
+The coordinator read the final summary. The fresh complete Debug rerun then
+passed 20/20 in 278.29 seconds (dispatcher 1.44, export 157.84, capture 26.72
+seconds). The coordinator read that summary and the final qualification receipt.
+Local code commit `f22942a8e206b820003f9a68256c6b5b1eace3f1` preserves the
+bounded in-memory World dispatcher/API-18 increment. Transport, player-host
+integration and MCP tool/client work are excluded from that qualified commit;
+their uncommitted files do not establish listener or MCP delivery.
+
+The future MCP tool's locked restore also passed. Its local publish refusal
+returned exit 1 with zero files in the requested publish destination; the
+coordinator read the receipt. This is tool-project isolation evidence, not a
+functional MCP/client or final native/editor dependency-closure qualification.
+
+### Initial Windows player-host and MCP integration, 2026-10-29
+
+An initial Debug integration using a real local pipe and the official C# SDK
+client passed twenty cases on the player host. The coordinator read the receipt
+and test client. Checks include hello-first, single-client refusal, queue drain
+while paused, completed three-step responses, capture alpha one, traversal and
+reserved-name rejection, existing-file byte preservation, disabled save and
+unavailable Inspector namespace. SDK discovery/pause/step and PNG image content
+passed; invalid capture paths and overwrite attempts returned tool errors.
+The capture root contains spaces and Unicode. This is SDK-client qualification,
+not evidence that the tool is registered in or has been called by Codex.
+
+Two earlier attempts at 96x64 failed explicitly because the requested
+framebuffer was unavailable, before reaching hello. Hiding the window did not
+establish support for that size. The passing fixture uses supported 640x360
+native and 1280x720 wrapper captures; no arbitrary-size guarantee follows.
+
+An independent static review found two further host cases: a capture while the
+framebuffer is empty could leave the worker waiting for a skipped render, and
+Stop/Start of one PlayerChannel could reuse a connection identifier with a null
+dispatcher. Corrections now complete unavailable-framebuffer captures with an
+error and reset/recheck dispatcher/client state. Dedicated regression fixtures
+then passed in the targeted Debug native test (1/1, 2.62 seconds total), now
+containing eighteen fixture groups: thirteen World groups, four transport
+groups and the player lifecycle/empty-framebuffer group. A fixture-local MSVC
+alias/default-argument compilation issue was corrected before that passing run;
+it was not an executed transport failure. The direct empty-framebuffer fixture
+also verifies no file is written and subsequent stats requests flow. It does
+not exercise minimization through the actual UI. The independent reviewer
+rechecked both corrections statically, without executing tests. The coordinator
+read the native summary and fixture, then a fresh real-pipe/SDK-client receipt
+with twenty passing cases on the corrected host.
+
+The transport fixtures inspect the owner-SID protected ACL, reject another
+server instance and a second client, defer effects until owner drain, reconnect
+with a new client identity, and stop during idle/deferred I/O. This is scoped
+local Windows evidence, not a cross-user adversarial process test or Unix
+permission qualification. Export detection has been expanded for the new
+transport classes/flags/marker; its new contamination cases remain unexecuted
+at this point and do not inherit acceptance from the earlier export suite.
+Editor-host Inspector/history routing and final artifact exclusions remain
+separate pending integration gates.
+
+An expanded SDK-client run subsequently passed twenty-six cases. Its receipt
+records monotonic/distinct command frames, negotiated MCP protocol 2026-07-28,
+and a client explicitly configured for legacy 2025-11-25 completing discovery,
+pause and image-content calls. The coordinator read the receipt; these remain
+local SDK-client results, not Codex registration or remote interoperability.
+The full host Debug matrix and new transport-contamination export fixtures are
+still in progress. Editor-host capture timing remains under design; a temporary
+pause cannot be treated as a neutral observation because the native pause setter
+drops accumulated fractional time. An editor capture implementation must avoid
+that hidden clock change or explicitly refuse unsupported live captures until
+a non-mutating rendering path is available.
+
+The first full host Debug matrix passed 19/20 but failed export: after the
+Windows entry point converted arguments to UTF-8, automatic project discovery
+still interpreted argv[0] as an ANSI path. This broke the exported player's
+Unicode-folder launch without an explicit project argument. The writer changed
+that construction to a UTF-8 filesystem path and started a fresh full rerun.
+The failure does not establish a manifest-verifier defect or acceptance of the
+new contamination cases; keep the failed and restored results separate.
+The corrected full host Debug rerun then passed 20/20 in 285.70 seconds,
+including capture 29.95, dispatcher/transport 1.10 and export 161.33 seconds.
+The coordinator read the final summary and all thirty-three export receipts.
+New negative cases reject an actual transport-only DLL without C API exports,
+a channel-marker-only DLL and all three channel options in both code and
+no-code shipping players. Those executed cases qualify the expanded Windows
+detector at this revision; they do not cover unbuilt editor-host integration.
+Release host qualification then passed 20/20 in 269.70 seconds: capture 10.04,
+dispatcher/transport 1.51 and export 161.59 seconds. The SDK-client integration
+also passed all twenty-six cases against Release, including current/legacy
+protocol discovery, pause and image content. The coordinator read the final
+Release summary and receipt. Ordinary and NoBuild tool publication each failed
+with zero destination files; locked package restore passed.
+
+The preserved editor pipe scaffold creates its native handle with explicit remote
+client rejection, first-instance/overlapped flags and an owner-SID protected
+ACL before wrapping it for managed asynchronous I/O. This addresses the gap
+between current-user identity restriction and local-only transport by source
+inspection. It is not yet a listening editor-host or executed cross-user/network
+qualification. Do not infer those claims from the player-host tests. That
+scaffold, along with its Inspector surface/native wrappers/history preparation,
+was backed up and removed/restored out of the active source before checkpoint;
+it is not an active feature of the committed player host.
+
+The local host/tool milestone is committed as
+`d319ce312b5ae818ab753f5fac40fc67e0b4a458`, following in-memory dispatcher
+commit `f22942a8e206b820003f9a68256c6b5b1eace3f1`. At the owner's checkpoint
+request, all new implementation stopped. Six unfinished editor files are
+preserved separately with hashes and a patch; the complete earlier working
+snapshot is retained as well. The editor scaffold is neither listening nor
+functionally qualified. Its one-shot non-mutating alpha override is still a
+plan. The current editor was rebuilt against the committed source, and future
+work must recheck the checkpoint/backup manifests rather than assuming the WIP
+is active. No push, remote publication, reference approval, real Codex tool
+registration, Linux/Unix transport or new Ninja host matrix is established by
+this milestone. TODO-051 remains unfinished.
+
 ### Resumed production DLL/module foundation, 2026-10-28
 
 The implementation working tree built vs2026 Debug and Release with zero
