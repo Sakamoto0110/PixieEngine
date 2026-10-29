@@ -534,11 +534,13 @@ internal sealed class EditorWindow(EditorOptions options)
         var ok = true;
         switch (verb)
         {
+#if PIXIE_DEVELOPMENT
             case "export":
                 if (export == null || session.ProjectFolder == null || !session.Editing || session.Unsaved || string.IsNullOrWhiteSpace(argument))
                     ok = false;
                 else export(argument);
                 break;
+#endif
             case "create":
                 ok = authoring.CreateEntity() != null;
                 break;

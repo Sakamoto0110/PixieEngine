@@ -38,7 +38,8 @@ def main():
     publish("development-blocked", [], "development operations cannot be published")
     published = publish("shipping", ["-p:PixieDevelopmentTools=false"])
     binary = (published / "PixieEditor.dll").read_bytes()
-    for marker in (b"ProjectExportJob", b"ExportPanel", b"PixieEditor.Development"):
+    for marker in (b"ProjectExportJob", b"ExportPanel", b"PixieEditor.Development",
+                   b"get_Export", "Export game...".encode("utf-16-le")):
         assert marker not in binary, marker
     assert not list(published.rglob("*pixie-mcp*")) and not list(published.rglob("*pixie-export*"))
     publish("no-build-blocked", ["-p:PixieDevelopmentTools=false"], "existing editor binary", no_build=True)
