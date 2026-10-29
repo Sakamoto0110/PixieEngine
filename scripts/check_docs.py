@@ -20,7 +20,7 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
 # Generated, third-party, or unversioned trees; their Markdown is not ours to check.
-SKIPPED_DIRS = {".git", ".vs", ".vscode", ".local", "build", "bin", "out", "x64", "external", "obj"}
+SKIPPED_DIRS = {".git", ".vs", ".vscode", ".local", "build", "build-ci", "bin", "out", "x64", "external", "obj"}
 
 problems: list[str] = []
 
