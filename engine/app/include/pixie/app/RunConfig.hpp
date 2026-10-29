@@ -4,6 +4,10 @@
 #include <filesystem>
 #include <optional>
 #include <string>
+#ifdef PIXIE_DEVELOPMENT
+#include "pixie/core/FramebufferSize.hpp"
+#include <functional>
+#endif
 
 namespace pixie {
 
@@ -26,6 +30,16 @@ struct RunConfig {
     std::optional<std::uint64_t> quitAfterSteps;
     std::uint64_t seed = 1;
     bool exactFramebufferSize = false;
+    bool hidden = false;
+    // Optional development host seams. The app layer knows nothing of sessions/CAPI/IPC.
+    // advanceFrame replaces its fixed-update driver; beforeRender runs once per frame,
+    // including paused/minimized frames. The host consumes its own injected input.
+    std::function<void(double)> advanceFrame;
+    std::function<void()> beforeRender;
+    std::function<double()> renderAlpha;
+    // Also called with an empty size when minimized, so deferred captures can fail promptly.
+    std::function<void(FramebufferSize)> afterRender;
+    std::function<void()> beforeStop;
 #endif
     // With a timed or step-limited exit, the final frame is saved here as a PNG.
     std::filesystem::path screenshotPath;

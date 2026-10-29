@@ -20,7 +20,7 @@ public:
     Window(const Window&) = delete;
     Window& operator=(const Window&) = delete;
 
-    PIXIE_PLATFORM_API bool Create(int width, int height, const std::string& title);
+    PIXIE_PLATFORM_API bool Create(int width, int height, const std::string& title, bool visible = true);
     PIXIE_PLATFORM_API void MakeCurrent() const override;
     PIXIE_PLATFORM_API FramebufferSize GetFramebufferSize() const override;
     PIXIE_PLATFORM_API void SetTitle(const std::string& title);

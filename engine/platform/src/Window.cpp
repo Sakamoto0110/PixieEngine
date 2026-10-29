@@ -17,7 +17,7 @@ Window::~Window() {
     }
 }
 
-bool Window::Create(int width, int height, const std::string& title) {
+bool Window::Create(int width, int height, const std::string& title, bool visible) {
     if (handle_ || ownsSession_) return false;
     glfwSetErrorCallback([](int code, const char* description) {
         LogError(std::format("GLFW {}: {}", code, description));
@@ -31,6 +31,7 @@ bool Window::Create(int width, int height, const std::string& title) {
     glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 5);
     glfwWindowHint(GLFW_OPENGL_PROFILE, GLFW_OPENGL_CORE_PROFILE);
     glfwWindowHint(GLFW_OPENGL_FORWARD_COMPAT, GLFW_TRUE);
+    glfwWindowHint(GLFW_VISIBLE, visible ? GLFW_TRUE : GLFW_FALSE);
 #ifndef NDEBUG
     glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #endif

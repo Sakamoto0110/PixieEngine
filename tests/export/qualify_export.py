@@ -176,6 +176,10 @@ def main():
         rejected = command(name + "-capture-option-excluded",
                            [shipping / shipping_manifest["player"], "--quit-after-steps", "0"], "usage:")
         assert rejected.returncode == 2
+        for flag, value in (("--dev-channel", "forbidden"), ("--dev-capture-dir", "captures"), ("--dev-hidden", "on")):
+            rejected = command(name + "-" + flag[2:] + "-excluded",
+                               [shipping / shipping_manifest["player"], flag, value], "usage:")
+            assert rejected.returncode == 2
     # Barrier 1: a development-enabled engine in a falsely declared shipping manifest.
     broken = copy.deepcopy(base)
     replace_source(broken, "pixie.dll", Path(args.exporter).resolve().parent / "pixie.dll")
@@ -196,10 +200,16 @@ FARPROC p=GetProcAddress(m,"pixie_game_create"); FreeLibrary(m); return p?7:0; }
     (probe / "empty.c").write_text('#pragma comment(linker, "/export:Probe=private_dependency.Answer")\nint placeholder;\n', encoding="utf-8")
     (probe / "forwarder.def").write_text('LIBRARY forwarder\n', encoding="utf-8")
     (probe / "CMakeLists.txt").write_text('''cmake_minimum_required(VERSION 3.25)
-project(ExportProbes C)
+project(ExportProbes C CXX)
 add_executable(loader loader.c)
 add_library(private_dependency SHARED dependency.c)
 add_library(forwarder SHARED empty.c forwarder.def)
+''' + f'''
+add_library(local_channel SHARED "{engine.as_posix()}/engine/platform/src/LocalCommandChannel.cpp")
+target_include_directories(local_channel PRIVATE "{engine.as_posix()}/engine/platform/include")
+target_compile_definitions(local_channel PRIVATE PIXIE_PLATFORM_BUILD)
+target_link_libraries(local_channel PRIVATE advapi32)
+set_target_properties(local_channel PROPERTIES CXX_STANDARD 20 CXX_STANDARD_REQUIRED ON)
 ''', encoding="utf-8")
     configure = [args.cmake, "-S", probe, "-B", probe / "build", "-G", args.generator]
     if args.generator.startswith("Visual Studio"):
@@ -211,6 +221,20 @@ add_library(forwarder SHARED empty.c forwarder.def)
     replace_source(broken, broken["player"], binaries / "loader.exe")
     command("barrier2-player-module-loader", [args.exporter, "--from-manifest", write_manifest("module-loader", broken),
                                              run / "bad-loader"], "development code")
+    transport_only = binaries / "local_channel.dll"
+    transport_bytes = transport_only.read_bytes()
+    assert b"pixie_dev_dispatch" not in transport_bytes and b"pixie_module_load" not in transport_bytes
+    assert b"LocalCommandChannel" in transport_bytes and b"PIXIE_DEVELOPMENT_CHANNEL_V1" in transport_bytes
+    broken = copy.deepcopy(base)
+    replace_source(broken, "pixie.dll", transport_only)
+    command("barrier2-transport-without-capi", [args.exporter, "--from-manifest", write_manifest("transport-only", broken),
+                                              run / "bad-transport"], "development code")
+    marker_only = probe / "marker-only.dll"
+    marker_only.write_bytes((package / "pixie.dll").read_bytes() + b"PIXIE_DEVELOPMENT_CHANNEL_V1\0")
+    broken = copy.deepcopy(base)
+    replace_source(broken, "pixie.dll", marker_only)
+    command("barrier2-channel-marker-without-export", [args.exporter, "--from-manifest", write_manifest("marker-only", broken),
+                                                     run / "bad-channel-marker"], "development code")
 
     contaminated = clone("unlisted-file", package)
     (contaminated / "unlisted.txt").write_text("not in the game manifest", encoding="utf-8")

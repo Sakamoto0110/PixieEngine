@@ -22,12 +22,14 @@ constexpr int kMaxText = 1024 * 1024;
 struct Failure : std::runtime_error {
     PixieResult result;
     bool possiblyApplied = false;
+    int rpcCode = 0;
     explicit Failure(PixieResult code, std::string message, bool applied = false)
         : std::runtime_error(std::move(message)), result(code), possiblyApplied(applied) {}
 };
-[[noreturn]] void Reject(std::string message, PixieResult result = PIXIE_ERROR_ARGUMENT) {
+[[noreturn]] void Reject(std::string message, PixieResult result = PIXIE_ERROR_ARGUMENT, int rpcCode = 0) {
     SetNativeError(result, message);
-    throw Failure(result, std::move(message));
+    Failure failure(result, std::move(message)); failure.rpcCode = rpcCode;
+    throw failure;
 }
 void Check(PixieResult result) {
     if (result == PIXIE_OK) return;
@@ -569,7 +571,7 @@ struct WorldDispatcher::Impl {
             const auto after = Stats();
             return {{"stats", after}, {"steps_run", after["steps"].get<uint64_t>() >= before["steps"].get<uint64_t>() ? after["steps"].get<uint64_t>() - before["steps"].get<uint64_t>() : 0}};
         }
-        Reject("unsupported World method (save, filesystem and host capture are disabled): " + method, PIXIE_ERROR_NOT_FOUND);
+        Reject("unsupported World method (save, filesystem and host capture are disabled): " + method, PIXIE_ERROR_NOT_FOUND, -32601);
     }
 };
 
@@ -627,7 +629,7 @@ std::string WorldDispatcher::Dispatch(std::string_view request) {
         auto e = failure;
         e.possiblyApplied = e.possiblyApplied || impl_->mutationStarted;
         SetNativeError(e.result, e.what());
-        return notification ? std::string{} : Error(id, rpc, e, impl_->sequence, impl_->generation).dump();
+        return notification ? std::string{} : Error(id, e.rpcCode != 0 ? e.rpcCode : rpc, e, impl_->sequence, impl_->generation).dump();
     } catch (const std::exception& exception) {
         const Failure e(PIXIE_ERROR_INTERNAL, exception.what(), impl_->mutationStarted);
         SetNativeError(e.result, e.what());

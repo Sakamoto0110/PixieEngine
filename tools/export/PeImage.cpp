@@ -150,8 +150,10 @@ PeImage InspectPe(const std::filesystem::path& path) {
             image.imports.push_back(forwarder.substr(dot + 1));
         }
     }
-    constexpr std::string_view marker = "pixie_game_create";
-    image.moduleLoaderMarker = std::search(reader.bytes.begin(), reader.bytes.end(), marker.begin(), marker.end()) != reader.bytes.end();
+    for (const std::string_view marker : {"pixie_game_create", "PIXIE_DEVELOPMENT_CHANNEL_V1", "--dev-channel",
+             "--dev-capture-dir", "--dev-hidden", "--quit-after-steps"})
+        image.developmentMarker = image.developmentMarker ||
+            std::search(reader.bytes.begin(), reader.bytes.end(), marker.begin(), marker.end()) != reader.bytes.end();
     return image;
 #else
     (void)path;

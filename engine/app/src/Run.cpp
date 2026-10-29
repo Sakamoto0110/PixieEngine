@@ -106,7 +106,11 @@ int Run(App& app, const RunConfig& config) {
     // Callback state outlives the window, including its destruction.
     PlayerInput input(config);
     Window window;
+#ifdef PIXIE_DEVELOPMENT
+    if (!window.Create(config.width, config.height, config.title, !config.hidden)) return 1;
+#else
     if (!window.Create(config.width, config.height, config.title)) return 1;
+#endif
     const Surface& surface = window;
     surface.MakeCurrent();
     GLFWwindow* handle = window.Handle();
@@ -140,7 +144,7 @@ int Run(App& app, const RunConfig& config) {
                         config.vsync ? "on" : "off"));
 
 #ifdef PIXIE_DEVELOPMENT
-    if (config.quitAfterSteps) {
+    if (config.quitAfterSteps || config.advanceFrame) {
         input.game.SetCursor(pxPoint(-1.0, -1.0));
         input.game.EndUpdate();
     } else
@@ -149,12 +153,18 @@ int Run(App& app, const RunConfig& config) {
 
     if (!app.Start(window)) {
         LogError("App::Start failed");
+#ifdef PIXIE_DEVELOPMENT
+        if (config.beforeStop) config.beforeStop();
+#endif
         app.Stop();
         return 1;
     }
 
     DebugOverlay overlay;
     if (!overlay.Create()) {
+#ifdef PIXIE_DEVELOPMENT
+        if (config.beforeStop) config.beforeStop();
+#endif
         app.Stop();
         return 1;
     }
@@ -201,6 +211,12 @@ int Run(App& app, const RunConfig& config) {
             advanceDelta = stepper.Steps() < *config.quitAfterSteps ? stepper.StepSeconds() : 0.0;
         }
 #endif
+#ifdef PIXIE_DEVELOPMENT
+        if (config.advanceFrame) {
+            const TelemetryScope measure(telemetry, updateMetric);
+            config.advanceFrame(frameDelta);
+        } else
+#endif
         stepper.Advance(advanceDelta, [&](const FrameTime& time) {
             {
                 const TelemetryScope measure(telemetry,updateMetric);
@@ -209,6 +225,9 @@ int Run(App& app, const RunConfig& config) {
             input.game.EndUpdate();
             meter.CountUpdate();
         });
+#ifdef PIXIE_DEVELOPMENT
+        if (config.beforeRender) config.beforeRender();
+#endif
 
         bool quitting =
             config.quitAfterSeconds > 0.0 && Seconds(now - start) >= config.quitAfterSeconds;
@@ -224,8 +243,12 @@ int Run(App& app, const RunConfig& config) {
                 auto renderTime = stepper.RenderTime(drawnDelta, frameIndex);
 #ifdef PIXIE_DEVELOPMENT
                 if (config.quitAfterSteps) renderTime.alpha = 1.0;
+                if (config.renderAlpha) renderTime.alpha = config.renderAlpha();
 #endif
                 app.Render(renderTime, input.game);
+#ifdef PIXIE_DEVELOPMENT
+                if (config.afterRender) config.afterRender(size);
+#endif
             }
             {
                 const TelemetryScope observer(telemetry,observerMetric);
@@ -245,6 +268,10 @@ int Run(App& app, const RunConfig& config) {
             ++frameIndex;
             meter.CountFrame();
         } else {
+#ifdef PIXIE_DEVELOPMENT
+            // A host must complete/reject a queued capture even without a drawable surface.
+            if (config.afterRender) config.afterRender(size);
+#endif
             // Minimized: there is nothing to draw, so do not spin.
             window.WaitEvents(0.05);
         }
@@ -265,6 +292,7 @@ int Run(App& app, const RunConfig& config) {
     overlay.Destroy();
 #ifdef PIXIE_DEVELOPMENT
     if (config.quitAfterSteps) LogInfo(std::format("Completed {} fixed steps; capture alpha: 1", stepper.Steps()));
+    if (config.beforeStop) config.beforeStop();
 #endif
     app.Stop();
     return 0;

@@ -1,5 +1,5 @@
 # Private component of the single shared engine; the adapter reuses its C API operations.
-add_library(pixie_devchannel OBJECT src/Dispatcher.cpp)
+add_library(pixie_devchannel OBJECT src/Dispatcher.cpp src/PlayerChannel.cpp)
 target_include_directories(pixie_devchannel PUBLIC include PRIVATE ${PROJECT_SOURCE_DIR}/capi/src ${PROJECT_SOURCE_DIR}/capi/include)
 target_link_libraries(pixie_devchannel PUBLIC pixie_runtime nlohmann_json::nlohmann_json)
 target_compile_definitions(pixie_devchannel PRIVATE PIXIE_CAPI_BUILD PIXIE_DEVELOPMENT PIXIE_DEV_CHANNEL PIXIE_DEV_BUILD)

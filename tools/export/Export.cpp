@@ -73,9 +73,12 @@ void Binary(const fs::path& path) {
     const auto image = InspectPe(path);
     const auto forbidden = [](const std::string& symbol) {
         return symbol == "pixie_module_load" || symbol == "pixie_dev_dispatch" ||
-            symbol == "pixie_game_create" || symbol == "pixie_game_api_version";
+            symbol == "pixie_game_create" || symbol == "pixie_game_api_version" ||
+            symbol.find("LocalCommandChannel@pixie@@") != std::string::npos ||
+            symbol.find("WorldDispatcher@dev@pixie@@") != std::string::npos ||
+            symbol.find("PlayerChannel@dev@pixie@@") != std::string::npos;
     };
-    if (image.moduleLoaderMarker || std::any_of(image.exports.begin(), image.exports.end(), forbidden) ||
+    if (image.developmentMarker || std::any_of(image.exports.begin(), image.exports.end(), forbidden) ||
         std::any_of(image.imports.begin(), image.imports.end(), forbidden))
         throw std::runtime_error("development code or game-module loader in " + Utf8(path));
 }
