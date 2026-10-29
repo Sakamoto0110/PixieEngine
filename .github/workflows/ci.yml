@@ -68,7 +68,7 @@ jobs:
           cmake --version | Select-Object -First 1
 
       - name: Configure
-        run: cmake --preset ci
+        run: cmake --preset ci -DPIXIE_EXPORT_TEST_GRAPHICS_RUNTIME="$env:RUNNER_TEMP/mesa/x64"
 
       - name: Build Debug
         run: cmake --build --preset ci-debug --parallel
@@ -86,7 +86,7 @@ jobs:
 
       - name: Show the OpenGL renderer the tests get
         shell: pwsh
-        run: bin\Release\capi-test.exe bin\Release\boids-capi.dll 2>&1 | Select-String "GL_VERSION|GL_RENDERER"
+        run: bin\Release\capi-test.exe bin\Release\pixie.dll --module bin\Release\boids-module.dll 2>&1 | Select-String "GL_VERSION|GL_RENDERER"
 
       - name: Test Debug
         run: ctest --preset ci-debug

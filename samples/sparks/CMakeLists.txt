@@ -6,5 +6,6 @@ if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
     endif()
     include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
 endif()
-pixie_game(sparks SOURCES src/SparksProject.cpp INCLUDE_DIRS src PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+pixie_game(sparks SOURCES src/SparksProject.cpp INCLUDE_DIRS src PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ASSETS fonts/inter-regular.ttf)
 set_target_properties(sparks-game sparks PROPERTIES FOLDER samples/sparks)

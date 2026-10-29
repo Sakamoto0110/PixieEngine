@@ -17,5 +17,6 @@ pixie_game(particles
         src/game/ParticlesScene.cpp
     INCLUDE_DIRS src/game
     PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ASSETS fonts/inter-regular.ttf
 )
 set_target_properties(particles-game particles PROPERTIES FOLDER samples/particles)

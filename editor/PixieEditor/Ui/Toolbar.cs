@@ -21,6 +21,7 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport, Aut
     public Action AddCode { get; init; } = () => { };
     public Action BuildAndReopen { get; init; } = () => { };
     public Action OtherProject { get; init; } = () => { };
+    public Action? Export { get; init; }
 
     public void Draw()
     {
@@ -34,6 +35,8 @@ internal sealed class Toolbar(EngineSession session, ViewportPanel viewport, Aut
         {
             if (ImGui.MenuItem("Save", "Ctrl+S", false, project))
                 Save();
+            if (Export != null && ImGui.MenuItem("Export game...", "", false, editing && !session.Unsaved))
+                Export();
             if (ImGui.MenuItem("New or open project..."))
                 OtherProject();
             ImGui.EndMenu();

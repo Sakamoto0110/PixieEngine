@@ -18,9 +18,10 @@ option(PIXIE_ENGINE_BUILD_TESTS "Build the tests under tests/ and register them 
 
 # Every executable and shared library lands in bin/<config>/ at the repository root, away from the
 # generated build tree. Under a game's project, they land where that project says: its own bin/.
+set(PIXIE_OUTPUT_ROOT "${CMAKE_SOURCE_DIR}/bin" CACHE PATH "Root for native runtime and shared-library output")
 if(PROJECT_IS_TOP_LEVEL)
-    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/$<CONFIG>)
-    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PROJECT_SOURCE_DIR}/bin/$<CONFIG>)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PIXIE_OUTPUT_ROOT}/$<CONFIG>)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PIXIE_OUTPUT_ROOT}/$<CONFIG>)
 endif()
 
 # Shared C++ boundaries require the same dynamic runtime in every native target.
@@ -35,6 +36,7 @@ if(PIXIE_DEV_CHANNEL AND NOT PIXIE_DEVELOPMENT)
     message(FATAL_ERROR "PIXIE_DEV_CHANNEL requires PIXIE_DEVELOPMENT; disable both for shipping")
 endif()
 include(cmake/PixieTargetDefaults.cmake)
+include(cmake/PixieExportProduct.cmake)
 add_library(pixie_shared SHARED)
 set_target_properties(pixie_shared PROPERTIES OUTPUT_NAME pixie)
 add_library(Pixie::Shared ALIAS pixie_shared)
@@ -63,6 +65,13 @@ if(PIXIE_DEVELOPMENT)
 endif()
 # pixie_game(): directly linked game code, a player and an optional development module.
 include(cmake/PixieGame.cmake)
+option(PIXIE_BUILD_TOOLS "Build development tools" ${PROJECT_IS_TOP_LEVEL})
+if(PIXIE_BUILD_TOOLS)
+    if(NOT PIXIE_DEVELOPMENT)
+        message(FATAL_ERROR "Development tools cannot be built in a shipping configuration")
+    endif()
+    add_subdirectory(tools/export)
+endif()
 if(PIXIE_ENGINE_BUILD_TESTS)
     enable_testing()
     add_subdirectory(tests)

@@ -234,10 +234,20 @@ internal sealed class EditorWindow(EditorOptions options)
             session.Paused = true;
 
         var leaving = Leaving.None;
+        Action<string>? startExport = null;
+        Func<bool> exporting = () => false;
+#if PIXIE_DEVELOPMENT
+        using var exportPanel = new Development.ExportPanel(session);
+        startExport = exportPanel.Start;
+        exporting = () => exportPanel.Running;
+#endif
         var askToSave = false;
         var confirmed = false;
         var toolbar = new Toolbar(session, viewport, authoring, selection)
         {
+#if PIXIE_DEVELOPMENT
+            Export = exportPanel.Open,
+#endif
             Save = () => Save(session),
             AddCode = () =>
             {
@@ -348,6 +358,10 @@ internal sealed class EditorWindow(EditorOptions options)
             inspector.Draw(selection.Items);
             viewport.Draw(frameDelta);
             files.Draw();
+#if PIXIE_DEVELOPMENT
+            exportPanel.Draw();
+            if (exportPanel.Failed) exitCode = 3;
+#endif
 
             if (askToSave)
             {
@@ -392,7 +406,7 @@ internal sealed class EditorWindow(EditorOptions options)
                     && double.IsFinite(seconds) && seconds >= 0 && seconds <= 3600)
                     commandResumeAt = now + seconds;
                 else
-                    exitCode = RunCommand(command, session, authoring, selection, entities, viewport, inspector) ? exitCode : 3;
+                    exitCode = RunCommand(command, session, authoring, selection, entities, viewport, inspector, startExport) ? exitCode : 3;
             }
 
             // An inspector edit is one step, from the first write until no control is held.
@@ -413,7 +427,11 @@ internal sealed class EditorWindow(EditorOptions options)
                 title = current;
             }
 
-            if (options.QuitAfter > 0 && now - Start >= options.QuitAfter)
+            var exportInProgress = exporting();
+#if PIXIE_DEVELOPMENT
+            if (!exportInProgress && exportPanel.Failed) exitCode = 3;
+#endif
+            if (options.QuitAfter > 0 && now - Start >= options.QuitAfter && !exportInProgress)
             {
                 var stats = session.Stats;
                 Console.Error.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
@@ -421,7 +439,7 @@ internal sealed class EditorWindow(EditorOptions options)
                 confirmed = true;
             }
 
-            EndFrame(window, now);
+            EndFrame(window, now, timed: !exportInProgress);
         }
 
         return exitCode;
@@ -506,7 +524,7 @@ internal sealed class EditorWindow(EditorOptions options)
 
     // One command of --do, as the editor's own gestures would run it; the state is logged after it.
     private static bool RunCommand(string command, EngineSession session, Authoring authoring, Selection selection,
-        EntitiesPanel entities, ViewportPanel viewport, InspectorPanel inspector)
+        EntitiesPanel entities, ViewportPanel viewport, InspectorPanel inspector, Action<string>? export = null)
     {
         var equals = command.IndexOf('=');
         var verb = equals < 0 ? command : command[..equals].TrimEnd('+');
@@ -516,6 +534,11 @@ internal sealed class EditorWindow(EditorOptions options)
         var ok = true;
         switch (verb)
         {
+            case "export":
+                if (export == null || session.ProjectFolder == null || !session.Editing || session.Unsaved || string.IsNullOrWhiteSpace(argument))
+                    ok = false;
+                else export(argument);
+                break;
             case "create":
                 ok = authoring.CreateEntity() != null;
                 break;

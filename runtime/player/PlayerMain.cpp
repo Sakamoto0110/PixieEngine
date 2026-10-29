@@ -61,14 +61,14 @@ int main(int argc, char** argv) {
     if (!pixie::ParseRunOptions(argc, argv, "player", config, extra)) {
         return 2;
     }
-#ifdef PIXIE_PLAYER_PROJECT_DIR
+    if (folder.empty()) {
+        folder = FindProjectFolder(std::filesystem::path(argv[0]).parent_path());
+    }
+#if defined(PIXIE_DEVELOPMENT) && defined(PIXIE_PLAYER_PROJECT_DIR)
     if (folder.empty()) {
         folder = std::filesystem::path(u8"" PIXIE_PLAYER_PROJECT_DIR);
     }
 #endif
-    if (folder.empty()) {
-        folder = FindProjectFolder(std::filesystem::path(argv[0]).parent_path());
-    }
     if (folder.empty()) {
         pixie::LogError("player: no project here; this player plays the project folder it is in, or --project <folder>");
         return 1;

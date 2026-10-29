@@ -121,3 +121,17 @@ add_test(NAME project-code
          COMMAND ${CMAKE_COMMAND} -DENGINE=${PROJECT_SOURCE_DIR} -DWORK=${CMAKE_CURRENT_BINARY_DIR}/project-code
                  -DCONFIG=$<CONFIG> "-DGENERATOR=${CMAKE_GENERATOR}" "-DPLATFORM=${CMAKE_GENERATOR_PLATFORM}"
                  -DCAPI_TEST=$<TARGET_FILE:capi-test> -P ${CMAKE_CURRENT_SOURCE_DIR}/project-code/ProjectCodeTest.cmake)
+
+if(WIN32 AND TARGET pixie-export)
+    find_package(Python3 REQUIRED COMPONENTS Interpreter)
+    set(PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME "" CACHE PATH "Optional software OpenGL provider for export qualification only")
+    set(export_graphics_args)
+    if(PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME)
+        list(APPEND export_graphics_args --graphics-runtime "${PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME}")
+    endif()
+    add_test(NAME game-export COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/export/qualify_export.py"
+        --exporter $<TARGET_FILE:pixie-export> --engine "${PROJECT_SOURCE_DIR}"
+        --work "${CMAKE_CURRENT_BINARY_DIR}/export" --cmake "${CMAKE_COMMAND}" --generator "${CMAKE_GENERATOR}"
+        ${export_graphics_args})
+    set_tests_properties(game-export PROPERTIES RUN_SERIAL TRUE TIMEOUT 600 LABELS export)
+endif()
