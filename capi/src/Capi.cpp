@@ -5,6 +5,7 @@
 
 #include "pixie_capi.h"
 #include "GameModules.hpp"
+#include "Session.hpp"
 
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/platform/HostSurface.hpp"
@@ -45,16 +46,6 @@ static_assert(static_cast<int>(pixie::FieldKind::Text) == PIXIE_FIELD_TEXT);
 static_assert(static_cast<int>(pixie::FieldKind::PointList) == PIXIE_FIELD_POINT_LIST);
 static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECORD_LIST);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
-
-struct PixieSession {
-#ifdef PIXIE_DEVELOPMENT
-    std::shared_ptr<PixieGameModule> module;
-#endif
-    pixie::HostSurface surface{{0, 0}};
-    pixie::ProjectSession session;
-    explicit PixieSession(std::unique_ptr<pixie::Project> project, pixie::SessionSettings settings)
-        : session(std::move(project), settings) {}
-};
 
 namespace {
 
@@ -229,6 +220,12 @@ void RecordChanged(PixieSession* s, uint32_t entity) {
 
 } // namespace
 
+#ifdef PIXIE_DEV_CHANNEL
+namespace pixie::dev {
+PixieResult SetNativeError(PixieResult result, const std::string& message) { return Fail(result, message); }
+}
+#endif
+
 extern "C" {
 
 int32_t pixie_api_version(void) {
@@ -266,6 +263,24 @@ int32_t pixie_last_error(char* buffer, int32_t capacity) {
     }
     return static_cast<int32_t>(lastError.size());
 }
+
+#ifdef PIXIE_DEV_CHANNEL
+PixieResult pixie_dev_dispatch(PixieSession* s, const char* request, char* buffer, int32_t capacity) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!request || !buffer) return Fail(PIXIE_ERROR_ARGUMENT, "null development request or response");
+    if (capacity < pixie::dev::kResponseCapacity)
+        return Fail(PIXIE_ERROR_BUFFER, "development response needs 4 MiB before command execution");
+    if (s->ownerThread != std::this_thread::get_id())
+        return Fail(PIXIE_ERROR_ARGUMENT, "development dispatch requires the session owner thread");
+    std::size_t length = 0;
+    while (length <= pixie::dev::kMaxRequestBytes && request[length] != '\0') ++length;
+    if (length > pixie::dev::kMaxRequestBytes) return Fail(PIXIE_ERROR_ARGUMENT, "development request exceeds 64 KiB");
+    return Guard([&] {
+        if (!s->dispatcher) s->dispatcher = std::make_unique<pixie::dev::WorldDispatcher>(s->session);
+        return Copy(s->dispatcher->Dispatch(std::string_view(request, length)), buffer, capacity);
+    });
+}
+#endif
 
 PixieResult pixie_physics_debug_get(PixieSession* s, uint32_t* flags) {
     PIXIE_REQUIRE_SESSION(s);

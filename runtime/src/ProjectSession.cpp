@@ -81,6 +81,7 @@ bool ProjectSession::Start(FramebufferSize size) {
 }
 
 void ProjectSession::Stop() {
+    ++worldRevision_;
     world_.reset();
     target_.Destroy();
     images_.Destroy();
@@ -93,6 +94,7 @@ void ProjectSession::Stop() {
 }
 
 void ProjectSession::Build(bool resetCamera) {
+    ++worldRevision_;
     world_.reset();
     world_ = std::make_unique<World>(settings_.seed);
     if (resetCamera) {

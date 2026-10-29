@@ -34,7 +34,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 17
+#define PIXIE_CAPI_VERSION 18
 
 typedef struct PixieSession PixieSession;
 
@@ -58,6 +58,15 @@ typedef enum PixieResult {
     PIXIE_ERROR_INTERNAL = 5,  /* an unexpected failure inside the engine */
     PIXIE_ERROR_IO = 6         /* a project or scene could not be read or written */
 } PixieResult;
+
+#ifdef PIXIE_DEV_CHANNEL
+/* Owner-thread JSON-RPC World dispatch; no listener or capture host is created.
+ * request is at most 64 KiB. The response buffer must have at least 4 MiB capacity;
+ * smaller buffers are rejected BEFORE execution, so a write is never repeated to measure it.
+ * Method failures are JSON-RPC errors carrying PixieResult and pixie_last_error text.
+ * The function result describes ABI/framing failures; valid notifications yield empty text. */
+PIXIE_API PixieResult pixie_dev_dispatch(PixieSession* session, const char* request, char* buffer, int32_t capacity);
+#endif
 
 #ifdef PIXIE_DEVELOPMENT
 /* Selects the development game module for subsequent sessions. Null restores the

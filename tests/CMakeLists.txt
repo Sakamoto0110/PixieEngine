@@ -3,6 +3,16 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
 
+if(PIXIE_DEV_CHANNEL)
+    add_executable(devchannel-tests devchannel/DispatcherTests.cpp)
+    target_include_directories(devchannel-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+    target_link_libraries(devchannel-tests PRIVATE Pixie::Shared glfw nlohmann_json::nlohmann_json)
+    pixie_target_defaults(devchannel-tests)
+    set_target_properties(devchannel-tests PROPERTIES FOLDER tests)
+    add_test(NAME devchannel-tests COMMAND devchannel-tests)
+    set_tests_properties(devchannel-tests PROPERTIES RUN_SERIAL TRUE TIMEOUT 60 LABELS devchannel)
+endif()
+
 add_executable(engine-tests
     ${PROJECT_SOURCE_DIR}/engine/app/src/DebugConsole.cpp
     ${PROJECT_SOURCE_DIR}/engine/app/src/DebugOverlay.cpp

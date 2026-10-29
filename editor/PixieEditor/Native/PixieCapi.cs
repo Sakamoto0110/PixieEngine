@@ -132,7 +132,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 17;
+    internal const int Version = 18;
 
     [LibraryImport(Library, EntryPoint = "pixie_module_load", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult ModuleLoad(string? path);

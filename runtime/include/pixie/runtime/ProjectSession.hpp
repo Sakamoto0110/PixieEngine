@@ -130,6 +130,9 @@ public:
     PIXIE_RUNTIME_API double Alpha() const;
 
     World& GetWorld() { return *world_; }
+    // Changes whenever World storage is discarded/rebuilt; invalidates host caches/tokens
+    // even when an allocator reuses the same address and entity handle numbers.
+    std::uint64_t WorldRevision() const { return worldRevision_; }
     // Optional view, including before Start and after Stop. Reacquire after rebuilding the World.
     Telemetry* GetTelemetry() { return world_ ? &world_->GetTelemetry() : nullptr; }
     Camera2D& GetCamera() { return camera_; }
@@ -151,6 +154,7 @@ private:
     SessionSettings settings_;
     ComponentTypes types_;
     std::unique_ptr<World> world_;
+    std::uint64_t worldRevision_ = 0;
     Camera2D camera_;
     Input input_;
     FixedStepper stepper_;
