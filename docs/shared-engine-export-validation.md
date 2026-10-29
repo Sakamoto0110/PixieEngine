@@ -158,6 +158,157 @@ checkpoint. Preserve scratch evidence and the earlier foundation checkpoint;
 resume by checking branch/HEAD and the final local checkpoint record. No push,
 publication or reference-image approval is included.
 
+### Resume and LogicSandbox inventory, 2026-10-29
+
+After renewed owner authorization, the coordinator verified clean main at
+`f0f634b35486d0754bb27923b5a3038fb2de4e75` and VAW all-route compatibility
+(seven checked, none unchecked). The implementation writer acknowledged sole
+code/build ownership again; documentation remains with the coordinator.
+Current-source export/native/editor regressions were resumed, not assumed
+from the previous checkpoint's earlier executions. With native sources still
+at `fbbcf230847b3d7fddc0799395dddaf3f6a3427e`, the vs2026 Debug build passed
+and full CTest passed 18/18 in 238.00 seconds. Its registered game-export case
+passed in 146.12 seconds and recorded all 23 export cases. The coordinator read
+the complete CTest summary and receipt count. The editor Release rebuild
+reported zero warnings; its three local publish checks passed again on this
+revision. Release native build and full CTest also passed: 18/18 in 243.07
+seconds, including registered game-export in 153.39 seconds. These vs2026
+executions do not qualify the separate Ninja preset, Mesa provider or remote CI.
+
+An independent read-only review of the final export commit found no new
+actionable defect in its scoped CMake/CI/export-fixture inspection. It confirmed
+limits: the optional graphics-provider path verifies the raw export but launches
+a second explicit-manifest bundle; the fixture observes four app-local native
+DLLs, without asserting the OpenGL provider path or llvmpipe renderer. PNG
+signature/dimension checks are not visual comparisons. The editor CI job builds
+only; the local publish suite is not automatically run by that job. Static
+review is separate from the executed local matrix above.
+
+Follow-up editor-only guards remove the Export property/menu and command case
+when development tools are disabled. The strengthened publish harness passed
+all three local cases after rebuilding; it now checks absence of the Export
+getter and UTF-16 menu label as well as the adapter types. The coordinator read
+the diff and passing harness log. This refinement is later than the native
+baseline above and does not imply another native-source change or matrix run.
+The editor-only fix is committed as
+`e31ec6d2eda256f4fc280ea15ef8df19e1b96a5a`. A sensitivity receipt confirms
+that the strengthened getter/menu check rejects the previously retained
+shipping assembly; this is not a source mutation or a new claim about the older
+test's narrower scope. The real editor sprites export was rerun and both editor
+and native verifier exited zero. The coordinator read both receipts before
+recording these outcomes. Deterministic capture implementation starts next;
+no result or reference-image approval follows from that start.
+
+Release particles and sparks players also launched with their sample project
+folders and exited zero with 1280x720 captures. Their logs have no missing-font
+warning. Both implementation writer and coordinator inspected the images:
+particles shows its count/interaction HUD, and sparks shows the mass input and
+instructions alongside the bodies and ramp scene. This closes the earlier
+native player asset-root/HUD gap only; it does not qualify editor project-folder
+opening, interaction gestures, a pixel comparison or an approved reference.
+
+A read-only inventory of LogicSandbox at
+`927ab988fc8a4b5133aa49d1174ceb7ca4f77abb` found seven old include names absent
+from the current Engine header tree: Camera2D, GlLoader, Image, Input, Log,
+PathRenderer and ShapeRenderer under `pixie/`. Their current routes are
+`pixie/render/2d/`, `pixie/render/gl/`, `pixie/core/` and `pixie/platform/`;
+the inspected `pixie/runtime/` includes remain present. Its CMake still uses
+the supported `pixie_game` and game-library targets, but its comment names the
+old LogicSandbox-capi artifact instead of the development module plus shared
+pixie.dll. Its README records an older tested Engine baseline, `dc758e3`.
+
+Panel.cpp opens `assets/inter-regular.ttf` directly, while its game declaration
+has no ASSETS entry; that code-owned font needs explicit export declaration.
+The gates.json input is compiled into a generated string and is not equivalent
+to a runtime asset dependency. A future migration must also verify shared CRT,
+module loading and the custom logic-shot host against the new DLL boundaries.
+No LogicSandbox file, build or test was changed or executed by this inventory;
+these are static migration requirements, not an executed compiler or runtime
+failure list. Migrating that consumer remains outside this task.
+
+### Deterministic capture increment, 2026-10-29
+
+On the uncommitted proposal-014 working tree, a seven-case local harness passed
+after correcting step-budget precedence over wall-time termination. Boids,
+flocks, particles and sparks each repeated a 12-step 320x180 capture on the AMD
+Radeon RX 7600 with identical output despite changing FPS cap from zero to 30
+and adding a 0.001-second quit request. Logs checked the completed step count
+and alpha one. A synthetic scene without an authored seed repeated seed 42
+exactly, differed with seed 43 and differed after 13 steps. A one-pixel mutation
+failed the strict comparison and wrote a diff; the clean comparison then passed.
+Two full editor-window boids captures also matched at 12 steps despite the
+short wall-time limit. The coordinator read all seven receipts and the harness.
+
+These are same-renderer synthetic/initial integration results, not a full final
+Debug/Release matrix, Mesa result or approved sample/tolerance policy. Earlier
+native engine tests reported 35 passing cases including exact counts 0/1/17
+and alpha one; the final integrated rerun remains required after source changes.
+Candidate generation and snapshot tooling are described in the
+[capture guide](deterministic-capture.md). No reference image is approved.
+The capture executions used local Python 3.15/Pillow 13.0.0, independently
+queried by the coordinator, not the bundled documentation-check interpreter.
+Four 120-step 640x360 candidates were generated through an external local
+manifest with `approved: false`; these sample/seed/size/tolerance inputs are
+review proposals only and no sample reference files were changed.
+The local editor publish harness also passed its three cases with the new
+capture exclusions: DeterministicCapture, the QuitAfterSteps getter and its
+UTF-16 command-line option are absent from the published assembly, in addition
+to the export adapter/menu checks. The coordinator read the receipt and marker
+checks. This does not yet qualify the frozen native matrix or future MCP code.
+
+The frozen capture working tree then passed full vs2026 Debug CTest 19/19 in
+312.17 seconds: deterministic capture took 34.66 seconds and export 172.27
+seconds. The export receipt now records 25 cases, including shipping players
+rejecting the development step-count option with exit 2; its scanner also
+checks the option string is absent from the shipping Engine. The coordinator
+read the final summary and the new exclusion receipts. Release build/full CTest
+also passed: 19/19 in 276.71 seconds, capture 11.19 seconds and export 165.07
+seconds, with 25 recorded export cases. Later snapshot-registration CMake and
+editor-only refinements still need their scoped checks; these full runs do not
+by themselves qualify every later source revision, Ninja or remote CI.
+The coordinator also read the effective runtime audit: 70 active native
+target/configuration properties checked, zero /MDd Debug or /MD Release
+mismatches. That audit establishes build settings, not allocator coverage or a
+new package/runtime distribution claim.
+
+The capture implementation is preserved in local code commit
+`1facc7564df9eeb631daea5503badad05fd58909`, after the editor-only export guard
+fix `e31ec6d2eda256f4fc280ea15ef8df19e1b96a5a`. Documentation is committed
+separately. This is a recoverable increment, not completion of TODO-051 or MCP.
+A checker-only follow-up,
+`e94cd1aac41b6884b41b1a577a67856e3f11a257`, excludes generated build-ci
+Markdown. The first final documentation run had found 18 broken links in four
+copied export-source READMEs, outside the versioned documentation scope.
+After the correction, 165 documents passed with zero problems. An isolated
+fixture confirms generated copies are skipped while an actual documentation
+broken link is still rejected. The coordinator read the result and sensitivity
+receipt; no retained build evidence was deleted to obtain the passing result.
+
+Scoped follow-up fixtures passed after the snapshot helper/editor refinements.
+Four synthetic registration cases cover an approved code-sample target,
+unapproved candidates producing no tests, a missing code target failing closed
+and a no-code scene using the generic player. Their synthetic approval flags
+are test inputs, not approval of any repository image. The editor completed
+0, 1 and 12 steps with a collapsed viewport and preserved the original layout
+bytes. A final seven-case capture harness including editor repetition passed
+again, retaining the same editor image hash. The coordinator read these receipts.
+Release editor project-folder builds/opens for particles and sparks then exited
+zero with their corresponding development modules, no missing-font warnings
+and 1600x900 screenshots in Edit mode at zero steps. The coordinator read the
+logs and inspected both images: HUD text and scene geometry are present.
+This qualifies opening/asset resolution, not editing gestures or simulation.
+The separate ci preset (Ninja Multi-Config, local Windows toolchain) then passed
+Debug CTest 19/19 in 236.88 seconds, capture 31.06 seconds and export 128.38
+seconds with the expanded 25-case harness. The coordinator read its final
+summary. Release also passed 19/19 in 203.02 seconds, capture 11.56 seconds and
+export 127.75 seconds, with 25 export receipts. These are local preset executions
+using the installed GPU, not remote CI or the optional Mesa-provider branch.
+The current isolated shared-boundary gate was also rebuilt and passed in Debug
+(1/1, 3.02 seconds total) and Release (1/1, 2.99 seconds total), with deliberate
+identity breaking disabled. The coordinator read both final CTest summaries.
+This closes the historical missing current-Release gate run; the earlier
+broken-identity sensitivity remains evidence at its recorded older baseline.
+
 ### Resumed production DLL/module foundation, 2026-10-28
 
 The implementation working tree built vs2026 Debug and Release with zero

@@ -32,6 +32,7 @@ owns the authority table: which document owns which kind of fact.
 | [`development.md`](development.md) | How to build, check, and commit a change |
 | [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | Qualification plan for PIXIE-TODO-051: shared engine, export barriers and separately isolated local MCP development |
 | [`game-export.md`](game-export.md) | Native manifest export command, shipping/build separation and current qualification limits |
+| [`deterministic-capture.md`](deterministic-capture.md) | Development fixed-step capture, seed precedence and snapshot candidate/approval boundaries |
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
 | [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |

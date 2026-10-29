@@ -29,6 +29,15 @@ Debug and Release native build/test evidence is bounded in the
 runtime export deployment, final CI and development-channel exclusion remain
 separate pending gates; this note does not claim a new upstream dependency audit.
 
+**Scoped capture-tool update, 2026-10-29:** development snapshot tooling pins
+Pillow 13.0.0 in `scripts/requirements-snapshots.txt`. It is used only by Python
+capture/comparison tools, not native runtime or published editor dependencies.
+This records the implementation pin, not an upstream latest-version check;
+executed validation must identify its actual Python environment separately.
+The capture writer used local Python 3.15 with Pillow 13.0.0, confirmed by the
+coordinator through that interpreter. The bundled documentation-check runtime
+has Pillow 12.3.0 and was not used for these capture executions.
+
 Vendored third-party sources live under `external/<name>/`, unmodified from
 the release archive whose hash is recorded below. Where no hash is published
 (GitHub tag archives), the recorded hash is the one computed on download.
@@ -62,6 +71,7 @@ version change.
 | .NET SDK | The C# editor (`editor/`) and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | The editor targets `net10.0` and builds with `dotnet build editor/PixieEditor.slnx` (2026-10-13). |
 | Git | Version control | 2.55.0 | — | `ok` | |
 | Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
+| Pillow | Development snapshot PNG comparison | 13.0.0 pinned by `scripts/requirements-snapshots.txt` (2026-10-29) | Not checked | `ok` | Install into the snapshot tool's Python environment. The documentation verifier remains standard-library-only. No Pillow files belong in game exports or editor publish payloads. See the scoped capture update above; this is not a refreshed upstream audit. |
 
 ## Graphics and platform
 
