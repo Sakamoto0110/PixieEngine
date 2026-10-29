@@ -18,6 +18,9 @@ internal sealed record EditorOptions
     public List<(string Type, string Property, string Value)> Edits { get; } = [];
     public double EditAfter { get; init; } = 1.0;
     public double QuitAfter { get; init; }
+#if PIXIE_DEVELOPMENT
+    public ulong? QuitAfterSteps { get; init; }
+#endif
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
     // What the mouse does at the start; Game for a game, Select for a project, which opens in edit mode.
@@ -62,7 +65,11 @@ internal static class Program
                                    font=<file> (as chosen for the selected texts' font),
                                    addpoint=<Type.field>, removepoint=<Type.field>@<index> (as the inspector's
                                    buttons on a list of points); repeatable
-        """;
+        """
+#if PIXIE_DEVELOPMENT
+        + "\n  --quit-after-steps <n>  close after exactly n fixed steps; zero captures the initial state"
+#endif
+        ;
 
     [STAThread]
     private static int Main(string[] args)
@@ -120,6 +127,11 @@ internal static class Program
                 case "--quit-after" when double.TryParse(value, CultureInfo.InvariantCulture, out var quit):
                     options = options with { QuitAfter = quit };
                     break;
+#if PIXIE_DEVELOPMENT
+                case "--quit-after-steps" when ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var steps):
+                    options = options with { QuitAfterSteps = steps };
+                    break;
+#endif
                 case "--time-scale" when double.TryParse(value, CultureInfo.InvariantCulture, out var scale) && scale > 0:
                     options = options with { TimeScale = scale };
                     break;
@@ -149,6 +161,10 @@ internal static class Program
             }
         }
 
+#if PIXIE_DEVELOPMENT
+        if (options.QuitAfterSteps.HasValue && options.Game == null && options.Project == null)
+            return false;
+#endif
         return true;
     }
 

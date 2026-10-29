@@ -20,3 +20,6 @@ imgui.ini
 # A sample opened in the editor is built as a project of its own, in its folder.
 /samples/*/build/
 /samples/*/bin/
+
+# Python development tools keep bytecode out of source control.
+__pycache__/

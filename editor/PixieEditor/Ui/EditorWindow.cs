@@ -26,6 +26,9 @@ internal sealed class EditorWindow(EditorOptions options)
 
     private readonly EditorSettings Settings = EditorSettings.Load();
     private double Start;
+#if PIXIE_DEVELOPMENT
+    private bool CaptureFinished;
+#endif
     // Whether there was no saved dock layout when the editor started; ImGui writes one while the start
     // screen shows, so it is decided before the first frame.
     private bool FirstLayout;
@@ -232,6 +235,13 @@ internal sealed class EditorWindow(EditorOptions options)
             session.TimeScale = scale;
         if (options.Paused)
             session.Paused = true;
+#if PIXIE_DEVELOPMENT
+        if (options.QuitAfterSteps is { } captureSteps)
+        {
+            viewport.Capture = new Development.DeterministicCapture(session, captureSteps);
+            controls = new SessionPanel(session, gameName) { Deterministic = true };
+        }
+#endif
 
         var leaving = Leaving.None;
         Action<string>? startExport = null;
@@ -357,6 +367,9 @@ internal sealed class EditorWindow(EditorOptions options)
             entities.Draw();
             inspector.Draw(selection.Items);
             viewport.Draw(frameDelta);
+#if PIXIE_DEVELOPMENT
+            CaptureFinished = viewport.Capture?.Finished ?? false;
+#endif
             files.Draw();
 #if PIXIE_DEVELOPMENT
             exportPanel.Draw();
@@ -431,7 +444,11 @@ internal sealed class EditorWindow(EditorOptions options)
 #if PIXIE_DEVELOPMENT
             if (!exportInProgress && exportPanel.Failed) exitCode = 3;
 #endif
-            if (options.QuitAfter > 0 && now - Start >= options.QuitAfter && !exportInProgress)
+            var timedQuit = options.QuitAfter > 0 && now - Start >= options.QuitAfter;
+#if PIXIE_DEVELOPMENT
+            if (options.QuitAfterSteps.HasValue) timedQuit = CaptureFinished;
+#endif
+            if (timedQuit && !exportInProgress)
             {
                 var stats = session.Stats;
                 Console.Error.WriteLine(string.Create(System.Globalization.CultureInfo.InvariantCulture,
@@ -509,6 +526,9 @@ internal sealed class EditorWindow(EditorOptions options)
         ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
 
         var quitting = timed && options.QuitAfter > 0 && now - Start >= options.QuitAfter;
+#if PIXIE_DEVELOPMENT
+        if (options.QuitAfterSteps.HasValue) quitting = timed && CaptureFinished;
+#endif
         if (quitting && options.Screenshot != null)
         {
             int width, height;

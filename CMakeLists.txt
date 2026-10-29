@@ -62,6 +62,7 @@ target_include_directories(pixie_shared PUBLIC "${PROJECT_SOURCE_DIR}/capi/inclu
 if(PIXIE_DEVELOPMENT)
     target_compile_definitions(pixie_shared PUBLIC PIXIE_DEVELOPMENT)
     target_compile_definitions(pixie_capi_objects PRIVATE PIXIE_DEVELOPMENT)
+    target_compile_definitions(pixie_app PRIVATE PIXIE_DEVELOPMENT)
 endif()
 # pixie_game(): directly linked game code, a player and an optional development module.
 include(cmake/PixieGame.cmake)
@@ -80,6 +81,17 @@ if(PIXIE_BUILD_SAMPLES)
     add_subdirectory(samples)
     # F5 starts the sample.
     set_property(DIRECTORY PROPERTY VS_STARTUP_PROJECT hello-gl)
+endif()
+if(PIXIE_ENGINE_BUILD_TESTS AND PIXIE_DEVELOPMENT)
+    include(cmake/PixieSnapshots.cmake)
+    pixie_add_snapshot_tests()
+    if(WIN32 AND TARGET boids AND TARGET flocks AND TARGET particles AND TARGET sparks)
+        find_package(Python3 REQUIRED COMPONENTS Interpreter)
+        add_test(NAME deterministic-capture
+            COMMAND Python3::Interpreter "${PROJECT_SOURCE_DIR}/tests/capture/qualify_capture.py"
+                --bin $<TARGET_FILE_DIR:boids> --work "${PROJECT_BINARY_DIR}/tests/capture")
+        set_tests_properties(deterministic-capture PROPERTIES RUN_SERIAL TRUE TIMEOUT 180 LABELS capture)
+    endif()
 endif()
 
 # PixieEngine.slnx at the repository root; see the module for what it shows and why.

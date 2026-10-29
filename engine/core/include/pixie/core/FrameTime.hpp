@@ -8,7 +8,7 @@ namespace pixie {
 struct FrameTime {
     // Seconds covered by this call: the fixed step in Update, the frame delta in Render.
     double delta = 0.0;
-    // Render only: how far the current frame lies between the last two updates, in [0, 1).
+    // Render only: fraction between updates; one draws the current state without interpolation.
     double alpha = 0.0;
     // Simulated seconds completed before this call.
     double elapsed = 0.0;

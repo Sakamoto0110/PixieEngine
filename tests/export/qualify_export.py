@@ -169,6 +169,13 @@ def main():
 
     base = json.loads(manifests["boids"].read_text(encoding="utf-8"))
     package = packages["boids"]
+    for name in ("boids", "sprites"):
+        shipping = packages[name]
+        shipping_manifest = json.loads(manifests[name].read_text(encoding="utf-8"))
+        assert b"--quit-after-steps" not in (shipping / "pixie.dll").read_bytes()
+        rejected = command(name + "-capture-option-excluded",
+                           [shipping / shipping_manifest["player"], "--quit-after-steps", "0"], "usage:")
+        assert rejected.returncode == 2
     # Barrier 1: a development-enabled engine in a falsely declared shipping manifest.
     broken = copy.deepcopy(base)
     replace_source(broken, "pixie.dll", Path(args.exporter).resolve().parent / "pixie.dll")

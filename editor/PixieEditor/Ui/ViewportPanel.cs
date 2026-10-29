@@ -46,6 +46,9 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     private static readonly uint PlayingFrame = ImGui.ColorConvertFloat4ToU32(new Vector4(1.0f, 0.65f, 0.3f, 1.0f));
 
     public ViewportMode Mode { get; set; } = ViewportMode.Game;
+#if PIXIE_DEVELOPMENT
+    public Development.DeterministicCapture? Capture { get; set; }
+#endif
 
     private Vector2 ImageOrigin;
     private Vector2 Scale = Vector2.One;
@@ -102,11 +105,18 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
             var mouse = ImGui.GetMousePos();
             Hovered = ImGui.IsWindowHovered() && mouse.X >= ImageOrigin.X && mouse.Y >= ImageOrigin.Y &&
                       mouse.X < ImageOrigin.X + size.X && mouse.Y < ImageOrigin.Y + size.Y;
+#if PIXIE_DEVELOPMENT
+            if (Capture == null)
+#endif
             SendInput();
             if (Mode == ViewportMode.Select)
                 Select();
             while (DropEvents.Pending.TryDequeue(out var dropped))
                 Drop(dropped, Hovered ? MouseInView() : null);
+#if PIXIE_DEVELOPMENT
+            if (Capture != null) Capture.Advance();
+            else
+#endif
             session.Advance(frameDelta);
             var texture = session.Render();
 
@@ -121,6 +131,10 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
         }
         else
         {
+#if PIXIE_DEVELOPMENT
+            // A saved collapsed/tabbed-out viewport must not stall a finite capture run.
+            Capture?.Advance();
+#endif
             Hovered = false;
             Focused = false;
             PressedAt = null;

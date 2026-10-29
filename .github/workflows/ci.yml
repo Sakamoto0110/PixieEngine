@@ -70,6 +70,14 @@ jobs:
       - name: Configure
         run: cmake --preset ci -DPIXIE_EXPORT_TEST_GRAPHICS_RUNTIME="$env:RUNNER_TEMP/mesa/x64"
 
+      - name: Install snapshot test dependency
+        shell: pwsh
+        run: |
+          $entry = Select-String -Path build-ci/CMakeCache.txt -Pattern '^_Python3_EXECUTABLE:INTERNAL=(.+)$'
+          if (-not $entry) { throw "CMake did not select a Python interpreter" }
+          & $entry.Matches[0].Groups[1].Value -m pip install --disable-pip-version-check -r scripts/requirements-snapshots.txt
+          if ($LASTEXITCODE) { throw "Snapshot dependency installation failed" }
+
       - name: Build Debug
         run: cmake --build --preset ci-debug --parallel
 

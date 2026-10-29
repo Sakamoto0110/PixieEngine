@@ -10,6 +10,7 @@ add_executable(engine-tests
     engine/CameraTests.cpp
     engine/ViewTests.cpp
     engine/FixedStepperTests.cpp
+    engine/DeterministicCaptureTests.cpp
     engine/InputTests.cpp
     engine/DebugConsoleTests.cpp
     engine/DebugOverlayTests.cpp
@@ -77,6 +78,8 @@ if(PIXIE_DEVELOPMENT)
         target_compile_options(module-lifetime PRIVATE /W4 /WX)
     endif()
 endif()
+
+
 
 # Explicit headless qualification tool, not an implicit CTest performance budget.
 add_executable(physics-benchmark benchmarks/PhysicsTelemetry.cpp benchmarks/PhysicsWorkload2D.cpp)

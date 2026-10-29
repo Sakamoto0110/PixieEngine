@@ -76,6 +76,9 @@ int main(int argc, char** argv) {
 
     pixie::SessionSettings session;
     session.updateRate = config.updateRate;
+#ifdef PIXIE_DEVELOPMENT
+    session.seed = config.seed;
+#endif
     pixie::ProjectApp app(pixie::CreateProject(), session);
     app.Session().SetPhysicsDebug(physicsDebug);
     if (!app.Session().OpenProject(folder)) {

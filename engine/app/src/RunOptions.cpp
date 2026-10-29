@@ -21,6 +21,11 @@ void PrintUsage(std::string_view program, std::span<const RunOption> extra) {
     line("--telemetry", "on|off", "override host and app CPU metric collection (F3 displays it)");
     line("--quit-after", "<seconds>", "close after this long; 0 means never (default 0)");
     line("--screenshot", "<file.png>", "with --quit-after, save the last frame as a PNG");
+#ifdef PIXIE_DEVELOPMENT
+    line("--quit-after-steps", "<n>", "capture after exactly n fixed steps, including zero");
+    line("--seed", "<n>", "initial World seed; an authored scene seed takes precedence");
+    line("--size", "<w>x<h>", "capture framebuffer size in pixels");
+#endif
     for (const RunOption& option : extra) {
         line(option.name, option.argument, option.help);
     }
@@ -30,6 +35,26 @@ void PrintUsage(std::string_view program, std::span<const RunOption> extra) {
 bool ParseCommon(std::string_view option, std::string_view value, RunConfig& config,
                  bool& known) {
     known = true;
+#ifdef PIXIE_DEVELOPMENT
+    if (option == "--quit-after-steps" || option == "--seed") {
+        std::uint64_t number = 0;
+        const auto result = std::from_chars(value.data(), value.data() + value.size(), number);
+        if (result.ec != std::errc{} || result.ptr != value.data() + value.size()) return false;
+        if (option == "--quit-after-steps") config.quitAfterSteps = number;
+        else config.seed = number;
+        return true;
+    }
+    if (option == "--size") {
+        const auto split = value.find('x');
+        int width = 0, height = 0;
+        if (split == std::string_view::npos || !ParseCount(value.substr(0, split), width, 1, 16384) ||
+            !ParseCount(value.substr(split + 1), height, 1, 16384)) return false;
+        config.width = width;
+        config.height = height;
+        config.exactFramebufferSize = true;
+        return true;
+    }
+#endif
     if (option == "--ups") {
         return ParseNumber(value, config.updateRate) && config.updateRate > 0.0;
     }
@@ -85,16 +110,16 @@ bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig&
         }
         const std::string_view value = argv[++i];
         bool known = false;
-        bool ok = ParseCommon(option, value, config, known);
-        if (!known) {
-            for (const RunOption& candidate : extra) {
-                if (candidate.name == option) {
-                    known = true;
-                    ok = candidate.parse(value);
-                    break;
-                }
+        bool ok = false;
+        // Preserve a sample's own options, including shapes' pre-existing --seed contract.
+        for (const RunOption& candidate : extra) {
+            if (candidate.name == option) {
+                known = true;
+                ok = candidate.parse(value);
+                break;
             }
         }
+        if (!known) ok = ParseCommon(option, value, config, known);
         if (!known || !ok) {
             PrintUsage(program, extra);
             return false;

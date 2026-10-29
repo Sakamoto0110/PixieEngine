@@ -110,6 +110,26 @@ int Run(App& app, const RunConfig& config) {
     const Surface& surface = window;
     surface.MakeCurrent();
     GLFWwindow* handle = window.Handle();
+#ifdef PIXIE_DEVELOPMENT
+    // GLFW uses screen coordinates; capture dimensions are framebuffer pixels.
+    for (int attempt = 0; config.exactFramebufferSize && attempt < 3; ++attempt) {
+        const auto pixels = surface.GetFramebufferSize();
+        if (pixels.width == config.width && pixels.height == config.height) break;
+        int width = 0, height = 0;
+        glfwGetWindowSize(handle, &width, &height);
+        if (pixels.width <= 0 || pixels.height <= 0) break;
+        glfwSetWindowSize(handle, std::max(1, width * config.width / pixels.width),
+                         std::max(1, height * config.height / pixels.height));
+        window.PollEvents();
+    }
+    if (config.exactFramebufferSize) {
+        const auto pixels = surface.GetFramebufferSize();
+        if (pixels.width != config.width || pixels.height != config.height) {
+            LogError("The requested capture framebuffer size is unavailable");
+            return 1;
+        }
+    }
+#endif
     if (!LoadGl()) {
         return 1;
     }
@@ -119,6 +139,12 @@ int Run(App& app, const RunConfig& config) {
                                                   : std::string("none"),
                         config.vsync ? "on" : "off"));
 
+#ifdef PIXIE_DEVELOPMENT
+    if (config.quitAfterSteps) {
+        input.game.SetCursor(pxPoint(-1.0, -1.0));
+        input.game.EndUpdate();
+    } else
+#endif
     ConnectInput(handle, input);
 
     if (!app.Start(window)) {
@@ -169,7 +195,13 @@ int Run(App& app, const RunConfig& config) {
         const double frameDelta = Seconds(now - previous);
         previous = now;
 
-        stepper.Advance(frameDelta, [&](const FrameTime& time) {
+        double advanceDelta = frameDelta;
+#ifdef PIXIE_DEVELOPMENT
+        if (config.quitAfterSteps) {
+            advanceDelta = stepper.Steps() < *config.quitAfterSteps ? stepper.StepSeconds() : 0.0;
+        }
+#endif
+        stepper.Advance(advanceDelta, [&](const FrameTime& time) {
             {
                 const TelemetryScope measure(telemetry,updateMetric);
                 app.Update(time, input.game);
@@ -178,15 +210,22 @@ int Run(App& app, const RunConfig& config) {
             meter.CountUpdate();
         });
 
-        const bool quitting =
+        bool quitting =
             config.quitAfterSeconds > 0.0 && Seconds(now - start) >= config.quitAfterSeconds;
+#ifdef PIXIE_DEVELOPMENT
+        if (config.quitAfterSteps) quitting = stepper.Steps() >= *config.quitAfterSteps;
+#endif
         const FramebufferSize size = surface.GetFramebufferSize();
         if (size.width > 0 && size.height > 0) {
             SetViewport(size);
             const double drawnDelta = std::min(frameDelta, FixedStepper::kMaxFrameDelta);
             {
                 const TelemetryScope measure(telemetry,renderMetric);
-                app.Render(stepper.RenderTime(drawnDelta, frameIndex), input.game);
+                auto renderTime = stepper.RenderTime(drawnDelta, frameIndex);
+#ifdef PIXIE_DEVELOPMENT
+                if (config.quitAfterSteps) renderTime.alpha = 1.0;
+#endif
+                app.Render(renderTime, input.game);
             }
             {
                 const TelemetryScope observer(telemetry,observerMetric);
@@ -224,6 +263,9 @@ int Run(App& app, const RunConfig& config) {
     }
 
     overlay.Destroy();
+#ifdef PIXIE_DEVELOPMENT
+    if (config.quitAfterSteps) LogInfo(std::format("Completed {} fixed steps; capture alpha: 1", stepper.Steps()));
+#endif
     app.Stop();
     return 0;
 }
