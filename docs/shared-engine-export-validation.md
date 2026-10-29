@@ -35,8 +35,8 @@ were unavailable in the initial inspection and subsequently supplied and
 explicitly included by the owner. Use those records and the accepted
 clarifications; do not reconstruct an assumed earlier specification.
 
-The first checkpoint is the EnTT cross-DLL proof. The isolated proof passed;
-production migration remains unstarted at the safe checkpoint below. The
+The first checkpoint was the EnTT cross-DLL proof. The isolated proof passed;
+the later DLL/module foundation and its limits are recorded separately below. The
 shared engine/export work does not close physics D3/D4/D5,
 owner feel acceptance or coupled workload qualification under PIXIE-TODO-043.
 
@@ -80,6 +80,83 @@ not performed; the code commit alone is not proof of the remaining gates.
 | Consumers and documentation can resume accurately | PixieLib/Inspector responses distinguish recommendations from executed acceptance. Record final full code hashes, package/binary provenance, LogicSandbox header/build/loading breaks without migrating it, documentation checks and unmet rows. | Final implementation and consumer feedback |
 
 ## Evidence and recovery
+
+### Export-stage resumption, 2026-10-29
+
+The owner resumed from clean main at
+`836ba0b5873f1822efa0d914c19f96e789ab4a39`. Engine all-route VAW compatibility
+returned bound with all seven routes checked. The existing implementation
+writer acknowledged exclusive code/build ownership; the principal writer
+retains documentation and read-only verification. The next work is separate
+shipping output, manifest export, dependency/runtime closure and the four
+barriers with sensitivity tests. This is a resumption record, not execution
+evidence for those still-pending gates. Prior Lib/Inspector results keep their
+recorded baseline and scope; no repeated qualification is inferred.
+
+The first native Windows boids bundle was planned/copied/verified with eleven
+binary entries (player, engine, GLFW and the explicitly listed release CRT
+bundle), project document and start scene. The development flags were false
+in its product/manifest. The player exited zero from a different working
+directory and wrote a 1280x720 PNG; the principal coordinator inspected the
+frame and observed the boids scene. This is a first positive working-tree
+case, not the complete barrier/CRT/visual regression matrix. No golden image
+approval or Windows-clean-machine qualification follows from it.
+
+Read-only review found original-output junction handling, OS-library
+classification and missing export-forwarder closure conditions. The writer
+applied fixes and the independent reviewer rechecked them statically. The fresh
+native Windows qualification then passed 23 recorded cases on the uncommitted
+export-stage working tree. Boids and no-code sprites were exported from paths
+containing spaces and Unicode, with unknown project data preserved byte for
+byte. Both players exited zero from a different working directory, captured
+PNGs and were observed loading pixie.dll, glfw3.dll, vcruntime140.dll and
+msvcp140.dll from their export folders.
+
+Independent broken copies rejected a development Engine/configuration, a player
+with a game-module loader, unlisted files/directories, missing GLFW and CRT,
+a missing export-forwarder dependency, invalid import basenames, manifest path
+traversal, a nonempty destination and an original output junction before
+canonicalization. Adding the forwarder provider and restoring clean boids and
+sprites bundles passed verification. The first harness attempt stopped at an
+LNK2001 in its forwarder fixture; correcting that fixture and using a fresh
+scratch run produced the result above. It was not an export-product failure.
+
+The sprites PNG hash matched the retained pre-migration capture
+(`e6ea9c41fc8c99efadcacc291c3591f540f553a6c59bafff376e9d5077a4b2ec`).
+This is one retained-baseline comparison, not a fresh baseline build, a full
+render regression matrix or owner approval of a golden reference. OS-library
+classification remains statically reviewed without a System32 mutation test.
+Three local managed publish checks also passed: the default development build
+was rejected before payload production, a fresh build with
+`PixieDevelopmentTools=false` published locally, and `NoBuild` publication was
+rejected. The implementation writer inspected the shipping assembly and found
+ProjectExportJob, ExportPanel and the Development namespace absent; the
+coordinator read the three recorded outcomes and the matching project guards.
+This is local artifact qualification, not a NuGet upload or remote release.
+Future MCP code/dependencies must independently satisfy these exclusions.
+The real editor `--project` sprites / `--do export` route then invoked the
+native tool, verified the output manifest/closure and exited zero after its
+asynchronous export job. Its timed quit waited for completion (4.302 seconds
+wall time with a two-second quit request), and it wrote a 1600x900 capture.
+Static source inspection connects the File menu and command to the same
+ExportPanel/ProjectExportJob; this is not a recorded interactive menu gesture.
+The editor existing-output rejection was rerun without a build and its receipt
+confirms exit 3, as expected. Final native regressions, optional headless Mesa
+provider execution, remote CI and other-platform export remain pending here.
+The [export guide](game-export.md) describes the current command and scope.
+
+At the owner's quota checkpoint, stop without starting another long matrix.
+Local code checkpoint `fbbcf230847b3d7fddc0799395dddaf3f6a3427e` preserves
+this partial export implementation on main. The 23-case suite and three publish
+checks preceded small final adjustments; they do not constitute a complete
+rerun of that final commit. The final editor Release build reported zero
+warnings, and the coordinator read the editor rejection receipt confirming
+exit 3. The registered CTest export entry, current Debug/Release regression matrix, software-renderer
+fixture branch and full visual/asset matrix remain pending. MCP and
+deterministic capture are subsequent increments, not delivered by this export
+checkpoint. Preserve scratch evidence and the earlier foundation checkpoint;
+resume by checking branch/HEAD and the final local checkpoint record. No push,
+publication or reference-image approval is included.
 
 ### Resumed production DLL/module foundation, 2026-10-28
 
