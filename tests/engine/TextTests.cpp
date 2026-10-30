@@ -1,10 +1,11 @@
 #include "Check.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
 
-#include "pixie/Font.hpp"
-#include "pixie/GlLoader.hpp"
-#include "pixie/RenderTarget.hpp"
-#include "pixie/SpriteRenderer.hpp"
-#include "pixie/TextRenderer.hpp"
+#include "pixie/render/2d/Font.hpp"
+#include "pixie/render/gl/GlLoader.hpp"
+#include "pixie/render/RenderTarget.hpp"
+#include "pixie/render/2d/SpriteRenderer.hpp"
+#include "pixie/render/2d/TextRenderer.hpp"
 
 #include <GLFW/glfw3.h>
 
@@ -155,7 +156,7 @@ TEST(TextIsDrawnWhereItsGlyphsAre) {
     glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
     glClear(GL_COLOR_BUFFER_BIT);
     text.SubmitPixels(sprites, *font, "H", pxPoint(20.0, 30.0), 32, pxColorRgba(255, 255, 255));
-    sprites.Flush(camera);
+    sprites.Flush(camera.MakeView());
     pixie::RenderTarget::BindDefault();
 
     std::vector<std::uint8_t> pixels(static_cast<std::size_t>(kSide) * kSide * 4);

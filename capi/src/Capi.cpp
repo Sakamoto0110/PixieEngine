@@ -4,8 +4,11 @@
 // the thread's last error.
 
 #include "pixie_capi.h"
+#include "GameModules.hpp"
+#include "Session.hpp"
 
-#include "pixie/GlLoader.hpp"
+#include "pixie/render/gl/GlLoader.hpp"
+#include "pixie/platform/HostSurface.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/PathDrawing.hpp"
@@ -44,13 +47,11 @@ static_assert(static_cast<int>(pixie::FieldKind::PointList) == PIXIE_FIELD_POINT
 static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECORD_LIST);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
 
-struct PixieSession {
-    pixie::ProjectSession session;
-    explicit PixieSession(std::unique_ptr<pixie::Project> project, pixie::SessionSettings settings)
-        : session(std::move(project), settings) {}
-};
-
 namespace {
+
+#ifdef PIXIE_DEVELOPMENT
+std::shared_ptr<PixieGameModule> loadedModule;
+#endif
 
 thread_local std::string lastError;
 
@@ -138,16 +139,33 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
         return Fail(PIXIE_ERROR_ARGUMENT, "null output or empty view");
     }
     *session = nullptr;
+    pixie::HostSurface surface({width, height});
+    surface.MakeCurrent();
     if (!pixie::LoadGl()) {
         return Fail(PIXIE_ERROR_GL, "OpenGL 4.5 core functions could not be loaded for the current context");
     }
     pixie::SessionSettings settings;
     settings.seed = seed;
-    auto created = std::make_unique<PixieSession>(pixie::CreateProject(), settings);
+    std::unique_ptr<pixie::Project> project;
+#ifdef PIXIE_CAPI_FACTORY
+    project = pixie::CreateProject();
+#endif
+#ifdef PIXIE_DEVELOPMENT
+    if (loadedModule) {
+        project.reset(loadedModule->create());
+        if (!project) return Fail(PIXIE_ERROR_INTERNAL, "game module factory returned no project");
+    }
+#endif
+    if (!project) project = std::make_unique<pixie::SceneProject>();
+    auto created = std::make_unique<PixieSession>(std::move(project), settings);
+#ifdef PIXIE_DEVELOPMENT
+    created->module = loadedModule;
+#endif
     if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
         return Fail(PIXIE_ERROR_IO, created->session.Error());
     }
-    if (!created->session.Start({width, height})) {
+    created->surface.Resize(surface.GetFramebufferSize());
+    if (!created->session.Start(created->surface.GetFramebufferSize())) {
         created->session.Stop();
         return Fail(PIXIE_ERROR_GL, "the renderers could not be created");
     }
@@ -202,11 +220,40 @@ void RecordChanged(PixieSession* s, uint32_t entity) {
 
 } // namespace
 
+#ifdef PIXIE_DEV_CHANNEL
+namespace pixie::dev {
+PixieResult SetNativeError(PixieResult result, const std::string& message) { return Fail(result, message); }
+}
+#endif
+
 extern "C" {
 
 int32_t pixie_api_version(void) {
     return PIXIE_CAPI_VERSION;
 }
+
+#ifdef PIXIE_DEVELOPMENT
+PixieResult pixie_module_load(const char* path) {
+    return Guard([&]() -> PixieResult {
+        if (!path) { loadedModule.reset(); return PIXIE_OK; }
+        auto module = std::make_shared<PixieGameModule>();
+#ifdef _WIN32
+        const auto absolute = std::filesystem::absolute(FromUtf8(path));
+        module->handle = LoadLibraryExW(absolute.c_str(), nullptr,
+            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+#else
+        module->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+#endif
+        if (!module->handle) return Fail(PIXIE_ERROR_IO, "game module could not be loaded");
+        const auto version = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_api_version"));
+        module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
+        if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
+            return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible");
+        loadedModule = std::move(module);
+        return PIXIE_OK;
+    });
+}
+#endif
 
 int32_t pixie_last_error(char* buffer, int32_t capacity) {
     if (buffer != nullptr && capacity > 0) {
@@ -216,6 +263,24 @@ int32_t pixie_last_error(char* buffer, int32_t capacity) {
     }
     return static_cast<int32_t>(lastError.size());
 }
+
+#ifdef PIXIE_DEV_CHANNEL
+PixieResult pixie_dev_dispatch(PixieSession* s, const char* request, char* buffer, int32_t capacity) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!request || !buffer) return Fail(PIXIE_ERROR_ARGUMENT, "null development request or response");
+    if (capacity < pixie::dev::kResponseCapacity)
+        return Fail(PIXIE_ERROR_BUFFER, "development response needs 4 MiB before command execution");
+    if (s->ownerThread != std::this_thread::get_id())
+        return Fail(PIXIE_ERROR_ARGUMENT, "development dispatch requires the session owner thread");
+    std::size_t length = 0;
+    while (length <= pixie::dev::kMaxRequestBytes && request[length] != '\0') ++length;
+    if (length > pixie::dev::kMaxRequestBytes) return Fail(PIXIE_ERROR_ARGUMENT, "development request exceeds 64 KiB");
+    return Guard([&] {
+        if (!s->dispatcher) s->dispatcher = std::make_unique<pixie::dev::WorldDispatcher>(s->session);
+        return Copy(s->dispatcher->Dispatch(std::string_view(request, length)), buffer, capacity);
+    });
+}
+#endif
 
 PixieResult pixie_physics_debug_get(PixieSession* s, uint32_t* flags) {
     PIXIE_REQUIRE_SESSION(s);
@@ -379,7 +444,8 @@ PixieResult pixie_session_resize(PixieSession* s, int32_t width, int32_t height)
         return Fail(PIXIE_ERROR_ARGUMENT, "empty view");
     }
     return Guard([&] {
-        s->session.Resize({width, height});
+        s->surface.Resize({width, height});
+        s->session.Resize(s->surface.GetFramebufferSize());
         return PIXIE_OK;
     });
 }
@@ -436,7 +502,13 @@ PixieResult pixie_session_render(PixieSession* s, uint32_t* texture) {
         return Fail(PIXIE_ERROR_ARGUMENT, "null output");
     }
     return Guard([&] {
+        s->surface.MakeCurrent();
+#ifdef PIXIE_DEV_CHANNEL
+        const auto alpha = s->dispatcher ? s->dispatcher->ConsumeRenderAlpha() : std::nullopt;
+        *texture = alpha ? s->session.RenderToTarget(*alpha) : s->session.RenderToTarget();
+#else
         *texture = s->session.RenderToTarget();
+#endif
         return *texture != 0 ? PIXIE_OK : Fail(PIXIE_ERROR_GL, "the render target could not be made");
     });
 }

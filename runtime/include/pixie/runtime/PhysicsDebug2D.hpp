@@ -1,4 +1,6 @@
 #pragma once
+
+#include "pixie/runtime/Export.hpp"
 #include <pixie/pxPoint.hpp>
 #include <pixie/pxColorRgba.hpp>
 #include <cstdint>
@@ -20,6 +22,6 @@ struct PhysicsDebugLine2D {
 };
 // Copied latest native state; no sync, stepping or authored mutation. Disabled bodies are omitted.
 // Sensors have a separate switch. Contact normals include speculative manifold points.
-std::vector<PhysicsDebugLine2D> ScenePhysicsDebug2D(World& world, std::uint32_t flags);
-void DrawPhysicsDebug2D(World& world, ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags);
+PIXIE_RUNTIME_API std::vector<PhysicsDebugLine2D> ScenePhysicsDebug2D(World& world, std::uint32_t flags);
+PIXIE_RUNTIME_API void DrawPhysicsDebug2D(World& world, ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags);
 }

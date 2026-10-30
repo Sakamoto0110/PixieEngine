@@ -3,7 +3,7 @@
 #include "BoidControls.hpp"
 #include "BoidsScene.hpp"
 
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/World.hpp"

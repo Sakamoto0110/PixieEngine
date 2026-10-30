@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/FrameTime.hpp"
-#include "pixie/Input.hpp"
+#include "pixie/core/FrameTime.hpp"
+#include "pixie/platform/Input.hpp"
 #include "pixie/runtime/Entity.hpp"
 
 namespace pixie {

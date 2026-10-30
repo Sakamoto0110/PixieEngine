@@ -1,6 +1,8 @@
 #pragma once
 
-#include "pixie/Particle.hpp"
+#include "pixie/runtime/Export.hpp"
+
+#include "pixie/render/2d/Particle.hpp"
 
 #include <entt/entity/entity.hpp>
 
@@ -84,7 +86,7 @@ struct ParticleSpawner {
 //
 // Emits the particles `spawner` owes for `delta` seconds into `system`, from `transform` (the
 // spawner's), aiming at `target` (the target's transform, or null). Returns how many it emitted.
-int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, const Transform2D* target,
+PIXIE_RUNTIME_API int EmitFromSpawner(ParticleSpawner& spawner, const Transform2D& transform, const Transform2D* target,
                     ParticleSystem& system, Random& random, double delta);
 
 } // namespace pixie

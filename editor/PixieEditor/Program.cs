@@ -18,6 +18,12 @@ internal sealed record EditorOptions
     public List<(string Type, string Property, string Value)> Edits { get; } = [];
     public double EditAfter { get; init; } = 1.0;
     public double QuitAfter { get; init; }
+#if PIXIE_DEVELOPMENT
+    public ulong? QuitAfterSteps { get; init; }
+    public string? DevChannel { get; init; }
+    public string? DevCaptureDirectory { get; init; }
+    public bool DevHidden { get; init; }
+#endif
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
     // What the mouse does at the start; Game for a game, Select for a project, which opens in edit mode.
@@ -62,7 +68,14 @@ internal static class Program
                                    font=<file> (as chosen for the selected texts' font),
                                    addpoint=<Type.field>, removepoint=<Type.field>@<index> (as the inspector's
                                    buttons on a list of points); repeatable
-        """;
+        """
+#if PIXIE_DEVELOPMENT
+        + "\n  --quit-after-steps <n>  close after exactly n fixed steps; zero captures the initial state"
+        + "\n  --dev-channel <name>   opt-in local Engine/Inspector command channel"
+        + "\n  --dev-capture-dir <dir> fixed channel capture directory"
+        + "\n  --dev-hidden on|off    create a channel-driven editor hidden"
+#endif
+        ;
 
     [STAThread]
     private static int Main(string[] args)
@@ -86,7 +99,7 @@ internal static class Program
 
     // A game's name, from its name or its library's path.
     public static string GameName(string game) =>
-        File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-capi", "") : game;
+        File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-module", "") : game;
 
     private static bool TryParse(string[] args, out EditorOptions options)
     {
@@ -120,6 +133,20 @@ internal static class Program
                 case "--quit-after" when double.TryParse(value, CultureInfo.InvariantCulture, out var quit):
                     options = options with { QuitAfter = quit };
                     break;
+#if PIXIE_DEVELOPMENT
+                case "--dev-channel":
+                    options = options with { DevChannel = value };
+                    break;
+                case "--dev-capture-dir":
+                    options = options with { DevCaptureDirectory = value };
+                    break;
+                case "--dev-hidden" when value is "on" or "off":
+                    options = options with { DevHidden = value == "on" };
+                    break;
+                case "--quit-after-steps" when ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var steps):
+                    options = options with { QuitAfterSteps = steps };
+                    break;
+#endif
                 case "--time-scale" when double.TryParse(value, CultureInfo.InvariantCulture, out var scale) && scale > 0:
                     options = options with { TimeScale = scale };
                     break;
@@ -149,6 +176,13 @@ internal static class Program
             }
         }
 
+#if PIXIE_DEVELOPMENT
+        if (options.QuitAfterSteps.HasValue && options.Game == null && options.Project == null)
+            return false;
+        if (options.DevChannel is { } channel && (channel.Length is < 1 or > 64 || channel.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') ||
+            options.Game == null && options.Project == null || options.QuitAfterSteps.HasValue || options.SaveAfter.HasValue || options.Commands.Count != 0 || options.Edits.Count != 0)) return false;
+        if (options.DevChannel == null && (options.DevCaptureDirectory != null || options.DevHidden)) return false;
+#endif
         return true;
     }
 

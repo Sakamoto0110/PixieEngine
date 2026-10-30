@@ -71,6 +71,8 @@ internal sealed class History
 
     public string? UndoName => Done.Count > 0 ? Done[^1].Name : null;
     public string? RedoName => Undone.Count > 0 ? Undone[^1].Name : null;
+    public int UndoCount => Done.Count;
+    public int RedoCount => Undone.Count;
 
     public void Record(IStep step)
     {
@@ -121,11 +123,26 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
     public void Write(uint entity, int type, int field, PixieValue value)
     {
         var key = (entity, type, field);
-        if (!Open.ContainsKey(key) && recording() && session.SceneId(entity) is { } id)
-            Open[key] = (id, session.Get(entity, type, field), value);
-        session.Set(entity, type, field, value);
-        if (Open.TryGetValue(key, out var change))
-            Open[key] = change with { After = value };
+        var existing = Open.TryGetValue(key, out var change);
+        var sceneId = existing ? change.Id : recording() ? session.SceneId(entity) : null;
+        var before = existing ? change.Before : sceneId != null ? session.Get(entity, type, field) : default;
+        var succeeded = false;
+        try { session.Set(entity, type, field, value); succeeded = true; }
+        finally
+        {
+            if (sceneId is { } id)
+            {
+                try
+                {
+                    // Record observed storage, never a requested value before the setter ran.
+                    // A throwing setter may still have changed storage; preserve that effect
+                    // when it can be read, without replacing the original native failure.
+                    var actual = session.Get(entity, type, field);
+                    if (existing || !Same(before, actual)) Open[key] = (id, before, actual);
+                }
+                catch (EngineException) when (!succeeded) { }
+            }
+        }
     }
 
     public void Close()

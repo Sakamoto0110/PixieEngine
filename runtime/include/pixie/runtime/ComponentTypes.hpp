@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/runtime/World.hpp"
 
 #include <entt/entity/registry.hpp>
@@ -602,6 +604,6 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
 
 // Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
 // Acceleration2D, Shape, Sprite, Text, Path, Attractor, ParticleSystem, and ParticleSpawner.
-void DescribeRuntimeComponents(ComponentTypes& types);
+PIXIE_RUNTIME_API void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

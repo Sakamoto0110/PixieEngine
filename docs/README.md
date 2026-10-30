@@ -30,6 +30,9 @@ owns the authority table: which document owns which kind of fact.
 | [`../TASKLIST.md`](../TASKLIST.md) | Task breakdowns of promoted work |
 | [`../DEPENDENCIES.md`](../DEPENDENCIES.md) | Dependencies, versions, status, and candidates |
 | [`development.md`](development.md) | How to build, check, and commit a change |
+| [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | Qualification plan for PIXIE-TODO-051: shared engine, export barriers and separately isolated local MCP development |
+| [`game-export.md`](game-export.md) | Native manifest export command, shipping/build separation and current qualification limits |
+| [`deterministic-capture.md`](deterministic-capture.md) | Development fixed-step capture, seed precedence and snapshot candidate/approval boundaries |
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
 | [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |
@@ -51,5 +54,9 @@ owns the authority table: which document owns which kind of fact.
 | `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
 | [`modules/runtime/`](modules/runtime/README.md) | The `runtime` module: World, entities, Behaviours, update phases, particles, reflection, and projects |
 | [`modules/runtime/FINDINGS.md`](modules/runtime/FINDINGS.md) | Unconfirmed runtime observations and deferred investigations |
-| [`modules/capi/`](modules/capi/README.md) | The `capi` module: one shared library per game, with a C-only interface |
+| [`modules/core/`](modules/core/README.md) | CPU timing, logging, telemetry and images |
+| [`modules/platform/`](modules/platform/README.md) | Window/context ownership, input and frame limiting |
+| [`modules/render/`](modules/render/README.md) | GL resources, dimension-neutral View/readback and 2D renderers |
+| [`modules/app/`](modules/app/README.md) | Native player loop and debug/input composition |
+| [`modules/capi/`](modules/capi/README.md) | The C interface in the shared engine and development game modules |
 | `modules/` | One directory per decided engine boundary |

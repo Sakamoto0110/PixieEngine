@@ -9,9 +9,23 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>PixieEditor</RootNamespace>
+    <IsPackable>false</IsPackable>
+    <PixieDevelopmentTools Condition="'$(PixieDevelopmentTools)' == ''">true</PixieDevelopmentTools>
+    <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true'">$(DefineConstants);PIXIE_DEVELOPMENT</DefineConstants>
+    <!-- Whether the development channel may save the scene (editor.do save); -p:PixieChannelSave=false leaves it out. -->
+    <PixieChannelSave Condition="'$(PixieChannelSave)' == ''">true</PixieChannelSave>
+    <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true' And '$(PixieChannelSave)' == 'true'">$(DefineConstants);PIXIE_CHANNEL_SAVE</DefineConstants>
     <!-- The neko mark from the shared asset store (vdr: neko-purple-light), copied by vdr cp. -->
     <ApplicationIcon>assets/neko-purple-light.ico</ApplicationIcon>
   </PropertyGroup>
+
+  <ItemGroup Condition="'$(PixieDevelopmentTools)' != 'true'">
+    <Compile Remove="Development/**/*.cs" />
+  </ItemGroup>
+  <Target Name="RequireShippingPublish" BeforeTargets="PrepareForPublish;Publish">
+    <Error Condition="'$(PixieDevelopmentTools)' == 'true'" Text="Publish requires -p:PixieDevelopmentTools=false; development operations cannot be published." />
+    <Error Condition="'$(NoBuild)' == 'true'" Text="Publishing an existing editor binary is not allowed; build with development tools disabled." />
+  </Target>
 
   <ItemGroup>
     <!-- The same icon for the window, which GLFW takes as pixels (Ui/WindowIcon.cs). -->

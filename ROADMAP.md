@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-22
+**Direction decision date:** 2026-10-28
 
 ## Purpose
 
@@ -125,7 +125,6 @@ promotion. None is an automatic follow-up to completed telemetry work.
 | Presentation membership and shared visible queries | Hidden-entity traversal is material; visibility changes preserve simulation timing and state |
 | Active-work queues and reusable scratch storage | A second consumer demonstrates reusable semantics beyond circuit scheduling |
 | Shared serialized definitions | A second consumer establishes identity, overrides, mutable-instance isolation and compatibility needs |
-| Shared engine distribution and export | Owner disposition of [PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md), including the existing static-runtime guardrail |
 | Single-build player startup | Owner disposition of [PIXIE-PROPOSAL-012](docs/proposals/player-builds-once.md), preserving editor Play/Stop behavior |
 
 ### Deferred investigation
@@ -137,8 +136,22 @@ promotion. None is an automatic follow-up to completed telemetry work.
 
 ### Boundary decisions
 
-The `platform` and `render` boundaries remain undecided. Their implementation
-stays in the provisional engine library until those boundaries are decided.
+The approved native split keeps Core, Platform, Render and App as separate
+ownership/dependency boundaries. Platform and Render depend on Core and never
+on each other; App composes them. The split implementation is the baseline for
+the distribution work, not evidence that all of its documentation has been reconciled.
+
+On 2026-10-28 the owner promoted [PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md):
+one shared native engine, directly linked game players, development-only game
+modules and allowlisted folder exports. Packaging those boundaries into one
+DLL does not remove their dependency directions. The owner also included a
+separate local MCP development channel for Engine/Inspector operations. Its
+operations and dependencies must be absent from game exports, publish and
+remote-release artifacts. The owner included proposals 013/014 for distinct
+World and Inspector/history paths, repeatable capture and approved snapshot
+qualification; this does not approve reference images or enable channel save.
+Execution, the EnTT-first gate and qualification are
+owned by [PIXIE-TODO-051](TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
 ## Active guardrails
 
@@ -193,8 +206,11 @@ stays in the provisional engine library until those boundaries are decided.
   struct (the step or frame delta, the render interpolation alpha, simulated
   elapsed time, and the call index); there is no global timestep. Time belongs to a World, not to the
   process. Accepted 2026-10-10.
-- **Executables do not need the Visual C++ Redistributable.** MSVC builds link
-  the C++ runtime statically into every target. Accepted 2026-10-11.
+- **Players install no Visual C++ runtime prerequisite.** The 2026-10-28
+  shared-engine decision replaces the static-runtime mechanism accepted on
+  2026-10-11: native targets share /MD (/MDd in Debug), and game exports carry
+  the required Visual C++ runtime DLLs app-locally. This is an accepted target;
+  its implementation and deployment proof remain gated by PIXIE-TODO-051.
 - **GLEW is the GL loader to start with.** Accepted 2026-10-09; glad 2 remains
   a candidate in [`DEPENDENCIES.md`](DEPENDENCIES.md).
 - **PixieLib owns primitives and math forwarding.** Accepted 2026-10-09.

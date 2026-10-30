@@ -1,7 +1,7 @@
 #include "Check.hpp"
 #include "DebugConsole.hpp"
 #include "DebugOverlay.hpp"
-#include "pixie/GlLoader.hpp"
+#include "pixie/render/gl/GlLoader.hpp"
 
 #include <GLFW/glfw3.h>
 #include <array>

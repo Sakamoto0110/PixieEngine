@@ -2,8 +2,8 @@
 
 #include "pixie/runtime/Culling.hpp"
 
-#include "pixie/Gl.hpp"
-#include "pixie/Log.hpp"
+#include "pixie/render/RenderTarget.hpp"
+#include "pixie/core/Log.hpp"
 #include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
@@ -81,6 +81,7 @@ bool ProjectSession::Start(FramebufferSize size) {
 }
 
 void ProjectSession::Stop() {
+    ++worldRevision_;
     world_.reset();
     target_.Destroy();
     images_.Destroy();
@@ -93,6 +94,7 @@ void ProjectSession::Stop() {
 }
 
 void ProjectSession::Build(bool resetCamera) {
+    ++worldRevision_;
     world_.reset();
     world_ = std::make_unique<World>(settings_.seed);
     if (resetCamera) {
@@ -243,8 +245,7 @@ constexpr double kCullPadding = 32.0;
 
 void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
-    glClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    pixie::ClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
     if (const auto now = std::chrono::steady_clock::now(); now >= nextImageCheck_) {
         images_.CheckForChanges();
         nextImageCheck_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -254,10 +255,10 @@ void ProjectSession::Render(double alpha) {
     // Only what may show on screen is submitted.
     const pxRect view = PaddedView(camera_, kCullPadding);
     SubmitSprites(*world_, sprites_, images_, alpha, &texts, &view);
-    sprites_.Flush(camera_, 0);
+    sprites_.Flush(camera_.MakeView(), 0);
     SubmitPaths(*world_, paths_, alpha, &view);
-    paths_.Flush(camera_);
-    sprites_.Flush(camera_);
+    paths_.Flush(camera_.MakeView());
+    sprites_.Flush(camera_.MakeView());
     DrawParticles(*world_, particles_, camera_, alpha);
     SubmitShapes(*world_, shapes_, alpha, &view);
     if (mode_ == SessionMode::Edit) {
@@ -266,23 +267,27 @@ void ProjectSession::Render(double alpha) {
     }
     if (physicsDebugExplicit_) DrawPhysicsDebug2D(*world_, shapes_, camera_, physicsDebug_);
     project_->DrawOverlay(*world_, shapes_, camera_);
-    shapes_.Flush(camera_);
+    shapes_.Flush(camera_.MakeView());
 
     ScreenCanvas screen(camera_, shapes_, paths_, sprites_, text_, images_, fonts_);
     project_->DrawScreen(*world_, screen);
     const Camera2D pixels = ScreenCanvas::PixelCamera(camera_.Viewport());
-    shapes_.Flush(pixels);
-    paths_.Flush(pixels);
-    sprites_.Flush(pixels);
+    shapes_.Flush(pixels.MakeView());
+    paths_.Flush(pixels.MakeView());
+    sprites_.Flush(pixels.MakeView());
 }
 
 unsigned ProjectSession::RenderToTarget() {
+    return RenderToTarget(Alpha());
+}
+
+unsigned ProjectSession::RenderToTarget(double alpha) {
     const FramebufferSize size = camera_.Viewport();
     if (size.width <= 0 || size.height <= 0 || !target_.Resize(size)) {
         return 0;
     }
     target_.Bind();
-    Render(Alpha());
+    Render(alpha);
     RenderTarget::BindDefault();
     return target_.ColorTexture();
 }

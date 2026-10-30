@@ -1,5 +1,5 @@
 #include "SparksProject.hpp"
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/ParticlePhysics2D.hpp"

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include "pixie/runtime/CharacterController2D.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -31,7 +33,7 @@ struct CollisionLayerNames2D {
 };
 // Empty/undefined slots are returned as "Unnamed layer N". Invalid duplicate slots are
 // unnamed, diagnosed and never used to change physics filters. No backend is allocated.
-CollisionLayerNames2D DescribeCollisionLayers2D(const World& world);
+PIXIE_RUNTIME_API CollisionLayerNames2D DescribeCollisionLayers2D(const World& world);
 
 enum class ColliderKind2D { Box, Circle, Polygon };
 
@@ -88,34 +90,34 @@ struct CharacterCommand2D { double horizontal = 0; bool jumpPressed = false; };
 
 // Idempotent per World. A session installs this after loading/building its scene, in both hosts.
 // No collision backend is allocated until the scene contains relevant components.
-void InstallSceneMovement2D(World& world);
+PIXIE_RUNTIME_API void InstallSceneMovement2D(World& world);
 // Refreshes authored geometry/settings without advancing time, including while editing.
-void SyncSceneMovement2D(World& world);
+PIXIE_RUNTIME_API void SyncSceneMovement2D(World& world);
 // Rebuilds transient bodies, contacts and motor state from current authored components/poses.
 // Call outside a World step. Borrowed collision/motor views must be reacquired afterward.
-void ResetSceneMovement2D(World& world);
-std::vector<std::string> SceneMovementErrors2D(World& world);
-const CapsuleMotion2D* CharacterMotion2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API void ResetSceneMovement2D(World& world);
+PIXIE_RUNTIME_API std::vector<std::string> SceneMovementErrors2D(World& world);
+PIXIE_RUNTIME_API const CapsuleMotion2D* CharacterMotion2D(World& world, entt::entity entity);
 // Last synchronized controller settings, borrowed with the same lifetime as CharacterMotion2D.
-const CharacterSettings2D* CharacterTuning2D(World& world, entt::entity entity);
-const CharacterCouplingState2D* CharacterCoupling2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API const CharacterSettings2D* CharacterTuning2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API const CharacterCouplingState2D* CharacterCoupling2D(World& world, entt::entity entity);
 // Borrowed query view after the latest sync; null until relevant components are synchronized.
-const CollisionWorld2D* SceneCollisionWorld2D(World& world);
+PIXIE_RUNTIME_API const CollisionWorld2D* SceneCollisionWorld2D(World& world);
 // Borrowed mutable service for game commands; reacquire after sync/reset. Empty handle if invalid/missing.
-CollisionWorld2D* ScenePhysicsWorld2D(World& world);
-BodyHandle2D SceneBody2D(World& world, entt::entity entity);
-entt::entity SceneColliderEntity2D(World& world, ColliderHandle2D collider);
+PIXIE_RUNTIME_API CollisionWorld2D* ScenePhysicsWorld2D(World& world);
+PIXIE_RUNTIME_API BodyHandle2D SceneBody2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API entt::entity SceneColliderEntity2D(World& world, ColliderHandle2D collider);
 struct ScenePhysicsEvent2D {
     PhysicsEvent2D event;
     entt::entity entityA = entt::null, entityB = entt::null;
 };
 // Last completed scene tick; identities of removed entities are retained in the copied event.
-std::span<const ScenePhysicsEvent2D> ScenePhysicsEvents2D(World& world);
+PIXIE_RUNTIME_API std::span<const ScenePhysicsEvent2D> ScenePhysicsEvents2D(World& world);
 
 // Reusable authoring presentation, not a dependency on the C# editor. Empty for invalid/missing geometry.
-std::vector<pxPoint> MovementOutline2D(World& world, entt::entity entity);
-std::vector<std::vector<pxPoint>> MovementOutlines2D(World& world, entt::entity entity);
-void DrawMovementGizmos2D(World& world, ShapeRenderer& renderer, const Camera2D& camera);
-entt::entity PickMovementGizmo2D(World& world, pxPoint point, double tolerance);
-std::vector<entt::entity> PickMovementGizmosIn2D(World& world, const pxRect& rectangle);
+PIXIE_RUNTIME_API std::vector<pxPoint> MovementOutline2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API std::vector<std::vector<pxPoint>> MovementOutlines2D(World& world, entt::entity entity);
+PIXIE_RUNTIME_API void DrawMovementGizmos2D(World& world, ShapeRenderer& renderer, const Camera2D& camera);
+PIXIE_RUNTIME_API entt::entity PickMovementGizmo2D(World& world, pxPoint point, double tolerance);
+PIXIE_RUNTIME_API std::vector<entt::entity> PickMovementGizmosIn2D(World& world, const pxRect& rectangle);
 }

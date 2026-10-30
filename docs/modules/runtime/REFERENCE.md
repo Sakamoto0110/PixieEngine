@@ -26,7 +26,7 @@ World owns a main-thread CPU telemetry collector, initially disabled. `GetTeleme
 without involving rendering; it records inclusive whole-step, aggregate Behaviour and named-system
 durations when enabled. Resetting telemetry does not reset simulation time or scene state. The
 [telemetry guide](../../telemetry.md) describes registration, lifetime, export and native controls;
-the public API is [`Telemetry.hpp`](../../../engine/include/pixie/Telemetry.hpp).
+the public API is [`Telemetry.hpp`](../../../engine/core/include/pixie/core/Telemetry.hpp).
 Scene movement additionally records sync/rebuild, motor integration, event
 identity publication and body pose publication, with per-tick rebuild/sync and
 population gauges. Active-ID buffers retain capacity across syncs; the native
@@ -608,23 +608,25 @@ project or that already has a `CMakeLists.txt`.
 `<project>/bin/<config>/`. A project never records where the engine is: whoever builds it passes
 `PIXIE_ENGINE_DIR`, and the editor passes the engine it runs from. The engine, when it is not the
 top-level project, builds neither its samples nor its tests, does not write to its own `bin/`, and
-does not build `pixie-scene-capi`.
+uses its own binary output directory for the shared engine and game targets.
 
 `pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...] [PROJECT_DIR <dir>])` (in
 `cmake/PixieGame.cmake`) makes three targets: `<name>-game`, a static library with the game's code, which defines
 `pixie::CreateProject()` (its public include directories are `INCLUDE_DIRS`, `src/` by default);
-`<name>`, its player; and `<name>-capi`, its C API library. The player is the Visual Studio startup
-project of the calling directory. Every target links the C++ runtime statically, as the engine's do.
+`<name>`, its directly linked player; and, with `PIXIE_DEVELOPMENT`,
+`<name>-module`, its development-only factory/game module loaded through the shared engine.
+The player is the Visual Studio startup project of the calling directory.
+Native targets use /MDd in Debug and /MD in Release, matching the shared engine.
 `PROJECT_DIR` is for a game built in another tree than its project, such as the engine's samples,
 whose players land in the engine's `bin/`: the player opens that folder, and, when the engine's
-tests are built, a CTest test `<name>-project` opens the project with the game's library
-(`capi-test --open`).
+tests are built, a CTest test `<name>-project` opens the project through the shared engine
+with `capi-test --open` and the selected `--module`.
 
 The player's `main` is the engine's (`runtime/player/PlayerMain.cpp`, compiled into each player,
 not into the runtime library). It opens the project folder given with `--project`, or else the
 folder of `PROJECT_DIR`, or else the first folder above the executable that holds a `.pixie` file, and plays its start scene with
 `ProjectApp`, titled with the project's name. It takes the options every player takes
-(`pixie/RunOptions.hpp` in the engine library: `--ups`, `--fps`, `--vsync`, `--quit-after`,
+(`pixie/app/RunOptions.hpp` in the App boundary: `--ups`, `--fps`, `--vsync`, `--quit-after`,
 `--screenshot`).
 
 ## Drawing
@@ -806,7 +808,7 @@ ignored), the user data folder (names made folder names, and the folder made und
 shape and no path outside it; a folder that is not empty refused; only a folder with one valid
 project file opening; unknown keys written back; and which paths count as inside the folder).
 Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
-which drives a whole project through `pixie-scene-capi`, including a sprite drawn in its image's
+which drives a whole project through the shared engine (CTest `pixie-scene-capi`), including a sprite drawn in its image's
 color, a path drawn in its two colors, over a background sprite and under one of layer 0, and a text
 drawn inside its outline and nowhere else, over a sprite of a lower layer and under one of a higher. `SubmitShapes` is exercised by the samples that draw a World.
 `tests/engine/TextTests.cpp` (CTest `engine-tests`) covers UTF-8 decoding, refusing what is not a

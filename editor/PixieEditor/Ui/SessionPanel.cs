@@ -11,6 +11,9 @@ internal sealed class SessionPanel(EngineSession session, string game)
 {
     private string MovementStatus = "";
     private long NextStatusRead;
+#if PIXIE_DEVELOPMENT
+    public bool Deterministic { get; init; }
+#endif
     // Set when another game was opened, so the editor closes.
     public bool CloseRequested { get; private set; }
 
@@ -54,8 +57,13 @@ internal sealed class SessionPanel(EngineSession session, string game)
             ImGui.TextUnformatted($"Steps: {stats.Steps}");
             ImGui.TextUnformatted($"Time: {stats.Elapsed:F2} s");
             ImGui.TextUnformatted($"Entities: {stats.Entities}");
-            ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
-            ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+#if PIXIE_DEVELOPMENT
+            if (!Deterministic)
+#endif
+            {
+                ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
+                ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+            }
             if (ImGui.CollapsingHeader("Physics debug"))
             {
                 string[] labels = ["Collider outlines", "Body origins", "Centers of mass", "Velocities", "Sensors", "Awake/asleep", "Contact normals"];

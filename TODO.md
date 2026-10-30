@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-26
+**Last promotion decision:** 2026-10-28
 
 ## Purpose and admission rule
 
@@ -47,6 +47,15 @@ entry may keep an explicit gate after promotion.
 **Dependencies and gates:** preserve standalone collision APIs, existing scene behavior and earlier dirty work (the TEST, TEST2 and tes projects were removed at the owner's request on 2026-10-26; individual tests live outside the repository). Pin the motor coupling algorithm before D4. Separate measured mechanical evidence from owner feel acceptance.
 **Completion criteria:** body/world ownership, dynamics/materials/events, editor/lifecycle/migration and character/platform scenarios satisfy the specification's qualified matrix; unmet requirements remain explicit. No claim of all physics completion from a native body demo.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
+
+### `PIXIE-TODO-051` — Shared engine, game export and local MCP development channel
+
+**Status:** in-progress
+**Source:** owner promotion of [PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md) on 2026-10-28, explicitly extended to [PIXIE-PROPOSAL-013](docs/proposals/dev-channel.md) and [PIXIE-PROPOSAL-014](docs/proposals/deterministic-capture.md) as the development-channel and deterministic-capture scope. The owner's extension supersedes the supplied implementation prompt's exclusion of that channel.
+**Accepted scope:** one shared native engine containing Core/Platform/Render/App, Runtime and C API; directly linked game players and development-only game modules; shared MSVC runtime across all native targets with app-local runtime deployment; one native manifest-allowlisted export tool reused by the editor; a separate local MCP development channel for Engine/Inspector operations; repeatable seeded, sized, fixed-step captures and approved snapshot scenarios. Nothing related to development operations enters game exports, publish or remote-release artifacts. The channel uses separate world.* and inspector.*/editor.* paths, descriptor-based discovery, session stepping, input/view operations and C API-backed snapshot/restore. Inspector writes reuse existing --set/--do handlers and EditRecorder/history, never a parallel writer. The player serves only world.*. Capture returns image content through MCP and writes only beneath the folder fixed when the channel opens. Entities use scene IDs and components/fields use names, never field indices. One client is served; queued commands run once per frame between Advance and Render, including while paused, and errors carry PixieResult plus pixie_last_error text. Channel save follows the owner's answer to question 2 of proposal 013 (2026-10-30): the editor's `editor.do save` reuses the existing save handler and is present in development builds, and the build flag `-p:PixieChannelSave=false` leaves it out; world.* and the player never save. Existing command-line behavior remains compatible.
+**Dependencies and gates:** first prove module-defined EnTT components can be added, iterated and removed across the DLL boundary, and registered through ComponentTypes/read through the C API. Stop on type-ID disagreement and report mechanisms/costs instead of bypassing the gate. Only after it passes migrate production targets to /MD (/MDd for Debug), including third parties. Preserve the four-library dependency directions from the split baseline. Keep existing C API functions and semantics; additions raise the API version, and removals or semantic changes require a new owner decision. Obtain PixieLib shared-runtime evidence and agree the Inspector channel contract before dependent changes. Native engine code never depends on Inspector or the editor.
+**Completion criteria:** all child tasks finish with the [qualification matrix](docs/shared-engine-export-validation.md), including project-code, both native presets/configurations, visual comparison, editor/module lifecycle, isolated exports, dependency closure, size measurements, and independently broken copies of all four development-artifact barriers. Qualify each accepted channel command group in memory and one real local IPC session, Inspector write/read/undo and refusal behavior, deterministic capture inputs and snapshot mismatch detection. Reference image updates need owner approval and a stated reason. The local MCP channel works through the agreed Engine/Inspector paths and is absent from publish/remote-release and exported runtime dependency closures. Record remaining LogicSandbox migration breaks without migrating it. No installer, additional export format, push or publication is authorized by this entry. PIXIE-TODO-043 remains independently open; this work does not complete physics or its owner acceptance.
+**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-051--shared-engine-export-and-local-mcp-development)
 
 ## Completed
 

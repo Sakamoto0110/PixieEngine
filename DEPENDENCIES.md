@@ -22,6 +22,22 @@
 
 **Last checked:** 2026-10-13
 
+**Scoped native build update, 2026-10-28:** the shared-engine migration changes
+runtime/link ownership below, not the recorded upstream-version checks.
+Debug and Release native build/test evidence is bounded in the
+[qualification matrix](docs/shared-engine-export-validation.md). App-local
+runtime export deployment, final CI and development-channel exclusion remain
+separate pending gates; this note does not claim a new upstream dependency audit.
+
+**Scoped capture-tool update, 2026-10-29:** development snapshot tooling pins
+Pillow 13.0.0 in `scripts/requirements-snapshots.txt`. It is used only by Python
+capture/comparison tools, not native runtime or published editor dependencies.
+This records the implementation pin, not an upstream latest-version check;
+executed validation must identify its actual Python environment separately.
+The capture writer used local Python 3.15 with Pillow 13.0.0, confirmed by the
+coordinator through that interpreter. The bundled documentation-check runtime
+has Pillow 12.3.0 and was not used for these capture executions.
+
 Vendored third-party sources live under `external/<name>/`, unmodified from
 the release archive whose hash is recorded below. Where no hash is published
 (GitHub tag archives), the recorded hash is the one computed on download.
@@ -49,24 +65,25 @@ version change.
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
-| Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Builds the native side in C++20 (accepted 2026-10-10), with the C++ runtime linked statically (accepted 2026-10-11), so executables do not need the Visual C++ Redistributable. |
+| Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Builds the native side in C++20. The 2026-10-28 shared-engine decision replaces static runtime linkage with /MDd Debug and /MD Release. App-local runtime deployment remains an export qualification gate, not a claim about a development build directory. |
 | CMake | Native build system (accepted 2026-10-10) | 4.3.1, bundled with Visual Studio | — | `ok` | Not on `PATH`; available from the Visual Studio developer shell. A standalone install is needed only to build outside Visual Studio or on another OS. GLFW 3.5.1 builds through its own `CMakeLists.txt`. |
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
 | .NET SDK | The C# editor (`editor/`) and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | The editor targets `net10.0` and builds with `dotnet build editor/PixieEditor.slnx` (2026-10-13). |
 | Git | Version control | 2.55.0 | — | `ok` | |
 | Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
+| Pillow | Development snapshot PNG comparison | 13.0.0 pinned by `scripts/requirements-snapshots.txt` (2026-10-29) | Not checked | `ok` | Install into the snapshot tool's Python environment. The documentation verifier remains standard-library-only. No Pillow files belong in game exports or editor publish payloads. See the scoped capture update above; this is not a refreshed upstream audit. |
 
 ## Graphics and platform
 
 | Dependency | Used for | In use | Latest | Status | Notes and suggestions |
 |---|---|---|---|---|---|
 | OpenGL 4.5 core | Rendering | AMD Radeon RX 7600, driver 32.0.31041.1004 (2026-08-16) | — | `ok` | Confirmed on 2026-10-11: the hello-gl sample logs `4.5.0 Core Profile Context 26.8.1.260810`. |
-| GLEW | GL function loader | 2.3.1 source release, unmodified, in `external/glew/`; archive `glew-2.3.1.tgz`, SHA-256 `b64790f94b926acd7e8f84c5d6000a86cb43967bd1e688b03089079799c9e889` | 2.3.1 (2026-01-24) | `ok` | Built as a static library in Debug and Release (2026-10-11). Modified BSD and MIT licenses (`external/glew/LICENSE.txt`). Adopted 2026-10-09 as the starting loader. Build from source as a static library (`GLEW_STATIC`). Under the core profile: set `glewExperimental = GL_TRUE` before `glewInit()`, then drain `glGetError()` once before installing the debug callback, because `glewInit()` leaves a spurious `GL_INVALID_ENUM`. On Wayland/EGL hosts, GLEW must be built with EGL support. |
+| GLEW | GL function loader | 2.3.1 source release, unmodified, in `external/glew/`; archive `glew-2.3.1.tgz`, SHA-256 `b64790f94b926acd7e8f84c5d6000a86cb43967bd1e688b03089079799c9e889` | 2.3.1 (2026-01-24) | `ok` | Modified BSD and MIT licenses (`external/glew/LICENSE.txt`). Built from source into a private static archive embedded/exported once by pixie.dll; consumers use glew_headers/import declarations rather than another static loader instance (shared-engine wiring, 2026-10-28). Under the core profile: set glewExperimental before glewInit and drain its spurious GL_INVALID_ENUM before debug setup. Wayland/EGL support remains unqualified. |
 | stb_easy_font | Debug text in the hello-gl sample | `stb_easy_font.h` and `LICENSE` from `nothings/stb` at commit `2c980bb59875b0d32144a71867fbdebb2f77cd20`, unmodified, in `external/stb/`; header SHA-256 `7b48b52a316477766c0a7a096b33a29bcbd847b6fab4fabd32bb3fdb7cea1a60` | No releases; `master` at the pinned commit (2026-08-02) | `ok` | MIT or public domain. Text built from quads, no texture. Adopted 2026-10-11 for the sample only. |
 | stb_image | PNG images for sprites | `stb_image.h` (v2.30) from `nothings/stb` at commit `2c980bb59875b0d32144a71867fbdebb2f77cd20`, the same commit and `LICENSE` as stb_easy_font, unmodified, in `external/stb/`; header SHA-256 `594c2fe35d49488b4382dbfaec8f98366defca819d916ac95becf3e75f4200b3` | No releases; `master` at the pinned commit (2026-08-02) | `ok` | MIT or public domain. Adopted 2026-10-15 with PIXIE-PROPOSAL-007. Its implementation is compiled once, in the engine's `Image.cpp`, for PNG only (`STBI_ONLY_PNG`) and from memory (`STBI_NO_STDIO`), so file names never reach it. Included as a `SYSTEM` header, so its warnings stay out of the engine's `/W4 /WX`. |
 | stb_truetype | Text: TrueType fonts rasterized into atlases | `stb_truetype.h` (v1.26) from `nothings/stb` at commit `2c980bb59875b0d32144a71867fbdebb2f77cd20`, the same commit and `LICENSE` as stb_easy_font, unmodified, in `external/stb/`; header SHA-256 `ecd30b05e0dd4fea3a13c26810dd9e1992dc379049482c393d5a19e6b5090aab` | No releases; `master` at the pinned commit (2026-08-02) | `ok` | MIT or public domain. Adopted 2026-10-15 with PIXIE-TODO-030. Its implementation is compiled once, in the engine's `Font.cpp` (`STBTT_STATIC`), and reads fonts from memory, so file names never reach it. Only fonts with `glyf` outlines rasterize; CFF fonts are refused. Included as a `SYSTEM` header, so its warnings stay out of the engine's `/W4 /WX`. |
 | Inter | The particles sample's screen-layer font, and the text tests' | `inter-regular` from the shared resources (`vdr cp inter-regular`): Inter 4.001 Regular, the static TTF of the official `rsms/inter` release 4.1, unmodified, in `samples/particles/fonts/` with its license `inter-license.txt`; SHA-256 `40d692fce188e4471e2b3cba937be967878f631ad3ebbbdcd587687c7ebe0c82` | 4.1 (2024-11-16) | `ok` | SIL Open Font License 1.1; the license file travels with each copy. An asset, not code: the engine ships no font, and a project copies one into its folder. Adopted 2026-10-15 with PIXIE-TODO-030. |
-| GLFW | Player window and input | 3.5.1 source release, unmodified, in `external/glfw/`; archive `glfw-3.5.1.zip`, SHA-256 `ea79bc5feffc254c87291980c2d0bce9acebb68c4983b79f961dcd2cb8a611a0` | 3.5.1 (2026-07-31) | `ok` | Built through its own CMake project in Debug and Release (2026-10-11). zlib/libpng license (`external/glfw/LICENSE.md`). |
+| GLFW | Player window and input | 3.5.1 source release, unmodified, in `external/glfw/`; archive `glfw-3.5.1.zip`, SHA-256 `ea79bc5feffc254c87291980c2d0bce9acebb68c4983b79f961dcd2cb8a611a0` | 3.5.1 (2026-07-31) | `ok` | Built through its own CMake project with GLFW_LIBRARY_TYPE SHARED and shared MSVC runtime (2026-10-28); glfw3.dll is a native runtime dependency. One instance preserves context/callback state across engine and host tests. zlib/libpng license (`external/glfw/LICENSE.md`). |
 
 ## Runtime
 
@@ -97,6 +114,27 @@ host uses (`editor/PixieEditor/PixieEditor.csproj`). `PixieInspector.Avalonia`
 0.1.0 would bring Avalonia 12.1.3. Those are dependencies of the editor
 project, not of the engine. A change of binding is PixieInspector's decision;
 its own `DEPENDENCIES.md` lists them.
+
+## Local development MCP tool
+
+The development-only `tools/pixie-mcp/PixieMcp.csproj` targets .NET 10 independently
+of the native Engine and editor. Its initial explicit public-source NuGet
+restore resolved `ModelContextProtocol` 2.3.0 and
+`Microsoft.Extensions.Hosting` 10.0.14. `packages.lock.json` records the
+resolved dependency graph and content hashes. The coordinator read the
+restore log and source/SHA-512 provenance for both direct packages. These
+are implementation pins, not an upstream latest-version audit. A locked restore
+passed, and local player-host SDK-client integration passed twenty-six cases
+against both Debug and Release. Editor-host integration remains pending. The official SDK source is
+[modelcontextprotocol/csharp-sdk](https://github.com/modelcontextprotocol/csharp-sdk).
+
+No native or editor package reference to this tool is introduced. Its SDK,
+hosting dependencies, configuration and executable must remain absent from
+game exports and editor publish/remote-release artifacts. Both ordinary and
+NoBuild local publication of the tool were rejected with zero files produced
+in their requested destinations. Windows export contamination checks cover the
+native channel; future editor-channel code and actual remote-release producers
+still require their own exclusion evidence.
 
 ## Own projects
 

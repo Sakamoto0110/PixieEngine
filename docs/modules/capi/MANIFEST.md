@@ -28,11 +28,11 @@
 
 **Platforms:** windows, linux
 
-**Module dependencies:** runtime
+**Module dependencies:** runtime, platform, render
 
 **Third-party dependencies:** none
 
-**Distribution:** editor-only
+**Distribution:** shipped-runtime
 
 **Stability:** experimental
 
@@ -42,7 +42,7 @@
 
 **Technical reference:** docs/modules/capi/REFERENCE.md
 
-**Related boundaries:** runtime
+**Related boundaries:** runtime, platform, render
 
 **Source:** capi/src
 
@@ -55,16 +55,17 @@
 - Introduction: [`README.md`](README.md).
 - Contract: [`REFERENCE.md`](REFERENCE.md); the header `capi/include/pixie_capi.h` owns the
   exact declarations.
-- Build: the object library `pixie_capi_objects` and the CMake function `pixie_add_capi_library`
-  in `capi/CMakeLists.txt`. Each game calls it once: `boids-capi`, `flocks-capi`, and
-  `particles-capi` under `samples/`, and the engine's generic `pixie-scene-capi` in
-  `capi/CMakeLists.txt`, for project folders without code; a game's project calls it through
-  `pixie_game` (`cmake/PixieGame.cmake`).
+- Build: `pixie_capi_objects` in `capi/CMakeLists.txt`, embedded in the root
+  `pixie_shared` target (output `pixie.dll`). `pixie_game` in
+  `cmake/PixieGame.cmake` generates development-only game modules beside direct
+  game players; the C interface is not copied into each module.
 - Tests: `capi-test` (`tests/capi/CapiTest.c`), registered in CTest once per game library, and
   `project-code` (`tests/project-code/ProjectCodeTest.cmake`), a project with code built against
   the engine.
-- Distribution: the libraries serve hosts such as the editor; the players do not use them. They
-  are still general (tools and tests use them too), as the guardrail on the editor asks.
+- Distribution: this interface is part of the shared engine used by players,
+  tools and hosts. Module loading and the planned development channel are
+  excluded from shipping builds; export/dependency-closure qualification remains
+  tracked separately in PIXIE-TODO-051.
 - Origin: [PIXIE-PROPOSAL-002](../../proposals/editor-native-bridge.md) and the `capi` boundary of
   [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md); built by PIXIE-TODO-010 (see
   the [archive](../../archive/README.md)).

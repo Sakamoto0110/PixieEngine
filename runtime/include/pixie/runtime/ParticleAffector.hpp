@@ -1,7 +1,7 @@
 #pragma once
 
-#include "pixie/FrameTime.hpp"
-#include "pixie/Particle.hpp"
+#include "pixie/core/FrameTime.hpp"
+#include "pixie/render/2d/Particle.hpp"
 #include "pixie/runtime/Entity.hpp"
 
 #include <algorithm>

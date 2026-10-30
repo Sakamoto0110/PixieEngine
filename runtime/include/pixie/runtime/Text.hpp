@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/Font.hpp"
+#include "pixie/render/2d/Font.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxColorRgba.hpp>

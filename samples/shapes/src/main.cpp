@@ -1,7 +1,7 @@
 #include "ShapesApp.hpp"
 
-#include "pixie/Run.hpp"
-#include "pixie/RunOptions.hpp"
+#include "pixie/app/Run.hpp"
+#include "pixie/app/RunOptions.hpp"
 
 #include <array>
 

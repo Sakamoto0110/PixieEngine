@@ -1,6 +1,8 @@
 #pragma once
 
-#include "pixie/Particle.hpp"
+#include "pixie/runtime/Export.hpp"
+
+#include "pixie/render/2d/Particle.hpp"
 #include "pixie/runtime/CollisionWorld2D.hpp"
 
 namespace pixie {
@@ -23,7 +25,7 @@ struct ParticlePhysicsStats2D {
 
 // Integration after the caller ages particles and snapshots previous (as AddParticleStep does).
 // Never steps the backend or creates particle bodies. Newborn age supplies the partial tick.
-void MoveDynamicParticles2D(ParticleSystem& system, const ParticlePhysics2D& settings,
+PIXIE_RUNTIME_API void MoveDynamicParticles2D(ParticleSystem& system, const ParticlePhysics2D& settings,
                             const CollisionWorld2D* collision, pxVec2 gravity, double delta,
                             ParticlePhysicsStats2D& stats);
 }

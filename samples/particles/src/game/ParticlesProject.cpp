@@ -2,7 +2,7 @@
 
 #include "ParticlesScene.hpp"
 
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"

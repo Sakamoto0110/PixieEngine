@@ -4,8 +4,8 @@
 #include "BallRenderer.hpp"
 #include "TextRenderer.hpp"
 
-#include "pixie/App.hpp"
-#include "pixie/RateMeter.hpp"
+#include "pixie/app/App.hpp"
+#include "pixie/core/RateMeter.hpp"
 
 #include <vector>
 

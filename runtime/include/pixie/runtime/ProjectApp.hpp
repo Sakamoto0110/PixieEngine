@@ -1,6 +1,8 @@
 #pragma once
 
-#include "pixie/App.hpp"
+#include "pixie/runtime/Export.hpp"
+
+#include "pixie/app/App.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 
 #include <chrono>
@@ -16,10 +18,10 @@ public:
     ProjectApp(std::unique_ptr<Project> project, SessionSettings settings)
         : session_(std::move(project), settings) {}
 
-    bool Start(Window& window) override;
-    void Update(const FrameTime& time, const Input& input) override;
-    void Render(const FrameTime& time, const Input& input) override;
-    void Stop() override;
+    PIXIE_RUNTIME_API bool Start(Window& window) override;
+    PIXIE_RUNTIME_API void Update(const FrameTime& time, const Input& input) override;
+    PIXIE_RUNTIME_API void Render(const FrameTime& time, const Input& input) override;
+    PIXIE_RUNTIME_API void Stop() override;
     Telemetry* GetTelemetry() override { return session_.GetTelemetry(); }
 
     ProjectSession& Session() { return session_; }

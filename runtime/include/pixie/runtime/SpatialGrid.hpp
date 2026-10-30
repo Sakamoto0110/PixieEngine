@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <entt/entity/entity.hpp>
 
 #include <pixie/math/pxVec.hpp>
@@ -22,12 +24,12 @@ public:
     explicit SpatialGrid(double cellSize = 64.0) { SetCellSize(cellSize); }
 
     // A cell size near the usual query radius keeps queries cheap. Takes effect at the next Build.
-    void SetCellSize(double cellSize);
+    PIXIE_RUNTIME_API void SetCellSize(double cellSize);
     double CellSize() const { return cellSize_; }
 
-    void Clear();
-    void Add(entt::entity id, pxPoint position);
-    void Build();
+    PIXIE_RUNTIME_API void Clear();
+    PIXIE_RUNTIME_API void Add(entt::entity id, pxPoint position);
+    PIXIE_RUNTIME_API void Build();
 
     std::size_t Size() const { return items_.size(); }
 
@@ -47,7 +49,7 @@ private:
     std::int32_t CellOf(double coordinate) const {
         return static_cast<std::int32_t>(std::floor(coordinate * inverseCellSize_));
     }
-    std::size_t Bucket(std::int32_t cellX, std::int32_t cellY) const;
+    PIXIE_RUNTIME_API std::size_t Bucket(std::int32_t cellX, std::int32_t cellY) const;
 
     double cellSize_ = 64.0;
     double inverseCellSize_ = 1.0 / 64.0;

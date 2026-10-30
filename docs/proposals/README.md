@@ -39,6 +39,8 @@ update its state, and link the outcome.
 | [`sprites.md`](sprites.md) | PIXIE-PROPOSAL-007 | promoted | PIXIE-TODO-027 and PIXIE-TODO-028 (2026-10-15), completed the same day |
 | [`interactive-2d-games.md`](interactive-2d-games.md) | PIXIE-PROPOSAL-008 | promoted | PIXIE-TODO-029 and PIXIE-TODO-030 (2026-10-15), completed the same day |
 | [`logic-sandbox.md`](logic-sandbox.md) | PIXIE-PROPOSAL-009 | promoted | PIXIE-TODO-032 and PIXIE-TODO-033 (2026-10-15), with PIXIE-TODO-034 and PIXIE-TODO-035 (2026-10-16); all completed by 2026-10-16 |
-| [`shared-engine-and-export.md`](shared-engine-and-export.md) | PIXIE-PROPOSAL-010 | idea | Requires an owner decision |
+| [`shared-engine-and-export.md`](shared-engine-and-export.md) | PIXIE-PROPOSAL-010 | promoted | PIXIE-TODO-051 (2026-10-28); EnTT gate first, shared engine/export and separately isolated local MCP development channel |
 | [`scene-text.md`](scene-text.md) | PIXIE-PROPOSAL-011 | promoted | PIXIE-TODO-031 (2026-10-15), completed the same day |
 | [`player-builds-once.md`](player-builds-once.md) | PIXIE-PROPOSAL-012 | idea | Requires an owner decision |
+| [`dev-channel.md`](dev-channel.md) | PIXIE-PROPOSAL-013 | promoted | PIXIE-TODO-051 (2026-10-28); local Engine/Inspector MCP channel; save remains disabled pending owner question 2 |
+| [`deterministic-capture.md`](deterministic-capture.md) | PIXIE-PROPOSAL-014 | promoted | PIXIE-TODO-051 (2026-10-28); fixed-step captures and approved snapshot scenarios; sample/tolerance choices remain explicit |

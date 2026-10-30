@@ -9,6 +9,8 @@ if(NOT IS_DIRECTORY "${PIXIE_ENGINE_DIR}" OR NOT EXISTS "${PIXIE_ENGINE_DIR}/cma
         "passes it when it builds the project; by hand: cmake -DPIXIE_ENGINE_DIR=<engine> ...")
 endif()
 
-set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/bin/$<CONFIG>)
-set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
+set(PIXIE_OUTPUT_ROOT "${CMAKE_SOURCE_DIR}/bin" CACHE PATH "Root for native runtime and shared-library output")
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${PIXIE_OUTPUT_ROOT}/$<CONFIG>)
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${PIXIE_OUTPUT_ROOT}/$<CONFIG>)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
 add_subdirectory(${PIXIE_ENGINE_DIR} pixie-engine)

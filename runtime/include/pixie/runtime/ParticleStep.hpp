@@ -1,7 +1,9 @@
 #pragma once
 
-#include "pixie/Camera2D.hpp"
-#include "pixie/ParticleRenderer.hpp"
+#include "pixie/runtime/Export.hpp"
+
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/ParticleRenderer.hpp"
 
 #include <string>
 #include <vector>
@@ -23,12 +25,12 @@ class World;
 // It installs once per World: later calls do nothing. Every World a ProjectSession builds gets it,
 // after the project's Build, so a scene's particle systems run without project code, and a project
 // that adds it itself, earlier in its own order of systems, keeps that place.
-void AddParticleStep(World& world);
+PIXIE_RUNTIME_API void AddParticleStep(World& world);
 
 // Per-pool errors from the last particle tick; invalid settings fall back to ballistic motion.
-std::vector<std::string> ParticlePhysicsErrors2D(World& world);
+PIXIE_RUNTIME_API std::vector<std::string> ParticlePhysicsErrors2D(World& world);
 
 // Draws every ParticleSystem's pool with its style, interpolated `alpha` of the way between steps.
-void DrawParticles(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha);
+PIXIE_RUNTIME_API void DrawParticles(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha);
 
 } // namespace pixie

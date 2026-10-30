@@ -1792,6 +1792,11 @@ static void ExerciseLayers(const char* folder) {
 }
 
 int main(int argc, char** argv) {
+    const char* module = NULL;
+    if (argc >= 4 && strcmp(argv[argc - 2], "--module") == 0) {
+        module = argv[argc - 1];
+        argc -= 2;
+    }
     const int layers = argc == 4 && strcmp(argv[2], "--layers") == 0;
     const int compounds = argc == 4 && strcmp(argv[2], "--compounds") == 0;
     const int bodies = argc == 4 && strcmp(argv[2], "--bodies") == 0;
@@ -1813,6 +1818,15 @@ int main(int argc, char** argv) {
         return 1;
     }
     CHECK(api.api_version() == PIXIE_CAPI_VERSION);
+    if (module != NULL) {
+        PixieResult (*load_module)(const char*);
+        *(void**)(&load_module) = Symbol(library, "pixie_module_load");
+        if (load_module == NULL || load_module(module) != PIXIE_OK) {
+            fprintf(stderr, "cannot load game module %s\n", module);
+            CloseLibrary(library);
+            return 1;
+        }
+    }
 
     if (!glfwInit()) {
         fprintf(stderr, "GLFW initialization failed\n");

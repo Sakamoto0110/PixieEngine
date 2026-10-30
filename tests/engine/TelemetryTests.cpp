@@ -1,6 +1,6 @@
 #include "Check.hpp"
-#include "pixie/Telemetry.hpp"
-#include "pixie/RunOptions.hpp"
+#include "pixie/core/Telemetry.hpp"
+#include "pixie/app/RunOptions.hpp"
 #include "DebugConsole.hpp"
 #include <cmath>
 #include <limits>

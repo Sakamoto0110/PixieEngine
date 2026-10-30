@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <entt/entity/entity.hpp>
 
 #include <pixie/pxPoint.hpp>
@@ -20,22 +22,22 @@ struct Transform2D;
 // RemoveParticleAt reaches them instead. Positions are the current ones, in world units.
 
 // The radius an entity covers: its Shape's larger half extent times the transform's larger scale.
-double PickRadius(const Shape& shape, const Transform2D& transform);
+PIXIE_RUNTIME_API double PickRadius(const Shape& shape, const Transform2D& transform);
 
 // The entity under `point`, widened by `tolerance`, the one drawn on top first: a shape whose pick
 // radius covers it, nearest center first; else, with `sprites` to give their sizes and `fonts` to
 // measure texts, a sprite or a text of a layer of 0 or more whose rectangle or block covers it; else a
 // path within half its width of it; else a sprite or a text of a negative layer. entt::null when
 // there is none.
-entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages* sprites = nullptr,
+PIXIE_RUNTIME_API entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages* sprites = nullptr,
                     Fonts* fonts = nullptr);
 
 // The entities with a shape, a sprite, or a text whose position lies inside `box`, and those with a
 // path whose whole line does, oldest first.
-std::vector<entt::entity> PickIn(World& world, const pxRect& box);
+PIXIE_RUNTIME_API std::vector<entt::entity> PickIn(World& world, const pxRect& box);
 
 // Removes the particle nearest `point` within `radius`, from whichever ParticleSystem holds it, at
 // once. Returns whether one was removed.
-bool RemoveParticleAt(World& world, pxPoint point, double radius);
+PIXIE_RUNTIME_API bool RemoveParticleAt(World& world, pxPoint point, double radius);
 
 } // namespace pixie

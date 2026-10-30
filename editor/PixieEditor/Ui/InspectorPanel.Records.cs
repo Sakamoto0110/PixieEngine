@@ -23,6 +23,9 @@ internal sealed partial class InspectorPanel
         var (itemType, _) = session.RecordInfo(Entities[0], type, list);
         var handle = new ComponentHandle(session, Entities[0], itemType, recorder, new RecordAddress(type, list, index));
         var inspector = InspectorFactory.Build(session, itemType, [handle], () => { });
+#if PIXIE_DEVELOPMENT
+        ChannelNewInspector?.Invoke(inspector);
+#endif
         var texts = Enumerable.Range(0, session.FieldCount(itemType))
             .Select(f => (Field: f, Kind: session.FieldInfo(itemType, f).Kind))
             .Where(f => f.Kind is PixieFieldKind.Text or PixieFieldKind.PointList or PixieFieldKind.RecordList)
@@ -136,7 +139,11 @@ internal sealed partial class InspectorPanel
     }
 
     // Scripted edits use the same descriptor-built node as the inspector, including display units.
-    public bool SetShape(int index, string property, string text)
+    public bool SetShape(int index, string property, string text
+#if PIXIE_DEVELOPMENT
+        , Action? onWrite = null
+#endif
+    )
     {
         if (Entities.Length != 1 || session.TypeIndex("CompoundCollider2D") is not (var type and >= 0) || !session.Has(Entities[0], type)) return false;
         var list = session.FieldIndex(type, "shapes");
@@ -146,14 +153,22 @@ internal sealed partial class InspectorPanel
         var maskField = Enumerable.Range(0, session.FieldCount(itemType)).FirstOrDefault(f => session.FieldName(itemType, f) == property, -1);
         if (maskField >= 0 && session.FieldInfo(itemType, maskField).Editor == PixieEditorKind.LayerMask)
         {
+            var mask = int.Parse(text, CultureInfo.InvariantCulture);
+#if PIXIE_DEVELOPMENT
+            onWrite?.Invoke();
+#endif
             new ComponentHandle(session, Entities[0], itemType, recorder, new RecordAddress(type, list, index))
-                .Set(maskField, new PixieValue { X = int.Parse(text, CultureInfo.InvariantCulture) });
+                .Set(maskField, new PixieValue { X = mask });
             return true;
         }
         if (section.Texts.FirstOrDefault(t => t.Name == property) is { Kind: PixieFieldKind.PointList } points)
         {
+            var parsed = ParsePoints(text);
+#if PIXIE_DEVELOPMENT
+            onWrite?.Invoke();
+#endif
             recorder.Close();
-            authoring.SetRecordPoints(Entities[0], type, list, index, points.Field, ParsePoints(text));
+            authoring.SetRecordPoints(Entities[0], type, list, index, points.Field, parsed);
             return true;
         }
         var node = section.Inspector[property];
@@ -164,6 +179,9 @@ internal sealed partial class InspectorPanel
             var t when t == typeof(double) => double.Parse(text, CultureInfo.InvariantCulture),
             _ => text
         };
+#if PIXIE_DEVELOPMENT
+        onWrite?.Invoke();
+#endif
         node.SetValue(value);
         return true;
     }

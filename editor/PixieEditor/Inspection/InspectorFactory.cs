@@ -158,6 +158,11 @@ internal static class InspectorFactory
     private const uint NoEntity = uint.MaxValue;
     private const uint IndexMask = 0xFFFFF;
     private const string NoEntityLabel = "(none)";
+#if PIXIE_DEVELOPMENT
+    // Resolve the stable wire ID immediately before using the existing node/label writer.
+    internal static string ChannelReferenceLabel(EngineSession session, ulong? sceneId) => sceneId is { } id
+        ? EntityLabel(session, session.Find(id) ?? throw new ArgumentException("Referenced scene entity is gone.")) : NoEntityLabel;
+#endif
 
     private static string EntityLabel(EngineSession session, uint entity)
     {

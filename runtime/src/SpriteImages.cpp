@@ -1,6 +1,6 @@
 #include "pixie/runtime/SpriteImages.hpp"
 
-#include "pixie/Log.hpp"
+#include "pixie/core/Log.hpp"
 
 #include <format>
 #include <system_error>

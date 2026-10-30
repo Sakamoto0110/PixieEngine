@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/ShapeInstance.hpp"
+#include "pixie/render/2d/ShapeInstance.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxColorRgba.hpp>

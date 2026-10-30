@@ -1,6 +1,6 @@
 #include "ShapesApp.hpp"
 
-#include "pixie/Gl.hpp"
+#include "pixie/render/RenderTarget.hpp"
 
 #include <cmath>
 #include <numbers>
@@ -109,8 +109,7 @@ void ShapesApp::Update(const pixie::FrameTime& time, const pixie::Input& input) 
 
 void ShapesApp::Render(const pixie::FrameTime& time, const pixie::Input& input) {
     TrackViewport();
-    glClearColor(kBackground.r / 255.0f, kBackground.g / 255.0f, kBackground.b / 255.0f, 1.0f);
-    glClear(GL_COLOR_BUFFER_BIT);
+    pixie::ClearColor(kBackground.r / 255.0f, kBackground.g / 255.0f, kBackground.b / 255.0f, 1.0f);
 
     // The world's border, four thin quads.
     const auto edge = static_cast<float>(kHalfWorld);
@@ -128,7 +127,7 @@ void ShapesApp::Render(const pixie::FrameTime& time, const pixie::Input& input) 
         instance.color = shape.color;
         renderer_.Submit(shape.kind, instance);
     }
-    renderer_.Flush(camera_);
+    renderer_.Flush(camera_.MakeView());
 
     // The marker is drawn last, so it stays on top; it keeps its size on screen at every zoom.
     const pxPoint cursor = camera_.ScreenToWorld(input.Cursor());
@@ -136,7 +135,7 @@ void ShapesApp::Render(const pixie::FrameTime& time, const pixie::Input& input) 
     renderer_.Submit(pixie::ShapeKind::Ring, {ToFloat(cursor), 0.0f, {marker, marker}, kMarker});
     renderer_.Submit(pixie::ShapeKind::Circle,
                      {ToFloat(cursor), 0.0f, {marker * 0.15f, marker * 0.15f}, kMarker});
-    renderer_.Flush(camera_);
+    renderer_.Flush(camera_.MakeView());
 }
 
 void ShapesApp::Stop() {

@@ -1,6 +1,6 @@
 #include "Check.hpp"
 
-#include "pixie/Input.hpp"
+#include "pixie/platform/Input.hpp"
 
 using pixie::Input;
 using pixie::Key;

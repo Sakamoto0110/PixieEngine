@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-The public contract is [`pixie/Telemetry.hpp`](../engine/include/pixie/Telemetry.hpp). A collector
+The public contract is [`pixie/core/Telemetry.hpp`](../engine/core/include/pixie/core/Telemetry.hpp). A collector
 is owned by its caller, is not copyable/movable and is used on one thread. It has no dependency on
 World, rendering or any game. Each World owns a collector exposed by `GetTelemetry()`.
 

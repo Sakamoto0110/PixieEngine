@@ -1,7 +1,7 @@
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/World.hpp"
-#include "pixie/Camera2D.hpp"
-#include "pixie/ShapeRenderer.hpp"
+#include "pixie/render/2d/Camera2D.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 #include <algorithm>
 #include <cmath>
 #include <numbers>

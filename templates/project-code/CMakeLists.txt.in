@@ -9,7 +9,7 @@ if(NOT IS_DIRECTORY "${PIXIE_ENGINE_DIR}")
 endif()
 include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
 
-# The game: bin/<config>/@PIXIE_ID@.exe plays it, and the editor opens it through @PIXIE_ID@-capi.
+# The game: bin/<config>/@PIXIE_ID@.exe plays it, and the editor opens it through @PIXIE_ID@-module.
 # Add each new .cpp file here.
 pixie_game(@PIXIE_ID@ SOURCES
     src/@PIXIE_ID@Project.cpp

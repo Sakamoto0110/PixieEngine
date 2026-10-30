@@ -30,7 +30,8 @@ App's fixed update. Draw entities that have a `Shape` with `SubmitShapes`.
 
 Entities marked with `AddToScene` are saved to and loaded from scene files
 (`pixie/runtime/Scene.hpp`), through the same field descriptors the C API uses. The module does not
-own the window, input, or rendering; it uses the provisional engine library for those.
+own the window, input, or rendering; it consumes the Core, Platform, Render and
+App boundaries packaged with it in the shared engine.
 
 - [Manifest](MANIFEST.md): build target, dependencies, and routes.
 - [Technical reference](REFERENCE.md): the contract.

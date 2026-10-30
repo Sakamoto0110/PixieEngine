@@ -1,8 +1,10 @@
 #pragma once
 
-#include "pixie/FrameTime.hpp"
-#include "pixie/Input.hpp"
-#include "pixie/Telemetry.hpp"
+#include "pixie/runtime/Export.hpp"
+
+#include "pixie/core/FrameTime.hpp"
+#include "pixie/platform/Input.hpp"
+#include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/Behaviour.hpp"
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"
@@ -41,24 +43,24 @@ using System = std::function<void(World& world, const FrameTime& time, const Inp
 // CharacterMotor2D and RigidBody2D, whose physics service owns motion instead.
 class World {
 public:
-    explicit World(std::uint64_t seed = 0);
-    ~World();
+    PIXIE_RUNTIME_API explicit World(std::uint64_t seed = 0);
+    PIXIE_RUNTIME_API ~World();
     World(const World&) = delete;
     World& operator=(const World&) = delete;
 
     // A new entity, with a Name if `name` is not empty.
-    Entity Create(std::string_view name = {});
+    PIXIE_RUNTIME_API Entity Create(std::string_view name = {});
     // Destroys the entity; during a step, at the end of it.
-    void Destroy(Entity entity);
+    PIXIE_RUNTIME_API void Destroy(Entity entity);
     // Runs `action` at the end of the current step, or now when no step is running. Creating
     // entities and adding or removing components during a step goes through here.
-    void Defer(std::function<void(World&)> action);
+    PIXIE_RUNTIME_API void Defer(std::function<void(World&)> action);
 
     // Adds a system to a phase, after the ones already there. `name` labels it for tools.
-    void AddSystem(SystemPhase phase, std::string name, System system);
+    PIXIE_RUNTIME_API void AddSystem(SystemPhase phase, std::string name, System system);
 
     // Advances the World by `delta` seconds.
-    void Step(double delta, const Input& input);
+    PIXIE_RUNTIME_API void Step(double delta, const Input& input);
 
     // Steps completed, and simulated seconds they covered.
     std::uint64_t Steps() const { return steps_; }
@@ -73,9 +75,9 @@ public:
     Random& GetRandom() { return random_; }
 
     // Makes the previous transform equal the current one, so a jump is not drawn as motion.
-    void ResetInterpolation(Entity entity);
+    PIXIE_RUNTIME_API void ResetInterpolation(Entity entity);
 
-    std::size_t EntityCount() const;
+    PIXIE_RUNTIME_API std::size_t EntityCount() const;
     entt::registry& Registry() { return registry_; }
     const entt::registry& Registry() const { return registry_; }
     Entity Wrap(entt::entity id) { return Entity(this, id); }
@@ -111,8 +113,8 @@ private:
     template<typename B>
     static void StopOne(entt::registry& registry, entt::entity id);
 
-    void RunSystems(SystemPhase phase, const FrameTime& time, const Input& input);
-    void FinishStep();
+    PIXIE_RUNTIME_API void RunSystems(SystemPhase phase, const FrameTime& time, const Input& input);
+    PIXIE_RUNTIME_API void FinishStep();
 
     entt::registry registry_;
     Telemetry telemetry_;

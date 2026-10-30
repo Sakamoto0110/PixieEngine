@@ -1,6 +1,6 @@
 #pragma once
 
-#include "pixie/SpriteRenderer.hpp"
+#include "pixie/render/2d/SpriteRenderer.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxColorRgba.hpp>

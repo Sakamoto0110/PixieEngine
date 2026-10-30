@@ -307,7 +307,11 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
     // Writes field `property` of the selected entities' component `type` through its inspector, as the
     // view does when a value is edited (a point's or vector's axis is the field's name with X or Y).
     // Returns false when there is no such component or field.
-    public bool Set(string type, string property, string text)
+    public bool Set(string type, string property, string text
+#if PIXIE_DEVELOPMENT
+        , Action? onWrite = null
+#endif
+    )
     {
         var section = Sections.FirstOrDefault(s => s.Name == type);
         if (section == null)
@@ -316,24 +320,42 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         var maskField = Enumerable.Range(0, session.FieldCount(section.Type)).FirstOrDefault(f => session.FieldName(section.Type, f) == property, -1);
         if (maskField >= 0 && session.FieldInfo(section.Type, maskField).Editor == PixieEditorKind.LayerMask)
         {
+            var mask = int.Parse(text, CultureInfo.InvariantCulture);
+#if PIXIE_DEVELOPMENT
+            onWrite?.Invoke();
+#endif
             foreach (var entity in Entities)
                 new ComponentHandle(session, entity, section.Type, recorder).Set(maskField,
-                    new PixieValue { X = int.Parse(text, CultureInfo.InvariantCulture) });
+                    new PixieValue { X = mask });
             return true;
         }
 
         if (section.Texts.FirstOrDefault(t => t.Name == property) is { } textField)
         {
             if (textField.Kind == PixieFieldKind.PointList)
-                authoring.SetPoints(Entities, section.Type, textField.Field, ParsePoints(text));
+            {
+                var points = ParsePoints(text);
+#if PIXIE_DEVELOPMENT
+                onWrite?.Invoke();
+#endif
+                authoring.SetPoints(Entities, section.Type, textField.Field, points);
+            }
             else
+            {
+#if PIXIE_DEVELOPMENT
+                onWrite?.Invoke();
+#endif
                 authoring.SetText(Entities, section.Type, textField.Field, text);
+            }
             return true;
         }
 
         var node = section.Inspector[property];
         if (node is ButtonNode button)
         {
+#if PIXIE_DEVELOPMENT
+            onWrite?.Invoke();
+#endif
             button.Press();
             return true;
         }
@@ -346,6 +368,9 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
             var t when t == typeof(PxColorRgba) => ParseColor(text),
             _ => text,
         };
+#if PIXIE_DEVELOPMENT
+        onWrite?.Invoke();
+#endif
         node.SetValue(value);
         return true;
     }

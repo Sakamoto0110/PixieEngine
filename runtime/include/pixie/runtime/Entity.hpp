@@ -1,5 +1,7 @@
 #pragma once
 
+#include "pixie/runtime/Export.hpp"
+
 #include <entt/entity/entity.hpp>
 
 #include <concepts>
@@ -25,7 +27,7 @@ public:
     // The entity as a 32-bit number (index and version), for logs and the C API.
     std::uint32_t Number() const { return static_cast<std::uint32_t>(id_); }
 
-    bool IsAlive() const;
+    PIXIE_RUNTIME_API bool IsAlive() const;
     explicit operator bool() const { return IsAlive(); }
 
     // Adds a component, or replaces the one of the same type, and returns it; returns nothing for
@@ -47,7 +49,7 @@ public:
     B& AddBehaviour(Args&&... args) const;
 
     // Destroys the entity, at the end of the step when called during one.
-    void Destroy() const;
+    PIXIE_RUNTIME_API void Destroy() const;
 
     friend bool operator==(const Entity&, const Entity&) = default;
 

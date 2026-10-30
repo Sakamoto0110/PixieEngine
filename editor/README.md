@@ -20,7 +20,7 @@ as it is. The editor creates no version-control files.
     pressed. The project takes the folder's name, and its scene starts with one shape.
   - **Open project** takes a folder that holds a `.pixie` file; project folders are marked in the
     picker, and Open waits until the current folder is one.
-- A project runs on the engine's generic library, `pixie-scene-capi`, so it opens without a
+- A project runs on the shared engine's generic scene project, so it opens without a
   compiler. The recent projects and the place of the last one are kept in the user's settings
   (`PixieEditor/settings.json` under the application data folder), never in a project.
 - **Edit and play.** A project opens in edit mode: time stands still, the time bar and Game wait,
@@ -141,14 +141,15 @@ The editor's icon, on its executable and its window, is the neko mark of the sha
 (`vdr` alias `neko-purple-light`), copied into `PixieEditor/assets/` with `vdr cp` under its curated
 name. The window takes its 32-bit frames as pixels through GLFW, so it shows on every host.
 
-The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings Hexa.NET.ImGui
+The editor references `PixieInspector.ImGui` 0.3.0 from nuget.org, which brings Hexa.NET.ImGui
 2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
 ([`DEPENDENCIES.md`](../DEPENDENCIES.md)). Nothing in it is copied from PixieInspector's repository.
 
 ## Build and run
 
-Build the engine first: the editor looks for `<game>-capi.dll`, and for a project
-`pixie-scene-capi.dll`, in `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
+Build the engine first: the editor looks for `<game>-module.dll`, with
+`pixie.dll` beside it; scene-only projects load the shared engine directly.
+It searches `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
 with the .NET 10 SDK:
 
 ```bash
@@ -165,7 +166,7 @@ The dock layout is saved to `imgui.ini` in the directory the editor runs from.
 | Option | Default | Meaning |
 |---|---|---|
 | `--project <folder>` | none | Opens the project in this folder, in edit mode; its code, if it has any, is built first |
-| `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a game's C API library; with neither option, the start screen |
+| `--game <name\|path>` | none | `boids`, `flocks`, `particles`, or the path to a development game module; with neither option, the start screen |
 | `--seed <n>` | `1` | Seed of a game's World; a project's comes from its scene |
 | `--select <name>` | none | Selects the entity with this name at the start |
 | `--set <Type.field=value>` | none | After `--edit-after` seconds, sets a field of the selected entity through its inspector, in the displayed unit (a point's axis is the field's name with `X` or `Y`; a list of points is `x,y;x,y;...`); repeatable |
@@ -189,6 +190,95 @@ BoidControls.radius=300` turns the boids away from a pointer with a 300-unit rea
 hand in the inspector. With several entities selected, a `--set` changes all of them. Selection
 gestures and the viewport menu's actions are logged.
 
+## Local development MCP channel
+
+Development builds accept `--dev-channel <name>` and
+`--dev-capture-dir <folder>`. The former opts into one local Windows client;
+the latter fixes its capture destination. The native pipe handle rejects remote
+clients and uses a protected owner-SID ACL. Without the opt-in flag, no listener
+starts. These channel options/types are excluded from a shipping editor publish.
+
+`tools/pixie-mcp/` is the separate .NET 10 stdio server/client bridge. After
+building its project in Release, an MCP client can launch it in this form from
+the repository root:
+
+```powershell
+dotnet tools/pixie-mcp/bin/Release/net10.0/PixieMcp.dll --kind editor --host editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/sprites --captures build/captures/editor
+```
+
+The server answers its client at once and opens the host in the background; the
+first tool call waits for the host's channel. A project with code is built before
+the editor opens its channel, and its first build compiles the engine too, so the
+wait lasts up to `--startup-timeout <seconds>` (600 by default). A host that exits
+first, or a deadline that passes, makes that call a tool error with
+`possibly_applied: false`. The host runs in a Windows job of the server: it closes
+with the server, also when the server is killed.
+
+To register it with a client, use absolute paths, since the client chooses the
+working directory. Claude Code, for the current user:
+
+```powershell
+claude mcp add pixie-editor -- dotnet C:/path/to/PixieEngine/tools/pixie-mcp/bin/Release/net10.0/PixieMcp.dll --kind editor --host C:/path/to/PixieEngine/editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project C:/path/to/project --captures C:/path/to/captures
+```
+
+Codex, in `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.pixie-editor]
+command = "dotnet"
+args = ["C:/path/to/PixieEngine/tools/pixie-mcp/bin/Release/net10.0/PixieMcp.dll", "--kind", "editor",
+        "--host", "C:/path/to/PixieEngine/editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe",
+        "--project", "C:/path/to/project", "--captures", "C:/path/to/captures"]
+tool_timeout_sec = 900
+```
+
+A client's per-call time limit has to cover the first call's wait for a project
+with code: `tool_timeout_sec` in Codex, `MCP_TOOL_TIMEOUT` (milliseconds) in
+Claude Code. Each registration opens one project; `--kind player` with a game's
+player, or `pixie-player`, serves only `world.*`.
+
+Local qualification uses the official C# SDK client; a Claude Code client also
+drove the editor, and shows the tools as `mcp__<server>__world_hello` (dots become
+underscores). The player offers `world.*`;
+the editor also offers `inspector.*` and `editor.*`. World writes use native
+operations without Inspector history. Inspector writes use the same Set and
+editing-command handlers as scripted runs, with actual recorder/history effects.
+Use scene IDs and a current generation from `inspector.tree` for channel writes,
+not names or runtime-index labels. Entity-reference inputs must also satisfy
+their native References metadata.
+
+Inspector observations distinguish held/view values from optional live/storage
+reads. Custom text/point/record/mask rows identify their native-storage domain;
+they are not advertised as generic held Inspector values. Receipts distinguish
+pending, refusal, no-op, stale target and possible partial effects, preserving
+command-local native failures before later reads. Handler true alone is not
+write acceptance. Read-side failure diagnostics are separate from cached or
+previous write failures.
+
+Capture returns full-window PNG image content after a coherent subsequent UI
+frame. Its alpha-one render does not pause or discard fractional time. Names
+cannot escape the fixed folder and existing files are not overwritten. Export,
+build, import/drop and font/image filesystem gestures are unavailable through the
+channel, even though ordinary CLI/UI editing retains its own behavior. No
+screenshot is an approved snapshot reference merely because a capture succeeded.
+
+`editor.do` with `save` writes the scene through the same handler as Ctrl + S: in
+Play it writes the scene as it was at Play, and its receipt reports `unsaved`.
+`world.hello` reports it in `capabilities.save`. An editor built with
+`-p:PixieChannelSave=false` leaves the gesture out, and the channel refuses it;
+the editor's own Save is unchanged. World commands never save, in the player or
+the editor.
+
+`py tests/mcp/qualify_mcp.py --config Release` (or `Debug`) builds the bridge, its
+test clients and both save variants of the editor, and runs, in disposable
+projects under `build/tests/mcp/`: the player's real-pipe and MCP cases, the
+editor's Inspector/history cases with and without save, the direct pipe and
+fault fixtures, a killed server closing its host, and a project with code opened
+cold, which builds the engine again (`--skip-cold` leaves it out). For the `ci`
+preset, pass `--bin build-ci/bin --work build-ci/tests/mcp`. See the
+[qualification record](../docs/shared-engine-export-validation.md) for Windows
+scope, executed cases and remaining project-wide gates.
+
 ## Collision and movement authoring
 
 Open [movement-lab](../samples/movement-lab/README.md) as a no-code project.
@@ -196,8 +286,8 @@ Collider/Character creation buttons and matching empty-space viewport menu
 entries use native reflected components and one undo step per creation.
 Edit-mode gizmos show actual static geometry/capsules; invalid configuration
 appears in Session. Play uses the same native services as the generic player;
-Stop restores authored data. The editor now requires C API version 16, so game
-libraries must be rebuilt. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
+Stop restores authored data. The editor requires the C API version it was built
+for (18 now), so game libraries must be rebuilt with the engine. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
 **Session > Physics debug** toggles collider/sensor outlines, origins, centers of
 mass, velocities, awake/asleep markers and contact normals in Edit and Play.
 These options belong to the session and do not change scene data. Use
