@@ -55,4 +55,3 @@
 - [Introduction](README.md) and [technical reference](REFERENCE.md).
 - CMake owns the internal pixie_core object target and Pixie::Core consumer facade. The artifact field describes distribution inside the shared engine, not a separate DLL per module.
 - [Qualification matrix](../../shared-engine-export-validation.md) separates executed evidence from pending native configurations, exports and MCP work. Windows is the qualified execution environment so far; Linux remains unqualified.
-

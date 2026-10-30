@@ -110,6 +110,11 @@ It compiles with warnings as errors. Its output stays under `editor/`; see
 - **Rates:** a change to the loop or the frame limiter is measured with vsync on,
   vsync off, and a frame cap, and the numbers are recorded with the machine and
   commit (see the [policy](governance/documentation-policy.md#tests-and-evidence)).
+- **Development channel:** a change to `devchannel/`, `engine/platform/src/LocalCommandChannel.cpp`,
+  `editor/PixieEditor/Development/`, `tools/pixie-mcp*` or `tests/editor/channel/` also passes
+  `py tests/mcp/qualify_mcp.py --config Debug` and `--config Release` (see the
+  [editor's README](../editor/README.md#local-development-mcp-channel)). It is not a CTest test:
+  it builds the managed bridge and editor, and its cold code project builds the engine again.
 - **Documentation:** `python scripts/check_docs.py` reports no problem, and
   the policy's [self-review](governance/documentation-policy.md#self-review)
   passes for what the script does not check. The script checks relative links

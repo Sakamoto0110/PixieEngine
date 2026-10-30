@@ -172,8 +172,11 @@ discovery, C API-backed snapshot/restore, input/view operations, Inspector readb
 and fixed-folder capture returned to MCP as image content. World and Inspector edits remain
 separate paths; the latter must reuse the existing handlers and EditRecorder. Entity addressing
 uses scene IDs; runtime entity numbers/names above are proposal conveniences, not a replacement
-for the accepted stable addressing contract. The owner's answer to question 2 keeps channel save
-disabled until a further decision, including save reached through `editor.do`. Question 1's
+for the accepted stable addressing contract. The owner's first answer to question 2 kept channel save
+disabled, including save reached through `editor.do`. On 2026-10-30 the owner answered it: save
+stays available and a build flag removes it. `editor.do save` reuses the editor's save handler in
+development builds, `-p:PixieChannelSave=false` leaves it out of an editor build, and `world.*` and
+the player never save. Question 1's
 recommendation does not bypass the mandatory shared-engine EnTT gate. All development-operation code/artifacts are excluded
 from game exports, publish and remote-release outputs. Promotion does not claim implementation,
 validation or package delivery; scheduler progress is in TODO/TASKLIST.

@@ -70,7 +70,7 @@ not performed; the code commit alone is not proof of the remaining gates.
 | Barrier 4: clean-folder export qualification catches contamination and broken closure | Reject development files and native imports not satisfied by shipped files or Windows; run the game from the isolated destination. Demonstrate rejection of contamination and a missing required dependency. Record the scanner/test commands and observed failures. | All previous export mechanisms |
 | MCP operates only through the agreed local development path | Qualify each accepted command group in memory, plus a real single-client pipe/socket integration. Verify namespaced routing, scene IDs/field names, once-per-frame dispatch after Advance/before Render even while paused, and PixieResult/last_error diagnostics. Player accepts only world.*; preserve native state/descriptor ownership. | Inspector contract checkpoint, existing native/editor paths |
 | Session commands execute the requested simulation change | hello reports protocol/API versions; play/stop/pause/resume/step/advance/time_scale/reset produce the expected session state. step/advance responses follow execution, not mere enqueueing. Verify types/type metadata, C API snapshot/restore and input/view command groups. | Native dispatcher and safe dispatch point |
-| Inspector channel tests the actual inspection/history path | tree/get/report/history/selection read back the inspection state; inspector.set/editor.do reuse existing handlers and EditRecorder. Compare an edit against world.get, undo and compare again; exercise mixed values and refused writes. Disable save through every channel entry point, including editor.do, until owner question 2 is resolved. World writes do not claim Inspector/history verification. | Existing editor handlers, Inspector contract |
+| Inspector channel tests the actual inspection/history path | tree/get/report/history/selection read back the inspection state; inspector.set/editor.do reuse existing handlers and EditRecorder. Compare an edit against world.get, undo and compare again; exercise mixed values and refused writes. Channel save follows the owner's 2026-10-30 answer to question 2: editor.do save reuses the save handler in development builds and `-p:PixieChannelSave=false` removes it; qualify both builds, and world.* never saves. World writes do not claim Inspector/history verification. | Existing editor handlers, Inspector contract |
 | Capture produces an image and cannot escape its destination | Fix the capture directory at channel open, reject escaping names, render/read the requested frame and return PNG image content through MCP. Verify scene state and frame timing, not merely a path-shaped response. | Shared readback, channel host, MCP adapter |
 | Fixed-step captures and snapshot comparisons are repeatable | Qualify --quit-after-steps/--seed/--size and editor step termination with final alpha 1, preserving old options. Record repeated same-renderer comparisons, step/seed/size, approved reference hashes and scenario tolerances. Mismatch produces actual/diff paths in build storage. Do not approve reference changes automatically or present proposed sample/tolerance choices as owner decisions. | Proposal 014 implementation and owner-approved references |
 | MCP is absent from publish and remote-release | Identify actual publish/remote-release artifact producers and inspect their outputs/dependency closures. No development-operation implementation, endpoint startup, adapter, tool or configuration may ship there. Break exclusion in an isolated copy and demonstrate detection. Game-export checks alone do not prove package/release exclusion. | Agreed channel and separate development artifacts |
@@ -610,6 +610,71 @@ selection/tolerances/references remain separate gates. No real Codex tool
 registration, Linux/Unix transport, widget interaction acceptance or automatic
 reference approval is established. The stable local checkpoint must record the
 final code/docs hashes and these limits before later work starts.
+
+### MCP and development-channel closure, 2026-10-30
+
+At the owner's request, a Claude session closed the remaining local MCP and
+development-channel gates on the local branch `mcp-dev-channel-closure`, from
+`c2248eb6efdc8b7a804f1c4a4462ec0db94cce18`, with VAW `bound_scoped` for the
+build, capi, documentation, editor and engine routes (profile `pixieengine`,
+revision 1). Physics and the shared-engine/export tasks other than channel
+exclusion were out of scope. The code commit is
+`066f097d705d6c11150b844338bf0677de1b3705`; nothing was pushed.
+
+A review of the channel code found one defect: `pixie-mcp` gave its host 15
+seconds to open the pipe, while the editor opens its channel only after
+building a project's code, whose first build compiles the engine. The server
+now answers its client at once, opens the host in the background and makes
+the first call wait up to `--startup-timeout` (600 seconds by default). The
+host joins a Windows job of the server, so a killed server takes it along.
+The owner answered question 2 of proposal 013: `editor.do save` reuses the
+save handler in development builds, `-p:PixieChannelSave=false` removes it,
+and `world.hello` reports `capabilities.save`.
+
+`tests/mcp/qualify_mcp.py` replaces the hand-run suites. Final runs on Windows
+x64, AMD Radeon RX 7600, OpenGL 4.5 core:
+
+| Preset and configuration | Cases | Suites |
+|---|---|---|
+| vs2026 Debug and Release, each | 135 | player 26, editor with save 40, editor without save 40, pipe and faults 21, killed server 1, cold code project 7 |
+| ci (Ninja Multi-Config) Debug and Release, each | 128 | the same without the cold code project |
+
+The cold code project compiled the engine's 128 translation units in its own
+build folder. Its tools were listed after 0.39 seconds (Debug) and 0.40
+seconds (Release); the channel opened after 47.70 and 68.39 seconds, beyond the
+former 15-second limit. A host that exits first, and a three-second deadline,
+were tool errors with `possibly_applied: false`. Sensitivity: with the job
+removed from a copy of `HostJob.cs`, the killed-server case failed with the
+host still running; the restored file was byte-identical, rebuilt and passed.
+The save cases ran against both editor builds: the scene file changed and
+`unsaved` cleared with save, and stayed byte-identical with refusal without it.
+
+The first Ninja Debug run failed because the editor loads the engine from the
+nearest `bin/Release` before `bin/Debug`, and `build-ci/bin/Release` still held
+an older API 17 engine. Earlier Debug editor evidence therefore used the
+Release engine whenever both existed. The script now builds each editor beside
+a `bin/` holding only the tested configuration's engine; three repeats and the
+final runs passed.
+
+The native matrices passed 20/20 in each configuration: vs2026 Debug 262.69
+seconds, Release 236.29; ci Debug 219.85, Release 188.08. They ran with the
+final native sources and export checks, which now also assert that the shipping
+`pixie.dll` of the boids and sprites exports lacks the channel, dispatcher and
+`world.hello` markers and that no MCP, probe or module file is exported. They
+preceded only the test clients' stderr relay and the script's engine staging.
+The editor publish suite passed its three cases, now also rejecting any
+`PixieMcp` or `ModelContextProtocol` file in the published editor.
+
+A real client drove the editor: Claude Code 2.1.310 in print mode, with a
+temporary MCP configuration and its Haiku model, called hello, entities,
+selection, `inspector.set`, `world.get`, undo and capture, and described the
+captured image correctly. Claude Code exposes the dotted tool names as
+`mcp__<server>__world_hello`. Codex was not installed on this machine, so its
+registration is documented but unexecuted.
+
+Remaining limits: no Codex execution, Linux/Unix transport, Mesa or remote CI
+run of the MCP suites, concurrent physical UI gestures or golden reference
+approval. PIXIE-TASK-209's project-wide matrix and TODO-051 remain open.
 
 ### Resumed production DLL/module foundation, 2026-10-28
 
