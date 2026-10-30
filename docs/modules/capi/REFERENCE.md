@@ -118,9 +118,18 @@ executed fixtures and remaining host/transport/Inspector gates.
 
 The player host composes this dispatcher with development-only local transport
 and render hooks. That composition, rather than this C function, implements
-fixed-folder alpha-one PNG capture and frame receipts. Only the player World
-path and local SDK-client integration are qualified at the current milestone;
-there is no active editor listener or qualified Inspector channel yet.
+fixed-folder alpha-one PNG capture and frame receipts. The editor composes its
+own development-only transport and Inspector/history adapter over this native
+World path. Both hosts have bounded local Windows SDK-client qualification;
+this does not establish remote access, Unix transport or Codex registration.
+
+`world.prepare_capture` arms one alpha-one rendering attempt without pausing,
+changing time scale or dropping fractional simulation time. The existing C API
+render bridge consumes that one-shot override; no extra C export is added.
+An unavailable render target remains an error, not proof of a captured image.
+The editor completes capture after a subsequent full UI frame and identifies
+the rendered frame, selection generation and value domains. Inspector writes
+still reuse the registered handlers/recorder rather than this World dispatcher.
 
 ## Session
 

@@ -481,6 +481,136 @@ is active. No push, remote publication, reference approval, real Codex tool
 registration, Linux/Unix transport or new Ninja host matrix is established by
 this milestone. TODO-051 remains unfinished.
 
+### Editor-channel round resumption, 2026-10-29
+
+After renewed owner authorization, the coordinator verified clean main at
+`e9ad8be4e6cb0d8043d520c164988a4b247b479e` and all seven VAW routes. The
+same single code/build writer retains implementation ownership; documentation
+and read-only review remain with the principal coordinator. The six-file editor
+backup is a dormant scaffold, not accepted editor integration. Restoration must
+check its manifest/base and preserve the later documentation commit.
+
+The next gate is a one-shot alpha-one render that preserves fractional elapsed
+time, paused state and time scale, followed by owner-thread editor handlers,
+Inspector readback/history and coherent UI capture. The initial fixture must
+prove two half-step advances still produce one step across the capture and
+that the next normal render uses its ordinary alpha. No editor listener or
+capture is qualified merely by resuming this round. Save/export/build/import
+through the channel remain disabled, no references are approved and no push or
+publication is authorized.
+
+The native one-shot alpha override was subsequently implemented through the
+existing development dispatcher and a RenderToTarget(double) overload retaining
+the original signature. The targeted Debug test passed 1/1 in 3.11 seconds
+total, containing nineteen fixture groups. The coordinator read the diff and
+fixture: at time scale 0.5, a half-step advance, prepared alpha-one render,
+ordinary render and second half-step produce exactly one completed step without
+changing paused state, time scale or the preserved fraction. The owned C API
+render bridge is exercised separately in that fixture. No additional C export
+or temporary pause is introduced.
+
+This is initial native Debug evidence, not completed editor integration or a
+new full matrix. The one-shot flag is consumed at the render attempt; a failed
+target allocation must be treated as capture failure rather than proof that an
+image was rendered. The editor's planned central Advance/drain before panels
+and deferred coherent UI capture still need executable acceptance.
+
+The alpha fixture then passed targeted Release CTest 1/1 in 2.28 seconds total.
+An initial real editor-host SDK-client run passed thirty cases. The coordinator
+read the receipt and test client and inspected its 1600x900 full-window capture:
+the Inspector shows selected entities and authored values while the session
+reports three completed steps and paused state. The tests compare held degrees
+against live/native radians, actual native edits and undo/redo values, one
+history gesture for multi-selection writes, mixed per-target values, refreshed
+Inspector values after direct World edits without history, stale-generation
+refusal, scene-ID selection/rebind after restore, and disabled filesystem aliases.
+Deferred PNG capture, overwrite/path rejection and no pause/scale/step change
+across capture passed in that fixture.
+
+This is initial integration evidence on a disposable Unicode-named no-code
+project, not complete consumer acceptance, widget interaction or an approved
+reference image. Custom rows, current-command failure/pending/read-only cases,
+broader lifecycle and final publish exclusions remain under qualification.
+The Inspector collaborator has been asked for a separate read-only contract
+review; no Inspector repository/package/API change is implied.
+
+The writer then added a direct owner-thread native/Inspector fixture with
+eleven passing cases, using the real Set/recorder path. It covers read-only
+refusal despite handler true, manual pending state without a native write,
+new command failure taking precedence over existing pending state, native
+NOT_FOUND captured before readback, partial first-target effects/history and
+preservation of an immutable failure receipt. This deliberately bypasses the
+channel's generation preflight to inject a stale bound target; it is not an
+executed MCP race. The initial run printed passing assertions but exited with
+a graphics-context cleanup fault. The corrected cleanup run exited zero;
+retain that distinction instead of treating the first assertion output as
+successful process completion.
+
+The Inspector collaborator's independent static review found four P2 cases.
+Pending-state precedence and native error propagation were already corrected
+in the later source and fixture. The other findings concerned a recorder staging
+requested After values before native setter success and live getters generating
+new failures after diagnostic state was copied. The writer subsequently changed
+the recorder to observe actual storage after the attempt and added command-local
+live-read failure capture, separate from cached/write diagnostics. The coordinator
+read those changes; the native rejecting-setter and live-read failure fixtures
+are still being extended. Static correction alone does not close acceptance.
+
+The real editor SDK-client suite expanded to thirty-six passing cases, including
+custom text and point-list handlers, native-storage domain labeling, registered
+record Inspector readback and a record gesture's failure receipt. Its first
+custom run assumed an empty text default instead of the native "Text" value;
+the corrected fixture captures the prior value and checks exact undo restoration.
+The native Debug full matrix passed 20/20 in 329.09 seconds (capture 32.73,
+dispatcher 1.87 and export 186.28 seconds) before the new rejecting-setter module
+fixture was configured. The coordinator read both the thirty-six-case receipt
+and native summary. The native Release matrix also passed 20/20 in 304.93
+seconds (capture 10.11, dispatcher 1.64 and export 184.21 seconds). These runs
+cover the native alpha/dispatcher source; later managed fault fixtures retain
+their own executed scope.
+
+The actual editor publish harness passed its three cases after channel wiring:
+development publish rejected, fresh shipping publish accepted with channel/pipe,
+Inspector adapter, development dispatch/friend markers, SDK artifacts and new
+flags excluded, and NoBuild publish rejected. The coordinator read the receipt.
+The old recorder implementation was then used as a sensitivity mutant; the
+rejecting-setter ghost-history check failed with exit 1, as intended. Source was
+restored with a verified hash and forced rebuild before the passing restored
+fixture. This is separate from the earlier graphics-cleanup failure and does
+not approve arbitrary partial-write rollback.
+
+The independent Inspector reviewer rechecked all four original P2 fixes and
+found them corrected by source inspection, without edits/builds/tests or a
+package change. Final direct fault runs and expanded stable-reference MCP
+qualification are being closed before final editor acceptance.
+
+The final editor code milestone is local commit
+`e64dbb765430093e88f1d66b09e2d8f9340efcd2`. For both Debug and Release,
+the final receipts contain thirty-nine passing editor SDK-client cases,
+twenty-one passing direct fault/real-editor-pipe cases (fifteen fault and six
+transport cases), and twenty-six passing player cases. The coordinator read
+all six per-configuration integration receipts. The expanded editor cases
+include scene-ID entity references, rejection of runtime-index labels and
+incompatible reference component types. Existing Set/SetShape handlers call a
+development-only attempt callback after parsing and before writing, so a
+conversion refusal is not misreported as an accepted pending edit.
+
+Final ordinary-editor regressions also passed 0/1/12-step collapsed-viewport
+runs in both configurations with the user's layout bytes preserved. The final
+editor publish suite passed its three cases. Both ordinary and NoBuild MCP tool
+publication were rejected with zero payload files. The coordinator read these
+receipts separately from native full-matrix results; no extra broad matrix was
+inferred from a targeted managed test. Source and documentation commits are
+separate and no remote action occurred.
+
+This completes the bounded local Windows editor/Inspector channel milestone,
+not TODO-051. The full project-wide qualification/reconciliation, any new Ninja
+host matrix, actual remote-release producers and owner-approved snapshot
+selection/tolerances/references remain separate gates. No real Codex tool
+registration, Linux/Unix transport, widget interaction acceptance or automatic
+reference approval is established. The stable local checkpoint must record the
+final code/docs hashes and these limits before later work starts.
+
 ### Resumed production DLL/module foundation, 2026-10-28
 
 The implementation working tree built vs2026 Debug and Release with zero

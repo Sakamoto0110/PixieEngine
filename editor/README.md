@@ -190,6 +190,48 @@ BoidControls.radius=300` turns the boids away from a pointer with a 300-unit rea
 hand in the inspector. With several entities selected, a `--set` changes all of them. Selection
 gestures and the viewport menu's actions are logged.
 
+## Local development MCP channel
+
+Development builds accept `--dev-channel <name>` and
+`--dev-capture-dir <folder>`. The former opts into one local Windows client;
+the latter fixes its capture destination. The native pipe handle rejects remote
+clients and uses a protected owner-SID ACL. Without the opt-in flag, no listener
+starts. These channel options/types are excluded from a shipping editor publish.
+
+`tools/pixie-mcp/` is the separate .NET 10 stdio server/client bridge. After
+building its project in Release, an MCP client can launch it in this form from
+the repository root:
+
+```powershell
+dotnet tools/pixie-mcp/bin/Release/net10.0/PixieMcp.dll --kind editor --host editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/sprites --captures build/captures/editor
+```
+
+This launch form does not register the tool in Codex or another client. Local
+qualification used the official C# SDK client. The player offers `world.*`;
+the editor also offers `inspector.*` and `editor.*`. World writes use native
+operations without Inspector history. Inspector writes use the same Set and
+editing-command handlers as scripted runs, with actual recorder/history effects.
+Use scene IDs and a current generation from `inspector.tree` for channel writes,
+not names or runtime-index labels. Entity-reference inputs must also satisfy
+their native References metadata.
+
+Inspector observations distinguish held/view values from optional live/storage
+reads. Custom text/point/record/mask rows identify their native-storage domain;
+they are not advertised as generic held Inspector values. Receipts distinguish
+pending, refusal, no-op, stale target and possible partial effects, preserving
+command-local native failures before later reads. Handler true alone is not
+write acceptance. Read-side failure diagnostics are separate from cached or
+previous write failures.
+
+Capture returns full-window PNG image content after a coherent subsequent UI
+frame. Its alpha-one render does not pause or discard fractional time. Names
+cannot escape the fixed folder and existing files are not overwritten. Save,
+export, build, import/drop and font/image filesystem gestures are unavailable
+through the channel, even though ordinary CLI/UI editing retains its own
+behavior. No screenshot is an approved snapshot reference merely because a
+capture succeeded. See the [qualification record](../docs/shared-engine-export-validation.md)
+for Windows scope, executed cases and remaining project-wide gates.
+
 ## Collision and movement authoring
 
 Open [movement-lab](../samples/movement-lab/README.md) as a no-code project.
