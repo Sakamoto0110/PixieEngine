@@ -5,6 +5,8 @@ using System.Text.Json.Nodes;
 using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
+if (args.Length > 0 && args[0] == "--editor") { await EditorQualification.Run(args[1..]); return; }
+
 if (args.Length != 5) throw new ArgumentException("usage: tests <player> <project> <mcp.dll> <capture-root> <receipt.json>");
 var player = Path.GetFullPath(args[0]);
 var project = Path.GetFullPath(args[1]);

@@ -37,7 +37,7 @@ internal sealed class EngineConnection : IAsyncDisposable
         };
         foreach (var argument in new[] { "--project", Path.GetFullPath(project), "--dev-channel", channel,
             "--dev-capture-dir", root, "--dev-hidden", "on" }) info.ArgumentList.Add(argument);
-        if (editor) throw new NotSupportedException("Editor channel integration is not qualified yet.");
+        if (editor) { info.ArgumentList.Add("--recent"); info.ArgumentList.Add("off"); }
         var process = Process.Start(info) ?? throw new IOException("Host process did not start.");
         // Neither the native host nor its diagnostics may contaminate MCP stdout.
         _ = RelayAsync(process.StandardOutput);

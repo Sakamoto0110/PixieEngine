@@ -21,4 +21,18 @@ internal static class ToolCatalog
             required = new[] { "parameters" }, additionalProperties = false
         })
     }).ToArray();
+    public static IReadOnlyList<Tool> ForHost(bool editor) => editor ? [.. Tools, .. new[]
+    {
+        "inspector.tree", "inspector.get", "inspector.report", "inspector.set", "editor.do", "editor.history", "editor.selection"
+    }.Select(name => new Tool
+    {
+        Name = name,
+        Description = "Editor/Inspector observation or existing gesture. Read inspector.tree first; writes require its generation. " +
+            "inspector.set takes {path,value,generation}; editor.do takes {command,generation}. Selection commands use select=<16-digit scene ID>. " +
+            "Default Inspector values are held/view units; inspector.get domain live-storage explicitly reads storage. Save/build/export/import are disabled.",
+        InputSchema = JsonSerializer.SerializeToElement(new
+        {
+            type = "object", properties = new { parameters = new { type = "object" } }, required = new[] { "parameters" }, additionalProperties = false
+        })
+    })] : Tools;
 }

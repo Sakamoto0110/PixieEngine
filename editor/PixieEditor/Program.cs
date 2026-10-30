@@ -20,6 +20,9 @@ internal sealed record EditorOptions
     public double QuitAfter { get; init; }
 #if PIXIE_DEVELOPMENT
     public ulong? QuitAfterSteps { get; init; }
+    public string? DevChannel { get; init; }
+    public string? DevCaptureDirectory { get; init; }
+    public bool DevHidden { get; init; }
 #endif
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
@@ -68,6 +71,9 @@ internal static class Program
         """
 #if PIXIE_DEVELOPMENT
         + "\n  --quit-after-steps <n>  close after exactly n fixed steps; zero captures the initial state"
+        + "\n  --dev-channel <name>   opt-in local Engine/Inspector command channel"
+        + "\n  --dev-capture-dir <dir> fixed channel capture directory"
+        + "\n  --dev-hidden on|off    create a channel-driven editor hidden"
 #endif
         ;
 
@@ -128,6 +134,15 @@ internal static class Program
                     options = options with { QuitAfter = quit };
                     break;
 #if PIXIE_DEVELOPMENT
+                case "--dev-channel":
+                    options = options with { DevChannel = value };
+                    break;
+                case "--dev-capture-dir":
+                    options = options with { DevCaptureDirectory = value };
+                    break;
+                case "--dev-hidden" when value is "on" or "off":
+                    options = options with { DevHidden = value == "on" };
+                    break;
                 case "--quit-after-steps" when ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var steps):
                     options = options with { QuitAfterSteps = steps };
                     break;
@@ -164,6 +179,9 @@ internal static class Program
 #if PIXIE_DEVELOPMENT
         if (options.QuitAfterSteps.HasValue && options.Game == null && options.Project == null)
             return false;
+        if (options.DevChannel is { } channel && (channel.Length is < 1 or > 64 || channel.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') ||
+            options.Game == null && options.Project == null || options.QuitAfterSteps.HasValue || options.SaveAfter.HasValue || options.Commands.Count != 0 || options.Edits.Count != 0)) return false;
+        if (options.DevChannel == null && (options.DevCaptureDirectory != null || options.DevHidden)) return false;
 #endif
         return true;
     }

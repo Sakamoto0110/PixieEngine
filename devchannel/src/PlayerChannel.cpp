@@ -183,7 +183,10 @@ void PlayerChannel::Drain() {
     ++impl_->frame;
     impl_->channel.Drain([&](std::string_view request, uint64_t client) { return impl_->Handle(request, client); });
 }
-double PlayerChannel::RenderAlpha() const { return impl_->capture ? 1.0 : impl_->session.Alpha(); }
+double PlayerChannel::RenderAlpha() const {
+    const auto alpha = impl_->dispatcher ? impl_->dispatcher->ConsumeRenderAlpha() : std::nullopt;
+    return impl_->capture ? 1.0 : alpha.value_or(impl_->session.Alpha());
+}
 void PlayerChannel::AfterRender(FramebufferSize size) {
     if (!impl_->capture) return;
     auto capture = std::move(*impl_->capture); impl_->capture.reset();

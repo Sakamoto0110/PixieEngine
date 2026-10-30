@@ -19,14 +19,15 @@ if (name.Length is < 1 or > 64 || name.Any(c => !char.IsAsciiLetterOrDigit(c) &&
 var kind = options.GetValueOrDefault("--kind", "player");
 if (kind is not ("player" or "editor")) throw new ArgumentException("kind must be player or editor");
 await using var connection = await EngineConnection.OpenAsync(options["--host"], options["--project"], options["--captures"], name, kind == "editor", CancellationToken.None);
+var availableTools = ToolCatalog.ForHost(kind == "editor");
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole(logging => logging.LogToStandardErrorThreshold = LogLevel.Trace);
 builder.Services.AddMcpServer().WithStdioServerTransport()
-    .WithListToolsHandler((_, _) => ValueTask.FromResult(new ListToolsResult { Tools = [.. ToolCatalog.Tools] }))
+    .WithListToolsHandler((_, _) => ValueTask.FromResult(new ListToolsResult { Tools = [.. availableTools] }))
     .WithCallToolHandler(async (request, cancellationToken) =>
     {
         var tool = request.Params?.Name;
-        if (tool is null || !ToolCatalog.Tools.Any(t => t.Name == tool))
+        if (tool is null || !availableTools.Any(t => t.Name == tool))
             return new CallToolResult { IsError = true, Content = [new TextContentBlock { Text = "Unknown or disabled development tool." }] };
         var arguments = request.Params?.Arguments;
         if (arguments is null || !arguments.TryGetValue("parameters", out var parameters) || parameters.ValueKind != System.Text.Json.JsonValueKind.Object)

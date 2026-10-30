@@ -338,6 +338,40 @@ TEST(RestoreFailureReportsSuccessfulOrFailedRollbackExplicitly) {
     session.Stop();
 }
 
+TEST(CaptureAlphaPreservesFractionPauseScaleAndNormalNextRender) {
+    pixie::ProjectSession session(std::make_unique<pixie::SceneProject>(), {});
+    CHECK(session.Start({96, 64}));
+    session.SetTimeScale(0.5);
+    session.Advance(1.0 / 60.0); // Half a simulated fixed step.
+    const auto alpha = session.Alpha();
+    CHECK(std::abs(alpha - 0.5) < 1e-9);
+    pixie::dev::WorldDispatcher dispatcher(session);
+    dispatcher.Dispatch(Request("world.hello").dump());
+    CHECK(Json::parse(dispatcher.Dispatch(Request("world.prepare_capture").dump())).contains("result"));
+    const auto prepared = dispatcher.ConsumeRenderAlpha();
+    CHECK(prepared && *prepared == 1.0);
+    CHECK(session.RenderToTarget(prepared.value_or(0)) != 0);
+    CHECK(session.GetWorld().Steps() == 0 && session.GetWorld().Elapsed() == 0);
+    CHECK(!session.IsPaused() && session.TimeScale() == 0.5);
+    CHECK(std::abs(session.Alpha() - alpha) < 1e-9);
+    CHECK(!dispatcher.ConsumeRenderAlpha());
+    CHECK(session.RenderToTarget() != 0);
+    CHECK(std::abs(session.Alpha() - alpha) < 1e-9);
+    session.Advance(1.0 / 60.0);
+    CHECK(session.GetWorld().Steps() == 1);
+    session.Stop();
+
+    Session owned;
+    owned.Good("world.hello");
+    owned.Good("world.advance", {{"seconds", 1.0 / 120.0}});
+    owned.Good("world.prepare_capture");
+    uint32_t texture = 0;
+    CHECK(pixie_session_render(owned.value, &texture) == PIXIE_OK && texture != 0);
+    CHECK(owned.Good("world.stats")["steps"] == 0);
+    CHECK(pixie_session_render(owned.value, &texture) == PIXIE_OK);
+    CHECK(owned.Good("world.advance", {{"seconds", 1.0 / 120.0}})["steps_run"] == 1);
+}
+
 int main() {
     if (!glfwInit()) return 2;
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);

@@ -91,6 +91,7 @@ struct WorldDispatcher::Impl {
     PixieSession view;
     std::thread::id owner = std::this_thread::get_id();
     bool hello = false;
+    bool nextRenderAlphaOne = false;
     bool mutationStarted = false;
     uint64_t sequence = 0;
     uint64_t generation = 0;
@@ -413,6 +414,10 @@ struct WorldDispatcher::Impl {
                 {"capabilities", {{"world", true}, {"inspector", false}, {"capture", false}, {"transport", false}, {"save", false}}}};
         }
         if (!hello) Reject("world.hello must be the first call");
+        if (method == "world.prepare_capture") {
+            nextRenderAlphaOne = true;
+            return {{"alpha", 1.0}, {"pending_next_render", true}};
+        }
         if (method == "world.stats") return Stats();
         if (method == "world.types") {
             Json types = Json::array();
@@ -577,6 +582,13 @@ struct WorldDispatcher::Impl {
 
 WorldDispatcher::WorldDispatcher(ProjectSession& session) : impl_(std::make_unique<Impl>(session)) {}
 WorldDispatcher::~WorldDispatcher() = default;
+
+std::optional<double> WorldDispatcher::ConsumeRenderAlpha() {
+    if (std::this_thread::get_id() != impl_->owner) throw std::logic_error("render alpha requires the owner thread");
+    if (!impl_->nextRenderAlphaOne) return std::nullopt;
+    impl_->nextRenderAlphaOne = false;
+    return 1.0;
+}
 
 std::string WorldDispatcher::Dispatch(std::string_view request) {
     // Rejection here must not race with any owner-thread dispatcher state.

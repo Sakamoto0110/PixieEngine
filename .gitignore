@@ -17,6 +17,8 @@
 /editor/**/obj/
 /tools/**/bin/
 /tools/**/obj/
+/tests/**/bin/
+/tests/**/obj/
 imgui.ini
 
 # A sample opened in the editor is built as a project of its own, in its folder.

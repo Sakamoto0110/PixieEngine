@@ -42,6 +42,9 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.WindowHint(GLFW.GLFW_CONTEXT_VERSION_MINOR, 5);
         GLFW.WindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         GLFW.WindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
+#if PIXIE_DEVELOPMENT
+        if (options.DevHidden) GLFW.WindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
+#endif
 
         var window = GLFW.CreateWindow(1600, 900, "PixieEditor", default(GLFWmonitorPtr), default(GLFWwindowPtr));
         if (window.Handle == null)
@@ -250,6 +253,20 @@ internal sealed class EditorWindow(EditorOptions options)
         using var exportPanel = new Development.ExportPanel(session);
         startExport = exportPanel.Start;
         exporting = () => exportPanel.Running;
+        using var channel = options.DevChannel is { } channelName
+            ? new Development.EditorChannel(channelName, options.DevCaptureDirectory ?? Path.Combine("build", "captures", channelName),
+                session, selection, inspector, history, command =>
+                {
+                    var ran = RunCommand(command, session, authoring, selection, entities, viewport, inspector, sceneIds: true);
+                    recorder.Close();
+                    return ran;
+                }) : null;
+        viewport.AgentDriven = channel != null;
+        if (channel != null)
+        {
+            viewport.AgentRenderFailure = channel.ReportRenderFailure;
+            controls = new SessionPanel(session, gameName) { Deterministic = true };
+        }
 #endif
         var askToSave = false;
         var confirmed = false;
@@ -361,6 +378,13 @@ internal sealed class EditorWindow(EditorOptions options)
                 firstLayout = false;
             }
 
+#if PIXIE_DEVELOPMENT
+            if (channel != null)
+            {
+                session.Advance(frameDelta);
+                channel.Drain();
+            }
+#endif
             toolbar.Draw();
             ImGui.DockSpaceOverViewport(dockspace);
             controls.Draw();
@@ -456,7 +480,11 @@ internal sealed class EditorWindow(EditorOptions options)
                 confirmed = true;
             }
 
-            EndFrame(window, now, timed: !exportInProgress);
+            EndFrame(window, now, timed: !exportInProgress
+#if PIXIE_DEVELOPMENT
+                , afterRender: channel == null ? null : (width, height) => channel.AfterFrame(width, height, viewport.ChannelVisible)
+#endif
+            );
         }
 
         return exitCode;
@@ -520,10 +548,22 @@ internal sealed class EditorWindow(EditorOptions options)
 
     // Draws the frame; with --quit-after, saves the screenshot and closes once the time is up, except
     // while a project's code builds (`timed` false): the times count from when the project opens.
-    private unsafe void EndFrame(GLFWwindowPtr window, double now, bool timed = true)
+    private unsafe void EndFrame(GLFWwindowPtr window, double now, bool timed = true
+#if PIXIE_DEVELOPMENT
+        , Action<int, int>? afterRender = null
+#endif
+    )
     {
         ImGui.Render();
         ImGuiImplOpenGL3.RenderDrawData(ImGui.GetDrawData());
+#if PIXIE_DEVELOPMENT
+        if (afterRender != null)
+        {
+            int frameWidth, frameHeight;
+            GLFW.GetFramebufferSize(window, &frameWidth, &frameHeight);
+            afterRender(frameWidth, frameHeight);
+        }
+#endif
 
         var quitting = timed && options.QuitAfter > 0 && now - Start >= options.QuitAfter;
 #if PIXIE_DEVELOPMENT
@@ -544,7 +584,11 @@ internal sealed class EditorWindow(EditorOptions options)
 
     // One command of --do, as the editor's own gestures would run it; the state is logged after it.
     private static bool RunCommand(string command, EngineSession session, Authoring authoring, Selection selection,
-        EntitiesPanel entities, ViewportPanel viewport, InspectorPanel inspector, Action<string>? export = null)
+        EntitiesPanel entities, ViewportPanel viewport, InspectorPanel inspector, Action<string>? export = null
+#if PIXIE_DEVELOPMENT
+        , bool sceneIds = false
+#endif
+    )
     {
         var equals = command.IndexOf('=');
         var verb = equals < 0 ? command : command[..equals].TrimEnd('+');
@@ -626,7 +670,11 @@ internal sealed class EditorWindow(EditorOptions options)
             case "redo":
                 authoring.Redo();
                 break;
+#if PIXIE_DEVELOPMENT
+            case "select" when (sceneIds ? FindSceneEntity(session, argument) : entities.Find(argument)) is { } found:
+#else
             case "select" when entities.Find(argument) is { } found:
+#endif
                 if (adding)
                     selection.Add([found]);
                 else
@@ -717,6 +765,12 @@ internal sealed class EditorWindow(EditorOptions options)
         Console.Error.WriteLine($"[{(ok ? "info" : "error")}] After {command}: {Describe(session, authoring, selection)}");
         return ok;
     }
+
+#if PIXIE_DEVELOPMENT
+    private static uint? FindSceneEntity(EngineSession session, string text) => text.Length == 16 &&
+        ulong.TryParse(text, System.Globalization.NumberStyles.HexNumber, System.Globalization.CultureInfo.InvariantCulture, out var id)
+        ? session.Find(id) : null;
+#endif
 
     // "Type.field" as a type and a field index; null when either is unknown.
     private static (int Type, int Field)? FieldOf(EngineSession session, string name)

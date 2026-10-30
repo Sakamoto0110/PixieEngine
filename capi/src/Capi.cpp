@@ -503,7 +503,12 @@ PixieResult pixie_session_render(PixieSession* s, uint32_t* texture) {
     }
     return Guard([&] {
         s->surface.MakeCurrent();
+#ifdef PIXIE_DEV_CHANNEL
+        const auto alpha = s->dispatcher ? s->dispatcher->ConsumeRenderAlpha() : std::nullopt;
+        *texture = alpha ? s->session.RenderToTarget(*alpha) : s->session.RenderToTarget();
+#else
         *texture = s->session.RenderToTarget();
+#endif
         return *texture != 0 ? PIXIE_OK : Fail(PIXIE_ERROR_GL, "the render target could not be made");
     });
 }

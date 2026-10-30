@@ -278,12 +278,16 @@ void ProjectSession::Render(double alpha) {
 }
 
 unsigned ProjectSession::RenderToTarget() {
+    return RenderToTarget(Alpha());
+}
+
+unsigned ProjectSession::RenderToTarget(double alpha) {
     const FramebufferSize size = camera_.Viewport();
     if (size.width <= 0 || size.height <= 0 || !target_.Resize(size)) {
         return 0;
     }
     target_.Bind();
-    Render(Alpha());
+    Render(alpha);
     RenderTarget::BindDefault();
     return target_.ColorTexture();
 }

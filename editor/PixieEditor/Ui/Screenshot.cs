@@ -6,7 +6,7 @@ namespace PixieEditor.Ui;
 // Saves the window's framebuffer as an RGB PNG, top row first: for checking a run without watching it.
 internal static class Screenshot
 {
-    public static unsafe void Save(string path, int width, int height)
+    public static unsafe void Save(string path, int width, int height, bool exclusive = false)
     {
         var pixels = new byte[width * height * 4];
         Gl.PixelStorei(Gl.PackAlignment, 1);
@@ -35,7 +35,7 @@ internal static class Screenshot
             zlib.Write(raw);
         }
 
-        using var file = File.Create(path);
+        using var file = new FileStream(path, exclusive ? FileMode.CreateNew : FileMode.Create, FileAccess.Write, FileShare.None);
         file.Write([0x89, (byte)'P', (byte)'N', (byte)'G', 0x0D, 0x0A, 0x1A, 0x0A]);
         var header = new byte[13];
         BinaryPrimitives.WriteInt32BigEndian(header, width);

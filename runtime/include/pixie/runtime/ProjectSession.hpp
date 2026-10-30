@@ -126,6 +126,8 @@ public:
     PIXIE_RUNTIME_API void Render(double alpha);
     // Draws into the session's own render target, sized to the viewport, and returns its texture.
     PIXIE_RUNTIME_API unsigned RenderToTarget();
+    // Presentation-only override. Does not change the stepper, pause or time scale.
+    PIXIE_RUNTIME_API unsigned RenderToTarget(double alpha);
     // The interpolation of the last Advance, for Render.
     PIXIE_RUNTIME_API double Alpha() const;
 

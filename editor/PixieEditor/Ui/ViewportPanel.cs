@@ -48,6 +48,9 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     public ViewportMode Mode { get; set; } = ViewportMode.Game;
 #if PIXIE_DEVELOPMENT
     public Development.DeterministicCapture? Capture { get; set; }
+    public bool AgentDriven { get; set; }
+    public bool ChannelVisible { get; private set; }
+    public Action<EngineException>? AgentRenderFailure { get; set; }
 #endif
 
     private Vector2 ImageOrigin;
@@ -87,6 +90,9 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
         ImGui.PushStyleVar(ImGuiStyleVar.WindowPadding, Vector2.Zero);
         if (ImGui.Begin("Viewport", ImGuiWindowFlags.NoScrollbar | ImGuiWindowFlags.NoScrollWithMouse))
         {
+#if PIXIE_DEVELOPMENT
+            ChannelVisible = true;
+#endif
             var size = ImGui.GetContentRegionAvail();
             Scale = ImGui.GetIO().DisplayFramebufferScale;
             var width = Math.Max(1, (int)(size.X * Scale.X));
@@ -106,22 +112,35 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
             Hovered = ImGui.IsWindowHovered() && mouse.X >= ImageOrigin.X && mouse.Y >= ImageOrigin.Y &&
                       mouse.X < ImageOrigin.X + size.X && mouse.Y < ImageOrigin.Y + size.Y;
 #if PIXIE_DEVELOPMENT
-            if (Capture == null)
+            if (Capture == null && !AgentDriven)
 #endif
             SendInput();
-            if (Mode == ViewportMode.Select)
+            if (Mode == ViewportMode.Select
+#if PIXIE_DEVELOPMENT
+                && !AgentDriven
+#endif
+            )
                 Select();
             while (DropEvents.Pending.TryDequeue(out var dropped))
-                Drop(dropped, Hovered ? MouseInView() : null);
+            {
 #if PIXIE_DEVELOPMENT
-            if (Capture != null) Capture.Advance();
-            else
+                if (AgentDriven) continue;
 #endif
+                Drop(dropped, Hovered ? MouseInView() : null);
+            }
+#if PIXIE_DEVELOPMENT
+            if (!AgentDriven)
+            {
+                if (Capture != null) Capture.Advance();
+                else session.Advance(frameDelta);
+            }
+#else
             session.Advance(frameDelta);
-            var texture = session.Render();
+#endif
+            var texture = RenderTexture();
 
             // GL's first row is the bottom of the image; ImGui draws top down, so flip the coordinates.
-            ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
+            if (texture != 0) ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
             DrawSelection();
             DrawColliderHandles();
             DrawMenu();
@@ -132,18 +151,35 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
         else
         {
 #if PIXIE_DEVELOPMENT
+            ChannelVisible = false;
             // A saved collapsed/tabbed-out viewport must not stall a finite capture run.
             Capture?.Advance();
+            if (AgentDriven) RenderTexture();
 #endif
             Hovered = false;
             Focused = false;
             PressedAt = null;
             FinishColliderDrag();
+#if PIXIE_DEVELOPMENT
+            if (!AgentDriven)
+#endif
             SendInput();
         }
 
         ImGui.End();
         ImGui.PopStyleVar();
+    }
+
+    private uint RenderTexture()
+    {
+#if PIXIE_DEVELOPMENT
+        if (AgentDriven)
+        {
+            try { return session.Render(); }
+            catch (EngineException error) { AgentRenderFailure?.Invoke(error); return 0; }
+        }
+#endif
+        return session.Render();
     }
 
     // The mouse in view pixels.

@@ -40,6 +40,11 @@ def main():
     binary = (published / "PixieEditor.dll").read_bytes()
     for marker in (b"ProjectExportJob", b"ExportPanel", b"PixieEditor.Development",
                    b"get_Export", b"DeterministicCapture", b"get_QuitAfterSteps",
+                   b"EditorChannel", b"EditorPipe", b"CaptureDirectory", b"SynchronizeChannel", b"ChannelTree", b"ChannelGesture",
+                   b"DispatchDevelopment", b"DevDispatch", b"pixie_dev_dispatch", b"get_DevChannel", b"get_DevHidden", b"FindSceneEntity",
+                   b"PixieEditor.ChannelTests", b"ModelContextProtocol",
+                   b"ChannelReferenceLabel",
+                   "--dev-channel".encode("utf-16-le"), "--dev-capture-dir".encode("utf-16-le"), "--dev-hidden".encode("utf-16-le"),
                    "Export game...".encode("utf-16-le"), "--quit-after-steps".encode("utf-16-le")):
         assert marker not in binary, marker
     assert not list(published.rglob("*pixie-mcp*")) and not list(published.rglob("*pixie-export*"))

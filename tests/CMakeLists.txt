@@ -4,6 +4,10 @@
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
 
 if(PIXIE_DEV_CHANNEL)
+    add_library(channel-write-probe-module MODULE editor/channel/NativeWriteProbe.cpp)
+    target_link_libraries(channel-write-probe-module PRIVATE Pixie::Runtime)
+    pixie_target_defaults(channel-write-probe-module)
+    set_target_properties(channel-write-probe-module PROPERTIES FOLDER tests)
     add_executable(devchannel-tests devchannel/DispatcherTests.cpp)
     if(WIN32)
         target_sources(devchannel-tests PRIVATE devchannel/LocalChannelTests.cpp)

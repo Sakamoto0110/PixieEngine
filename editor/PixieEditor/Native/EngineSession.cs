@@ -3,7 +3,11 @@ using System.Text;
 namespace PixieEditor.Native;
 
 // A failure reported by the C API, with its last error text.
-public sealed class EngineException(string message) : Exception(message);
+public sealed class EngineException(string message, PixieResult? result = null, string? nativeError = null) : Exception(message)
+{
+    public PixieResult? Result { get; } = result;
+    public string? NativeError { get; } = nativeError;
+}
 
 // A game's session through the C API: the managed face of PixieSession. Every call needs the GL
 // context the session was created with current on this thread. A failed call throws an
@@ -13,6 +17,22 @@ public sealed unsafe class EngineSession : IDisposable
     private nint Handle;
     private readonly Dictionary<string, int> TypeIndices = [];
     private readonly Dictionary<(int Type, string Field), int> FieldIndices = [];
+#if PIXIE_DEVELOPMENT
+    private byte[]? DevelopmentResponse;
+    internal long DevelopmentGeneration { get; private set; }
+    internal void InvalidateDevelopmentBindings() => ++DevelopmentGeneration;
+    internal string DispatchDevelopment(string request)
+    {
+        if (Encoding.UTF8.GetByteCount(request) > 65536 || request.Contains('\0'))
+            throw new ArgumentException("Invalid or oversized development request.");
+        DevelopmentResponse ??= new byte[4 * 1024 * 1024];
+        fixed (byte* response = DevelopmentResponse)
+            Check(PixieCapi.DevDispatch(Handle, request, response, DevelopmentResponse.Length), "dispatch development command");
+        var length = Array.IndexOf(DevelopmentResponse, (byte)0);
+        if (length < 0) throw new EngineException("Development response lacks its terminator.");
+        return new UTF8Encoding(false, true).GetString(DevelopmentResponse, 0, length);
+    }
+#endif
 
     private EngineSession(nint handle)
     {
@@ -71,8 +91,20 @@ public sealed unsafe class EngineSession : IDisposable
     public PixieBodyMass2D? BodyMass2D(uint entity) =>
         Found(PixieCapi.BodyMass2D(Handle, entity, out var mass), "read body mass") ? mass : null;
 
-    public void Play() => Check(PixieCapi.SessionPlay(Handle), "play");
-    public void Stop() => Check(PixieCapi.SessionStop(Handle), "stop");
+    public void Play()
+    {
+        Check(PixieCapi.SessionPlay(Handle), "play");
+#if PIXIE_DEVELOPMENT
+        InvalidateDevelopmentBindings();
+#endif
+    }
+    public void Stop()
+    {
+        Check(PixieCapi.SessionStop(Handle), "stop");
+#if PIXIE_DEVELOPMENT
+        InvalidateDevelopmentBindings();
+#endif
+    }
     public void Save() => Check(PixieCapi.ProjectSave(Handle), "save the scene");
 
     // A new entity of the scene, named `name`.
@@ -117,6 +149,9 @@ public sealed unsafe class EngineSession : IDisposable
         fixed (uint* list = entities)
         {
             Check(PixieCapi.EntitiesRestore(Handle, snapshot, newIds ? 1 : 0, list, entities.Length, out var count), "restore entities");
+#if PIXIE_DEVELOPMENT
+            InvalidateDevelopmentBindings();
+#endif
             return entities[..Math.Min(count, entities.Length)];
         }
     }
@@ -233,7 +268,13 @@ public sealed unsafe class EngineSession : IDisposable
     public void Resize(int width, int height) => Check(PixieCapi.SessionResize(Handle, width, height), "resize");
     public void Advance(double seconds) => Check(PixieCapi.SessionAdvance(Handle, seconds), "advance");
     public void Step() => Check(PixieCapi.SessionStep(Handle), "step");
-    public void Reset() => Check(PixieCapi.SessionReset(Handle), "reset");
+    public void Reset()
+    {
+        Check(PixieCapi.SessionReset(Handle), "reset");
+#if PIXIE_DEVELOPMENT
+        InvalidateDevelopmentBindings();
+#endif
+    }
 
     public uint Render()
     {
@@ -441,9 +482,12 @@ public sealed unsafe class EngineSession : IDisposable
 
     private static string LastError()
     {
-        var buffer = stackalloc byte[512];
-        var length = PixieCapi.LastError(buffer, 512);
-        return Encoding.UTF8.GetString(buffer, Math.Min(length, 511));
+        var length = PixieCapi.LastError(null, 0);
+        var capacity = Math.Min(Math.Max(1, length + 1), 4 * 1024 * 1024);
+        var buffer = new byte[capacity];
+        fixed (byte* text = buffer) PixieCapi.LastError(text, capacity);
+        var result = Encoding.UTF8.GetString(buffer, 0, Math.Min(length, capacity - 1));
+        return length >= capacity ? result + " [native error text truncated at 4 MiB]" : result;
     }
 
     // Ok is true, not found is false, and anything else throws.
@@ -458,7 +502,10 @@ public sealed unsafe class EngineSession : IDisposable
     internal static void Check(PixieResult result, string what)
     {
         if (result != PixieResult.Ok)
-            throw new EngineException($"Could not {what}: {result}, {LastError()}");
+        {
+            var error = LastError();
+            throw new EngineException($"Could not {what}: {result}, {error}", result, error);
+        }
     }
 
     private delegate PixieResult StringReader(byte* buffer, int capacity);

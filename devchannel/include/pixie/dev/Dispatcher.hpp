@@ -2,6 +2,7 @@
 
 #include <cstddef>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 
@@ -32,6 +33,9 @@ public:
     WorldDispatcher& operator=(const WorldDispatcher&) = delete;
     // Empty text means a valid notification, which has no JSON-RPC response.
     PIXIE_DEV_API std::string Dispatch(std::string_view request);
+    // Consume immediately before a render attempt, never on a skipped frame.
+    // A failed allocation/render cancels this override; the host must report capture failure.
+    PIXIE_DEV_API std::optional<double> ConsumeRenderAlpha();
 private:
     struct Impl;
     std::unique_ptr<Impl> impl_;
