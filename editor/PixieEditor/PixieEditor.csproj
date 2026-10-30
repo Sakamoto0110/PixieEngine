@@ -12,6 +12,9 @@
     <IsPackable>false</IsPackable>
     <PixieDevelopmentTools Condition="'$(PixieDevelopmentTools)' == ''">true</PixieDevelopmentTools>
     <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true'">$(DefineConstants);PIXIE_DEVELOPMENT</DefineConstants>
+    <!-- Whether the development channel may save the scene (editor.do save); -p:PixieChannelSave=false leaves it out. -->
+    <PixieChannelSave Condition="'$(PixieChannelSave)' == ''">true</PixieChannelSave>
+    <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true' And '$(PixieChannelSave)' == 'true'">$(DefineConstants);PIXIE_CHANNEL_SAVE</DefineConstants>
     <!-- The neko mark from the shared asset store (vdr: neko-purple-light), copied by vdr cp. -->
     <ApplicationIcon>assets/neko-purple-light.ico</ApplicationIcon>
   </PropertyGroup>

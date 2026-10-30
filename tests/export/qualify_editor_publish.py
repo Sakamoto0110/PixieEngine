@@ -47,7 +47,8 @@ def main():
                    "--dev-channel".encode("utf-16-le"), "--dev-capture-dir".encode("utf-16-le"), "--dev-hidden".encode("utf-16-le"),
                    "Export game...".encode("utf-16-le"), "--quit-after-steps".encode("utf-16-le")):
         assert marker not in binary, marker
-    assert not list(published.rglob("*pixie-mcp*")) and not list(published.rglob("*pixie-export*"))
+    for pattern in ("*pixie-mcp*", "*PixieMcp*", "*ModelContextProtocol*", "*pixie-export*"):
+        assert not list(published.rglob(pattern)), pattern
     publish("no-build-blocked", ["-p:PixieDevelopmentTools=false"], "existing editor binary", no_build=True)
     (run / "results.json").write_text(json.dumps(records, indent=2), encoding="utf-8")
     print(f"PASS: development publish rejected, clean local publish verified, NoBuild rejected. Evidence: {run}")

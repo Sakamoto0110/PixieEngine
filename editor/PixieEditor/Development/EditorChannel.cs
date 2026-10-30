@@ -31,8 +31,16 @@ internal sealed class EditorChannel : IDisposable
     {
         "select", "create", "collider", "character", "compound", "addshape", "removeshape", "shape", "layername",
         "layer", "shapelayer", "dynamic", "compoundbox", "kinematic", "sensor", "world", "duplicate", "delete",
-        "undo", "redo", "add", "remove", "rename", "addpoint", "removepoint", "move", "colliderhandles", "physicsdebug", "colliderdrag", "play", "stop"
+        "undo", "redo", "add", "remove", "rename", "addpoint", "removepoint", "move", "colliderhandles", "physicsdebug", "colliderdrag", "play", "stop",
+#if PIXIE_CHANNEL_SAVE
+        "save",
+#endif
     };
+#if PIXIE_CHANNEL_SAVE
+    private const bool Saves = true;
+#else
+    private const bool Saves = false;
+#endif
     public EditorChannel(string name, string root, EngineSession session, Selection selection, InspectorPanel inspector,
         Editing.History history, Func<string, bool> runCommand)
     {
@@ -158,7 +166,7 @@ internal sealed class EditorChannel : IDisposable
                         var value = result["value"]!.AsObject();
                         value["capture_directory"] = Captures.Root;
                         value["capabilities"] = new JsonObject { ["world"] = true, ["inspector"] = true, ["editor"] = true,
-                            ["transport"] = true, ["capture"] = true, ["save"] = false };
+                            ["transport"] = true, ["capture"] = true, ["save"] = Saves };
                     }
                 }
                 else if (response["error"]?["data"] is JsonObject data) Context(data);
@@ -191,7 +199,9 @@ internal sealed class EditorChannel : IDisposable
                 var gesture = Text(p, "command");
                 var equals = gesture.IndexOf('=');
                 var verb = equals < 0 ? gesture : gesture[..equals].TrimEnd('+');
-                if (!Gestures.Contains(verb)) throw new ArgumentException("Disabled editor gesture; save/export/build/import/drop/font/image are not available.");
+                if (!Gestures.Contains(verb)) throw new ArgumentException(Saves
+                    ? "Disabled editor gesture; export/build/import/drop/font/image are not available."
+                    : "Disabled editor gesture; save (left out of this build)/export/build/import/drop/font/image are not available.");
                 if (verb == "select")
                 {
                     var target = equals < 0 ? "" : gesture[(equals + 1)..];

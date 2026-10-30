@@ -6,7 +6,9 @@ internal static class EditorQualification
 {
     public static async Task Run(string[] args)
     {
-        if (args.Length != 5) throw new ArgumentException("usage: --editor <editor.exe> <project> <mcp.dll> <captures> <receipt.json>");
+        if (args.Length != 6 || args[5] is not ("save=on" or "save=off"))
+            throw new ArgumentException("usage: --editor <editor.exe> <project> <mcp.dll> <captures> <receipt.json> save=on|off");
+        var saves = args[5] == "save=on";
         var records = new JsonArray();
         void Check(bool condition, string name)
         {
@@ -17,7 +19,7 @@ internal static class EditorQualification
         {
             await using var client = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
             {
-                Name = "Pixie Inspector qualification", Command = "dotnet",
+                Name = "Pixie Inspector qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
                 Arguments = [Path.GetFullPath(args[2]), "--host", Path.GetFullPath(args[0]), "--project", Path.GetFullPath(args[1]),
                     "--captures", Path.Combine(Path.GetFullPath(args[3]), "editor espaço-ação"), "--kind", "editor"]
             }));
@@ -37,9 +39,10 @@ internal static class EditorQualification
             async Task<JsonNode> Gesture(string command) => await Good("editor.do", new() { ["generation"] = await Generation(), ["command"] = command });
             async Task<double> X(string id) => (await Good("world.get", new() { ["id"] = id, ["field"] = "Transform2D.position" }))["value"]![0]!.GetValue<double>();
             var tools = await client.ListToolsAsync();
-            Check(tools.Any(t => t.Name == "inspector.set") && tools.Any(t => t.Name == "editor.history") && !tools.Any(t => t.Name == "world.save"), "editor-tools-discovered-without-save");
+            Check(tools.Any(t => t.Name == "inspector.set") && tools.Any(t => t.Name == "editor.history") && !tools.Any(t => t.Name == "world.save"), "editor-tools-discovered-without-save-tool");
             var hello = await Good("world.hello");
             Check(hello["capabilities"]?["inspector"]?.GetValue<bool>() == true && hello["pixie_api_version"]?.GetValue<int>() == 18, "editor-native-api-and-inspector-capability");
+            Check(hello["capabilities"]?["save"]?.GetValue<bool>() == saves, "editor-save-capability-matches-build-" + args[5]);
             var entities = (await Good("world.entities"))["entities"]!.AsArray();
             var first = entities[0]!["id"]!.GetValue<string>();
             await Gesture("select=" + first);
@@ -76,7 +79,17 @@ internal static class EditorQualification
             await Gesture("undo");
             Check(await X(first) == 9 && await X(second) == 0, "multi-object-undo-restores-distinct-values");
             await Gesture("redo");
-            foreach (var command in new[] { "save", "export=elsewhere", "font=outside.ttf", "image=outside.png", "drop=file@0,0", "build" })
+            var scene = Path.Combine(Path.GetFullPath(args[1]), "scenes", "main.scene");
+            var sceneBefore = await File.ReadAllBytesAsync(scene);
+            var save = await Call("editor.do", new() { ["generation"] = await Generation(), ["command"] = "save" });
+            var sceneAfter = await File.ReadAllBytesAsync(scene);
+            if (saves)
+                Check(save.Tool.IsError != true && save.Receipt["result"]?["value"]?["unsaved"]?.GetValue<bool>() == false &&
+                    !sceneBefore.SequenceEqual(sceneAfter) && System.Text.Encoding.UTF8.GetString(sceneAfter).Contains("\"second\""),
+                    "channel-save-writes-the-edited-scene");
+            else
+                Check(save.Tool.IsError == true && sceneBefore.SequenceEqual(sceneAfter), "channel-save-left-out-of-build-is-refused");
+            foreach (var command in new[] { "export=elsewhere", "font=outside.ttf", "image=outside.png", "drop=file@0,0", "build" })
             {
                 var rejected = await Call("editor.do", new() { ["generation"] = await Generation(), ["command"] = command });
                 Check(rejected.Tool.IsError == true, "filesystem-alias-disabled-" + command.Split('=')[0]);

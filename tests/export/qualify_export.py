@@ -172,7 +172,13 @@ def main():
     for name in ("boids", "sprites"):
         shipping = packages[name]
         shipping_manifest = json.loads(manifests[name].read_text(encoding="utf-8"))
-        assert b"--quit-after-steps" not in (shipping / "pixie.dll").read_bytes()
+        engine_bytes = (shipping / "pixie.dll").read_bytes()
+        assert b"--quit-after-steps" not in engine_bytes
+        # The local development channel, its dispatcher and the MCP bridge stay out of every export.
+        for marker in (b"LocalCommandChannel", b"PIXIE_DEVELOPMENT_CHANNEL_V1", b"pixie_dev_dispatch", b"world.hello"):
+            assert marker not in engine_bytes, (name, marker)
+        for pattern in ("*PixieMcp*", "*ModelContextProtocol*", "*pixie-mcp*", "*channel-write-probe*", "*devchannel*", "*-module.dll"):
+            assert not list(shipping.rglob(pattern)), (name, pattern)
         rejected = command(name + "-capture-option-excluded",
                            [shipping / shipping_manifest["player"], "--quit-after-steps", "0"], "usage:")
         assert rejected.returncode == 2

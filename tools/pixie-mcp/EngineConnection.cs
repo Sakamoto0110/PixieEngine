@@ -12,15 +12,16 @@ internal sealed class EngineConnection : IAsyncDisposable
 {
     private readonly NamedPipeClientStream pipe;
     private readonly Process process;
+    private readonly HostJob job;
     private readonly SemaphoreSlim gate = new(1, 1);
     private readonly string captureRoot;
     private bool poisoned;
     private long nextId;
-    private EngineConnection(Process process, NamedPipeClientStream pipe, string captureRoot)
-        => (this.process, this.pipe, this.captureRoot) = (process, pipe, captureRoot);
+    private EngineConnection(Process process, HostJob job, NamedPipeClientStream pipe, string captureRoot)
+        => (this.process, this.job, this.pipe, this.captureRoot) = (process, job, pipe, captureRoot);
 
     public static async Task<EngineConnection> OpenAsync(string executable, string project, string captureDirectory,
-        string channel, bool editor, CancellationToken cancellationToken)
+        string channel, bool editor, TimeSpan startup, CancellationToken cancellationToken)
     {
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The qualified transport is Windows named pipes.");
         if (captureDirectory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
@@ -39,15 +40,30 @@ internal sealed class EngineConnection : IAsyncDisposable
             "--dev-capture-dir", root, "--dev-hidden", "on" }) info.ArgumentList.Add(argument);
         if (editor) { info.ArgumentList.Add("--recent"); info.ArgumentList.Add("off"); }
         var process = Process.Start(info) ?? throw new IOException("Host process did not start.");
+        // The host and its build tools close with this server, even when it does not exit cleanly.
+        var job = HostJob.Contain(process);
         // Neither the native host nor its diagnostics may contaminate MCP stdout.
         _ = RelayAsync(process.StandardOutput);
         _ = RelayAsync(process.StandardError);
         var pipe = new NamedPipeClientStream(".", $"pixie-{channel}", PipeDirection.InOut,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        var connection = new EngineConnection(process, pipe, root);
+        var connection = new EngineConnection(process, job, pipe, root);
         try
         {
-            await pipe.ConnectAsync(15000, cancellationToken);
+            // The editor opens the channel only after building a project's code, which can take minutes.
+            var clock = Stopwatch.StartNew();
+            while (true)
+            {
+                if (process.HasExited) throw new IOException($"Host exited with code {process.ExitCode} before opening its channel.");
+                var remaining = startup - clock.Elapsed;
+                if (remaining <= TimeSpan.Zero) throw new TimeoutException($"Host did not open its channel within {startup.TotalSeconds:0} seconds.");
+                try
+                {
+                    await pipe.ConnectAsync((int)Math.Min(500, Math.Ceiling(remaining.TotalMilliseconds)), cancellationToken);
+                    break;
+                }
+                catch (TimeoutException) { }
+            }
             var hello = await connection.SendAsync("world.hello", new JsonObject(), cancellationToken);
             var value = hello["result"]?["value"];
             if (value?["protocol_version"]?.GetValue<int>() != 1 || value?["pixie_api_version"]?.GetValue<int>() != 18)
@@ -166,6 +182,7 @@ internal sealed class EngineConnection : IAsyncDisposable
             await process.WaitForExitAsync();
         }
         process.Dispose();
+        job.Dispose();
         gate.Dispose();
     }
 }

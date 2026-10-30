@@ -6,6 +6,7 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 
 if (args.Length > 0 && args[0] == "--editor") { await EditorQualification.Run(args[1..]); return; }
+if (args.Length > 0 && args[0] == "--editor-code") { await EditorCodeQualification.Run(args[1..]); return; }
 
 if (args.Length != 5) throw new ArgumentException("usage: tests <player> <project> <mcp.dll> <capture-root> <receipt.json>");
 var player = Path.GetFullPath(args[0]);
@@ -84,7 +85,7 @@ try
 
     var transport = new StdioClientTransport(new StdioClientTransportOptions
     {
-        Name = "Pixie qualification", Command = "dotnet",
+        Name = "Pixie qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
         Arguments = [mcp, "--host", player, "--project", project, "--captures", Path.Combine(captures, "mcp")]
     });
     await using var client = await McpClient.CreateAsync(transport);
@@ -102,7 +103,7 @@ try
     Check((await Call(client, "world.capture", new { name = "image-for-model" })).IsError == true, "mcp-overwrite-rejection-is-tool-error");
     await using var legacy = await McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
     {
-        Name = "Pixie legacy protocol qualification", Command = "dotnet",
+        Name = "Pixie legacy protocol qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
         Arguments = [mcp, "--host", player, "--project", project, "--captures", Path.Combine(captures, "legacy")]
     }), new McpClientOptions { ProtocolVersion = "2025-11-25" });
     Check(legacy.NegotiatedProtocolVersion == "2025-11-25", "official-legacy-mcp-client-handshake");
