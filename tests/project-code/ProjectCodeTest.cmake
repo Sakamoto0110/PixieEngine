@@ -3,7 +3,7 @@
 # cmake/PixieProject.cmake cannot rot unseen. Run by CTest:
 #
 #   cmake -DENGINE=<engine> -DWORK=<folder> -DCONFIG=<config> -DGENERATOR=<generator>
-#         -DPLATFORM=<platform> -DCAPI_TEST=<capi-test> -P ProjectCodeTest.cmake
+#         -DPLATFORM=<platform> [-DGRAPHICS_RUNTIME=<folder>] -DCAPI_TEST=<capi-test> -P ProjectCodeTest.cmake
 #
 # The project's name has a space, so its code identifier ("CodeTest") is made, not copied.
 
@@ -77,4 +77,9 @@ if(NOT EXISTS "${project}/bin/${CONFIG}/${generic_library}")
 endif()
 
 run("${CAPI_TEST}" "${project}/bin/${CONFIG}/${generic_library}" --project "${WORK}/opened" --expect-type Spinner --module "${libraries}")
+# The player opens its window from the project's bin/, so a software OpenGL provider goes beside it.
+if(GRAPHICS_RUNTIME)
+    file(GLOB provider "${GRAPHICS_RUNTIME}/*.dll")
+    file(COPY ${provider} DESTINATION "${project}/bin/${CONFIG}")
+endif()
 run("${project}/bin/${CONFIG}/CodeTest${executable_suffix}" --project "${project}" --quit-after 0.1)

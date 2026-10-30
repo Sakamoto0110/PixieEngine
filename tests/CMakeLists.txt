@@ -136,19 +136,23 @@ if(TARGET pixie_shared)
              COMMAND capi-test $<TARGET_FILE:pixie_shared> --movement ${CMAKE_CURRENT_BINARY_DIR}/movement-project)
 endif()
 
+# Tests that run a player from a folder of their own, not bin/, find an OpenGL provider there only if
+# it is put beside the player: CI passes its pinned software renderer, a GPU machine passes nothing.
+set(PIXIE_TEST_GRAPHICS_RUNTIME "" CACHE PATH "Optional software OpenGL provider for tests that run a player outside bin/")
+
 # A project with code made from the templates, built as a project of its own against this engine, and
 # its library driven by capi-test (see the script). It builds the engine again, so it is the slowest.
 add_test(NAME project-code
          COMMAND ${CMAKE_COMMAND} -DENGINE=${PROJECT_SOURCE_DIR} -DWORK=${CMAKE_CURRENT_BINARY_DIR}/project-code
                  -DCONFIG=$<CONFIG> "-DGENERATOR=${CMAKE_GENERATOR}" "-DPLATFORM=${CMAKE_GENERATOR_PLATFORM}"
+                 "-DGRAPHICS_RUNTIME=${PIXIE_TEST_GRAPHICS_RUNTIME}"
                  -DCAPI_TEST=$<TARGET_FILE:capi-test> -P ${CMAKE_CURRENT_SOURCE_DIR}/project-code/ProjectCodeTest.cmake)
 
 if(WIN32 AND TARGET pixie-export)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
-    set(PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME "" CACHE PATH "Optional software OpenGL provider for export qualification only")
     set(export_graphics_args)
-    if(PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME)
-        list(APPEND export_graphics_args --graphics-runtime "${PIXIE_EXPORT_TEST_GRAPHICS_RUNTIME}")
+    if(PIXIE_TEST_GRAPHICS_RUNTIME)
+        list(APPEND export_graphics_args --graphics-runtime "${PIXIE_TEST_GRAPHICS_RUNTIME}")
     endif()
     add_test(NAME game-export COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/export/qualify_export.py"
         --exporter $<TARGET_FILE:pixie-export> --engine "${PROJECT_SOURCE_DIR}"

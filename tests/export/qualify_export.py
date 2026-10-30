@@ -44,6 +44,52 @@ def loaded_modules(process):
         kernel.CloseHandle(handle)
 
 
+def pe_imports(path):
+    """The DLL names a PE file imports, directly or delay-loaded, as the exporter's closure reads them."""
+    data = path.read_bytes()
+    pe = struct.unpack_from("<I", data, 0x3C)[0]
+    sections, optional = struct.unpack_from("<H12xH", data, pe + 6)
+    magic = struct.unpack_from("<H", data, pe + 24)[0]
+    directories = pe + 24 + (112 if magic == 0x20B else 96)
+    table = pe + 24 + optional
+
+    def offset(rva):
+        for i in range(sections):
+            size, address, _, raw = struct.unpack_from("<IIII", data, table + 40 * i + 8)
+            if address <= rva < address + size:
+                return rva - address + raw
+        raise ValueError(f"{path.name}: RVA {rva:#x} is in no section")
+
+    def name(rva):
+        start = offset(rva)
+        return data[start:data.index(b"\0", start)].decode("ascii")
+
+    names = []
+    for index, size, field in ((1, 20, 12), (13, 32, 4)):
+        rva = struct.unpack_from("<I", data, directories + 8 * index)[0]
+        while rva:
+            entry = offset(rva)
+            target = struct.unpack_from("<I", data, entry + field)[0]
+            if not target:
+                break
+            names.append(name(target))
+            rva += size
+    return names
+
+
+def opengl_closure(provider):
+    """The provider's opengl32.dll and the DLLs it needs from the same folder, not every DLL there."""
+    available = {file.name.lower(): file for file in provider.glob("*.dll")}
+    needed, pending = {}, ["opengl32.dll"]
+    while pending:
+        key = pending.pop().lower()
+        if key in needed or key not in available:
+            continue
+        needed[key] = available[key]
+        pending.extend(pe_imports(available[key]))
+    return sorted(needed.values())
+
+
 def junction(link, target):
     """Create a directory junction in our scratch tree, without a shell or elevation."""
     kernel = ctypes.WinDLL("kernel32", use_last_error=True)
@@ -142,7 +188,7 @@ def main():
             destinations = {x["destination"].lower() for x in graphics["files"]}
             provider = Path(args.graphics_runtime).resolve()
             assert (provider / "opengl32.dll").is_file()
-            for file in sorted(provider.glob("*.dll")):
+            for file in opengl_closure(provider):
                 if file.name.lower() not in destinations:
                     graphics["files"].append({"source": str(file), "destination": file.name, "role": "library", "sha256": sha(file)})
                     destinations.add(file.name.lower())

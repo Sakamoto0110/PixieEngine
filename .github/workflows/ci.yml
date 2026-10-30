@@ -68,7 +68,7 @@ jobs:
           cmake --version | Select-Object -First 1
 
       - name: Configure
-        run: cmake --preset ci -DPIXIE_EXPORT_TEST_GRAPHICS_RUNTIME="$env:RUNNER_TEMP/mesa/x64"
+        run: cmake --preset ci -DPIXIE_TEST_GRAPHICS_RUNTIME="$env:RUNNER_TEMP/mesa/x64"
 
       - name: Install snapshot test dependency
         shell: pwsh
