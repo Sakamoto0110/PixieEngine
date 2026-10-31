@@ -5,6 +5,17 @@
   "entities": [
     {
       "id": "11b0000000000001",
+      "name": "scenario",
+      "components": {
+        "PowerSwitch2D": {
+          "v": 1,
+          "powered": true,
+          "fadeSeconds": 0.6
+        }
+      }
+    },
+    {
+      "id": "11b0000000000002",
       "name": "lighting",
       "components": {
         "LightingSettings2D": {
@@ -23,7 +34,7 @@
       }
     },
     {
-      "id": "11b0000000000002",
+      "id": "11b0000000000003",
       "name": "world physics",
       "components": {
         "PhysicsSettings2D": {
@@ -38,7 +49,7 @@
       }
     },
     {
-      "id": "11b0000000000003",
+      "id": "11b0000000000004",
       "name": "backdrop",
       "components": {
         "Transform2D": {
@@ -69,7 +80,7 @@
       }
     },
     {
-      "id": "11b0000000000004",
+      "id": "11b0000000000005",
       "name": "floor",
       "components": {
         "Transform2D": {
@@ -121,7 +132,7 @@
       }
     },
     {
-      "id": "11b0000000000005",
+      "id": "11b0000000000006",
       "name": "ceiling",
       "components": {
         "Transform2D": {
@@ -173,7 +184,7 @@
       }
     },
     {
-      "id": "11b0000000000006",
+      "id": "11b0000000000007",
       "name": "left wall",
       "components": {
         "Transform2D": {
@@ -225,7 +236,7 @@
       }
     },
     {
-      "id": "11b0000000000007",
+      "id": "11b0000000000008",
       "name": "right wall",
       "components": {
         "Transform2D": {
@@ -277,7 +288,7 @@
       }
     },
     {
-      "id": "11b0000000000008",
+      "id": "11b0000000000009",
       "name": "cabinet",
       "components": {
         "Transform2D": {
@@ -323,16 +334,11 @@
           "layers": 1,
           "selfShadow": false,
           "enabled": true
-        },
-        "PowerSwitch2D": {
-          "v": 1,
-          "powered": true,
-          "fadeSeconds": 0.6
         }
       }
     },
     {
-      "id": "11b0000000000009",
+      "id": "11b000000000000a",
       "name": "lamp powered",
       "components": {
         "Transform2D": {
@@ -380,7 +386,7 @@
       }
     },
     {
-      "id": "11b000000000000a",
+      "id": "11b000000000000b",
       "name": "lamp busy",
       "components": {
         "Transform2D": {
@@ -428,7 +434,7 @@
       }
     },
     {
-      "id": "11b000000000000b",
+      "id": "11b000000000000c",
       "name": "lamp unpowered",
       "components": {
         "Transform2D": {
@@ -476,7 +482,7 @@
       }
     },
     {
-      "id": "11b000000000000c",
+      "id": "11b000000000000d",
       "name": "status text strip",
       "components": {
         "Transform2D": {
@@ -519,7 +525,7 @@
       }
     },
     {
-      "id": "11b000000000000d",
+      "id": "11b000000000000e",
       "name": "sparks",
       "components": {
         "ParticleSystem": {
@@ -555,7 +561,7 @@
       }
     },
     {
-      "id": "11b000000000000e",
+      "id": "11b000000000000f",
       "name": "grinder",
       "components": {
         "Transform2D": {
@@ -572,7 +578,7 @@
         },
         "ParticleSpawner": {
           "v": 1,
-          "system": "11b000000000000d",
+          "system": "11b000000000000e",
           "rate": 220,
           "lifetime": 1.6,
           "speedMin": 180,
@@ -589,7 +595,7 @@
       }
     },
     {
-      "id": "11b000000000000f",
+      "id": "11b0000000000010",
       "name": "dust",
       "components": {
         "ParticleSystem": {
@@ -609,7 +615,7 @@
       }
     },
     {
-      "id": "11b0000000000010",
+      "id": "11b0000000000011",
       "name": "dust drift",
       "components": {
         "Transform2D": {
@@ -626,7 +632,7 @@
         },
         "ParticleSpawner": {
           "v": 1,
-          "system": "11b000000000000f",
+          "system": "11b0000000000010",
           "rate": 30,
           "lifetime": 8,
           "speedMin": 5,
@@ -642,7 +648,7 @@
       }
     },
     {
-      "id": "11b0000000000011",
+      "id": "11b0000000000012",
       "name": "ceiling lamp",
       "components": {
         "Transform2D": {
@@ -680,7 +686,7 @@
       }
     },
     {
-      "id": "11b0000000000012",
+      "id": "11b0000000000013",
       "name": "character",
       "components": {
         "Transform2D": {

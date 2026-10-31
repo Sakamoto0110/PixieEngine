@@ -4,7 +4,12 @@
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
+#include "pixie/runtime/Scene.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/ScreenCanvas.hpp"
+#include "pixie/runtime/RigidBody2D.hpp"
+#include "pixie/runtime/Shape.hpp"
+#include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 #include <algorithm>
 #include <cmath>
@@ -24,10 +29,39 @@ LightingSettings2D* Lighting(World& world) {
     return view.begin() == view.end() ? nullptr : &view.get<LightingSettings2D>(*view.begin());
 }
 
+// A small room for a World built without the scene: the scenario, a dark ambient, one lamp that
+// follows the power, a floor, and a ceiling light. Y points down.
+void BuildRoom(World& world) {
+    auto scenario = world.Create("scenario");
+    AddToScene(scenario);
+    scenario.Add<PowerSwitch2D>();
+    auto lighting = world.Create("lighting");
+    AddToScene(lighting);
+    auto& settings = lighting.Add<LightingSettings2D>();
+    settings.ambient = {70, 80, 105};
+    settings.ambientIntensity = 0.25;
+    auto floor = world.Create("floor");
+    AddToScene(floor);
+    floor.Add<Transform2D>().position = {0, 200};
+    auto& ground = floor.Add<Shape>();
+    ground.kind = ShapeKind::Quad; ground.size = {320, 10}; ground.color = {70, 78, 96};
+    auto lamp = world.Create("lamp powered");
+    AddToScene(lamp);
+    lamp.Add<Transform2D>().position = {-40, 100};
+    auto& bulb = lamp.Add<Shape>();
+    bulb.kind = ShapeKind::Circle; bulb.size = {9, 9}; bulb.color = {40, 40, 44};
+    lamp.Add<Emission2D>() = {{90, 255, 140}, 2.0};
+    lamp.Add<PoweredLamp2D>().onIntensity = 2.0;
+    auto ceiling = world.Create("ceiling light");
+    AddToScene(ceiling);
+    ceiling.Add<Transform2D>().position = {80, -100};
+    ceiling.Add<Light2D>().range = 360;
+}
+
 } // namespace
 
 void LightMachineProject::Describe(ComponentTypes& types) const {
-    types.Add<PowerSwitch2D>("PowerSwitch2D")
+    types.Add<PowerSwitch2D>("PowerSwitch2D").Scenario()
         .Field<&PowerSwitch2D::powered>("powered").Tooltip("The machine's logical power; P switches it while playing.")
         .Field<&PowerSwitch2D::fadeSeconds>("fadeSeconds").Label("fade seconds").Tooltip("How long the lamps take to follow a switch.").Range(0, 10).Unit(" s");
     types.Add<PoweredLamp2D>("PoweredLamp2D")
@@ -38,6 +72,7 @@ void LightMachineProject::Describe(ComponentTypes& types) const {
 }
 
 void LightMachineProject::Build(World& world, Camera2D& /*camera*/) {
+    if (world.Registry().view<LightingSettings2D>().empty()) BuildRoom(world);
     Telemetry& telemetry = world.GetTelemetry();
     powered_ = telemetry.RegisterGauge("machine.powered");
     lampIntensity_ = telemetry.RegisterGauge("machine.lamp_intensity");
@@ -106,6 +141,17 @@ void LightMachineProject::DrawScreen(World& world, ScreenCanvas& screen) {
     if (lighting != nullptr) {
         screen.Text(std::format("effects: {}", lighting->bloom ? "ambient occlusion, fog, bloom" : "off"), {220, 56}, line);
     }
+}
+
+bool LightMachineProject::SpawnAt(World& world, pxPoint at) {
+    auto box = world.Create("dropped box");
+    box.Add<Transform2D>().position = at;
+    auto& shape = box.Add<Shape>();
+    shape.kind = ShapeKind::Quad; shape.size = {12, 12}; shape.color = {120, 120, 130};
+    box.Add<Collider2D>().halfSize = {12, 12};
+    box.Add<RigidBody2D>();
+    box.Add<Occluder2D>();
+    return true;
 }
 
 namespace pixie {
