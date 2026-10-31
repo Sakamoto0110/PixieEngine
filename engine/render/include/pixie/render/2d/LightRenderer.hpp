@@ -102,8 +102,11 @@ public:
     // `size` and cleared to `background` (opaque).
     PIXIE_RENDER_API void BeginWorld(FramebufferSize size, pxColorRgba background);
     // Draws into the receiver target from now on. Its encoding is SpriteRenderer's and
-    // ShapeRenderer's receiver pass's.
+    // ShapeRenderer's receiver pass's (LightingPass::Receivers).
     PIXIE_RENDER_API void BeginReceivers();
+    // Draws into the emission target from now on: linear radiance, premultiplied by coverage, added
+    // unlit by the combine (LightingPass::Emission).
+    PIXIE_RENDER_API void BeginEmission();
     // Accumulates ambient and `lights`, seen through `view`, each shadowed by the `occluders` edges
     // of its shadow layers (shadow volumes with analytic penumbrae, docs/lighting-l0-design.md),
     // then combines into the framebuffer and viewport remembered by BeginWorld, which stay bound.
@@ -134,6 +137,7 @@ private:
     GLuint maskFramebuffer_ = 0;
     Target albedo_;
     Target receivers_;
+    Target emission_;
     Target light_;
     Target mask_;
     std::vector<LightInstance> ordered_;

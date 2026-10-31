@@ -3,6 +3,7 @@
 #include "pixie/render/Export.hpp"
 
 #include "pixie/render/View.hpp"
+#include "pixie/render/2d/LightingPass.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
 #include "pixie/render/gl/ShaderProgram.hpp"
@@ -32,14 +33,15 @@ public:
     // How many shapes wait for the next flush.
     PIXIE_RENDER_API std::size_t PendingCount() const;
 
-    // While on, draws are the lighting's receiver pass (LightRenderer::BeginReceivers): each
-    // instance's color holds its receiver, not a color.
-    void SetReceiverPass(bool on) { receiverPass_ = on; }
+    // Which lit-frame target draws are for (LightingPass): in the receiver and emission passes each
+    // instance's color holds its receiver or its emission, not a color.
+    void SetLightingPass(LightingPass pass) { pass_ = pass; }
 
 private:
     ShaderProgram program_;
     ShaderProgram receiverProgram_;
-    bool receiverPass_ = false;
+    ShaderProgram emissionProgram_;
+    LightingPass pass_ = LightingPass::Color;
     GlVertexArray vertexArray_;
     GlBuffer instances_;
     std::array<std::vector<ShapeInstance>, kShapeKindCount> pending_;

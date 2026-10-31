@@ -144,7 +144,7 @@ void ForEachSpriteInDrawOrder(World& world,
 namespace {
 
 void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha, const TextSources* texts,
-            const pxRect* view, bool receivers) {
+            const pxRect* view, LightingPass pass) {
     entt::registry& registry = world.Registry();
     ForEachDrawnInOrder(world, [&](const Drawn& item) {
         const auto* previous = registry.try_get<const PreviousTransform2D>(item.id);
@@ -152,10 +152,10 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
             previous != nullptr ? Interpolate(previous->value, item.transform, alpha) : item.transform;
         if (item.text != nullptr) {
             if (texts != nullptr && (view == nullptr || TextInView(*item.text, drawn, TextBlock(*item.text, texts->fonts), *view))) {
-                if (receivers) {
-                    Text receiver = *item.text;
-                    receiver.color = ReceiverColor(registry.try_get<const LightReceiver2D>(item.id), item.text->color.a);
-                    SubmitText(receiver, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
+                if (pass != LightingPass::Color) {
+                    Text recolored = *item.text;
+                    recolored.color = PassColor(registry, item.id, item.text->color.a, pass);
+                    SubmitText(recolored, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
                 } else {
                     SubmitText(*item.text, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
                 }
@@ -181,8 +181,7 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
             instance.uv = {static_cast<float>(r.x / image.x), static_cast<float>(r.y / image.y),
                            static_cast<float>((r.x + r.width) / image.x), static_cast<float>((r.y + r.height) / image.y)};
         }
-        instance.color =
-            receivers ? ReceiverColor(registry.try_get<const LightReceiver2D>(item.id), sprite.color.a) : sprite.color;
+        instance.color = pass == LightingPass::Color ? sprite.color : PassColor(registry, item.id, sprite.color.a, pass);
         renderer.Submit(texture.Id(), sprite.filter, sprite.layer, instance);
     });
 }
@@ -191,12 +190,17 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
 
 void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
                    const TextSources* texts, const pxRect* view) {
-    Submit(world, renderer, images, alpha, texts, view, false);
+    Submit(world, renderer, images, alpha, texts, view, LightingPass::Color);
 }
 
 void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
                            const TextSources* texts, const pxRect* view) {
-    Submit(world, renderer, images, alpha, texts, view, true);
+    Submit(world, renderer, images, alpha, texts, view, LightingPass::Receivers);
+}
+
+void SubmitSpriteEmission(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                          const TextSources* texts, const pxRect* view) {
+    Submit(world, renderer, images, alpha, texts, view, LightingPass::Emission);
 }
 
 } // namespace pixie

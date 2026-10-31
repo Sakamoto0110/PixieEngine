@@ -46,8 +46,14 @@ public:
     PIXIE_RENDER_API void Draw(std::span<const Particle> particles, const ParticleStyle& style, double alpha,
               const View& view);
 
+    // While on, draws write linear radiance for a lit frame's emission target
+    // (LightRenderer::BeginEmission): the particles glow unlit at their own color.
+    void SetEmissionPass(bool on) { emissionPass_ = on; }
+
 private:
     ShaderProgram program_;
+    ShaderProgram emissionProgram_;
+    bool emissionPass_ = false;
     GlVertexArray vertexArray_;
     GlBuffer particles_;
 };

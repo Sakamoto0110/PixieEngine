@@ -11,7 +11,7 @@ namespace pixie {
 
 namespace {
 
-void Submit(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view, bool receivers) {
+void Submit(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view, LightingPass pass) {
     entt::registry& registry = world.Registry();
     auto entities = registry.view<const Transform2D, const PreviousTransform2D, const Shape>();
     for (auto [id, current, previous, shape] : entities.each()) {
@@ -27,7 +27,7 @@ void Submit(World& world, ShapeRenderer& renderer, double alpha, const pxRect* v
         instance.position = pxPointf(static_cast<float>(drawn.position.x), static_cast<float>(drawn.position.y));
         instance.rotation = static_cast<float>(drawn.rotation);
         instance.scale = pxVec2f(scale);
-        instance.color = receivers ? ReceiverColor(registry.try_get<const LightReceiver2D>(id), shape.color.a) : shape.color;
+        instance.color = pass == LightingPass::Color ? shape.color : PassColor(registry, id, shape.color.a, pass);
         renderer.Submit(shape.kind, instance);
     }
 }
@@ -35,11 +35,15 @@ void Submit(World& world, ShapeRenderer& renderer, double alpha, const pxRect* v
 } // namespace
 
 void SubmitShapes(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view) {
-    Submit(world, renderer, alpha, view, false);
+    Submit(world, renderer, alpha, view, LightingPass::Color);
 }
 
 void SubmitShapeReceivers(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view) {
-    Submit(world, renderer, alpha, view, true);
+    Submit(world, renderer, alpha, view, LightingPass::Receivers);
+}
+
+void SubmitShapeEmission(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view) {
+    Submit(world, renderer, alpha, view, LightingPass::Emission);
 }
 
 } // namespace pixie

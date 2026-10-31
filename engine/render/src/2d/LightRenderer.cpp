@@ -211,6 +211,7 @@ constexpr std::string_view kCombineFragmentShader = R"(#version 450 core
 layout(binding = 0) uniform sampler2D uAlbedo;
 layout(binding = 1) uniform sampler2D uLight;
 layout(binding = 2) uniform sampler2D uReceivers;
+layout(binding = 3) uniform sampler2D uEmission;
 layout(location = 0) uniform float uExposure;
 layout(location = 1) uniform int uToneMapping;
 layout(location = 2) uniform ivec2 uOrigin;
@@ -223,7 +224,7 @@ vec3 Encode(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.
 void main() {
     ivec2 p = ivec2(gl_FragCoord.xy) - uOrigin;
     vec4 albedo = texelFetch(uAlbedo, p, 0);
-    vec3 color = Decode(albedo.rgb) * texelFetch(uLight, p, 0).rgb * uExposure;
+    vec3 color = (Decode(albedo.rgb) * texelFetch(uLight, p, 0).rgb + texelFetch(uEmission, p, 0).rgb) * uExposure;
     if (uToneMapping == 1) {
         color = color * (2.51 * color + 0.03) / (color * (2.43 * color + 0.59) + 0.14);
     }
@@ -330,7 +331,7 @@ void LightRenderer::Destroy() {
 }
 
 void LightRenderer::DestroyTargets() {
-    for (Target* target : {&albedo_, &receivers_, &light_, &mask_}) {
+    for (Target* target : {&albedo_, &receivers_, &emission_, &light_, &mask_}) {
         if (target->texture != 0) {
             glDeleteTextures(1, &target->texture);
             target->texture = 0;
@@ -349,10 +350,12 @@ bool LightRenderer::Resize(FramebufferSize size) {
     }
     albedo_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
     receivers_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
+    emission_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
     light_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
     mask_ = {CreateTarget(GL_R32F, size), GL_R32F};
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT0, albedo_.texture, 0);
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT1, receivers_.texture, 0);
+    glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT2, emission_.texture, 0);
     glNamedFramebufferTexture(lightFramebuffer_, GL_COLOR_ATTACHMENT0, light_.texture, 0);
     glNamedFramebufferTexture(maskFramebuffer_, GL_COLOR_ATTACHMENT0, mask_.texture, 0);
     size_ = size;
@@ -365,12 +368,14 @@ void LightRenderer::BeginWorld(FramebufferSize size, pxColorRgba background) {
     if (!Resize(size)) {
         return;
     }
-    const std::array<GLenum, 2> both{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1};
-    glNamedFramebufferDrawBuffers(worldFramebuffer_, 2, both.data());
+    const std::array<GLenum, 3> all{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
+    glNamedFramebufferDrawBuffers(worldFramebuffer_, 3, all.data());
     const std::array<GLfloat, 4> clear{background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f};
     const std::array<GLfloat, 4> everyLayerLit{1.0f, 0.0f, 0.0f, 0.0f};
     glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 0, clear.data());
     glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 1, everyLayerLit.data());
+    const std::array<GLfloat, 4> dark{0.0f, 0.0f, 0.0f, 0.0f};
+    glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 2, dark.data());
     glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT0);
     glBindFramebuffer(GL_FRAMEBUFFER, worldFramebuffer_);
     glViewport(0, 0, size.width, size.height);
@@ -378,6 +383,10 @@ void LightRenderer::BeginWorld(FramebufferSize size, pxColorRgba background) {
 
 void LightRenderer::BeginReceivers() {
     glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT1);
+}
+
+void LightRenderer::BeginEmission() {
+    glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT2);
 }
 
 void LightRenderer::Finish(const View& view, const LightingParameters& parameters,
@@ -470,12 +479,14 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
     glBindTextureUnit(0, albedo_.texture);
     glBindTextureUnit(1, light_.texture);
     glBindTextureUnit(2, receivers_.texture);
+    glBindTextureUnit(3, emission_.texture);
     glDrawArrays(GL_TRIANGLES, 0, 3);
-    // Leave the usual blending, and texture units 1 and 2 free.
+    // Leave the usual blending, and texture units 1 to 3 free.
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     glBindTextureUnit(1, 0);
     glBindTextureUnit(2, 0);
+    glBindTextureUnit(3, 0);
 }
 
 } // namespace pixie

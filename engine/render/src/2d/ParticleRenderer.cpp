@@ -4,6 +4,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 
 namespace pixie {
@@ -113,7 +114,16 @@ constexpr GLint kStreakTime = 6;
 } // namespace
 
 bool ParticleRenderer::Create() {
-    if (!program_.Create("ParticleRenderer", kVertexShader, kFragmentShader)) {
+    // The emission pass's variant writes linear radiance, decoded from the sRGB color, which a lit
+    // frame adds unlit (LightRenderer).
+    std::string emission(kFragmentShader);
+    const std::string_view color = "oColor = vec4(vColor.rgb, vColor.a * coverage);";
+    emission.replace(emission.find(color), color.size(),
+                     "vec3 c = vColor.rgb;\n"
+                     "    oColor = vec4(mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)), "
+                     "vColor.a * coverage);");
+    if (!program_.Create("ParticleRenderer", kVertexShader, kFragmentShader) ||
+        !emissionProgram_.Create("ParticleRenderer emission", kVertexShader, emission)) {
         return false;
     }
     particles_.Create();
@@ -133,6 +143,7 @@ bool ParticleRenderer::Create() {
 void ParticleRenderer::Destroy() {
     vertexArray_.Destroy();
     particles_.Destroy();
+    emissionProgram_.Destroy();
     program_.Destroy();
 }
 
@@ -143,7 +154,7 @@ void ParticleRenderer::Draw(std::span<const Particle> particles, const ParticleS
     }
     particles_.Upload(particles);
 
-    const GLuint id = program_.Id();
+    const GLuint id = emissionPass_ ? emissionProgram_.Id() : program_.Id();
     const pxMat4f viewProjection(view.ViewProjection());
     const float minRadius = static_cast<float>(style.minPixels / PixelsPerWorldUnit(view));
     glProgramUniformMatrix4fv(id, kViewProjection, 1, GL_FALSE, glm::value_ptr(viewProjection));

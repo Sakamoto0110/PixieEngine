@@ -68,13 +68,35 @@ void main() {
 }
 )";
 
+// The lighting's emission pass: the instance color carries an emissive tint in RGB and intensity / 16
+// in alpha (the vertex shader premultiplied the tint by it). The image times the tint glows as linear
+// radiance; where nothing glows, the image still covers what glows below it.
+constexpr std::string_view kEmissionFragmentShader = R"(#version 450 core
+in vec2 vUv;
+in vec4 vColor;
+
+layout(binding = 0) uniform sampler2D uImage;
+
+out vec4 oColor;
+
+vec3 Decode(vec3 c) { return mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)); }
+
+void main() {
+    vec4 image = texture(uImage, vUv);
+    vec3 straight = image.a > 0.0 ? image.rgb / image.a : vec3(0.0);
+    vec3 tint = vColor.a > 0.0 ? vColor.rgb / vColor.a : vec3(0.0);
+    oColor = vec4(Decode(straight) * Decode(tint) * (vColor.a * 16.0) * image.a, image.a);
+}
+)";
+
 constexpr GLint kViewProjectionLocation = 0;
 
 } // namespace
 
 bool SpriteRenderer::Create() {
     if (!program_.Create("SpriteRenderer", kVertexShader, kFragmentShader) ||
-        !receiverProgram_.Create("SpriteRenderer receivers", kVertexShader, kReceiverFragmentShader)) {
+        !receiverProgram_.Create("SpriteRenderer receivers", kVertexShader, kReceiverFragmentShader) ||
+        !emissionProgram_.Create("SpriteRenderer emission", kVertexShader, kEmissionFragmentShader)) {
         return false;
     }
     instances_.Create();
@@ -108,6 +130,7 @@ void SpriteRenderer::Destroy() {
     }
     vertexArray_.Destroy();
     instances_.Destroy();
+    emissionProgram_.Destroy();
     receiverProgram_.Destroy();
     program_.Destroy();
     pending_.clear();
@@ -133,7 +156,9 @@ void SpriteRenderer::Flush(const View& view, int belowLayer) {
     }
     instances_.Upload(std::span<const SpriteInstance>(ordered_));
 
-    const GLuint program = receiverPass_ ? receiverProgram_.Id() : program_.Id();
+    const GLuint program = pass_ == LightingPass::Receivers ? receiverProgram_.Id()
+                          : pass_ == LightingPass::Emission ? emissionProgram_.Id()
+                                                            : program_.Id();
     const pxMat4f viewProjection(view.ViewProjection());
     glProgramUniformMatrix4fv(program, kViewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
     glEnable(GL_BLEND);

@@ -1,6 +1,7 @@
 #include "pixie/runtime/LightingDrawing.hpp"
 
 #include "pixie/core/Image.hpp"
+#include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
@@ -346,6 +347,88 @@ void GatherLights(World& world, double alpha, const pxRect* view, std::vector<Li
     }
     // EnTT iterates newest first; the World's order is oldest first.
     std::reverse(lights.begin(), lights.end());
+}
+
+int GatherParticleLights(World& world, double alpha, const pxRect* view, int limit, std::vector<LightInstance>& lights) {
+    entt::registry& registry = world.Registry();
+    std::vector<std::pair<const ParticleSystem*, const ParticleLight2D*>> pools;
+    for (auto [id, system, light] : registry.view<const ParticleSystem, const ParticleLight2D>().each()) {
+        if (light.illuminates) {
+            pools.emplace_back(&system, &light);
+        }
+    }
+    // EnTT iterates newest first; the World's order is oldest first.
+    std::reverse(pools.begin(), pools.end());
+    int left = std::max(limit, 0);
+    int dropped = 0;
+    const auto t = static_cast<float>(alpha);
+    for (const auto& [system, light] : pools) {
+        int cap = std::max(light->lightCap, 0);
+        const auto intensity = static_cast<float>(std::isfinite(light->lightIntensity) ? std::max(light->lightIntensity, 0.0) : 0.0);
+        const auto radius = static_cast<float>(std::isfinite(light->lightRadius) ? std::max(light->lightRadius, 0.0) : 0.0);
+        for (const Particle& particle : system->particles) {
+            if (cap == 0 || left == 0) {
+                ++dropped;
+                continue;
+            }
+            const float life = system->style.fade && particle.lifetime > 0.0f
+                                   ? std::clamp(1.0f - particle.age / particle.lifetime, 0.0f, 1.0f)
+                                   : 1.0f;
+            const float strength = intensity * particle.color.a / 255.0f * life;
+            LightInstance splat;
+            splat.x = particle.previous.x + (particle.position.x - particle.previous.x) * t;
+            splat.y = particle.previous.y + (particle.position.y - particle.previous.y) * t;
+            splat.range = radius;
+            splat.falloff = 2.0f;
+            splat.color = {DecodeSrgb(particle.color.r / 255.0f) * strength, DecodeSrgb(particle.color.g / 255.0f) * strength,
+                           DecodeSrgb(particle.color.b / 255.0f) * strength};
+            if (strength <= 0.0f || radius <= 0.0f || (view != nullptr && !Reaches(splat, *view))) {
+                continue;
+            }
+            lights.push_back(splat);
+            --cap;
+            --left;
+        }
+    }
+    return dropped;
+}
+
+pxColorRgba EmissionColor(const Emission2D* emission) {
+    if (emission == nullptr || !std::isfinite(emission->intensity)) {
+        return pxColorRgba(0, 0, 0, 0);
+    }
+    const double intensity = std::clamp(emission->intensity, 0.0, 16.0);
+    return pxColorRgba(emission->color.r, emission->color.g, emission->color.b,
+                       static_cast<std::uint8_t>(std::lround(intensity / 16.0 * 255.0)));
+}
+
+pxColorRgba PassColor(const entt::registry& registry, entt::entity id, std::uint8_t alpha, LightingPass pass) {
+    return pass == LightingPass::Emission ? EmissionColor(registry.try_get<const Emission2D>(id))
+                                          : ReceiverColor(registry.try_get<const LightReceiver2D>(id), alpha);
+}
+
+bool HasEmission(World& world) {
+    entt::registry& registry = world.Registry();
+    const auto emitters = registry.view<const Emission2D>();
+    if (emitters.begin() != emitters.end()) {
+        return true;
+    }
+    for (auto [id, light] : registry.view<const ParticleLight2D>().each()) {
+        if (light.emissive) {
+            return true;
+        }
+    }
+    return false;
+}
+
+void DrawParticlePools(World& world, ParticleRenderer& renderer, const Camera2D& camera, double alpha, bool emissive) {
+    entt::registry& registry = world.Registry();
+    for (auto [id, system] : registry.view<const ParticleSystem>().each()) {
+        const auto* light = registry.try_get<const ParticleLight2D>(id);
+        if ((light != nullptr && light->emissive) == emissive) {
+            renderer.Draw(system.particles, system.style, alpha, camera.MakeView());
+        }
+    }
 }
 
 bool HasLightReceivers(World& world) {

@@ -3,6 +3,7 @@
 #include "pixie/render/Export.hpp"
 
 #include "pixie/render/View.hpp"
+#include "pixie/render/2d/LightingPass.hpp"
 #include "pixie/render/gl/GlBuffer.hpp"
 #include "pixie/render/gl/GlVertexArray.hpp"
 #include "pixie/render/gl/ShaderProgram.hpp"
@@ -62,9 +63,9 @@ public:
     // Something else can be drawn between two flushes, such as paths over backgrounds.
     PIXIE_RENDER_API void Flush(const View& view, int belowLayer = INT_MAX);
 
-    // While on, flushes draw the lighting's receiver pass (LightRenderer::BeginReceivers): each
-    // instance's color holds its receiver, not a tint.
-    void SetReceiverPass(bool on) { receiverPass_ = on; }
+    // Which lit-frame target flushes draw for (LightingPass): in the receiver and emission passes each
+    // instance's color holds its receiver or its emission, not a tint.
+    void SetLightingPass(LightingPass pass) { pass_ = pass; }
 
     // Draw calls made by the last Flush.
     int LastDrawCalls() const { return lastDrawCalls_; }
@@ -81,7 +82,8 @@ private:
 
     ShaderProgram program_;
     ShaderProgram receiverProgram_;
-    bool receiverPass_ = false;
+    ShaderProgram emissionProgram_;
+    LightingPass pass_ = LightingPass::Color;
     GlVertexArray vertexArray_;
     GlBuffer instances_;
     std::array<unsigned, 2> samplers_{};

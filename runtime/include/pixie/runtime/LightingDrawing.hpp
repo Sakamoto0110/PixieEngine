@@ -2,11 +2,14 @@
 
 #include "pixie/runtime/Export.hpp"
 
+#include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/render/2d/LightRenderer.hpp"
+#include "pixie/render/2d/ParticleRenderer.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/Transform2D.hpp"
+#include "pixie/runtime/World.hpp"
 
 #include <pixie/pxColorRgba.hpp>
 #include <pixie/pxRect.hpp>
@@ -88,6 +91,30 @@ private:
 // occluders need `outlines`; without it they cast nothing.
 PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges,
                                        SpriteAlphaOutlines* outlines = nullptr);
+
+// Appends a light splat for each live particle of every pool whose ParticleLight2D illuminates,
+// interpolated `alpha` of the way between steps: unshadowed point lights of the particle's color,
+// times its alpha (faded with age when the pool fades) and the pool's intensity. Each pool casts at
+// most its lightCap, in pool order; all pools together at most `limit`. With `view`, only splats that
+// reach it count. Returns how many were left out by the caps.
+PIXIE_RUNTIME_API int GatherParticleLights(World& world, double alpha, const pxRect* view, int limit,
+                                           std::vector<LightInstance>& lights);
+
+// The color an emission pass draws for `emission` (null for none, which still covers what glows
+// below): its tint, with intensity / 16 in alpha.
+PIXIE_RUNTIME_API pxColorRgba EmissionColor(const Emission2D* emission);
+
+// What entity `id` draws in a receiver or emission pass (ReceiverColor, EmissionColor), with its own
+// alpha `alpha`.
+PIXIE_RUNTIME_API pxColorRgba PassColor(const entt::registry& registry, entt::entity id, std::uint8_t alpha,
+                                        LightingPass pass);
+
+// Whether any entity has an Emission2D or any pool is emissive, so a frame needs the emission pass.
+PIXIE_RUNTIME_API bool HasEmission(World& world);
+
+// Draws the ParticleSystem pools whose ParticleLight2D is `emissive` (pools without one are not).
+PIXIE_RUNTIME_API void DrawParticlePools(World& world, ParticleRenderer& renderer, const Camera2D& camera,
+                                         double alpha, bool emissive);
 
 // Whether any entity has a LightReceiver2D, so a frame needs the receiver pass.
 PIXIE_RUNTIME_API bool HasLightReceivers(World& world);

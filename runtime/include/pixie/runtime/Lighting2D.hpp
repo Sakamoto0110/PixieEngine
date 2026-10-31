@@ -29,7 +29,35 @@ struct LightingSettings2D {
     // Linear multiplier of all light, before tone mapping.
     double exposure = 1.0;
     LightToneMapping2D toneMapping = LightToneMapping2D::None;
+    // At most this many particle light splats a frame, over all pools, after each pool's cap.
+    int maxParticleLights = 2048;
     bool operator==(const LightingSettings2D&) const = default;
+};
+
+// Makes the entity's Sprite, Text or Shape glow: its image (a shape's flat area) times `color` times
+// `intensity`, added unlit after the light, so it shows in darkness. Game code drives `intensity`
+// for fades; the entity's logical state stays its own.
+struct Emission2D {
+    // Authored in sRGB.
+    pxColorRgba color{255, 255, 255};
+    // Linear multiplier, 0 to 16 (in steps of 1/16 of the 0-255 range).
+    double intensity = 1.0;
+    bool operator==(const Emission2D&) const = default;
+};
+
+// How a ParticleSystem's pool takes part in lighting, like ParticlePhysics2D for physics.
+struct ParticleLight2D {
+    // Drawn unlit, at the particles' own color, instead of lit like the world.
+    bool emissive = false;
+    // Each live particle lights its surroundings as an unshadowed point light of the particle's
+    // color and alpha.
+    bool illuminates = false;
+    // World units.
+    double lightRadius = 24.0;
+    double lightIntensity = 1.0;
+    // At most this many particles of the pool cast light, the first in the pool's order.
+    int lightCap = 256;
+    bool operator==(const ParticleLight2D&) const = default;
 };
 
 enum class LightType2D : std::uint8_t {

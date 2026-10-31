@@ -18,5 +18,8 @@ PIXIE_RUNTIME_API void SubmitShapes(World& world, ShapeRenderer& renderer, doubl
 // LightReceiver2D (ReceiverColor). Flush with the renderer's receiver pass on.
 PIXIE_RUNTIME_API void SubmitShapeReceivers(World& world, ShapeRenderer& renderer, double alpha,
                                             const pxRect* view = nullptr);
+// The same for the emission pass: each one's color is its Emission2D (EmissionColor).
+PIXIE_RUNTIME_API void SubmitShapeEmission(World& world, ShapeRenderer& renderer, double alpha,
+                                           const pxRect* view = nullptr);
 
 } // namespace pixie

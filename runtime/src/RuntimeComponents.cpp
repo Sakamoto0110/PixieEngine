@@ -344,7 +344,18 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&LightingSettings2D::ambient>("ambient").Tooltip("Light every receiver gets, whatever its layers. White at intensity 1 with exposure 1 looks as the scene does unlit; lower it for darkness.")
         .Field<&LightingSettings2D::ambientIntensity>("ambientIntensity").Label("ambient intensity").Tooltip("Linear multiplier of the ambient color.").Range(0, 100).Scrub(0.01)
         .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
-        .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.");
+        .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.")
+        .Field<&LightingSettings2D::maxParticleLights>("maxParticleLights").Label("max particle lights").Tooltip("At most this many particle light splats a frame, over all pools.").Range(0, 65536);
+    types.Add<Emission2D>("Emission2D")
+        .Field<&Emission2D::color>("color").Tooltip("The glow's tint: the sprite's image, or the shape, times this color shows unlit, even in darkness.")
+        .Field<&Emission2D::intensity>("intensity").Tooltip("Linear multiplier from 0 to 16; game code fades it to show a state change.").Range(0, 16).Scrub(0.01);
+    types.Add<ParticleLight2D>("ParticleLight2D")
+        .CanAdd(NeedsParticleSystem)
+        .Field<&ParticleLight2D::emissive>("emissive").Tooltip("Draws the particles unlit, at their own color, so they glow in darkness.")
+        .Field<&ParticleLight2D::illuminates>("illuminates").Tooltip("Each live particle lights its surroundings with an unshadowed light of its color.")
+        .Field<&ParticleLight2D::lightRadius>("lightRadius").Label("light radius").Tooltip("Reach of each particle's light, in world units.").Range(0, 10000).Scrub(0.5)
+        .Field<&ParticleLight2D::lightIntensity>("lightIntensity").Label("light intensity").Tooltip("Linear multiplier of each particle's light.").Range(0, 100).Scrub(0.01)
+        .Field<&ParticleLight2D::lightCap>("lightCap").Label("light cap").Tooltip("At most this many of the pool's particles cast light, the first in the pool's order.").Range(0, 65536);
     types.Add<Light2D>("Light2D")
         .Field<&Light2D::type>("type", {"Point", "Spot", "Directional"}).Tooltip("Point shines all around to its range; spot within a cone along the entity's rotation; directional over the whole view.")
         .Field<&Light2D::color>("color").Tooltip("The light's color.")

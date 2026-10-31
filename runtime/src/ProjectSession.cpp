@@ -272,23 +272,29 @@ void ProjectSession::Render(double alpha) {
     SubmitPaths(*world_, paths_, alpha, &view);
     paths_.Flush(camera_.MakeView());
     sprites_.Flush(camera_.MakeView());
-    DrawParticles(*world_, particles_, camera_, alpha);
+    if (lighting != nullptr) {
+        // Emissive pools glow in the emission pass instead of being lit.
+        DrawParticlePools(*world_, particles_, camera_, alpha, false);
+    } else {
+        DrawParticles(*world_, particles_, camera_, alpha);
+    }
     SubmitShapes(*world_, shapes_, alpha, &view);
     if (lighting != nullptr) {
         // World shapes are part of the lit image; gizmos and overlays are drawn over it, unlit.
         shapes_.Flush(camera_.MakeView());
         if (HasLightReceivers(*world_)) {
             lighting_.BeginReceivers();
-            sprites_.SetReceiverPass(true);
-            SubmitSpriteReceivers(*world_, sprites_, images_, alpha, &texts, &view);
-            sprites_.Flush(camera_.MakeView());
-            sprites_.SetReceiverPass(false);
-            shapes_.SetReceiverPass(true);
-            SubmitShapeReceivers(*world_, shapes_, alpha, &view);
-            shapes_.Flush(camera_.MakeView());
-            shapes_.SetReceiverPass(false);
+            DrawLightingPass(alpha, texts, view, LightingPass::Receivers);
+        }
+        if (HasEmission(*world_)) {
+            lighting_.BeginEmission();
+            DrawLightingPass(alpha, texts, view, LightingPass::Emission);
+            particles_.SetEmissionPass(true);
+            DrawParticlePools(*world_, particles_, camera_, alpha, true);
+            particles_.SetEmissionPass(false);
         }
         GatherLights(*world_, alpha, &view, lights_);
+        GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
         GatherOccluders(*world_, alpha, occluders_, &outlines_);
         lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
     }
@@ -306,6 +312,25 @@ void ProjectSession::Render(double alpha) {
     shapes_.Flush(pixels.MakeView());
     paths_.Flush(pixels.MakeView());
     sprites_.Flush(pixels.MakeView());
+}
+
+void ProjectSession::DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass) {
+    sprites_.SetLightingPass(pass);
+    if (pass == LightingPass::Emission) {
+        SubmitSpriteEmission(*world_, sprites_, images_, alpha, &texts, &view);
+    } else {
+        SubmitSpriteReceivers(*world_, sprites_, images_, alpha, &texts, &view);
+    }
+    sprites_.Flush(camera_.MakeView());
+    sprites_.SetLightingPass(LightingPass::Color);
+    shapes_.SetLightingPass(pass);
+    if (pass == LightingPass::Emission) {
+        SubmitShapeEmission(*world_, shapes_, alpha, &view);
+    } else {
+        SubmitShapeReceivers(*world_, shapes_, alpha, &view);
+    }
+    shapes_.Flush(camera_.MakeView());
+    shapes_.SetLightingPass(LightingPass::Color);
 }
 
 unsigned ProjectSession::RenderToTarget() {

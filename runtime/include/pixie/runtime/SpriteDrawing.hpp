@@ -87,5 +87,9 @@ PIXIE_RUNTIME_API void SubmitSprites(World& world, SpriteRenderer& renderer, Spr
 PIXIE_RUNTIME_API void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages& images,
                                              double alpha, const TextSources* texts = nullptr,
                                              const pxRect* view = nullptr);
+// The same for the emission pass: each one's color is its Emission2D (EmissionColor).
+PIXIE_RUNTIME_API void SubmitSpriteEmission(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                            double alpha, const TextSources* texts = nullptr,
+                                            const pxRect* view = nullptr);
 
 } // namespace pixie

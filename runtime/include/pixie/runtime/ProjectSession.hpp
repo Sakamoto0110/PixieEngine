@@ -17,6 +17,7 @@
 #include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
+#include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/World.hpp"
 #include "pixie/runtime/PhysicsDebug2D.hpp"
@@ -154,6 +155,8 @@ public:
 
 private:
     PIXIE_RUNTIME_API void Build(bool resetCamera);
+    // A lit frame's receiver or emission pass: the sprites, texts and shapes again, in that pass.
+    void DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass);
 
     std::unique_ptr<Project> project_;
     SessionSettings settings_;

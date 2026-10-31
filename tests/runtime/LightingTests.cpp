@@ -8,6 +8,7 @@
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 #include "pixie/runtime/ScreenCanvas.hpp"
@@ -627,6 +628,139 @@ TEST(SpriteAlphaOccludersFollowTheSprite) {
         pixie::GatherOccluders(world, 1.0, edges);
         CHECK(edges.empty());
     }
+}
+
+// ---------------------------------------------------------------------------------------------
+// L3: emission and particle light (PIXIE-TASK-216).
+
+namespace {
+
+pixie::ParticleSystem& Pool(Lab& lab, pxColorRgba color, float size, bool additive = true) {
+    pixie::Entity entity = lab.World().Create();
+    pixie::ParticleSystem system;
+    system.style.color = color;
+    system.style.size = size;
+    system.style.additive = additive;
+    system.style.fade = false;
+    entity.Add<pixie::ParticleSystem>(std::move(system));
+    return entity.Get<pixie::ParticleSystem>();
+}
+
+} // namespace
+
+// LIT-009: an emissive shape shows its emissive color in darkness, at full strength with intensity 1.
+TEST(EmissionShowsInTheDark) {
+    Lab lab;
+    lab.Settings(Dark());
+    lab.Quad(pxPoint(-30.0, 0.0), 12.0, pxColorRgba(255, 0, 0)).Add<pixie::Emission2D>(pixie::Emission2D{pxColorRgba(200, 100, 50), 1.0});
+    lab.Quad(pxPoint(30.0, 0.0), 12.0, pxColorRgba(255, 0, 0));
+    const auto pixels = lab.Render();
+    CHECK(Near(At(pixels, -30.0, 0.0, 0), 200) && Near(At(pixels, -30.0, 0.0, 1), 100) && Near(At(pixels, -30.0, 0.0, 2), 50));
+    CHECK(At(pixels, 30.0, 0.0, 0) == 0);
+}
+
+// LIT-009: game code fades the intensity, and the glow follows it step by step; above 1 it brightens.
+TEST(EmissionFollowsItsIntensity) {
+    Lab lab;
+    lab.Settings(Dark());
+    pixie::Entity lamp = lab.Quad(pxPoint(0.0, 0.0), 12.0, pxColorRgba(255, 255, 255));
+    lamp.Add<pixie::Emission2D>(pixie::Emission2D{pxColorRgba(100, 100, 100), 1.0});
+    int previous = 256;
+    for (const double intensity : {1.0, 0.75, 0.5, 0.25, 0.0}) {
+        lamp.Get<pixie::Emission2D>().intensity = intensity;
+        const int value = At(lab.Render(), 0.0, 0.0);
+        std::fprintf(stderr, "  powered-down step: intensity %.2f, pixel %d\n", intensity, value);
+        CHECK(value < previous);
+        CHECK(Near(value, Expected(pixie::DecodeSrgb(100.0f / 255.0f) * intensity), 2));
+        previous = value;
+    }
+    lamp.Get<pixie::Emission2D>().intensity = 2.0;
+    CHECK(Near(At(lab.Render(), 0.0, 0.0), Expected(2.0 * pixie::DecodeSrgb(100.0f / 255.0f)), 2));
+}
+
+// LIT-009/012: what is drawn over an emissive sprite covers its glow.
+TEST(EmissionIsCoveredByWhatLiesOver) {
+    Lab lab;
+    lab.Settings(Dark());
+    pixie::Sprite glowing;
+    glowing.image = "missing.png";
+    glowing.layer = 0;
+    // A missing image draws as a 64-unit checkerboard: the glowing one spans 64 units, the cover 16.
+    pixie::Entity under = lab.Add(pxPoint(0.0, 0.0));
+    under.Add<pixie::Sprite>(glowing);
+    under.Add<pixie::Emission2D>(pixie::Emission2D{});
+    pixie::Sprite cover = glowing;
+    cover.layer = 1;
+    pixie::Entity over = lab.Add(pxPoint(0.0, 0.0));
+    over.Get<pixie::Transform2D>().scale = pxVec2(0.25, 0.25);
+    lab.World().ResetInterpolation(over);
+    over.Add<pixie::Sprite>(cover);
+    const auto pixels = lab.Render();
+    int brightOutside = 0, brightUnder = 0;
+    for (int y = 0; y < kSide; ++y) {
+        for (int x = 0; x < kSide; ++x) {
+            const double wx = x + 0.5 - 64.0, wy = y + 0.5 - 64.0;
+            const bool bright = Channel(pixels, x, y) > 100;
+            if (std::abs(wx) < 6.0 && std::abs(wy) < 6.0) brightUnder += bright ? 1 : 0;
+            else if (std::abs(wx) > 12.0 && std::abs(wx) < 28.0 && std::abs(wy) < 28.0) brightOutside += bright ? 1 : 0;
+        }
+    }
+    std::fprintf(stderr, "  emissive sprite: %d bright pixels uncovered, %d under the cover\n", brightOutside, brightUnder);
+    CHECK(brightOutside > 100);
+    CHECK(brightUnder == 0);
+}
+
+// LIT-010: an emissive pool glows unlit at its own color in darkness; the same pool not emissive is
+// lit like the world, so it stays dark.
+TEST(EmissiveParticlesGlowUnlit) {
+    for (const bool emissive : {true, false}) {
+        Lab lab;
+        lab.Settings(Dark());
+        pixie::ParticleSystem& pool = Pool(lab, pxColorRgba(255, 200, 100), 6.0f);
+        pool.Emit(pxPointf(0.0f, 0.0f), pxVec2f(0.0f, 0.0f), 0.0f);
+        if (emissive) {
+            pixie::ParticleLight2D light;
+            light.emissive = true;
+            lab.World().Registry().emplace<pixie::ParticleLight2D>(lab.World().Registry().view<pixie::ParticleSystem>().front(), light);
+        }
+        const auto pixels = lab.Render();
+        if (emissive) {
+            CHECK(Near(At(pixels, 0.0, 0.0, 0), 255, 2) && Near(At(pixels, 0.0, 0.0, 1), 200, 2) && Near(At(pixels, 0.0, 0.0, 2), 100, 2));
+        } else {
+            CHECK(At(pixels, 0.0, 0.0, 0) == 0);
+        }
+    }
+}
+
+// LIT-011: an illuminating pool lights the floor around each particle as a point light; a pool that
+// does not illuminate lights nothing; caps hold per pool and over all pools.
+TEST(IlluminatingParticlesLightTheFloor) {
+    for (const bool illuminates : {true, false}) {
+        Lab lab;
+        lab.Settings(Dark());
+        pixie::ParticleSystem& pool = Pool(lab, pxColorRgba(255, 255, 255), 1.0f);
+        pool.Emit(pxPointf(0.0f, 0.0f), pxVec2f(0.0f, 0.0f), 0.0f);
+        pixie::ParticleLight2D light;
+        light.illuminates = illuminates;
+        light.lightRadius = 30.0;
+        lab.World().Registry().emplace<pixie::ParticleLight2D>(lab.World().Registry().view<pixie::ParticleSystem>().front(), light);
+        const auto pixels = lab.Render();
+        const double x = 1.0 - (10.5 / 30.0) * (10.5 / 30.0);
+        CHECK(Near(At(pixels, 10.5, 0.5), illuminates ? Expected(x * x) : 0));
+    }
+    Lab lab;
+    pixie::ParticleSystem& pool = Pool(lab, pxColorRgba(255, 255, 255), 1.0f);
+    for (int i = 0; i < 10; ++i) {
+        pool.Emit(pxPointf(static_cast<float>(i), 0.0f), pxVec2f(0.0f, 0.0f), 0.0f);
+    }
+    pixie::ParticleLight2D light;
+    light.illuminates = true;
+    light.lightCap = 3;
+    lab.World().Registry().emplace<pixie::ParticleLight2D>(lab.World().Registry().view<pixie::ParticleSystem>().front(), light);
+    std::vector<pixie::LightInstance> lights;
+    CHECK(pixie::GatherParticleLights(lab.World(), 1.0, nullptr, 2048, lights) == 7 && lights.size() == 3);
+    lights.clear();
+    CHECK(pixie::GatherParticleLights(lab.World(), 1.0, nullptr, 2, lights) == 8 && lights.size() == 2);
 }
 
 int main() {
