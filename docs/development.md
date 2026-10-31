@@ -155,36 +155,35 @@ Third-party code lives unmodified under `external/<name>/`, built by
 
 ## Void Agent Workplace
 
-The repository is bound, on the owner's machine, to the Void Agent Workplace
-profile `pixieengine`, revision 1, read from the VAW checkout at
-`C:\Users\Sakamoto\dev\VAW` (commit `c9d81ba`, version 0.2.0.0), for project
-binding and skill discovery only. The profile is machine-local and outside both
-repositories, in `C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles\pixieengine\`;
-the binding is in the explicit machine-local registry
-`C:\Users\Sakamoto\dev\Void Agent Workplace\.local\bindings\pixieengine.json`.
-Pass that path with `-BindingsPath` on every VAW command. This keeps the procedure
-independent of differing session views of the default AppData registry.
-The profile maps VAW's authority roles to this repository's documents, routes
-each source area to the documents that own it, and lists the checks above as
-its validation. Nothing in this repository depends on it: a machine without it
-builds, checks, and commits as before.
+On the owner's machine, this repository lives inside a Void Agent Workplace
+checkout, in its Pixie family of managed projects (`projects/Pixie/`, beside
+PixieInspector and PixieLib), and is bound to the VAW profile `pixieengine`,
+revision 1, for project binding and skill discovery only. Since 2026-10-31 the
+checkout is on the local branch `codex/pixie-workplace` (commit `1bc14c2`,
+version 0.2.0.0), whose `profiles/pixieengine/` holds the profile; the binding
+is in VAW's default machine-local registry. VAW ignores `projects/`, so the
+repository keeps its own history and remote. The profile maps VAW's authority
+roles to this repository's documents, routes each source area to the documents
+that own it, and lists the checks above as its validation. Nothing in this
+repository depends on it: a machine without it builds, checks, and commits as
+before.
 
 Before a task, an agent resolves the binding for the task's routes (`engine`,
-`runtime`, `capi`, `editor`, `samples`, `build`, `documentation`), from
-PowerShell 7:
+`runtime`, `capi`, `editor`, `samples`, `build`, `documentation`), from the
+repository root, in PowerShell 7 (the VAW checkout is three directories up):
 
 ```powershell
-$profiles = 'C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles'
-$bindings = 'C:\Users\Sakamoto\dev\Void Agent Workplace\.local\bindings\pixieengine.json'
-C:\Users\Sakamoto\dev\VAW\scripts\resolve-project-binding.ps1 -RepositoryPath . `
-    -ProfilesPath $profiles -BindingsPath $bindings `
+..\..\..\scripts\resolve-project-binding.ps1 -RepositoryPath . `
     -CompatibilityScope Routes -RouteId runtime,documentation
-C:\Users\Sakamoto\dev\VAW\vaw.ps1 skills list -Agent claude -RepositoryPath . `
-    -ProfilesPath $profiles -BindingsPath $bindings
+..\..\..\vaw.ps1 skills list -Agent claude -RepositoryPath .
 ```
 
 Select all routes affected by the actual task; `runtime,documentation` is an
-example. Pass the same profile and binding paths to `skills show <name>`.
+example. `skills show <name>` takes the same arguments as `skills list`.
+
+Never delete ignored files in the VAW checkout (`git clean -x` and the like):
+`projects/` is ignored there, so that would delete this repository and its
+unpushed work.
 
 It requires `bound_scoped` with every selected route checked (or `bound` without
 `-CompatibilityScope`), and the task's archive record states the VAW commit, the
