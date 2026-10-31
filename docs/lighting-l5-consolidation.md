@@ -126,7 +126,9 @@ these blocks a required case above; each is a candidate for later work or for th
   are machine-local evidence, not references.
 - **Outside lighting.** Setting a Choice field over the development channel to a value that is not
   one of its labels (the number 1 for `Light2D.type`) wrote 255 instead of being refused; the
-  qualification now sets it by label. Recorded here as a follow-up for the editor, not fixed in this work.
+  qualification now sets it by label. Fixed after this record: the editor refuses a name that is
+  not one of the choices, and `pixie_field_set` and `pixie_record_set` refuse an enum value outside
+  its names (`choice-outside-its-names-is-refused` in the editor physics suite, and the C API test).
 
 ## 5. Owner decisions
 

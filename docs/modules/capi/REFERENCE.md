@@ -331,7 +331,9 @@ Events are kept until the next step reads them.
   them.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
   `PixieValue`; `PixieFieldKind` says which members are used. A `PIXIE_FIELD_ENTITY` field holds an
-  entity handle in `x`, with 4294967295 for none. Writing outside a step is safe;
+  entity handle in `x`, with 4294967295 for none. A `PIXIE_FIELD_ENUM` field takes a whole `x`
+  from 0 to `pixie_field_enum_count` - 1; any other value, here and in `pixie_record_set`, is
+  refused with `PIXIE_ERROR_ARGUMENT` and leaves the field unchanged. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
   `PIXIE_ERROR_NOT_FOUND`.
 - A `PIXIE_FIELD_TEXT` field holds UTF-8 text, such as a sprite's image path, and goes only through
