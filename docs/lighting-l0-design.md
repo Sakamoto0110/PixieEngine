@@ -362,6 +362,17 @@ at `Start`, and is not in it. Declared budgets for the RX 7600 at 1920 × 1080, 
 with headroom: up to 64 shadowed lights and 2000 particle lights within 3 ms of GPU lighting at
 p99; llvmpipe is for correctness tests at small sizes, not a budget target.
 
+### Optional effects measured at L4
+
+Ambient occlusion, fog, bloom and normal maps exist behind `LightingSettings2D` fields, all off by
+default, with the neutral image unchanged when they are off. On the RX 7600 at 1920 × 1080 with 16
+shadowed lights and 128 boxes (`lighting-budget`), ambient occlusion, fog and bloom together raised
+the GPU time of the shadow stage (which includes the occlusion pass) from 0.414 to 0.428 ms and of
+the combine (which includes fog and bloom) from 0.068 to 0.240 ms at p50. Normal maps were not
+timed: the budget rooms have no normal-map art; their pass costs one more sprite pass. Whether
+each effect improves the rooms is the owner's call (consumer L06); the budget does not justify
+them, it only bounds them.
+
 ## 7. Compatibility rule
 
 A scene without `LightingSettings2D` runs today's `ProjectSession::Render` unchanged: no lighting

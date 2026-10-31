@@ -828,6 +828,14 @@ bounds (`kLightingDebugLights2D`: a ring at each range, a spot's cone edges, a d
 direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes;
 until it is called, light bounds show in Edit and nothing in Play.
 
+Optional effects are `LightingSettings2D` fields, all off by default (LIT-013): `ambientOcclusion`
+darkens the ambient light within `occlusionRadius` of the outer side of occluder edges, by up to
+`occlusionStrength`; `fog` blends toward `fogColor`, none at world y `fogTop` and `fogDensity` from
+`fogBottom` down; `bloom` spreads light above `bloomThreshold` at `bloomIntensity`; `normalMaps`
+shades sprites that have a `NormalMap2D` (a PNG in tangent space, green toward the image's top) by
+their relief, with lights `normalHeight` world units above the plane, turning with the sprite.
+Shapes and texts do not take part in normal mapping.
+
 The editor's light handles, its light layer names and the development channel's
 `world.lighting_debug` are described in the [editor's README](../../../editor/README.md). The work is
 scheduled under [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the

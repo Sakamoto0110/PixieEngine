@@ -50,7 +50,14 @@ which the combine adds to `albedo * light` before exposure. SpriteRenderer and S
 their program by `LightingPass` (`SetLightingPass`): color, receivers, or emission, where the
 instance color holds an emissive tint and intensity / 16 in alpha; ParticleRenderer's emission
 pass (`SetEmissionPass`) writes the particles' color decoded to linear. Each pass is a separate
-shader program, so the color pass's shaders are those of unlit drawing. `Finish` writes GPU
+shader program, so the color pass's shaders are those of unlit drawing. The optional effects of `LightingParameters` are off at
+zero: ambient occlusion draws a quad around each occluder edge whose fragments keep, with max
+blending, `1 - smoothstep(0, radius, distance)` on the edge's outer side, and the combine removes that
+share of the ambient; fog blends toward its color by world y; bloom writes the linear radiance,
+keeps what exceeds the threshold at half size, blurs it with two 9-tap Gaussian passes and adds it
+before tone mapping; normal maps come from a fourth world target (`BeginNormals`, the sprite
+renderer's `LightingPass::Normals`) and weight each light by the angle it arrives from at
+`normalHeight`. `Finish` writes GPU
 timestamps around light accumulation, the shadowed lights and the combine into one of four query
 sets in turn, and reads a set only when it is reused and its results have arrived, so it never
 waits for the GPU; `GpuTimes` holds the latest arrival, numbered by `sample`. The sRGB
