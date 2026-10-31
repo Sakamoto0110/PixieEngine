@@ -240,8 +240,18 @@ With 0 bodies, coupled rose from 0.118 to 0.125 ms. The process sampler saw no b
 either run, so the uniform shift is unattributed background activity on the machine, not a
 measured cost of the fixes; neither run is a budget.
 
+A third run measured the character proxies (code `ccc2234`, committed tree `a0ee1da`), with the
+coupled populations now including the 30 proxies. Workloads without characters matched the
+second run (sparse 500 awake p50 0.133 ms in both), so the machine was in a comparable state.
+The coupled workload cost more: with 0 bodies awake, p50 0.125 to 0.166 ms and p99 0.333 to
+0.430 ms; with 500 bodies awake, p50 0.323 to 0.417 ms, p99 0.662 to 0.895 ms and one 5.4 ms
+worst tick, with 690 instead of 670 contact pairs. The 30 proxies therefore cost about 0.04 ms
+per tick on their own and about 0.09 ms among 500 bodies: placing them before each solve and
+reading their contacts after it, which allocates a contact copy per character with contacts.
+Collection on versus off stayed within ±0.019 ms, and no run rebuilt anything.
+
 Every row, per-run summary, the full warm and cold table, machine metadata, source and binary
-hashes, and process samples, for both runs, are retained under
+hashes, and process samples, for all three runs, are retained under
 `.local/validation/physics-completion-2026-10-30/workloads/`. The figures describe this
 machine and these fixtures only; they are not a gameplay, rendering or universal budget.
 
