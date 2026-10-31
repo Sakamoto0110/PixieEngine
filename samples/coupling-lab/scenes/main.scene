@@ -43,7 +43,7 @@
           "v": 1,
           "kind": "Quad",
           "size": [
-            660,
+            880,
             10
           ],
           "color": [
@@ -56,7 +56,7 @@
         "Collider2D": {
           "v": 1,
           "halfSize": [
-            660,
+            880,
             10
           ],
           "friction": 0.3
@@ -70,8 +70,8 @@
         "Transform2D": {
           "v": 1,
           "position": [
-            -670,
-            60
+            -890,
+            0
           ]
         },
         "Shape": {
@@ -79,7 +79,7 @@
           "kind": "Quad",
           "size": [
             10,
-            150
+            210
           ],
           "color": [
             75,
@@ -92,7 +92,7 @@
           "v": 1,
           "halfSize": [
             10,
-            150
+            210
           ],
           "friction": 0.3
         }
@@ -105,8 +105,8 @@
         "Transform2D": {
           "v": 1,
           "position": [
-            670,
-            60
+            890,
+            0
           ]
         },
         "Shape": {
@@ -114,7 +114,7 @@
           "kind": "Quad",
           "size": [
             10,
-            150
+            210
           ],
           "color": [
             75,
@@ -127,7 +127,7 @@
           "v": 1,
           "halfSize": [
             10,
-            150
+            210
           ],
           "friction": 0.3
         }
@@ -135,6 +135,78 @@
     },
     {
       "id": "c1a0000000000006",
+      "name": "ramp 25 degrees",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -760,
+            150
+          ],
+          "rotation": 0.4363
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            110,
+            8
+          ],
+          "color": [
+            95,
+            120,
+            150,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            110,
+            8
+          ],
+          "friction": 0.3
+        }
+      }
+    },
+    {
+      "id": "c1a0000000000007",
+      "name": "ramp 55 degrees",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            770,
+            140
+          ],
+          "rotation": -0.9599
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            80,
+            8
+          ],
+          "color": [
+            150,
+            100,
+            100,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            80,
+            8
+          ],
+          "friction": 0.3
+        }
+      }
+    },
+    {
+      "id": "c1a0000000000008",
       "name": "translating platform",
       "components": {
         "Transform2D": {
@@ -182,12 +254,13 @@
             0
           ],
           "angularVelocity": 0.0,
-          "period": 2.4
+          "period": 2.4,
+          "reverseOnCrush": false
         }
       }
     },
     {
-      "id": "c1a0000000000007",
+      "id": "c1a0000000000009",
       "name": "A translation",
       "components": {
         "Transform2D": {
@@ -217,7 +290,7 @@
       }
     },
     {
-      "id": "c1a0000000000008",
+      "id": "c1a000000000000a",
       "name": "carry post",
       "components": {
         "Transform2D": {
@@ -252,7 +325,7 @@
       }
     },
     {
-      "id": "c1a0000000000009",
+      "id": "c1a000000000000b",
       "name": "rotating platform",
       "components": {
         "Transform2D": {
@@ -300,12 +373,13 @@
             0
           ],
           "angularVelocity": 0.2,
-          "period": 2.0
+          "period": 2.0,
+          "reverseOnCrush": false
         }
       }
     },
     {
-      "id": "c1a000000000000a",
+      "id": "c1a000000000000c",
       "name": "B rotation",
       "components": {
         "Transform2D": {
@@ -335,7 +409,91 @@
       }
     },
     {
-      "id": "c1a000000000000b",
+      "id": "c1a000000000000d",
+      "name": "steep rotating platform",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -740,
+            -40
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            55,
+            6
+          ],
+          "color": [
+            170,
+            100,
+            235,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            55,
+            6
+          ],
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Kinematic",
+          "initialVelocity": [
+            0,
+            0
+          ],
+          "initialAngularVelocity": 0.48
+        },
+        "Shuttle": {
+          "v": 1,
+          "velocity": [
+            0,
+            0
+          ],
+          "angularVelocity": 0.48,
+          "period": 2.0,
+          "reverseOnCrush": false
+        }
+      }
+    },
+    {
+      "id": "c1a000000000000e",
+      "name": "F steep",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -715,
+            -70.5
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            24
+          ],
+          "color": [
+            100,
+            240,
+            190,
+            255
+          ]
+        },
+        "CharacterMotor2D": {
+          "v": 3
+        }
+      }
+    },
+    {
+      "id": "c1a000000000000f",
       "name": "elevator",
       "components": {
         "Transform2D": {
@@ -383,12 +541,13 @@
             -50
           ],
           "angularVelocity": 0.0,
-          "period": 2.0
+          "period": 2.0,
+          "reverseOnCrush": false
         }
       }
     },
     {
-      "id": "c1a000000000000c",
+      "id": "c1a0000000000010",
       "name": "C elevator",
       "components": {
         "Transform2D": {
@@ -418,7 +577,7 @@
       }
     },
     {
-      "id": "c1a000000000000d",
+      "id": "c1a0000000000011",
       "name": "crusher",
       "components": {
         "Transform2D": {
@@ -466,12 +625,13 @@
             -50
           ],
           "angularVelocity": 0.0,
-          "period": 1.0
+          "period": 1.0,
+          "reverseOnCrush": true
         }
       }
     },
     {
-      "id": "c1a000000000000e",
+      "id": "c1a0000000000012",
       "name": "D crush",
       "components": {
         "Transform2D": {
@@ -501,7 +661,7 @@
       }
     },
     {
-      "id": "c1a000000000000f",
+      "id": "c1a0000000000013",
       "name": "crush ceiling",
       "components": {
         "Transform2D": {
@@ -536,7 +696,7 @@
       }
     },
     {
-      "id": "c1a0000000000010",
+      "id": "c1a0000000000014",
       "name": "E player",
       "components": {
         "Transform2D": {
@@ -571,7 +731,44 @@
       }
     },
     {
-      "id": "c1a0000000000011",
+      "id": "c1a0000000000015",
+      "name": "ball 1 kg",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            60,
+            176
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Circle",
+          "size": [
+            14,
+            14
+          ],
+          "color": [
+            150,
+            210,
+            255,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Circle",
+          "radius": 14,
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "massOverride": 1
+        }
+      }
+    },
+    {
+      "id": "c1a0000000000016",
       "name": "light box 1 kg",
       "components": {
         "Transform2D": {
@@ -610,7 +807,7 @@
       }
     },
     {
-      "id": "c1a0000000000012",
+      "id": "c1a0000000000017",
       "name": "heavy box 10 kg",
       "components": {
         "Transform2D": {
@@ -649,7 +846,7 @@
       }
     },
     {
-      "id": "c1a0000000000013",
+      "id": "c1a0000000000018",
       "name": "compound box",
       "components": {
         "Transform2D": {
@@ -708,7 +905,163 @@
       }
     },
     {
-      "id": "c1a0000000000014",
+      "id": "c1a0000000000019",
+      "name": "stacked box 1",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            440,
+            174
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            16,
+            16
+          ],
+          "color": [
+            200,
+            200,
+            120,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            16,
+            16
+          ],
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "massOverride": 1
+        }
+      }
+    },
+    {
+      "id": "c1a000000000001a",
+      "name": "stacked box 2",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            440,
+            142
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            16,
+            16
+          ],
+          "color": [
+            200,
+            200,
+            120,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            16,
+            16
+          ],
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "massOverride": 1
+        }
+      }
+    },
+    {
+      "id": "c1a000000000001b",
+      "name": "stacked box 3",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            440,
+            110
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            16,
+            16
+          ],
+          "color": [
+            200,
+            200,
+            120,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            16,
+            16
+          ],
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "massOverride": 1
+        }
+      }
+    },
+    {
+      "id": "c1a000000000001c",
+      "name": "stacked box 4",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            440,
+            78
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            16,
+            16
+          ],
+          "color": [
+            200,
+            200,
+            120,
+            255
+          ]
+        },
+        "Collider2D": {
+          "v": 1,
+          "halfSize": [
+            16,
+            16
+          ],
+          "friction": 0.3
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "massOverride": 1
+        }
+      }
+    },
+    {
+      "id": "c1a000000000001d",
       "name": "incoming box 2 kg",
       "components": {
         "Transform2D": {
@@ -747,7 +1100,7 @@
       }
     },
     {
-      "id": "c1a0000000000015",
+      "id": "c1a000000000001e",
       "name": "ram",
       "components": {
         "Transform2D": {
@@ -795,7 +1148,101 @@
             0
           ],
           "angularVelocity": 0.0,
-          "period": 1.0
+          "period": 1.0,
+          "reverseOnCrush": false
+        }
+      }
+    },
+    {
+      "id": "c1a000000000001f",
+      "name": "particle pool",
+      "components": {
+        "ParticleSystem": {
+          "v": 1,
+          "capacity": 4000,
+          "fade": true
+        },
+        "ParticlePhysics2D": {
+          "v": 1,
+          "gravityScale": 1,
+          "collisionRadius": 2,
+          "restitution": 0.5,
+          "friction": 0.2,
+          "bounceThreshold": 35
+        }
+      }
+    },
+    {
+      "id": "c1a0000000000020",
+      "name": "rain over B and C",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -360,
+            -260
+          ]
+        },
+        "ParticleSpawner": {
+          "v": 1,
+          "system": "c1a000000000001f",
+          "rate": 60,
+          "lifetime": 5,
+          "speedMin": 20,
+          "speedMax": 60,
+          "shape": "Segment",
+          "segmentEnd": [
+            260,
+            0
+          ],
+          "direction": 1.5707963267948966,
+          "spread": 0.3,
+          "dynamic": true,
+          "ownLook": true,
+          "particleColor": [
+            255,
+            200,
+            120,
+            255
+          ],
+          "particleSize": 2.5
+        }
+      }
+    },
+    {
+      "id": "c1a0000000000021",
+      "name": "rain over the stack",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            380,
+            -260
+          ]
+        },
+        "ParticleSpawner": {
+          "v": 1,
+          "system": "c1a000000000001f",
+          "rate": 60,
+          "lifetime": 5,
+          "speedMin": 20,
+          "speedMax": 60,
+          "shape": "Segment",
+          "segmentEnd": [
+            240,
+            0
+          ],
+          "direction": 1.5707963267948966,
+          "spread": 0.3,
+          "dynamic": true,
+          "ownLook": true,
+          "particleColor": [
+            140,
+            220,
+            255,
+            255
+          ],
+          "particleSize": 2.5
         }
       }
     }

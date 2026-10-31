@@ -5,6 +5,7 @@
 #include <array>
 #include <cmath>
 #include <stdexcept>
+#include <vector>
 
 using namespace pixie;
 namespace {
@@ -67,6 +68,49 @@ TEST(CharacterRotatingSupportUsesLocalPointAndInheritsClampedVelocityOnce) {
     CHECK(!actor.State().grounded && !actor.Coupling().support.value);
     Tick(world, actor);
     CHECK(actor.State().velocity.x < 25); // Existing air braking; the support velocity is not added again.
+}
+TEST(CharacterStaysPutOnATiltingAndReversingPlatform) {
+    // The support tilts to 40 degrees and back, three times. Rising and sinking must treat the
+    // rider alike: it returns to the same place on the platform instead of creeping off it.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    RigidBody2D body;
+    body.type = BodyType2D::Kinematic;
+    BodyShape2D shape;
+    shape.halfSize = {55, 6};
+    const auto platform = world.AddBody({0, 110}, 0, body, {&shape, 1});
+    CharacterController2D actor({25, 79.5});
+    std::vector<double> cycleEnds;
+    for (int i = 0; i < 720; ++i) {
+        world.SetBodyVelocity(platform, {0, 0}, (i / 120) % 2 == 0 ? 0.35 : -0.35);
+        Tick(world, actor);
+        if (i > 0) CHECK(actor.Coupling().support == platform && !actor.Coupling().unsafePlacement); // It starts 0.5 above.
+        if (i % 240 == 239) cycleEnds.push_back(world.BodyLocalPoint(platform, actor.State().position).x);
+    }
+    CHECK(cycleEnds.size() == 3);
+    for (double x : cycleEnds) CHECK(std::abs(x - 25) < 1);
+}
+TEST(CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction) {
+    // At 0.48 rad/s the capsule meets the rotated surface before the full carry; that is the support,
+    // not an obstacle. Until the slope passes the walkable limit, nothing is reported blocked.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    RigidBody2D body;
+    body.type = BodyType2D::Kinematic;
+    body.initialAngularVelocity = 0.48;
+    BodyShape2D shape;
+    shape.halfSize = {55, 6};
+    const auto platform = world.AddBody({0, 110}, 0, body, {&shape, 1});
+    CharacterController2D actor({25, 79.5});
+    int riding = 0;
+    for (int i = 0; i < 90; ++i) {
+        Tick(world, actor);
+        if (actor.Coupling().support != platform) continue;
+        ++riding;
+        CHECK(actor.Coupling().blocked == CharacterBlocked2D::None);
+        if (i >= 5) CHECK(std::abs(actor.Coupling().carried.y) > 0.1); // It is still carried down with the surface.
+    }
+    CHECK(riding > 80);
 }
 TEST(CharacterDropsRemovedDisabledTeleportedOrRebuiltSupport) {
     for (int mutation = 0; mutation < 4; ++mutation) {

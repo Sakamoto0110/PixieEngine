@@ -72,6 +72,11 @@ bool CharacterController2D::IntegrateIntent(double horizontal, bool jumpPressed,
     if (jump) {
         state_.velocity.y = -settings_.jumpSpeed;
         coyote_ = bufferedJump_ = 0;
+    } else if (previouslyGrounded) {
+        // On walkable support gravity only presses into the surface, along its normal; its tangential
+        // part, clipped by the surface, would make a standing character creep downhill every step.
+        state_.velocity += state_.groundNormal * (settings_.gravity * delta * state_.groundNormal.y);
+        state_.velocity.y = std::min(state_.velocity.y, settings_.terminalSpeed);
     } else {
         state_.velocity.y = std::min(state_.velocity.y + settings_.gravity * delta, settings_.terminalSpeed);
     }
@@ -181,8 +186,15 @@ void CharacterController2D::FinishStep(const CollisionWorld2D& collision) {
     if (correction > settings_.maxRecoveryDistance + collision.CapsuleSlop()) {
         fail(CharacterBlocked2D::NoValidPlacement); return;
     }
-    if (std::hypot(carry.x, carry.y) > collision.CapsuleSlop() && correction > collision.CapsuleSlop())
-        coupling_.blocked = CharacterBlocked2D::CarryObstructed;
+    // A carry shortened by the support itself is the capsule settling on its rotated surface; only
+    // other geometry opposing the carry obstructs it.
+    if (std::hypot(carry.x, carry.y) > collision.CapsuleSlop() && correction > collision.CapsuleSlop()) {
+        const auto touching = collision.CapsuleContacts(carried.position, settings_.radius, settings_.halfSegment, preparedFilter_);
+        if (std::any_of(touching.begin(), touching.end(), [&](const CapsuleContact2D& c) {
+                return c.body != coupling_.support && c.separation <= collision.CapsuleSlop() && Dot(c.normal, carry) < 0;
+            }))
+            coupling_.blocked = CharacterBlocked2D::CarryObstructed;
+    }
     const auto moved = collision.MoveCapsule(carried.position, settings_.radius, settings_.halfSegment,
         state_.velocity * preparedDelta_, state_.velocity, threshold, preparedFilter_);
     const auto contacts = collision.CapsuleContacts(moved.position, settings_.radius, settings_.halfSegment, preparedFilter_);
