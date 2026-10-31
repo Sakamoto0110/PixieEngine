@@ -105,6 +105,13 @@ set_target_properties(physics-benchmark PROPERTIES FOLDER tests)
 target_link_libraries(physics-benchmark PRIVATE Pixie::Runtime)
 pixie_target_defaults(physics-benchmark)
 
+# The L0 lighting prototype (PIXIE-TASK-213): an explicit measurement tool, not a CTest test.
+add_executable(lighting-prototype benchmarks/LightingPrototype.cpp)
+set_target_properties(lighting-prototype PROPERTIES FOLDER tests)
+target_link_libraries(lighting-prototype PRIVATE Pixie::Engine glfw)
+target_compile_definitions(lighting-prototype PRIVATE GLFW_INCLUDE_NONE)
+pixie_target_defaults(lighting-prototype)
+
 # The C API's test: a C program that loads a game's capi library at run time. Each library
 # registers its own CTest test with it (see pixie_add_capi_library in capi/CMakeLists.txt).
 add_executable(capi-test capi/CapiTest.c)
