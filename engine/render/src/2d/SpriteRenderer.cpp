@@ -5,6 +5,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <span>
+#include <string>
 #include <string_view>
 
 namespace pixie {
@@ -89,6 +90,45 @@ void main() {
 }
 )";
 
+// The lighting's normal pass: the sprite's texture is its normal map (tangent space, green toward the
+// image's top), turned into the world (Y down) with the sprite's rotation and mirroring. Without a
+// map (green 0) it is flat and has no strength, but still covers the normals below it.
+std::string NormalVertexShader() {
+    std::string source(kVertexShader);
+    source.replace(source.find("out vec2 vUv;"), 13, "out vec2 vUv;\nflat out float vRotation;\nflat out vec2 vMirror;");
+    source.replace(source.find("    vUv = mix"), 13, "    vRotation = aRotation;\n    vMirror = vec2(aSize.x < 0.0 ? -1.0 : 1.0, aSize.y < 0.0 ? -1.0 : 1.0);\n    vUv = mix");
+    return source;
+}
+
+constexpr std::string_view kNormalFragmentShader = R"(#version 450 core
+in vec2 vUv;
+in vec4 vColor;
+flat in float vRotation;
+flat in vec2 vMirror;
+
+layout(binding = 0) uniform sampler2D uImage;
+
+out vec4 oNormal;
+
+void main() {
+    vec4 image = texture(uImage, vUv);
+    if (image.a * vColor.b < 0.5) {
+        discard;
+    }
+    vec3 n = vec3(0.0, 0.0, 1.0);
+    float strength = 0.0;
+    if (vColor.g > 0.5) {
+        n = normalize(image.rgb / image.a * 2.0 - 1.0);
+        n.y = -n.y;
+        n.xy *= vMirror;
+        float c = cos(vRotation), s = sin(vRotation);
+        n.xy = vec2(c * n.x - s * n.y, s * n.x + c * n.y);
+        strength = vColor.r;
+    }
+    oNormal = vec4(n * 0.5 + 0.5, strength);
+}
+)";
+
 constexpr GLint kViewProjectionLocation = 0;
 
 } // namespace
@@ -96,7 +136,8 @@ constexpr GLint kViewProjectionLocation = 0;
 bool SpriteRenderer::Create() {
     if (!program_.Create("SpriteRenderer", kVertexShader, kFragmentShader) ||
         !receiverProgram_.Create("SpriteRenderer receivers", kVertexShader, kReceiverFragmentShader) ||
-        !emissionProgram_.Create("SpriteRenderer emission", kVertexShader, kEmissionFragmentShader)) {
+        !emissionProgram_.Create("SpriteRenderer emission", kVertexShader, kEmissionFragmentShader) ||
+        !normalProgram_.Create("SpriteRenderer normals", NormalVertexShader(), kNormalFragmentShader)) {
         return false;
     }
     instances_.Create();
@@ -130,6 +171,7 @@ void SpriteRenderer::Destroy() {
     }
     vertexArray_.Destroy();
     instances_.Destroy();
+    normalProgram_.Destroy();
     emissionProgram_.Destroy();
     receiverProgram_.Destroy();
     program_.Destroy();
@@ -158,11 +200,16 @@ void SpriteRenderer::Flush(const View& view, int belowLayer) {
 
     const GLuint program = pass_ == LightingPass::Receivers ? receiverProgram_.Id()
                           : pass_ == LightingPass::Emission ? emissionProgram_.Id()
+                          : pass_ == LightingPass::Normals  ? normalProgram_.Id()
                                                             : program_.Id();
     const pxMat4f viewProjection(view.ViewProjection());
     glProgramUniformMatrix4fv(program, kViewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
+    if (pass_ == LightingPass::Normals) {
+        // Normals replace what is below them where the sprite covers; they do not blend.
+        glDisable(GL_BLEND);
+    }
     glUseProgram(program);
     glBindVertexArray(vertexArray_.Id());
 
@@ -182,6 +229,7 @@ void SpriteRenderer::Flush(const View& view, int belowLayer) {
     }
 
     // Leave texture unit 0 as others expect it: no sampler, and the usual blending.
+    glEnable(GL_BLEND);
     glBindSampler(0, 0);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
     pending_.erase(pending_.begin(), pending_.begin() + static_cast<std::ptrdiff_t>(drawn));

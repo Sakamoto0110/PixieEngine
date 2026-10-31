@@ -83,6 +83,7 @@ private:
     ShaderProgram program_;
     ShaderProgram receiverProgram_;
     ShaderProgram emissionProgram_;
+    ShaderProgram normalProgram_;
     LightingPass pass_ = LightingPass::Color;
     GlVertexArray vertexArray_;
     GlBuffer instances_;

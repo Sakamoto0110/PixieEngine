@@ -79,6 +79,22 @@ struct LightingParameters {
     ToneMapping toneMapping = ToneMapping::None;
     // Shadows computed at half the resolution and filtered up: cheaper, softer at their edges.
     bool halfResolutionShadows = false;
+    // Optional effects, off at zero (LIT-013). Ambient occlusion darkens the ambient light near
+    // occluder edges, on their outer side, within `occlusionRadius` world units.
+    float occlusionStrength = 0.0f;
+    float occlusionRadius = 24.0f;
+    // Fog toward `fogColor` (linear), `fogDensity` at world y `fogBottom` and above, none at `fogTop`.
+    float fogDensity = 0.0f;
+    std::array<float, 3> fogColor{0.15f, 0.17f, 0.22f};
+    float fogTop = 0.0f;
+    float fogBottom = 400.0f;
+    // Bloom: radiance above `bloomThreshold`, blurred at half resolution, added before tone mapping.
+    float bloomIntensity = 0.0f;
+    float bloomThreshold = 1.0f;
+    // Normal maps (the normal target, LightingPass::Normals): lights stand `normalHeight` world units
+    // above the plane.
+    bool normalMaps = false;
+    float normalHeight = 48.0f;
 };
 
 // GPU time of a lit frame's lighting, in milliseconds, read a few frames after it was drawn: light
@@ -119,6 +135,8 @@ public:
     // Draws into the emission target from now on: linear radiance, premultiplied by coverage, added
     // unlit by the combine (LightingPass::Emission).
     PIXIE_RENDER_API void BeginEmission();
+    // Draws into the normal target from now on (LightingPass::Normals): cleared to flat, no strength.
+    PIXIE_RENDER_API void BeginNormals();
     // Accumulates ambient and `lights`, seen through `view`, each shadowed by the `occluders` edges
     // of its shadow layers (shadow volumes with analytic penumbrae, docs/lighting-l0-design.md),
     // then combines into the framebuffer and viewport remembered by BeginWorld, which stay bound.
@@ -144,6 +162,9 @@ private:
     ShaderProgram lightProgram_;
     ShaderProgram shadowProgram_;
     ShaderProgram combineProgram_;
+    ShaderProgram occlusionProgram_;
+    ShaderProgram brightProgram_;
+    ShaderProgram blurProgram_;
     GlBuffer lightBuffer_;
     GlBuffer edgeBuffer_;
     GLuint vertexArray_ = 0;
@@ -153,10 +174,16 @@ private:
     Target albedo_;
     Target receivers_;
     Target emission_;
+    Target normals_;
     Target light_;
     Target mask_;
     Target halfMask_;
     GLuint halfMaskFramebuffer_ = 0;
+    // Effects: ambient occlusion (full size), radiance (full size) and two bloom buffers (half size).
+    Target occlusion_;
+    Target scene_;
+    std::array<Target, 2> bloom_{};
+    GLuint effectFramebuffer_ = 0;
     std::vector<LightInstance> ordered_;
     FramebufferSize size_;
     GLint outputFramebuffer_ = 0;

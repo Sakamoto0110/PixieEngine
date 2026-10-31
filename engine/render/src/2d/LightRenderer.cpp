@@ -38,8 +38,10 @@ layout(std430, binding = 0) readonly buffer Lights { vec4 rows[]; };
 layout(location = 1) uniform mat4 uInverseViewProjection;
 layout(location = 2) uniform vec2 uSize;
 layout(location = 4) uniform int uShadowed;
+layout(location = 7) uniform float uNormalHeight;
 layout(binding = 0) uniform sampler2D uReceivers;
 layout(binding = 1) uniform sampler2D uOcclusion;
+layout(binding = 2) uniform sampler2D uNormals;
 
 flat in int vLight;
 out vec4 oLight;
@@ -67,6 +69,24 @@ void main() {
         if (kind == 1u) {
             float cosine = d > 0.0 ? dot(offset / d, c.xy) : 1.0;
             attenuation *= c.w > c.z ? smoothstep(c.z, c.w, cosine) : step(c.z, cosine);
+        }
+    }
+    if (uNormalHeight > 0.0) {
+        // Normal maps: the light arrives from its position raised by the height (directional: from
+        // its direction, raised as much as it travels), against the surface's normal; flat
+        // surfaces, and those without a map, keep their light.
+        vec4 normal = texelFetch(uNormals, ivec2(gl_FragCoord.xy), 0);
+        if (normal.a > 0.0) {
+            vec3 toLight;
+            if (kind == 2u) {
+                toLight = vec3(-c.xy, 1.0);
+            } else {
+                vec4 w = uInverseViewProjection * vec4(gl_FragCoord.xy / uSize * 2.0 - 1.0, 0.0, 1.0);
+                toLight = vec3(a.xy - w.xy / w.w, uNormalHeight);
+            }
+            vec3 l = normalize(toLight);
+            float facing = clamp(max(dot(normal.rgb * 2.0 - 1.0, l), 0.0) / max(l.z, 0.05), 0.0, 2.0);
+            attenuation *= mix(1.0, facing, normal.a);
         }
     }
     if (uShadowed != 0) {
@@ -207,15 +227,27 @@ void main() {
 }
 )";
 
-// The albedo target holds sRGB-encoded values, blended as the unlit renderer blends them.
+// The albedo target holds sRGB-encoded values, blended as the unlit renderer blends them. The
+// optional effects (ambient occlusion, fog, bloom) are off at their zero values, which leaves the
+// arithmetic of a plain lit frame as it is. Stage 1 writes the linear radiance alone, for bloom.
 constexpr std::string_view kCombineFragmentShader = R"(#version 450 core
 layout(binding = 0) uniform sampler2D uAlbedo;
 layout(binding = 1) uniform sampler2D uLight;
 layout(binding = 2) uniform sampler2D uReceivers;
 layout(binding = 3) uniform sampler2D uEmission;
+layout(binding = 4) uniform sampler2D uAmbientOcclusion;
+layout(binding = 5) uniform sampler2D uBloom;
 layout(location = 0) uniform float uExposure;
 layout(location = 1) uniform int uToneMapping;
 layout(location = 2) uniform ivec2 uOrigin;
+layout(location = 3) uniform int uStage;
+layout(location = 4) uniform vec3 uAmbient;
+layout(location = 5) uniform float uOcclusionStrength;
+layout(location = 6) uniform vec4 uFog;
+layout(location = 7) uniform vec2 uFogRange;
+layout(location = 8) uniform mat4 uInverseViewProjection;
+layout(location = 9) uniform vec2 uSize;
+layout(location = 10) uniform float uBloomIntensity;
 
 out vec4 oColor;
 
@@ -225,7 +257,24 @@ vec3 Encode(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.
 void main() {
     ivec2 p = ivec2(gl_FragCoord.xy) - uOrigin;
     vec4 albedo = texelFetch(uAlbedo, p, 0);
-    vec3 color = (Decode(albedo.rgb) * texelFetch(uLight, p, 0).rgb + texelFetch(uEmission, p, 0).rgb) * uExposure;
+    vec3 light = texelFetch(uLight, p, 0).rgb;
+    if (uOcclusionStrength > 0.0) {
+        // Ambient occlusion darkens only the ambient part of the light.
+        light = max(light - uAmbient * uOcclusionStrength * texelFetch(uAmbientOcclusion, p, 0).r, vec3(0.0));
+    }
+    vec3 color = (Decode(albedo.rgb) * light + texelFetch(uEmission, p, 0).rgb) * uExposure;
+    if (uFog.a > 0.0) {
+        vec4 w = uInverseViewProjection * vec4((vec2(p) + 0.5) / uSize * 2.0 - 1.0, 0.0, 1.0);
+        float amount = uFog.a * smoothstep(uFogRange.x, uFogRange.y, w.y / w.w);
+        color = mix(color, uFog.rgb * uExposure, amount);
+    }
+    if (uStage == 1) {
+        oColor = vec4(color, 1.0);
+        return;
+    }
+    if (uBloomIntensity > 0.0) {
+        color += texture(uBloom, (vec2(p) + 0.5) / uSize).rgb * uBloomIntensity;
+    }
     if (uToneMapping == 1) {
         color = color * (2.51 * color + 0.03) / (color * (2.43 * color + 0.59) + 0.14);
     }
@@ -234,6 +283,72 @@ void main() {
 }
 )";
 
+// Ambient occlusion in 2D: around each occluder edge, on its outer side, a fragment keeps the
+// strongest 1 - smoothstep(0, radius, distance to the edge); max blending merges the edges.
+constexpr std::string_view kOcclusionVertexShader = R"(#version 450 core
+layout(std430, binding = 1) readonly buffer Edges { vec4 edges[]; };
+layout(location = 0) uniform mat4 uViewProjection;
+layout(location = 3) uniform float uRadius;
+flat out vec4 vEdge;
+void main() {
+    vec4 e = edges[gl_InstanceID * 2];
+    vEdge = e;
+    vec2 a = e.xy, b = e.zw;
+    vec2 along = normalize(b - a) * uRadius;
+    vec2 across = vec2(along.y, -along.x);
+    vec2 corner = (gl_VertexID & 1) == 0 ? a - along : b + along;
+    corner += (gl_VertexID & 2) == 0 ? -across : across;
+    gl_Position = uViewProjection * vec4(corner, 0.0, 1.0);
+}
+)";
+
+constexpr std::string_view kOcclusionFragmentShader = R"(#version 450 core
+layout(location = 1) uniform mat4 uInverseViewProjection;
+layout(location = 2) uniform vec2 uSize;
+layout(location = 3) uniform float uRadius;
+flat in vec4 vEdge;
+out vec4 oOcclusion;
+void main() {
+    vec4 w = uInverseViewProjection * vec4(gl_FragCoord.xy / uSize * 2.0 - 1.0, 0.0, 1.0);
+    vec2 p = w.xy / w.w;
+    vec2 a = vEdge.xy, ab = vEdge.zw - vEdge.xy;
+    if (dot(vec2(ab.y, -ab.x), p - a) <= 0.0) {
+        discard;
+    }
+    float d = length(p - a - ab * clamp(dot(p - a, ab) / dot(ab, ab), 0.0, 1.0));
+    oOcclusion = vec4(1.0 - smoothstep(0.0, uRadius, d));
+}
+)";
+
+// Bloom: the radiance above a threshold, at half resolution (filtered down), blurred along one
+// axis per pass with a 9-tap Gaussian.
+constexpr std::string_view kBrightFragmentShader = R"(#version 450 core
+layout(binding = 0) uniform sampler2D uScene;
+layout(location = 0) uniform vec2 uSize;
+layout(location = 1) uniform float uThreshold;
+out vec4 oColor;
+void main() {
+    vec3 c = texture(uScene, gl_FragCoord.xy / uSize).rgb;
+    oColor = vec4(max(c - vec3(uThreshold), vec3(0.0)), 1.0);
+}
+)";
+
+constexpr std::string_view kBlurFragmentShader = R"(#version 450 core
+layout(binding = 0) uniform sampler2D uSource;
+layout(location = 0) uniform vec2 uSize;
+layout(location = 1) uniform vec2 uStep;
+out vec4 oColor;
+const float kWeights[5] = float[](0.227027, 0.1945946, 0.1216216, 0.054054, 0.016216);
+void main() {
+    vec2 uv = gl_FragCoord.xy / uSize;
+    vec3 sum = texture(uSource, uv).rgb * kWeights[0];
+    for (int i = 1; i < 5; ++i) {
+        sum += texture(uSource, uv + uStep * float(i)).rgb * kWeights[i];
+        sum += texture(uSource, uv - uStep * float(i)).rgb * kWeights[i];
+    }
+    oColor = vec4(sum, 1.0);
+}
+)";
 constexpr GLint kViewProjectionLocation = 0;
 constexpr GLint kInverseLocation = 1;
 constexpr GLint kSizeLocation = 2;
@@ -244,6 +359,16 @@ constexpr GLint kFarLocation = 5;
 constexpr GLint kExposureLocation = 0;
 constexpr GLint kToneMappingLocation = 1;
 constexpr GLint kOriginLocation = 2;
+constexpr GLint kStageLocation = 3;
+constexpr GLint kAmbientLocation = 4;
+constexpr GLint kOcclusionStrengthLocation = 5;
+constexpr GLint kFogLocation = 6;
+constexpr GLint kFogRangeLocation = 7;
+constexpr GLint kCombineInverseLocation = 8;
+constexpr GLint kCombineSizeLocation = 9;
+constexpr GLint kBloomIntensityLocation = 10;
+constexpr GLint kRadiusLocation = 3;
+constexpr GLint kNormalHeightLocation = 7;
 
 GLuint CreateTarget(GLenum format, FramebufferSize size, GLint filter = GL_NEAREST) {
     GLuint texture = 0;
@@ -300,7 +425,10 @@ bool LightRenderer::Create() {
     const std::string shadowFragment = std::string(kShadowCommon) + std::string(kShadowFragmentShader);
     if (!lightProgram_.Create("LightRenderer", kLightVertexShader, kLightFragmentShader) ||
         !shadowProgram_.Create("LightRenderer shadows", shadowVertex, shadowFragment) ||
-        !combineProgram_.Create("LightRenderer combine", kCombineVertexShader, kCombineFragmentShader)) {
+        !combineProgram_.Create("LightRenderer combine", kCombineVertexShader, kCombineFragmentShader) ||
+        !occlusionProgram_.Create("LightRenderer occlusion", kOcclusionVertexShader, kOcclusionFragmentShader) ||
+        !brightProgram_.Create("LightRenderer bloom", kCombineVertexShader, kBrightFragmentShader) ||
+        !blurProgram_.Create("LightRenderer blur", kCombineVertexShader, kBlurFragmentShader)) {
         return false;
     }
     lightBuffer_.Create();
@@ -310,6 +438,7 @@ bool LightRenderer::Create() {
     glCreateFramebuffers(1, &lightFramebuffer_);
     glCreateFramebuffers(1, &maskFramebuffer_);
     glCreateFramebuffers(1, &halfMaskFramebuffer_);
+    glCreateFramebuffers(1, &effectFramebuffer_);
     for (auto& frame : queries_) {
         glCreateQueries(GL_TIMESTAMP, static_cast<GLsizei>(frame.size()), frame.data());
     }
@@ -325,7 +454,7 @@ void LightRenderer::Destroy() {
             frame = {};
         }
     }
-    for (GLuint* framebuffer : {&halfMaskFramebuffer_, &maskFramebuffer_, &lightFramebuffer_, &worldFramebuffer_}) {
+    for (GLuint* framebuffer : {&effectFramebuffer_, &halfMaskFramebuffer_, &maskFramebuffer_, &lightFramebuffer_, &worldFramebuffer_}) {
         if (*framebuffer != 0) {
             glDeleteFramebuffers(1, framebuffer);
             *framebuffer = 0;
@@ -337,13 +466,16 @@ void LightRenderer::Destroy() {
     }
     edgeBuffer_.Destroy();
     lightBuffer_.Destroy();
+    blurProgram_.Destroy();
+    brightProgram_.Destroy();
+    occlusionProgram_.Destroy();
     combineProgram_.Destroy();
     shadowProgram_.Destroy();
     lightProgram_.Destroy();
 }
 
 void LightRenderer::DestroyTargets() {
-    for (Target* target : {&albedo_, &receivers_, &emission_, &light_, &mask_, &halfMask_}) {
+    for (Target* target : {&albedo_, &receivers_, &emission_, &normals_, &light_, &mask_, &halfMask_, &occlusion_, &scene_, &bloom_[0], &bloom_[1]}) {
         if (target->texture != 0) {
             glDeleteTextures(1, &target->texture);
             target->texture = 0;
@@ -363,16 +495,23 @@ bool LightRenderer::Resize(FramebufferSize size) {
     albedo_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
     receivers_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
     emission_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
+    normals_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
     light_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
     // Filtered: a half-resolution mask is sampled between its texels.
     mask_ = {CreateTarget(GL_R32F, size, GL_LINEAR), GL_R32F};
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT0, albedo_.texture, 0);
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT1, receivers_.texture, 0);
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT2, emission_.texture, 0);
+    glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT3, normals_.texture, 0);
     glNamedFramebufferTexture(lightFramebuffer_, GL_COLOR_ATTACHMENT0, light_.texture, 0);
     glNamedFramebufferTexture(maskFramebuffer_, GL_COLOR_ATTACHMENT0, mask_.texture, 0);
     halfMask_ = {CreateTarget(GL_R32F, {(size.width + 1) / 2, (size.height + 1) / 2}, GL_LINEAR), GL_R32F};
     glNamedFramebufferTexture(halfMaskFramebuffer_, GL_COLOR_ATTACHMENT0, halfMask_.texture, 0);
+    occlusion_ = {CreateTarget(GL_R16F, size), GL_R16F};
+    scene_ = {CreateTarget(GL_RGBA16F, size, GL_LINEAR), GL_RGBA16F};
+    for (Target& bloom : bloom_) {
+        bloom = {CreateTarget(GL_RGBA16F, {(size.width + 1) / 2, (size.height + 1) / 2}, GL_LINEAR), GL_RGBA16F};
+    }
     size_ = size;
     return true;
 }
@@ -383,14 +522,16 @@ void LightRenderer::BeginWorld(FramebufferSize size, pxColorRgba background) {
     if (!Resize(size)) {
         return;
     }
-    const std::array<GLenum, 3> all{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2};
-    glNamedFramebufferDrawBuffers(worldFramebuffer_, 3, all.data());
+    const std::array<GLenum, 4> all{GL_COLOR_ATTACHMENT0, GL_COLOR_ATTACHMENT1, GL_COLOR_ATTACHMENT2, GL_COLOR_ATTACHMENT3};
+    glNamedFramebufferDrawBuffers(worldFramebuffer_, 4, all.data());
     const std::array<GLfloat, 4> clear{background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f};
     const std::array<GLfloat, 4> everyLayerLit{1.0f, 0.0f, 0.0f, 0.0f};
     glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 0, clear.data());
     glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 1, everyLayerLit.data());
     const std::array<GLfloat, 4> dark{0.0f, 0.0f, 0.0f, 0.0f};
     glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 2, dark.data());
+    const std::array<GLfloat, 4> flat{0.5f, 0.5f, 1.0f, 0.0f};
+    glClearNamedFramebufferfv(worldFramebuffer_, GL_COLOR, 3, flat.data());
     glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT0);
     glBindFramebuffer(GL_FRAMEBUFFER, worldFramebuffer_);
     glViewport(0, 0, size.width, size.height);
@@ -402,6 +543,10 @@ void LightRenderer::BeginReceivers() {
 
 void LightRenderer::BeginEmission() {
     glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT2);
+}
+
+void LightRenderer::BeginNormals() {
+    glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT3);
 }
 
 void LightRenderer::Finish(const View& view, const LightingParameters& parameters,
@@ -476,6 +621,8 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightBuffer_.Id());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, edgeBuffer_.Id());
         glBindTextureUnit(0, receivers_.texture);
+        glBindTextureUnit(2, normals_.texture);
+        glProgramUniform1f(lightProgram_.Id(), kNormalHeightLocation, parameters.normalMaps ? std::max(parameters.normalHeight, 0.001f) : 0.0f);
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE);
         if (unshadowed > 0) {
@@ -519,28 +666,95 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
     } else {
         glQueryCounter(queries[1], GL_TIMESTAMP);
     }
+    const pxMat4f inverse(pxInverse(view.ViewProjection()));
+    const auto width = static_cast<float>(size_.width);
+    const auto height = static_cast<float>(size_.height);
+    if (parameters.occlusionStrength > 0.0f) {
+        // Ambient occlusion around the occluders' edges, kept at its strongest per pixel.
+        glNamedFramebufferTexture(effectFramebuffer_, GL_COLOR_ATTACHMENT0, occlusion_.texture, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, effectFramebuffer_);
+        glViewport(0, 0, size_.width, size_.height);
+        const std::array<GLfloat, 4> none{0.0f, 0.0f, 0.0f, 0.0f};
+        glClearNamedFramebufferfv(effectFramebuffer_, GL_COLOR, 0, none.data());
+        if (!occluders.empty()) {
+            edgeBuffer_.Upload(occluders);
+            const pxMat4f viewProjection(view.ViewProjection());
+            const GLuint program = occlusionProgram_.Id();
+            glProgramUniformMatrix4fv(program, kViewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
+            glProgramUniformMatrix4fv(program, kInverseLocation, 1, GL_FALSE, glm::value_ptr(inverse));
+            glProgramUniform2f(program, kSizeLocation, width, height);
+            glProgramUniform1f(program, kRadiusLocation, std::max(parameters.occlusionRadius, 0.001f));
+            glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, edgeBuffer_.Id());
+            glEnable(GL_BLEND);
+            glBlendEquation(GL_MAX);
+            glBlendFunc(GL_ONE, GL_ONE);
+            glUseProgram(program);
+            glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(occluders.size()));
+            glBlendEquation(GL_FUNC_ADD);
+        }
+    }
     glQueryCounter(queries[2], GL_TIMESTAMP);
 
-    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(outputFramebuffer_));
-    glViewport(outputViewport_[0], outputViewport_[1], outputViewport_[2], outputViewport_[3]);
     glDisable(GL_BLEND);
     const GLuint combine = combineProgram_.Id();
     glProgramUniform1f(combine, kExposureLocation, parameters.exposure);
     glProgramUniform1i(combine, kToneMappingLocation, parameters.toneMapping == ToneMapping::Aces ? 1 : 0);
-    glProgramUniform2i(combine, kOriginLocation, outputViewport_[0], outputViewport_[1]);
-    glUseProgram(combine);
+    glProgramUniform3f(combine, kAmbientLocation, parameters.ambient[0], parameters.ambient[1], parameters.ambient[2]);
+    glProgramUniform1f(combine, kOcclusionStrengthLocation, std::max(parameters.occlusionStrength, 0.0f));
+    glProgramUniform4f(combine, kFogLocation, parameters.fogColor[0], parameters.fogColor[1], parameters.fogColor[2],
+                       std::clamp(parameters.fogDensity, 0.0f, 1.0f));
+    glProgramUniform2f(combine, kFogRangeLocation, parameters.fogTop, parameters.fogBottom);
+    glProgramUniformMatrix4fv(combine, kCombineInverseLocation, 1, GL_FALSE, glm::value_ptr(inverse));
+    glProgramUniform2f(combine, kCombineSizeLocation, width, height);
     glBindTextureUnit(0, albedo_.texture);
     glBindTextureUnit(1, light_.texture);
     glBindTextureUnit(2, receivers_.texture);
     glBindTextureUnit(3, emission_.texture);
+    glBindTextureUnit(4, occlusion_.texture);
+    glBindTextureUnit(5, bloom_[0].texture);
+    const bool bloom = parameters.bloomIntensity > 0.0f;
+    if (bloom) {
+        // The linear radiance, then what exceeds the threshold at half size, blurred across and down.
+        glNamedFramebufferTexture(effectFramebuffer_, GL_COLOR_ATTACHMENT0, scene_.texture, 0);
+        glBindFramebuffer(GL_FRAMEBUFFER, effectFramebuffer_);
+        glViewport(0, 0, size_.width, size_.height);
+        glProgramUniform1i(combine, kStageLocation, 1);
+        glProgramUniform2i(combine, kOriginLocation, 0, 0);
+        glUseProgram(combine);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        const FramebufferSize half{(size_.width + 1) / 2, (size_.height + 1) / 2};
+        const auto halfWidth = static_cast<float>(half.width);
+        const auto halfHeight = static_cast<float>(half.height);
+        glViewport(0, 0, half.width, half.height);
+        glNamedFramebufferTexture(effectFramebuffer_, GL_COLOR_ATTACHMENT0, bloom_[0].texture, 0);
+        glProgramUniform2f(brightProgram_.Id(), 0, halfWidth, halfHeight);
+        glProgramUniform1f(brightProgram_.Id(), 1, parameters.bloomThreshold);
+        glUseProgram(brightProgram_.Id());
+        glBindTextureUnit(0, scene_.texture);
+        glDrawArrays(GL_TRIANGLES, 0, 3);
+        glProgramUniform2f(blurProgram_.Id(), 0, halfWidth, halfHeight);
+        glUseProgram(blurProgram_.Id());
+        for (const int pass : {0, 1}) {
+            glNamedFramebufferTexture(effectFramebuffer_, GL_COLOR_ATTACHMENT0, bloom_[static_cast<std::size_t>(1 - pass)].texture, 0);
+            glProgramUniform2f(blurProgram_.Id(), 1, pass == 0 ? 1.0f / halfWidth : 0.0f, pass == 0 ? 0.0f : 1.0f / halfHeight);
+            glBindTextureUnit(0, bloom_[static_cast<std::size_t>(pass)].texture);
+            glDrawArrays(GL_TRIANGLES, 0, 3);
+        }
+        glBindTextureUnit(0, albedo_.texture);
+    }
+    glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(outputFramebuffer_));
+    glViewport(outputViewport_[0], outputViewport_[1], outputViewport_[2], outputViewport_[3]);
+    glProgramUniform1i(combine, kStageLocation, 0);
+    glProgramUniform2i(combine, kOriginLocation, outputViewport_[0], outputViewport_[1]);
+    glProgramUniform1f(combine, kBloomIntensityLocation, bloom ? parameters.bloomIntensity : 0.0f);
+    glUseProgram(combine);
     glDrawArrays(GL_TRIANGLES, 0, 3);
     glQueryCounter(queries[3], GL_TIMESTAMP);
-    // Leave the usual blending, and texture units 1 to 3 free.
+    // Leave the usual blending, and texture units 1 to 5 free.
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBindTextureUnit(1, 0);
-    glBindTextureUnit(2, 0);
-    glBindTextureUnit(3, 0);
+    for (GLuint unit = 1; unit <= 5; ++unit) {
+        glBindTextureUnit(unit, 0);
+    }
 }
-
 } // namespace pixie

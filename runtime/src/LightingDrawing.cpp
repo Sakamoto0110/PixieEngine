@@ -58,6 +58,25 @@ LightingParameters MakeLightingParameters(const LightingSettings2D& settings) {
     parameters.toneMapping =
         settings.toneMapping == LightToneMapping2D::Aces ? ToneMapping::Aces : ToneMapping::None;
     parameters.halfResolutionShadows = settings.quality == LightQuality2D::Low;
+    parameters.normalMaps = settings.normalMaps;
+    parameters.normalHeight = static_cast<float>(std::isfinite(settings.normalHeight) ? std::max(settings.normalHeight, 0.001) : 48.0);
+    const auto finite = [](double value, double fallback) { return std::isfinite(value) ? value : fallback; };
+    if (settings.ambientOcclusion) {
+        parameters.occlusionStrength = static_cast<float>(std::clamp(finite(settings.occlusionStrength, 0.0), 0.0, 1.0));
+        parameters.occlusionRadius = static_cast<float>(std::max(finite(settings.occlusionRadius, 0.0), 0.001));
+    }
+    if (settings.fog) {
+        parameters.fogDensity = static_cast<float>(std::clamp(finite(settings.fogDensity, 0.0), 0.0, 1.0));
+        parameters.fogColor = Linear(settings.fogColor, 1.0);
+        const double top = finite(settings.fogTop, 0.0);
+        parameters.fogTop = static_cast<float>(top);
+        // smoothstep needs its edges apart and in order.
+        parameters.fogBottom = static_cast<float>(std::max(finite(settings.fogBottom, top + 1.0), top + 0.001));
+    }
+    if (settings.bloom) {
+        parameters.bloomIntensity = static_cast<float>(std::clamp(finite(settings.bloomIntensity, 0.0), 0.0, 16.0));
+        parameters.bloomThreshold = static_cast<float>(std::max(finite(settings.bloomThreshold, 1.0), 0.0));
+    }
     return parameters;
 }
 
@@ -404,8 +423,19 @@ pxColorRgba EmissionColor(const Emission2D* emission) {
 }
 
 pxColorRgba PassColor(const entt::registry& registry, entt::entity id, std::uint8_t alpha, LightingPass pass) {
+    if (pass == LightingPass::Normals) {
+        const auto* normal = registry.try_get<const NormalMap2D>(id);
+        const double strength = normal != nullptr && std::isfinite(normal->strength) ? std::clamp(normal->strength, 0.0, 1.0) : 0.0;
+        return pxColorRgba(static_cast<std::uint8_t>(std::lround(strength * 255.0)),
+                           static_cast<std::uint8_t>(normal != nullptr && !normal->image.empty() ? 255 : 0), alpha, 255);
+    }
     return pass == LightingPass::Emission ? EmissionColor(registry.try_get<const Emission2D>(id))
                                           : ReceiverColor(registry.try_get<const LightReceiver2D>(id), alpha);
+}
+
+bool HasNormalMaps(World& world) {
+    const auto maps = world.Registry().view<const NormalMap2D>();
+    return maps.begin() != maps.end();
 }
 
 bool HasEmission(World& world) {

@@ -308,6 +308,13 @@ void ProjectSession::Render(double alpha) {
                 DrawParticlePools(*world_, particles_, camera_, alpha, true);
                 particles_.SetEmissionPass(false);
             }
+            if (lighting->normalMaps && HasNormalMaps(*world_)) {
+                lighting_.BeginNormals();
+                sprites_.SetLightingPass(LightingPass::Normals);
+                SubmitSpriteNormals(*world_, sprites_, images_, alpha, &texts, &view);
+                sprites_.Flush(camera_.MakeView());
+                sprites_.SetLightingPass(LightingPass::Color);
+            }
             GatherLights(*world_, alpha, &view, lights_);
             shadowedDropped = CapShadowedLights(lights_, ShadowedLightCap(lighting->quality), view);
             sceneLights = lights_.size();

@@ -91,5 +91,9 @@ PIXIE_RUNTIME_API void SubmitSpriteReceivers(World& world, SpriteRenderer& rende
 PIXIE_RUNTIME_API void SubmitSpriteEmission(World& world, SpriteRenderer& renderer, SpriteImages& images,
                                             double alpha, const TextSources* texts = nullptr,
                                             const pxRect* view = nullptr);
+// The same for the normal pass: a sprite with a NormalMap2D draws its map, with its strength.
+PIXIE_RUNTIME_API void SubmitSpriteNormals(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                           double alpha, const TextSources* texts = nullptr,
+                                           const pxRect* view = nullptr);
 
 } // namespace pixie

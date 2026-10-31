@@ -346,7 +346,23 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
         .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.")
         .Field<&LightingSettings2D::maxParticleLights>("maxParticleLights").Label("max particle lights").Tooltip("At most this many particle light splats a frame, over all pools.").Range(0, 65536)
-        .Field<&LightingSettings2D::quality>("quality", {"Low", "Medium", "High"}).Tooltip("The most shadow-casting lights a frame draws: 8, 32 or 64. Over it, the weakest are left out and counted in telemetry.");
+        .Field<&LightingSettings2D::quality>("quality", {"Low", "Medium", "High"}).Tooltip("The most shadow-casting lights a frame draws: 8, 32 or 64; Low also computes shadows at half resolution. Over the cap, the weakest are left out and counted in telemetry.")
+        .Field<&LightingSettings2D::ambientOcclusion>("ambientOcclusion").Label("ambient occlusion").Tooltip("Darkens the ambient light near the outer side of occluder edges, where floors meet walls and boxes.")
+        .Field<&LightingSettings2D::occlusionRadius>("occlusionRadius").Label("occlusion radius").Tooltip("How far from an occluder edge, in world units, the ambient light is darkened.").Range(0.001, 10000).Scrub(0.5)
+        .Field<&LightingSettings2D::occlusionStrength>("occlusionStrength").Label("occlusion strength").Tooltip("The share of the ambient light removed right at an edge, 0 to 1.").Range(0, 1).Scrub(0.01)
+        .Field<&LightingSettings2D::fog>("fog").Tooltip("Blends the lit image toward a fog color, more toward the bottom of the world.")
+        .Field<&LightingSettings2D::fogColor>("fogColor").Label("fog color").Tooltip("The fog's color.")
+        .Field<&LightingSettings2D::fogDensity>("fogDensity").Label("fog density").Tooltip("How much of the fog color shows at the fog's bottom and below, 0 to 1.").Range(0, 1).Scrub(0.01)
+        .Field<&LightingSettings2D::fogTop>("fogTop").Label("fog top").Tooltip("World y where the fog starts (Y points down).").Scrub(1)
+        .Field<&LightingSettings2D::fogBottom>("fogBottom").Label("fog bottom").Tooltip("World y where the fog reaches its density; below the top.").Scrub(1)
+        .Field<&LightingSettings2D::bloom>("bloom").Tooltip("Spreads light brighter than the threshold into a soft glow.")
+        .Field<&LightingSettings2D::bloomThreshold>("bloomThreshold").Label("bloom threshold").Tooltip("Linear brightness above which light glows; 1 is the brightest an unlit surface shows.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::bloomIntensity>("bloomIntensity").Label("bloom intensity").Tooltip("How strongly the glow is added.").Range(0, 16).Scrub(0.01)
+        .Field<&LightingSettings2D::normalMaps>("normalMaps").Label("normal maps").Tooltip("Shades sprites with a NormalMap2D by their relief.")
+        .Field<&LightingSettings2D::normalHeight>("normalHeight").Label("normal height").Tooltip("How high lights stand above the plane for normal maps, in world units: lower is more raking light.").Range(0.001, 100000).Scrub(1);
+    types.Add<NormalMap2D>("NormalMap2D")
+        .Field<&NormalMap2D::image>("image").Asset("png").Tooltip("The normal map PNG, the sprite's size, relative to the project folder; green points to the image's top.")
+        .Field<&NormalMap2D::strength>("strength").Tooltip("0 ignores the map, 1 applies it fully.").Range(0, 1).Scrub(0.01);
     types.Add<Emission2D>("Emission2D")
         .Field<&Emission2D::color>("color").Tooltip("The glow's tint: the sprite's image, or the shape, times this color shows unlit, even in darkness.")
         .Field<&Emission2D::intensity>("intensity").Tooltip("Linear multiplier from 0 to 16; game code fades it to show a state change.").Range(0, 16).Scrub(0.01);

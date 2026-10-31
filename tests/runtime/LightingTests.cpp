@@ -25,6 +25,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <fstream>
 #include <map>
 #include <string>
 #include <memory>
@@ -828,6 +829,98 @@ TEST(LightLayersHaveNames) {
     CHECK(names[0] == "Default" && names[1] == "Background" && names[2] == "Light layer 3");
     config.Get<pixie::LightLayers2D>().layers.push_back({{2, "Again"}, {}});
     CHECK(pixie::LightLayerNames(world)[1] == "Light layer 2");
+}
+
+// LIT-013: ambient occlusion darkens the ambient light just outside occluder edges, fading out over
+// its radius, and nowhere else: not inside the occluder, not far from it, not when off.
+TEST(AmbientOcclusionDarkensNearEdges) {
+    for (const bool on : {true, false}) {
+        Lab lab;
+        pixie::LightingSettings2D settings;
+        settings.ambientOcclusion = on;
+        settings.occlusionRadius = 10.0;
+        settings.occlusionStrength = 0.5;
+        lab.Settings(settings);
+        Box(lab, pxPoint(0.0, 0.0), pxVec2(10.0, 10.0));
+        const auto pixels = lab.Render();
+        const double near = 1.0 - 0.5 * (1.0 - (0.5 * 0.5 / 100.0) * (3.0 - 2.0 * 0.5 / 10.0));
+        CHECK(on ? Near(At(pixels, 10.5, 0.0), Expected(near), 2) : At(pixels, 10.5, 0.0) == 255);
+        CHECK(At(pixels, 40.0, 0.0) == 255);
+        CHECK(At(pixels, 0.0, 0.0) == 255);
+    }
+}
+
+// LIT-013: fog blends toward its color, more toward the bottom of the world (Y down).
+TEST(FogGrowsTowardTheBottom) {
+    Lab lab;
+    pixie::LightingSettings2D settings;
+    settings.fog = true;
+    settings.fogColor = pxColorRgba(0, 0, 0);
+    settings.fogDensity = 1.0;
+    settings.fogTop = -40.0;
+    settings.fogBottom = 40.0;
+    lab.Settings(settings);
+    const auto pixels = lab.Render();
+    CHECK(At(pixels, 0.0, -60.0) == 255);
+    CHECK(At(pixels, 0.0, 60.0) == 0);
+    CHECK(Near(At(pixels, 0.0, 0.5), Expected(1.0 - 0.5 * (1.0 + 0.0)), 6));
+}
+
+// LIT-013: bloom spreads light above its threshold around an emissive surface; off, nothing spreads.
+TEST(BloomSpreadsBrightLight) {
+    for (const bool on : {true, false}) {
+        Lab lab;
+        pixie::LightingSettings2D settings = Dark();
+        settings.bloom = on;
+        settings.bloomThreshold = 1.0;
+        settings.bloomIntensity = 1.0;
+        lab.Settings(settings);
+        lab.Quad(pxPoint(0.0, 0.0), 3.0, pxColorRgba(255, 255, 255)).Add<pixie::Emission2D>(pixie::Emission2D{pxColorRgba(255, 255, 255), 8.0});
+        const auto pixels = lab.Render();
+        CHECK(At(pixels, 0.0, 0.0) == 255);
+        CHECK(on ? At(pixels, 6.0, 0.0) > 20 : At(pixels, 6.0, 0.0) == 0);
+        CHECK(At(pixels, 40.0, 0.0) == 0);
+    }
+}
+
+// LIT-013: a normal map shades its sprite by relief: a surface facing right is dark under a light on
+// its left and lit by one on its right, by the angle the light arrives from at its height; without
+// normalMaps on, the sprite keeps its flat light.
+TEST(NormalMapsShadeByRelief) {
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() / "pixie-lighting-normals";
+    std::filesystem::create_directories(folder / "scenes");
+    std::ofstream(folder / "normals.pixie") << R"({"format": "pixie-project", "version": 1, "name": "normals", "startScene": "scenes/main.scene"})";
+    std::ofstream(folder / "scenes" / "main.scene") << R"({"format": "pixie-scene", "version": 1, "seed": 1, "entities": []})";
+    const std::vector<std::uint8_t> white(8 * 8 * 4, 255);
+    std::vector<std::uint8_t> right(8 * 8 * 4, 255);
+    for (std::size_t i = 0; i < right.size(); i += 4) {
+        right[i + 1] = 128;
+        right[i + 2] = 128;
+    }
+    CHECK(pixie::WriteFileBytes(folder / "albedo.png", pixie::EncodePng(8, 8, white)));
+    CHECK(pixie::WriteFileBytes(folder / "normal.png", pixie::EncodePng(8, 8, right)));
+    const auto shade = [&](double lightX, bool normalMaps) {
+        Lab lab;
+        CHECK(lab.session->OpenProject(folder));
+        lab.session->SetLightingDebug(0);
+        pixie::LightingSettings2D settings = Dark();
+        settings.normalMaps = normalMaps;
+        settings.normalHeight = 48.0;
+        lab.Settings(settings);
+        lab.Add(pxPoint(lightX, 0.0)).Add<pixie::Light2D>(FlatLight(200.0, 0.0));
+        pixie::Entity sprite = lab.Add(pxPoint(0.0, 0.0));
+        sprite.Get<pixie::Transform2D>().scale = pxVec2(4.0, 4.0);
+        lab.World().ResetInterpolation(sprite);
+        pixie::Sprite look;
+        look.image = "albedo.png";
+        sprite.Add<pixie::Sprite>(look);
+        sprite.Add<pixie::NormalMap2D>(pixie::NormalMap2D{"normal.png", 1.0});
+        return At(lab.Render(), 0.5, 0.5);
+    };
+    const double length = std::hypot(30.0, 48.0);
+    CHECK(shade(-30.0, true) < 3);
+    CHECK(Near(shade(30.0, true), Expected((30.0 / length) / (48.0 / length) * 1.0), 3));
+    CHECK(shade(-30.0, false) == 255);
 }
 
 // LIT-017: a lit frame records CPU time, GPU time of light accumulation, shadows and combine (from

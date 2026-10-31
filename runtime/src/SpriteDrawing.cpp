@@ -166,7 +166,9 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
         if (view != nullptr && !SpriteInView(sprite, drawn, SpritePixelSize(sprite, images), *view)) {
             return;
         }
-        const Texture& texture = images.TextureOf(sprite.image);
+        // The normal pass draws a sprite's normal map in its place, when it has one.
+        const auto* normalMap = pass == LightingPass::Normals ? registry.try_get<const NormalMap2D>(item.id) : nullptr;
+        const Texture& texture = images.TextureOf(normalMap != nullptr && !normalMap->image.empty() ? normalMap->image : sprite.image);
         const pxVec2 size = SpritePixelSize(sprite, images) * drawn.scale;
 
         SpriteInstance instance;
@@ -201,6 +203,11 @@ void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages&
 void SubmitSpriteEmission(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
                           const TextSources* texts, const pxRect* view) {
     Submit(world, renderer, images, alpha, texts, view, LightingPass::Emission);
+}
+
+void SubmitSpriteNormals(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                         const TextSources* texts, const pxRect* view) {
+    Submit(world, renderer, images, alpha, texts, view, LightingPass::Normals);
 }
 
 } // namespace pixie

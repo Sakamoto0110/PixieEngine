@@ -53,6 +53,8 @@ struct Room {
     int boxes = 0;
     int particles = 0;
     pixie::LightQuality2D quality = pixie::LightQuality2D::Medium;
+    // Ambient occlusion, fog and bloom.
+    bool effects = false;
 };
 
 void Build(pixie::World& world, const Room& room, double width, double height) {
@@ -72,6 +74,9 @@ void Build(pixie::World& world, const Room& room, double width, double height) {
     settings.ambientIntensity = 0.3;
     settings.toneMapping = pixie::LightToneMapping2D::Aces;
     settings.quality = room.quality;
+    settings.ambientOcclusion = room.effects;
+    settings.fog = room.effects;
+    settings.bloom = room.effects;
     at(pxPoint(0.0, 0.0), 0.0).Add<pixie::LightingSettings2D>(settings);
     for (int i = 0; i < room.boxes; ++i) {
         const pxVec2 half(8.0 + 36.0 * next(), 8.0 + 36.0 * next());
@@ -165,6 +170,7 @@ int Run(int argc, char** argv) {
             {"lights-8-low-half-mask", 8, 128, 0, pixie::LightQuality2D::Low},
             {"lights-8-medium", 8, 128, 0, pixie::LightQuality2D::Medium},
             {"lights-16-burst-2000", 16, 128, 2000, pixie::LightQuality2D::Medium},
+            {"lights-16-effects", 16, 128, 0, pixie::LightQuality2D::Medium, true},
         };
         std::ofstream csv(out / "budget.csv");
         csv << "label,renderer,width,height,room,lights,boxes,particles,frames,cold_wall_ms";

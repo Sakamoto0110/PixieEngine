@@ -110,6 +110,9 @@ PIXIE_RUNTIME_API pxColorRgba EmissionColor(const Emission2D* emission);
 PIXIE_RUNTIME_API pxColorRgba PassColor(const entt::registry& registry, entt::entity id, std::uint8_t alpha,
                                         LightingPass pass);
 
+// Whether any entity has a NormalMap2D, so a frame with normal maps on needs the normal pass.
+PIXIE_RUNTIME_API bool HasNormalMaps(World& world);
+
 // Whether any entity has an Emission2D or any pool is emissive, so a frame needs the emission pass.
 PIXIE_RUNTIME_API bool HasEmission(World& world);
 

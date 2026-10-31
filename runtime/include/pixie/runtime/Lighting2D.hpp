@@ -40,6 +40,26 @@ struct LightingSettings2D {
     // At most this many particle light splats a frame, over all pools, after each pool's cap.
     int maxParticleLights = 2048;
     LightQuality2D quality = LightQuality2D::Medium;
+    // Optional effects (LIT-013), off by default. Ambient occlusion darkens the ambient light within
+    // `occlusionRadius` world units outside occluder edges, by up to `occlusionStrength`.
+    bool ambientOcclusion = false;
+    double occlusionRadius = 24.0;
+    double occlusionStrength = 0.6;
+    // Fog toward `fogColor` (sRGB): none at world y `fogTop`, `fogDensity` at `fogBottom` and below
+    // (Y down), applied before tone mapping.
+    bool fog = false;
+    pxColorRgba fogColor{110, 120, 140};
+    double fogDensity = 0.4;
+    double fogTop = 0.0;
+    double fogBottom = 400.0;
+    // Bloom: light above `bloomThreshold` spreads into a glow at `bloomIntensity`.
+    bool bloom = false;
+    double bloomThreshold = 1.0;
+    double bloomIntensity = 0.5;
+    // Normal maps (NormalMap2D) shade sprites by their relief, with lights `normalHeight` world units
+    // above the plane.
+    bool normalMaps = false;
+    double normalHeight = 48.0;
     bool operator==(const LightingSettings2D&) const = default;
 };
 
@@ -147,6 +167,16 @@ struct LightReceiver2D {
     // Shown at its own color, ignoring light, exposure and tone mapping.
     bool unlit = false;
     bool operator==(const LightReceiver2D&) const = default;
+};
+
+// A normal map for the entity's Sprite: a PNG of the same size and region, in tangent space with green
+// toward the image's top. With LightingSettings2D::normalMaps, lights shade the sprite by its relief,
+// turning with the sprite; without a map, a surface keeps its light.
+struct NormalMap2D {
+    std::string image;
+    // 0 ignores the map, 1 applies it fully.
+    double strength = 1.0;
+    bool operator==(const NormalMap2D&) const = default;
 };
 
 // One light layer's name; `slot` is the stable 1-based bit (1 to 8), never a list index.
