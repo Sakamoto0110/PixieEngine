@@ -325,12 +325,42 @@ occlusion at L4.
 - **Aggregate particle shadow (LIT-011).** Out of scope: a pool's light splats stay unshadowed. A
   shadowed light that follows an emitter is an ordinary `Light2D` on the emitter's entity.
 - **Shadowed-light budget (LIT-008).** Quality presets bound the shadow-casting lights in view:
-  `Low` 8 with a half-resolution occlusion mask, `Medium` 32, `High` 64, both at full resolution.
+  `Low` 8 with a half-resolution occlusion mask, `Medium` 32, `High` 64, both at full resolution
+  (L4 implements the caps; every preset still uses a full-resolution mask).
   Over the cap, the lights with the smallest contribution (intensity times covered screen area)
   are dropped, not drawn unshadowed, which would leak; the dropped count is in telemetry and the
   debug view.
 - **Readability.** The reduced-effects preset and a minimum ambient (LIT-014) are settings fields
   shaped with the quality presets at L4.
+
+### Budgets measured at L4
+
+`lighting-budget` (`tests/benchmarks/LightingBudget.cpp`) draws named rooms through a
+`ProjectSession`, with a panel open on the screen canvas, 240 warm frames after one cold frame (60
+on llvmpipe), and reads the lighting telemetry per frame. Boxes are occluders from colliders (4 edges
+each); lights are shadowed point lights of range 300 (220 with 64 lights) and source radius 10; the
+burst is 2000 illuminating, emissive particles. Code `122359b4515d1373c8cc96988fdff05b212e04d3`, vs2026 Release, on the owner's
+machine (section 5). Milliseconds, p50 (p99); "wall" is the whole frame with `glFinish`.
+
+| Room | Renderer, size | Wall | Lighting CPU | GPU shadows | GPU combine | Cold frame |
+|---|---|---|---|---|---|---|
+| 0 lights, 64 boxes | RX 7600, 1920 × 1080 | 0.35 (0.46) | 0.03 | 0 | 0.11 | 10.2 |
+| 16 lights, 128 boxes | RX 7600, 1920 × 1080 | 0.81 (1.50) | 0.07 | 0.41 (0.72) | 0.07 | 7.2 |
+| 64 lights, High | RX 7600, 1920 × 1080 | 1.83 (2.06) | 0.09 | 1.24 (1.25) | 0.07 | 2.2 |
+| 64 lights, Medium (32 dropped) | RX 7600, 1920 × 1080 | 1.11 (1.17) | 0.07 | 0.66 (0.67) | 0.07 | 1.3 |
+| 16 lights + 2000-particle burst | RX 7600, 1920 × 1080 | 1.28 (1.37) | 0.20 | 0.41 (0.42) | 0.07 | 2.1 |
+| 0 lights, 64 boxes | llvmpipe, 1280 × 720 | 3.8 (7.8) | 1.4 | 0 | 2.5 | 125 |
+| 16 lights, 128 boxes | llvmpipe, 1280 × 720 | 18.4 (22.8) | 16.4 | 14.9 | 1.9 | 318 |
+| 64 lights, High | llvmpipe, 1280 × 720 | 56.6 (63.2) | 54.5 | 53.0 | 2.1 | 327 |
+| 64 lights, Medium (32 dropped) | llvmpipe, 1280 × 720 | 31.6 (35.8) | 29.6 | 28.2 | 2.0 | 326 |
+| 16 lights + 2000-particle burst | llvmpipe, 1280 × 720 | 46.0 (53.5) | 44.0 | 17.3 | 2.1 | 438 |
+
+The burst's 2000 particle lights cost 0.33 ms of GPU light accumulation on the RX 7600 and 24.6 ms
+on llvmpipe. On llvmpipe the CPU and GPU columns coincide, since it renders while commands are
+issued. The cold frame includes creating the lighting targets; shader compilation happens earlier,
+at `Start`, and is not in it. Declared budgets for the RX 7600 at 1920 × 1080, from these figures
+with headroom: up to 64 shadowed lights and 2000 particle lights within 3 ms of GPU lighting at
+p99; llvmpipe is for correctness tests at small sizes, not a budget target.
 
 ## 7. Compatibility rule
 

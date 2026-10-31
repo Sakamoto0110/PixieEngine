@@ -811,7 +811,20 @@ particle, of its color times its alpha (faded with age when the pool fades) and 
 the first `lightCap` of the pool and at most `LightingSettings2D::maxParticleLights` in all,
 returning how many the caps left out.
 
-Light-layer names and authoring tools are later stages of
+`LightingSettings2D::quality` caps the shadow-casting lights a frame draws at 8, 32 or 64
+(`ShadowedLightCap`); over the cap, `CapShadowedLights` removes those that contribute least (summed
+color times the area they cover in view), never drawing them unshadowed. A lit frame records, in
+the World's telemetry when it is enabled, `lighting.cpu` (the lighting passes, gathering and issuing
+on the CPU), `lighting.gpu.lights`, `lighting.gpu.shadows` and `lighting.gpu.combine` (GPU timestamps
+read a few frames late, recorded as each arrives), and the gauges `lighting.lights`,
+`lighting.shadowed_lights`, `lighting.shadowed_lights_dropped`, `lighting.occluder_edges`,
+`lighting.particle_lights` and `lighting.particle_lights_dropped`. `SetLightingDebug` draws light
+bounds (`kLightingDebugLights2D`: a ring at each range, a spot's cone edges, a directional light's
+direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes;
+until it is called, light bounds show in Edit and nothing in Play.
+
+Light-layer names, editing lights with viewport handles and the development channel's lighting
+views are later stages of
 [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
 [L0 design record](../../lighting-l0-design.md) gives the order and units.
 

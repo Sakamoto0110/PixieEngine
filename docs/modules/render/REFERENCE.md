@@ -48,7 +48,10 @@ which the combine adds to `albedo * light` before exposure. SpriteRenderer and S
 their program by `LightingPass` (`SetLightingPass`): color, receivers, or emission, where the
 instance color holds an emissive tint and intensity / 16 in alpha; ParticleRenderer's emission
 pass (`SetEmissionPass`) writes the particles' color decoded to linear. Each pass is a separate
-shader program, so the color pass's shaders are those of unlit drawing. The sRGB
+shader program, so the color pass's shaders are those of unlit drawing. `Finish` writes GPU
+timestamps around light accumulation, the shadowed lights and the combine into one of four query
+sets in turn, and reads a set only when it is reused and its results have arrived, so it never
+waits for the GPU; `GpuTimes` holds the latest arrival, numbered by `sample`. The sRGB
 curves are exact (`DecodeSrgb`, `EncodeSrgb`). Without lights and with ambient 1, exposure 1 and no
 tone mapping, the result equals the albedo byte for byte on the qualified renderers.
 
