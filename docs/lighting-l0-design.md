@@ -308,6 +308,12 @@ occlusion at L4.
   and L2 decides per entity with an occluder-ID mask if compound occluders show the difference.
   L2 (2026-10-31) kept the per-piece rule: no room has shown the difference yet, and the review
   that would decide it is pending.
+- **Emission and particle light, as built at L3.** Emission is a pass of its own, like receivers,
+  rather than a second output of the world pass, and keeps an entity's intensity in 8 bits (0 to
+  16 in steps of 1/16). Particle light splats are gathered on the CPU as ordinary unshadowed point
+  lights, not drawn on the GPU from pool memory: with the caps (256 per pool, 2048 in all by
+  default) that is at most 128 KiB a frame, and it reuses the light pass; the GPU path stays open if
+  budgets at L4 call for it.
 - **Mask precision.** L2 stores the occlusion mask in R32F, not the prototype's R16F: summed in
   half floats, the fractions of adjacent edges stopped just short of 1 and left a faint value of 1
   or 2 (out of 255) behind closed walls.

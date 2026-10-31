@@ -42,7 +42,13 @@ pixel box, every edge of its shadow layers that faces away from it (toward it, f
 occluder) becomes a quad over its umbra and penumbra, whose fragments add the fraction of the
 source's angular extent the edge hides into an R32F occlusion mask; the light then multiplies by
 one minus that, clamped. Directional lights extrude along their direction with an angular source.
-Overlapping penumbrae of separate occluders add, so their crossings are slightly too dark. The sRGB
+Overlapping penumbrae of separate occluders add, so their crossings are slightly too dark.
+`BeginEmission` switches drawing to an RGBA16F emission target of linear radiance, cleared to zero,
+which the combine adds to `albedo * light` before exposure. SpriteRenderer and ShapeRenderer choose
+their program by `LightingPass` (`SetLightingPass`): color, receivers, or emission, where the
+instance color holds an emissive tint and intensity / 16 in alpha; ParticleRenderer's emission
+pass (`SetEmissionPass`) writes the particles' color decoded to linear. Each pass is a separate
+shader program, so the color pass's shaders are those of unlit drawing. The sRGB
 curves are exact (`DecodeSrgb`, `EncodeSrgb`). Without lights and with ambient 1, exposure 1 and no
 tone mapping, the result equals the albedo byte for byte on the qualified renderers.
 

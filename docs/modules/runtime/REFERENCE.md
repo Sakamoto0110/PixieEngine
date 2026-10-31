@@ -797,7 +797,21 @@ occluders whose `layers` meet its `shadowLayers`; its `sourceRadius` (or `source
 directional light) sets the penumbra. An occluder does not shadow its own interior, so its sprite is
 lit as if it were absent, unless `selfShadow` is set; the rule applies per convex piece, so pieces
 of one compound shadow each other; a sprite outline has no inner edges, so its interior is
-shadowed only where another part of the same outline stands between it and the light. Emission, particle lights, light-layer names and authoring tools are later stages of
+shadowed only where another part of the same outline stands between it and the light.
+
+An `Emission2D` makes an entity's sprite, text or shape glow: its image (a shape's flat area, not
+its color) times the emission `color` times `intensity` (0 to 16, kept in steps of 1/16 of the
+0-255 range) is added unlit after the light, so it shows in darkness; game code fades `intensity`
+to show a state change. In a lit frame with emission, the sprites, texts and shapes are drawn once
+more in the emission pass (`SubmitSpriteEmission`, `SubmitShapeEmission`, `EmissionColor`), where
+those without `Emission2D` still cover what glows below them. A `ParticleLight2D` on a pool makes
+it `emissive`, drawn only in the emission pass at its own color (`DrawParticlePools`), and/or
+`illuminates`: `GatherParticleLights` adds an unshadowed point light of `lightRadius` per live
+particle, of its color times its alpha (faded with age when the pool fades) and `lightIntensity`,
+the first `lightCap` of the pool and at most `LightingSettings2D::maxParticleLights` in all,
+returning how many the caps left out.
+
+Light-layer names and authoring tools are later stages of
 [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
 [L0 design record](../../lighting-l0-design.md) gives the order and units.
 
