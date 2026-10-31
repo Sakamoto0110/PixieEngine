@@ -758,6 +758,33 @@ be seen selected and picked; so is the block of a text with no characters. `Text
 rectangle, and `SubmitText` draws one text. The font field's asset kind is `ttf`, so a tool offers
 `.ttf` files for it. There is no wrapping at a width, rich text, kerning, outline, or shadow.
 
+### Lighting
+
+Lighting is opt-in per scene (`Lighting2D.hpp`). A scene without `LightingSettings2D` is drawn by
+`ProjectSession::Render` exactly as before lighting existed, and its `Light2D` components do nothing
+(the session warns once when it builds such a scene). `LightingSettings2D` is a singleton, like
+`PhysicsSettings2D`: an ambient color and intensity, exposure and tone mapping (`None` clamps,
+`Aces` is a filmic curve). Its defaults, white ambient at 1, exposure 1 and no tone mapping, leave
+the unlit image unchanged byte for byte.
+
+A `Light2D` at its entity's interpolated transform is a point light, a spot (its cone around the
+rotation) or a directional light over the whole view. Its color is authored in sRGB and decoded,
+its intensity is a linear multiplier, and point and spot lights fall off as
+`saturate(1 - (d / range)^2)^falloff`, reaching 0 at their range. `lightLayers` (bits 0 to 7) are
+the receivers it reaches; a `LightReceiver2D` gives an entity's sprite, text or shape its layers and
+can mark it unlit, shown at its own color. Without one, a receiver is in every layer and lit;
+ambient reaches every receiver.
+
+In a lit scene, `Render` draws the world as usual into the `LightRenderer`'s albedo target; flushes
+the world shapes before the gizmos and overlays; when some entity has a `LightReceiver2D`, draws the
+sprites, texts and shapes again as receivers (`SubmitSpriteReceivers`, `SubmitShapeReceivers`, with
+the renderers' receiver pass); gathers the lights (`GatherLights`, culled to the padded view); and
+combines into the session's output. Gizmos, physics debug, the project's overlay and the screen
+layer are drawn after, never lit. Paths and particles are not receivers: they take the layers of
+what lies under them. Shadows, emission, particle lights, light-layer names and authoring tools are
+later stages of [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
+[L0 design record](../../lighting-l0-design.md) gives the order and units.
+
 ## Randomness
 
 `World(seed)` seeds the World's `Random`. `Random` is xoshiro256** seeded through splitmix64; its

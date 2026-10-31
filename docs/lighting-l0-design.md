@@ -80,7 +80,9 @@ text, and the existing renderers' instance layouts stay as they are. An entity w
 
 Light layers are up to 8 slots, named per scene by a `LightLayers2D` singleton as
 `CollisionLayers2D` names collision layers, so a receiver's mask fits one byte per pixel
-(section 4). A scene with lights or occluders but no
+(section 4). L1 implements the masks as plain integers (bits 0 to 7); the names and the
+Inspector's layer editor come with authoring at L4, since the editor's layer-mask editor reads
+collision layer names only. A scene with lights or occluders but no
 `LightingSettings2D` is not lit: those components are inert and the scene loader warns once. A
 second settings component is ignored with a warning, as duplicate physics settings are.
 
@@ -110,8 +112,9 @@ then edit gizmos, physics debug and the project overlay (submitted to the same s
 flushed with the world shapes), then the screen canvas. Lit scenes follow this order:
 
 1. World pass into the lighting targets, at the output's size: albedo (RGBA8, cleared to the
-   project background), emission (RGBA16F: emitted radiance in RGB, unlit weight in A) and
-   receiver layers (RGBA8: the layer mask, written where coverage is at least 0.5). Sprites below
+   project background), emission (RGBA16F: emitted radiance in RGB, from L3) and receivers
+   (RGBA8: the layer mask in red and the unlit flag in green, written where coverage is at least
+   0.5). Sprites below
    layer 0, paths, remaining sprites, particles and world shapes keep today's order and blending;
    emissive particle pools write emission only. World shapes are flushed here, apart from the
    overlays.
@@ -125,6 +128,12 @@ flushed with the world shapes), then the screen canvas. Lit scenes follow this o
    albedo by their unlit weight.
 5. Unlit world overlays: edit gizmos, physics debug, the project overlay.
 6. The screen canvas, unchanged and never lit.
+
+L1 writes the receiver target in a second pass rather than as a second output of the world pass:
+when some entity has a `LightReceiver2D`, its sprites, texts and shapes are drawn again with a
+receiver shader, so the existing shaders and instance layouts stay untouched. Paths and particles
+are not drawn there and take the receiver beneath them; their own receiver data, with emission,
+comes at L3.
 
 The lit buffers have the output's resolution and are recomputed every frame from interpolated
 poses, so there is no reprojection to seam or jitter. One behavior differs, in lit scenes only:

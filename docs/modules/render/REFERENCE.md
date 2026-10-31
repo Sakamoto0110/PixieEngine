@@ -28,6 +28,18 @@ RenderTarget owns an RGBA8 color texture/FBO, not a Surface or context. Destroy 
 
 GLEW's loader/pointer state is embedded and exported once by the shared engine; consumers receive its headers/import declarations rather than a second static loader instance. The 2D overlay drawing helper belongs here, while console policy/text preparation remains in App. This split implements neither 2.5D nor 3D; depth attachment, sorting and perspective behavior need explicit future scope.
 
+LightRenderer lights a 2D frame. `BeginWorld` remembers the bound draw framebuffer and viewport and
+binds its own RGBA8 albedo target, cleared to the background, which the other 2D renderers draw into
+unchanged; `BeginReceivers` switches drawing to the receiver target (per pixel: light layers in red,
+unlit in green; cleared to every layer, lit), which SpriteRenderer and ShapeRenderer fill with their
+receiver pass (`SetReceiverPass`), a second shader that writes the instance color's receiver where
+coverage reaches one half. `Finish` clears an RGBA16F light buffer to the linear ambient, adds
+point, spot and directional `LightInstance`s (64 bytes each, colors linear) where their layers meet
+the receiver's, then draws `encode(tonemap(exposure * decode(albedo) * light))`, blended back to
+the albedo by the unlit weight, into the remembered framebuffer with the albedo's alpha. The sRGB
+curves are exact (`DecodeSrgb`, `EncodeSrgb`). Without lights and with ambient 1, exposure 1 and no
+tone mapping, the result equals the albedo byte for byte on the qualified renderers.
+
 Out-of-line symbols use `PIXIE_RENDER_API`; public headers own exact signatures.
 
 ## Packaging and evidence
