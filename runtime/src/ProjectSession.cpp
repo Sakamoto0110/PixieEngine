@@ -288,7 +288,8 @@ void ProjectSession::Render(double alpha) {
             shapes_.SetReceiverPass(false);
         }
         GatherLights(*world_, alpha, &view, lights_);
-        lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_);
+        GatherOccluders(*world_, alpha, occluders_);
+        lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
     }
     if (mode_ == SessionMode::Edit) {
         SyncSceneMovement2D(*world_);

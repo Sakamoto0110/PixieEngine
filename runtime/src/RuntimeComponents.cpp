@@ -354,7 +354,17 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Light2D::coneAngle>("coneAngle").Label("cone angle").Tooltip("The spot's full cone, in degrees.").Degrees().Range(0, 360).Scrub(1)
         .Field<&Light2D::coneSoftness>("coneSoftness").Label("cone softness").Tooltip("The part of the cone, from its edge inward, over which the spot fades in: 0 hard, 1 from the center.").Range(0, 1).Scrub(0.01)
         .Field<&Light2D::lightLayers>("lightLayers").Label("light layers").Tooltip("Bits 0 to 7: the receivers' light layers this light reaches; 255 reaches all.").Range(0, 255)
-        .Field<&Light2D::enabled>("enabled").Tooltip("Whether the light shines.");
+        .Field<&Light2D::enabled>("enabled").Tooltip("Whether the light shines.")
+        .Field<&Light2D::castsShadows>("castsShadows").Label("casts shadows").Tooltip("Whether occluders of its shadow layers cast shadows from it.")
+        .Field<&Light2D::shadowLayers>("shadowLayers").Label("shadow layers").Tooltip("Bits 0 to 7: the occluder layers that shadow it; 255 is all.").Range(0, 255)
+        .Field<&Light2D::sourceRadius>("sourceRadius").Label("source radius").Tooltip("The light's size in world units, which sets how soft its shadows are (point and spot); 0 is hard.").Range(0, 10000).Scrub(0.5)
+        .Field<&Light2D::sourceAngle>("sourceAngle").Label("source angle").Tooltip("The directional light's angular radius, in degrees, which sets how soft its shadows are; 0 is hard.").Degrees().Range(0, 45).Scrub(0.05);
+    types.Add<Occluder2D>("Occluder2D")
+        .Field<&Occluder2D::source>("source", {"Collider", "Polygon"}).Tooltip("Collider casts from the entity's collider or compound shapes, or a character's capsule, so shadows match physics; Polygon from the points below.")
+        .Field<&Occluder2D::polygon>("polygon").Tooltip("A convex polygon in the entity's local units, for the Polygon source.")
+        .Field<&Occluder2D::layers>("layers").Tooltip("Bits 0 to 7: the occluder layers it belongs to; a light's shadow layers decide whether it blocks that light.").Range(0, 255)
+        .Field<&Occluder2D::selfShadow>("selfShadow").Label("self shadow").Tooltip("Off, its own sprite is lit as if it were not there; on, it shadows its own interior and only a rim on the light's side is lit.")
+        .Field<&Occluder2D::enabled>("enabled").Tooltip("Whether it casts shadows.");
     types.Add<LightReceiver2D>("LightReceiver2D")
         .Field<&LightReceiver2D::lightLayers>("lightLayers").Label("light layers").Tooltip("Bits 0 to 7: the light layers this sprite, text or shape belongs to; a light reaches it when they share one. Ambient reaches it anyway.").Range(0, 255)
         .Field<&LightReceiver2D::unlit>("unlit").Tooltip("Shown at its own color, ignoring light, exposure and tone mapping.");

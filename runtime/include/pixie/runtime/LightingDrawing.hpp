@@ -4,6 +4,8 @@
 
 #include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
+#include "pixie/runtime/SceneMovement2D.hpp"
+#include "pixie/runtime/Transform2D.hpp"
 
 #include <pixie/pxColorRgba.hpp>
 #include <pixie/pxRect.hpp>
@@ -30,6 +32,20 @@ PIXIE_RUNTIME_API LightInstance MakeLightInstance(const Light2D& light, pxPoint 
 // of the way from its previous transform to its current one, in the World's order; with `view`,
 // only the point and spot lights whose range reaches it.
 PIXIE_RUNTIME_API void GatherLights(World& world, double alpha, const pxRect* view, std::vector<LightInstance>& lights);
+
+// The convex pieces an occluder casts from at `transform`, in world units, each winding with a
+// positive signed area: its polygon, or with the Collider source the enabled, solid shapes of
+// `collider` or `compound`, or the upright capsule of `motor`. Circles and capsule caps become
+// polygons whose chords stay within 0.5 world units of the curve (8 to 32 segments per circle).
+PIXIE_RUNTIME_API std::vector<std::vector<pxPoint>> OccluderPolygons(const Occluder2D& occluder,
+                                                                    const Transform2D& transform,
+                                                                    const Collider2D* collider,
+                                                                    const CompoundCollider2D* compound,
+                                                                    const CharacterMotor2D* motor);
+
+// Replaces `edges` with the edges of every enabled Occluder2D of an entity with a Transform2D,
+// interpolated `alpha` of the way from its previous transform to its current one.
+PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges);
 
 // Whether any entity has a LightReceiver2D, so a frame needs the receiver pass.
 PIXIE_RUNTIME_API bool HasLightReceivers(World& world);

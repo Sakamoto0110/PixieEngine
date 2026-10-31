@@ -172,6 +172,7 @@ private:
     ParticleRenderer particles_;
     LightRenderer lighting_;
     std::vector<LightInstance> lights_;
+    std::vector<OccluderEdge> occluders_;
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;

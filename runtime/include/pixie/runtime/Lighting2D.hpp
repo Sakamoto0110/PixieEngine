@@ -1,9 +1,11 @@
 #pragma once
 
 #include <pixie/pxColorRgba.hpp>
+#include <pixie/pxPoint.hpp>
 
 #include <cstdint>
 #include <numbers>
+#include <vector>
 
 namespace pixie {
 
@@ -59,7 +61,39 @@ struct Light2D {
     // The light layers (bits 0 to 7) of the receivers this light reaches.
     int lightLayers = 0xFF;
     bool enabled = true;
+    // Whether occluders of its shadow layers cast shadows from it.
+    bool castsShadows = true;
+    // The occluder layers (bits 0 to 7) that shadow it.
+    int shadowLayers = 0xFF;
+    // The light's size, which sets how soft its shadows are: a radius in world units (point and
+    // spot); 0 gives hard shadows.
+    double sourceRadius = 8.0;
+    // The same for a directional light: its angular radius, in radians.
+    double sourceAngle = 0.5 * std::numbers::pi / 180.0;
     bool operator==(const Light2D&) const = default;
+};
+
+enum class OccluderSource2D : std::uint8_t {
+    // The entity's Collider2D or CompoundCollider2D shapes, or a CharacterMotor2D's capsule, so
+    // shadows and physics agree.
+    Collider,
+    // `polygon`, in the entity's local units.
+    Polygon,
+};
+
+// Makes the entity block light: its shape casts shadows from every light whose shadow layers
+// include its layers, at the entity's interpolated transform. An occluder does not shadow its own
+// interior, so its sprite is lit as if it were not there (other occluders still shadow it), unless
+// `selfShadow` is set; then only a soft rim on the light's side is lit.
+struct Occluder2D {
+    OccluderSource2D source = OccluderSource2D::Collider;
+    // A convex polygon in the entity's local units, before its scale, rotation and position.
+    std::vector<pxPoint> polygon{{-16, -16}, {16, -16}, {16, 16}, {-16, 16}};
+    // The occluder layers (bits 0 to 7) it belongs to.
+    int layers = 1;
+    bool selfShadow = false;
+    bool enabled = true;
+    bool operator==(const Occluder2D&) const = default;
 };
 
 // How the entity's Sprite, Text or Shape receives light. Without one, it is in every light layer

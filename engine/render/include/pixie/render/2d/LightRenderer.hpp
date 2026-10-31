@@ -13,6 +13,7 @@
 #include <cstdint>
 #include <span>
 #include <type_traits>
+#include <vector>
 
 namespace pixie {
 
@@ -29,7 +30,7 @@ struct LightInstance {
     float falloff = 2.0f;
     std::array<float, 3> color{1.0f, 1.0f, 1.0f};
     LightKind kind = LightKind::Point;
-    // Unit vector the light points along (spot).
+    // Unit vector the light points along (spot), or travels along (directional).
     float directionX = 1.0f;
     float directionY = 0.0f;
     // Cosines of the cone's half-angle and of the half-angle where it starts to fade (spot).
@@ -37,10 +38,31 @@ struct LightInstance {
     float cosInner = -1.0f;
     // Receiver layers this light reaches.
     std::uint32_t layers = 0xFFu;
-    std::array<std::uint32_t, 3> padding{};
+    // Occluder layers that shadow it; 0 casts no shadow.
+    std::uint32_t shadowLayers = 0u;
+    // The source's size, which sets the penumbra: a radius in world units (point, spot) or an
+    // angular radius in radians (directional). 0 gives hard shadows.
+    float source = 0.0f;
+    std::uint32_t padding = 0u;
 };
 
 static_assert(std::is_trivially_copyable_v<LightInstance> && sizeof(LightInstance) == 64);
+
+// One edge of a convex occluder, 32 bytes, in world units. Polygons wind with a positive signed
+// area, so the edge's outward normal is (b - a) turned to (dy, -dx).
+struct OccluderEdge {
+    float ax = 0.0f;
+    float ay = 0.0f;
+    float bx = 0.0f;
+    float by = 0.0f;
+    // The occluder's layers, matched against a light's shadowLayers.
+    std::uint32_t layers = 1u;
+    // Bit 0: the occluder shadows its own interior (it casts from its light-facing edges).
+    std::uint32_t flags = 0u;
+    std::array<std::uint32_t, 2> padding{};
+};
+
+static_assert(std::is_trivially_copyable_v<OccluderEdge> && sizeof(OccluderEdge) == 32);
 
 enum class ToneMapping : std::uint8_t {
     // Linear values are clamped to [0, 1].
@@ -82,13 +104,16 @@ public:
     // Draws into the receiver target from now on. Its encoding is SpriteRenderer's and
     // ShapeRenderer's receiver pass's.
     PIXIE_RENDER_API void BeginReceivers();
-    // Accumulates ambient and `lights`, seen through `view`, then combines into the framebuffer and
-    // viewport remembered by BeginWorld, which stay bound.
+    // Accumulates ambient and `lights`, seen through `view`, each shadowed by the `occluders` edges
+    // of its shadow layers (shadow volumes with analytic penumbrae, docs/lighting-l0-design.md),
+    // then combines into the framebuffer and viewport remembered by BeginWorld, which stay bound.
     PIXIE_RENDER_API void Finish(const View& view, const LightingParameters& parameters,
-                                 std::span<const LightInstance> lights);
+                                 std::span<const LightInstance> lights,
+                                 std::span<const OccluderEdge> occluders = {});
 
-    // The lights drawn by the last Finish.
+    // The lights drawn by the last Finish, and how many of them cast shadows.
     int LastLightCount() const { return lastLightCount_; }
+    int LastShadowedCount() const { return lastShadowedCount_; }
 
 private:
     struct Target {
@@ -99,18 +124,24 @@ private:
     void DestroyTargets();
 
     ShaderProgram lightProgram_;
+    ShaderProgram shadowProgram_;
     ShaderProgram combineProgram_;
     GlBuffer lightBuffer_;
+    GlBuffer edgeBuffer_;
     GLuint vertexArray_ = 0;
     GLuint worldFramebuffer_ = 0;
     GLuint lightFramebuffer_ = 0;
+    GLuint maskFramebuffer_ = 0;
     Target albedo_;
     Target receivers_;
     Target light_;
+    Target mask_;
+    std::vector<LightInstance> ordered_;
     FramebufferSize size_;
     GLint outputFramebuffer_ = 0;
     std::array<GLint, 4> outputViewport_{};
     int lastLightCount_ = 0;
+    int lastShadowedCount_ = 0;
 };
 
 } // namespace pixie

@@ -1,0 +1,975 @@
+{
+  "format": "pixie-scene",
+  "version": 1,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "11a0000000000001",
+      "name": "lighting",
+      "components": {
+        "LightingSettings2D": {
+          "v": 1,
+          "ambient": [
+            70,
+            80,
+            105,
+            255
+          ],
+          "ambientIntensity": 0.35,
+          "exposure": 1.1,
+          "toneMapping": "Aces"
+        }
+      }
+    },
+    {
+      "id": "11a0000000000002",
+      "name": "world physics",
+      "components": {
+        "PhysicsSettings2D": {
+          "v": 1,
+          "gravity": [
+            0,
+            1100
+          ],
+          "unitsPerMeter": 32,
+          "substeps": 4
+        }
+      }
+    },
+    {
+      "id": "11a0000000000003",
+      "name": "room 1 backdrop",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -315,
+            0
+          ],
+          "rotation": 0,
+          "scale": [
+            305,
+            240
+          ]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/backdrop.png",
+          "color": [
+            150,
+            146,
+            140,
+            255
+          ],
+          "layer": -1,
+          "filter": "Pixel",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000004",
+      "name": "room 2 backdrop",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            315,
+            0
+          ],
+          "rotation": 0,
+          "scale": [
+            305,
+            240
+          ]
+        },
+        "Sprite": {
+          "v": 1,
+          "image": "images/backdrop.png",
+          "color": [
+            140,
+            146,
+            156,
+            255
+          ],
+          "layer": -1,
+          "filter": "Pixel",
+          "visible": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000005",
+      "name": "floor",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            0,
+            250
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            640,
+            12
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            640,
+            12
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000006",
+      "name": "ceiling",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            0,
+            -250
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            640,
+            10
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            640,
+            10
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000007",
+      "name": "left wall",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -630,
+            0
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            10,
+            250
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            10,
+            250
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000008",
+      "name": "right wall",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            630,
+            0
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            10,
+            250
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            10,
+            250
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000009",
+      "name": "middle wall",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            0,
+            -65
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            10,
+            185
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            10,
+            185
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a000000000000a",
+      "name": "pillar",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -450,
+            150
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            14,
+            88
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            14,
+            88
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a000000000000b",
+      "name": "block",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -200,
+            208
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            40,
+            30
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            40,
+            30
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a000000000000c",
+      "name": "crate",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -120,
+            60
+          ],
+          "rotation": 0.3,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            18,
+            18
+          ],
+          "color": [
+            150,
+            110,
+            70,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            18,
+            18
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Dynamic"
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a000000000000d",
+      "name": "lamp",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -320,
+            200
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            12
+          ],
+          "color": [
+            255,
+            214,
+            150,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            12,
+            12
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Dynamic"
+        },
+        "LightReceiver2D": {
+          "v": 1,
+          "lightLayers": 255,
+          "unlit": true
+        },
+        "Light2D": {
+          "v": 1,
+          "type": "Point",
+          "color": [
+            255,
+            196,
+            130,
+            255
+          ],
+          "intensity": 1.8,
+          "range": 520,
+          "falloff": 2,
+          "lightLayers": 255,
+          "enabled": true,
+          "castsShadows": true,
+          "shadowLayers": 255,
+          "sourceRadius": 10
+        }
+      }
+    },
+    {
+      "id": "11a000000000000e",
+      "name": "character",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            -540,
+            200
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            12,
+            24
+          ],
+          "color": [
+            70,
+            225,
+            180,
+            255
+          ],
+          "visible": true
+        },
+        "CharacterMotor2D": {
+          "v": 1,
+          "radius": 12,
+          "halfSegment": 12
+        },
+        "KeyboardControl2D": {
+          "v": 1,
+          "enabled": true
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a000000000000f",
+      "name": "ramp",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            200,
+            150
+          ],
+          "rotation": 0.35,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            110,
+            8
+          ],
+          "color": [
+            70,
+            78,
+            96,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            110,
+            8
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000010",
+      "name": "rotating platform",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            330,
+            20
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            110,
+            8
+          ],
+          "color": [
+            175,
+            120,
+            220,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            110,
+            8
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Kinematic",
+          "initialAngularVelocity": 0.6
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000011",
+      "name": "spinning bar",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            500,
+            150
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            8,
+            60
+          ],
+          "color": [
+            175,
+            120,
+            220,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            8,
+            60
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Kinematic",
+          "initialAngularVelocity": -1.1
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000012",
+      "name": "falling box",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            180,
+            -150
+          ],
+          "rotation": 0.2,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            18,
+            18
+          ],
+          "color": [
+            150,
+            110,
+            70,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            18,
+            18
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Dynamic"
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000013",
+      "name": "cyan light",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            320,
+            -190
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Light2D": {
+          "v": 1,
+          "type": "Point",
+          "color": [
+            120,
+            220,
+            255,
+            255
+          ],
+          "intensity": 1.4,
+          "range": 460,
+          "falloff": 2,
+          "lightLayers": 255,
+          "enabled": true,
+          "castsShadows": true,
+          "shadowLayers": 255,
+          "sourceRadius": 8
+        }
+      }
+    },
+    {
+      "id": "11a0000000000014",
+      "name": "magenta light",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            570,
+            40
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Light2D": {
+          "v": 1,
+          "type": "Point",
+          "color": [
+            255,
+            110,
+            200,
+            255
+          ],
+          "intensity": 1.2,
+          "range": 320,
+          "falloff": 2,
+          "lightLayers": 255,
+          "enabled": true,
+          "castsShadows": true,
+          "shadowLayers": 255,
+          "sourceRadius": 6
+        }
+      }
+    },
+    {
+      "id": "11a0000000000015",
+      "name": "ceiling spot",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            120,
+            -236
+          ],
+          "rotation": 1.5707963267948966,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Light2D": {
+          "v": 1,
+          "type": "Spot",
+          "color": [
+            255,
+            245,
+            220,
+            255
+          ],
+          "intensity": 1.6,
+          "range": 520,
+          "falloff": 2,
+          "lightLayers": 255,
+          "enabled": true,
+          "castsShadows": true,
+          "shadowLayers": 255,
+          "sourceRadius": 6,
+          "coneAngle": 0.8726646259971648,
+          "coneSoftness": 0.3
+        }
+      }
+    }
+  ]
+}
