@@ -29,23 +29,30 @@ bin/Release/coupling-lab.exe --physics-debug 127
 editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/coupling-lab
 ```
 
-Use **A/D or the arrows** to move the yellow player (E) and **Space** to jump. The panel at
-the top lists every character: what supports it (air, static, kinematic or dynamic), its
+Use **A/D or the arrows** to move the yellow player (E) and **Space** to jump. **R** resets the
+room: bodies, characters, platforms, particles and dropped objects. **Left drag** pulls a box or
+the ball with a bounded spring; **right click** drops a runtime object, chosen with **1** (1 kg
+box), **2** (10 kg box), **3** (compound box) or **4** (1 kg ball). Dropped objects are never
+saved. The panel at the top shows the controls and lists every character: what supports it (air, static, kinematic or dynamic), its
 completed world velocity, the motion carried by its support this tick, the push impulse and
 support load it applied this tick, and its placement status.
 
 | Zone | What it shows |
 |---|---|
 | A, translating platform | A rides a platform that reverses every 2.4 s. The post stops the rider, not the platform: **carry obstructed**, then the rider is left behind and drops. |
-| B, rotating platform | B stands off center on a platform that turns 23° in 2 s and turns back, so its support point also moves sideways. |
+| B, rotating platform | B stands off center on a platform that turns 23° in 2 s and turns back. Within the 45° walkable limit the rider stays put on the platform while its support point moves sideways. |
+| F, steep platform | Upper left: the platform turns to 55°, past the walkable limit, so F slides off. |
+| Ramps | The left ramp (25°) is walkable; the right ramp (55°) is not, so the player slides back down it. |
 | C, elevator | C rides up and down 100 units; jump from it to feel the inherited velocity. |
-| D, crusher | The platform rises into a ceiling: **UNSAFE placement** while there is no room, and it clears when the platform reverses. The engine reports the failure; it does not stop the platform, damage or respawn D. |
-| E, player | Push the 1 kg, 10 kg and compound boxes, stand on them (support load), jump against them and walk onto the platforms. The ram at the right shoves the 2 kg box back toward you. |
+| D, crusher | The platform rises into a ceiling and crushes D: **UNSAFE placement**. Its `reverseOnCrush` sends it back at once (game policy). Turn it off in the editor to see the engine's own behavior: it keeps the last valid pose and reports the failure, and the platform moves on through the capsule. |
+| E, player | Push the ball and the 1 kg, 10 kg and compound boxes, stand on them (support load), jump against them and walk onto the platforms. The ram at the right shoves the 2 kg box into a stack of four boxes. |
+| Particles | Dynamic particles rain on B, C, the stack and the ram, and bounce off the bodies and platforms (not off the characters, which are query-only). |
 
 The platforms and the ram are kinematic bodies with a `Shuttle` component: the sample's code
-reverses their velocity every period of simulated time. That reversal is game policy, here in
-the sample, not an engine feature. Select one in the editor to change its velocity, angular
-velocity or period; select a character for its `CharacterMotor2D` tuning, including the push,
+reverses their velocity every period of simulated time, and, with `reverseOnCrush`, as soon as a
+character it was carrying reports unsafe placement. Both are game policy, here in the sample, not
+engine features. Select one in the editor to change its velocity, angular velocity, period or
+crush policy; select a character for its `CharacterMotor2D` tuning, including the push,
 load, inherited-speed and carry limits. Stop restores the authored room. Copy the folder before
 saving experiments.
 
@@ -55,7 +62,8 @@ This room prepares the owner's movement-feel and debug-view review for PIXIE-TOD
 not record that review. Things to judge while playing:
 
 1. Riding A, B and C: does the rider stay planted, without sliding, jitter or a lag behind
-   the platform, including at each reversal?
+   the platform, including at each reversal? And on the ramps: standing still on 25°, sliding
+   off 55° and off F's platform.
 2. Jumping from C while it rises and while it sinks, and from A while it moves: does the
    inherited velocity feel right, and is it applied once?
 3. Walking off a platform and landing back on it: no stale carry after leaving.
@@ -66,6 +74,8 @@ not record that review. Things to judge while playing:
    react to?
 7. With `--physics-debug 127`: are outlines, centers, velocities, sleep state and contact
    normals readable, and do they match what moves?
+8. Dragging and dropping objects, and the particles: do bodies and particles react as expected
+   to the platforms, the ram and each other?
 
 Native checks of the same mechanics are in
 [CharacterCouplingTests.cpp](../../tests/runtime/CharacterCouplingTests.cpp) and the mixed

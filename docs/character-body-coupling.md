@@ -66,8 +66,9 @@ parameters, not physical character inertia or a universal supported envelope.
 
 Carry and overlap recovery are bounded. If a moved body/platform leaves no
 placement within the declared recovery tolerance, keep the last completed pose,
-clear support and publish blocked/unsafe status. A clipped carry with a valid
-placement is blocked without inventing a crush/death rule. The retained pose may
+clear support and publish blocked/unsafe status. A carry clipped by other geometry,
+with a valid placement, is blocked without inventing a crush/death rule; a carry shortened
+only by the support itself (the capsule settling on a rotated surface) is not an obstruction. The retained pose may
 now be occupied by the mechanism: unsafe explicitly means no feasible placement
 was established. Damage, stopping/reversing a platform and respawning are host
 policy. Excessive support displacement is diagnosed rather than accepted as a
@@ -132,7 +133,21 @@ Grounding ignores separation slower than 1 world unit/s. Pushing a box that is f
 rotate tilts its face slightly, and clipping against it leaves hundredths of a unit/s of
 upward velocity; with the earlier 0.001 tolerance the motor lost its ground and published
 support for almost every pushing tick. `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`
-covers this. The prepare/solve/finish algorithm is unchanged.
+covers this.
+
+Owner review on 2026-10-30 found two more defects in the coupling lab, both fixed:
+
+- A grounded character crept downhill on every walkable slope (6.6 units/s at 23°): gravity
+  was added in full and clipping turned its tangential part into motion. On a tilting
+  platform this showed as sliding while the rider's side sank and stopping while it rose.
+  Grounded gravity now only presses along the support's normal (identical on flat ground);
+  `CharacterStandsStillOnWalkableSlopes` and `CharacterStaysPutOnATiltingAndReversingPlatform`
+  cover it.
+- A rider on a fast-tilting platform (0.48 rad/s) was reported as carry obstructed on every
+  sinking tick, although only its own support shortened the carry.
+  `CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction` covers it.
+
+The prepare/solve/finish algorithm is unchanged.
 
 The 2026-10-26 bounded increment passed 211 runtime tests and all 15 CTest suites
 in Debug and Release. Disabling actual support carry produced 10 failed checks;

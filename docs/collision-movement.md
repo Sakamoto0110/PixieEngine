@@ -82,7 +82,9 @@ Settings define capsule size, maximum horizontal speed, acceleration, braking, g
 terminal speed, jump speed, walkable support angle, coyote time and jump buffer.
 Horizontal input is clamped to [-1,1]. Step requires 0 < delta <= 0.05 seconds;
 use the existing fixed-step host rather than passing an arbitrary render delta.
-Teleport clears velocity, grounding and buffered commands. Jump is an optional
+Teleport clears velocity, grounding and buffered commands. On walkable support, gravity only
+presses the capsule along the support's normal, so a character standing on a slope below the
+walkable angle stays put; above it, the character is not grounded and slides. Jump is an optional
 command used by the test room; it does not decide the side-scroller's abilities.
 
 ## Measurement and remaining work

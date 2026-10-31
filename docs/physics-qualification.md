@@ -39,6 +39,7 @@ RX 7600, Windows 11 Pro 10.0.26300, Visual Studio 2026); they are not clean-clon
 |---|---|
 | Baseline at `7e49d4e`, vs2026 Debug and Release | Builds current; CTest 20/20 each (262.0 s, 237.5 s); 235 runtime tests, 0 failed checks |
 | After the changes, vs2026 Debug and Release | 238 runtime tests, 0 failed checks; `coupling-lab-module` and `-project` pass |
+| After the owner's first review (slope and obstruction fixes, room additions) | 241 runtime tests, 0 failed checks; each fix's mutation fails only its new tests |
 | Test-only mutations, each restored byte for byte (SHA-256 checked) and rerun | Old grounding tolerance: 104 failed checks, only in the new push test. Unsafe placement never reported: 4 failed checks in the two crush tests and the new mixed workload |
 | [No-code editor physics workflow](#no-code-editor-workflow) over MCP, Release | 42/42 cases |
 | [Mixed and stress workloads](#workloads-and-stress) | See that section |
@@ -75,9 +76,9 @@ give; it is pending everywhere it appears.
 | PHY-010 shapes and materials | Boxes, circles, capsules, convex polygons, compounds; friction and restitution | `BodyRampContactsProduceRotationWithoutScriptedAngularMotion`, `BodyTenBoxStackQualifiesPenetrationSettlingAndSleepAtTenToOneMassRatio`, `BodySurfaceFrictionDistinguishesHoldingFromSlidingOnTheSameSlope`, `BodyRestitutionControlsBounceAndLowSpeedContactsSettle`, `BodyFastModeQualifiesThinStaticAndMovingWallsThrough1024UnitsPerSecond` | None | Met within the [qualified envelope](rigid-body-physics-requirements.md#9-acceptance-matrix) |
 | PHY-011 layers | Named slots, two-sided filters, native bits kept | `CollisionLayerNamesAndUnknownItemDataRoundTripWithoutRewritingLegacyFilters`, C API `collision-layers`; editor layer-checkbox cases including the last-membership guard | None | Met |
 | PHY-012 events and identities | Copied begin/end events with scene identities and generations ([body events](body-events.md)) | The `Sensor*`, `Contact*` and `Scene*` cases in `PhysicsEventsTests.cpp` | None | Met; body hit events are not offered |
-| PHY-013 support motion | Local support point, one carry per step, inherited velocity once ([coupling](character-body-coupling.md)) | `CharacterFollowsTranslationReversalAndVerticalSupportExactlyOnce`, `CharacterRotatingSupportUsesLocalPointAndInheritsClampedVelocityOnce`, `CharacterDropsRemovedDisabledTeleportedOrRebuiltSupport`; the mixed workload | Movement feel in the [coupling lab](../samples/coupling-lab/README.md) | Native met; owner pending |
+| PHY-013 support motion | Local support point, one carry per step, inherited velocity once ([coupling](character-body-coupling.md)) | `CharacterFollowsTranslationReversalAndVerticalSupportExactlyOnce`, `CharacterRotatingSupportUsesLocalPointAndInheritsClampedVelocityOnce`, `CharacterDropsRemovedDisabledTeleportedOrRebuiltSupport`, `CharacterStaysPutOnATiltingAndReversingPlatform`, `CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction`, `CharacterStandsStillOnWalkableSlopes`; the mixed workload | Movement feel in the [coupling lab](../samples/coupling-lab/README.md); the owner's first observations led to the [slope fixes](#defects-found-and-fixed) | Native met; owner pending |
 | PHY-014 pushing and receiving | Bounded push impulses and support load | `CharacterPushBudgetDistinguishesLightAndHeavyBoxesWithoutLaunchingThem`, `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`, `CharacterEffectiveSupportLoadIsBoundedAndDoesNotChangeNativeMass`, `CharacterReceivesMovingBodyWithoutASecondSimulatedCharacter`, `CharacterJumpAgainstBoxDoesNotLaunchTheBox` | Push strength and caps in the coupling lab | Native met; owner pending |
-| PHY-015 blocked and crushing | Last valid pose, blocked and unsafe placement reported, platform not reversed by the engine | `CharacterCarryObstructionIsBlockedWithoutUnsafePlacementOrPlatformReversal`, `CharacterCrushAndUnsupportedCarryRetainLastPoseAndReportUnsafePlacement`, `CharacterFallingBodyCrushReportsFailureWithoutReversingTheBody`; recurring crush in the mixed workload | Whether the reported statuses suit games | Native met; owner pending |
+| PHY-015 blocked and crushing | Last valid pose, blocked and unsafe placement reported, platform not reversed by the engine | `CharacterCarryObstructionIsBlockedWithoutUnsafePlacementOrPlatformReversal`, `CharacterCrushAndUnsupportedCarryRetainLastPoseAndReportUnsafePlacement`, `CharacterFallingBodyCrushReportsFailureWithoutReversingTheBody`; recurring crush in the mixed workload; the room's crusher reverses on crush as game policy | Whether the reported statuses and the game-side policy suit games | Native met; owner pending |
 | PHY-016 fixed timeline | Host fixed stepper; one prepare, one solve, one finish per tick; shortest-path interpolation | `FixedStepTraceIsIndependentOfTheRenderRate` (30, 60 and 144 render frames per second give bitwise-equal traces; stepping by the frame delta does not); the engine's `FixedStepper` tests | Smooth interpolated rotation, seen | Native met; visual check pending |
 | PHY-017 persistence and reset | Authored save; Play uses runtime state; Stop rebuilds | `SceneBodyAuthoredStateRoundTripsWithoutBackendMotion`, `SceneSensorRoundTripsWithoutSavingActivePairs`, C API Save during Play; editor Play/Stop, save/reopen and second-session cases | None | Met (bounded) |
 | PHY-018 migration | Full Width/Height presentation; v1 motor gravity converted | `LegacyMotorGravityBecomesWorldGravityScaleWithoutChangingTheFall`, `OnlyOlderMotorVersionsConvertLegacyGravity`, `MovementLabVersionOneSaveLoadsWithItsOriginalGravity`; editor cases: full width shown over half extents, v1 gravities 1650 and 0 become scales 1.5 and 0 | None | Met |
@@ -113,22 +114,52 @@ review. The diagnostics panel text is observed only in captures, not asserted.
 
 [`samples/coupling-lab`](../samples/coupling-lab/README.md) is the room for the owner's
 movement-feel and debug-view review: translating, rotating and rising platforms that reverse,
-a carry obstruction, a crusher, light, heavy and compound boxes, a ram that shoves a box back,
-and a panel listing each character's support, velocities, push impulse, support load and
-status. Its README lists what to judge. The reversal is the sample's code (game policy), not
-an engine feature. Release captures of the room at fixed steps, driven over MCP, were inspected
+a platform that tilts past the walkable limit, 25° and 55° ramps, a carry obstruction, a
+crusher, a ball, light, heavy and compound boxes, a stack the ram knocks over, dynamic particles
+raining on bodies and platforms, R to reset, the mouse to drag and drop bodies, and a panel
+listing each character's support, velocities, push impulse, support load and status. Its README
+lists what to judge. Shuttle reversal, including reversing when a carried character is crushed,
+is the sample's code (game policy), not an engine feature. Release captures of the room at fixed steps, driven over MCP, were inspected
 during qualification for layout and reported status only; they are not owner acceptance.
 
-## Defect found and fixed
+## Defects found and fixed
 
-While checking the room, pushing a box that is free to rotate left the motor ungrounded and
+All three are in `runtime/src/CharacterController2D.cpp`, each with a regression that fails when
+the fix is reverted (test-only mutation, then byte-for-byte restoration). The coupling algorithm
+is unchanged.
+
+**Pushing a box free to rotate.** While checking the room, pushing a box that is free to rotate left the motor ungrounded and
 without support in 103 of 104 pushing ticks (none with `fixedRotation`): the pushed face tilts
 slightly, clipping against it leaves a few hundredths of a unit/s of upward velocity, and the
 grounding test treated any separation faster than 0.001 units/s as leaving the ground. Jumping
 still worked, but `grounded`, the published support and any support load were wrong during
-such pushes. Grounding now ignores separation slower than 1 unit/s (a jump is hundreds), in
-`runtime/src/CharacterController2D.cpp`. `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`
-covers it, and restoring the old tolerance fails it. The coupling algorithm is unchanged.
+such pushes. Grounding now ignores separation slower than 1 unit/s (a jump is hundreds).
+`CharacterPushingARotatableBoxKeepsItsGroundAndSupport` covers it.
+
+**Creeping down walkable slopes** (found in the owner's review of the room). The owner saw a
+rider on the tilting platform slide while its side sank and stop when it rose. The cause was not
+the platform: a grounded character crept downhill on any walkable slope, static or moving (3.1,
+6.6 and 9.0 units/s at 10°, 23° and 40°), because a full tick of gravity was added and clipping
+against the slope turned its tangential part into motion. Grounded gravity now only presses
+along the support's normal, which is unchanged on flat ground. A standing character stays put;
+on the tilting platform the rider returns to the same local point every cycle (net drift under
+0.05 units per cycle at 40°, against 12 units before).
+`CharacterStandsStillOnWalkableSlopes` and `CharacterStaysPutOnATiltingAndReversingPlatform`
+cover it; the mutation failed 611 checks in exactly those two.
+
+**False carry obstruction on a fast-tilting support.** At 0.48 rad/s the capsule meets the
+rotated surface before the full carry, and every such tick was reported as carry obstructed.
+Obstruction now requires other geometry opposing the carry.
+`CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction` covers it; the mutation failed it
+alone.
+
+**Persistent overlap after a crush** (the owner's second observation). This is the specified
+behavior, not a defect: when no placement exists the engine keeps the last valid pose and reports
+unsafe placement, and the mechanism may then pass through the capsule; stopping or reversing the
+mechanism, damage and respawn are game policy (PHY-015). The room now shows that policy: its
+crusher reverses as soon as its rider is crushed, and the owner can switch that off to see the
+engine's own behavior. An engine-side ejection of the capsule would change the pinned D4
+algorithm and needs an owner decision.
 
 ## Workloads and stress
 
@@ -173,8 +204,16 @@ percentiles, and worst is the worst tick of the three (milliseconds per World ti
   collection cost; compiled-but-disabled instrumentation was not measured again, and its
   2026-10-26 reference-build estimate belongs to the statically linked engine.
 
+The same 180-run measurement ran again after the owner's first review (slope and obstruction
+fixes, working tree on `b46b7d0`). Every workload, including those without characters, measured
+slower and with longer tails: warm p50 for 500 bodies awake rose from 0.120 to 0.133 ms
+(sparse), 0.477 to 0.519 ms (sensors) and 0.289 to 0.323 ms (coupled; p99 0.662, worst 1.278).
+With 0 bodies, coupled rose from 0.118 to 0.125 ms. The process sampler saw no build tool in
+either run, so the uniform shift is unattributed background activity on the machine, not a
+measured cost of the fixes; neither run is a budget.
+
 Every row, per-run summary, the full warm and cold table, machine metadata, source and binary
-hashes, and process samples are retained under
+hashes, and process samples, for both runs, are retained under
 `.local/validation/physics-completion-2026-10-30/workloads/`. The figures describe this
 machine and these fixtures only; they are not a gameplay, rendering or universal budget.
 
@@ -191,6 +230,11 @@ Run serially on 2026-10-30 after all code changes, from the working tree on `7e4
 | ci (Ninja) build | Pass | Pass |
 | ci CTest | 22/22 (222.2 s) | 22/22 (186.9 s) |
 | `qualify_mcp.py`, ci (`--skip-cold`) | 170 cases | 170 cases |
+
+After the owner's first review the slope, carry-obstruction and room changes were made and the
+same matrix ran again, serially, from the working tree on `b46b7d0`: vs2026 CTest 22/22 (Debug
+275.4 s, Release 244.2 s), 241 runtime tests with no failed check in both, MCP 177 cases each;
+ci CTest 22/22 (224.8 s, 190.4 s) and MCP 170 cases each; the editor built with no warnings.
 
 The 22 CTest suites are the 20 of the baseline plus `coupling-lab-module` and
 `coupling-lab-project`; the MCP counts include the 42 `editor-mcp-physics` cases. The editor
