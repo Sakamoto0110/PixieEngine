@@ -80,7 +80,8 @@ configuration-specific evidence and pending delivery gates.
   version 17 development module loading in the shared engine, version 18
   development-only in-memory World dispatch, and version 19 lighting's light layer names
   (`pixie_light_layer_name`, slots 1 to 8) and lighting debug options
-  (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`); a
+  (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`: light bounds, occluder edges,
+  and the light buffer and overdraw views); a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.

@@ -31,7 +31,8 @@ owner answered "Yes, continue to L1" (relayed from the main session). The review
 was waived, not performed: the choices below are pinned so that L1 can proceed, they remain open
 to that review, and any of them can still be revised. Section 9 lists them for it. Once
 implemented, public headers and the module references own the API and contract; this record
-keeps the rationale.
+keeps the rationale. The [L5 consolidation record](lighting-l5-consolidation.md) holds the regression
+matrix, the final stress report and the residual limits.
 
 Baseline: specification commit `6aa6a4cc4e19a750b6056f70ee4fccb55eb7105a`; prototype commit
 `b12bb4ccae0b0365f392584a3ba71bccaa7b4245` (`tests/benchmarks/LightingPrototype.cpp`).

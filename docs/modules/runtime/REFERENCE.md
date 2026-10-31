@@ -825,8 +825,12 @@ read a few frames late, recorded as each arrives), and the gauges `lighting.ligh
 `lighting.shadowed_lights`, `lighting.shadowed_lights_dropped`, `lighting.occluder_edges`,
 `lighting.particle_lights` and `lighting.particle_lights_dropped`. `SetLightingDebug` draws light
 bounds (`kLightingDebugLights2D`: a ring at each range, a spot's cone edges, a directional light's
-direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes;
-until it is called, light bounds show in Edit and nothing in Play.
+direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes,
+and two views in place of the lit frame: `kLightingDebugLightBuffer2D`, the light alone as a white
+surface would receive it (exposure and tone mapping applied; no emission, fog, bloom or unlit
+receivers), and `kLightingDebugOverdraw2D`, the number of lights shading each pixel (black none,
+blue 1, green 4, red 8 or more), which wins when both are set; until it is called, light bounds
+show in Edit and nothing in Play.
 
 Optional effects are `LightingSettings2D` fields, all off by default (LIT-013): `ambientOcclusion`
 darkens the ambient light within `occlusionRadius` of the outer side of occluder edges, by up to
