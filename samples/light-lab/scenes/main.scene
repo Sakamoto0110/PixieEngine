@@ -863,6 +863,70 @@
     },
     {
       "id": "11a0000000000013",
+      "name": "door",
+      "components": {
+        "Transform2D": {
+          "v": 1,
+          "position": [
+            420,
+            120
+          ],
+          "rotation": 0.0,
+          "scale": [
+            1,
+            1
+          ]
+        },
+        "Shape": {
+          "v": 1,
+          "kind": "Quad",
+          "size": [
+            8,
+            70
+          ],
+          "color": [
+            190,
+            150,
+            110,
+            255
+          ],
+          "visible": true
+        },
+        "Collider2D": {
+          "v": 1,
+          "kind": "Box",
+          "halfSize": [
+            8,
+            70
+          ],
+          "enabled": true,
+          "density": 2,
+          "friction": 0.6,
+          "restitution": 0
+        },
+        "RigidBody2D": {
+          "v": 1,
+          "type": "Kinematic"
+        },
+        "Door2D": {
+          "v": 1,
+          "velocity": [
+            0,
+            -60
+          ],
+          "period": 2
+        },
+        "Occluder2D": {
+          "v": 1,
+          "source": "Collider",
+          "layers": 1,
+          "selfShadow": false,
+          "enabled": true
+        }
+      }
+    },
+    {
+      "id": "11a0000000000014",
       "name": "cyan light",
       "components": {
         "Transform2D": {
@@ -898,7 +962,7 @@
       }
     },
     {
-      "id": "11a0000000000014",
+      "id": "11a0000000000015",
       "name": "magenta light",
       "components": {
         "Transform2D": {
@@ -934,7 +998,7 @@
       }
     },
     {
-      "id": "11a0000000000015",
+      "id": "11a0000000000016",
       "name": "ceiling spot",
       "components": {
         "Transform2D": {
