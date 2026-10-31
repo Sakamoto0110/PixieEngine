@@ -5,6 +5,7 @@
 #include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/render/2d/ParticleRenderer.hpp"
+#include "pixie/render/2d/ShapeRenderer.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/Sprite.hpp"
@@ -115,6 +116,21 @@ PIXIE_RUNTIME_API bool HasEmission(World& world);
 // Draws the ParticleSystem pools whose ParticleLight2D is `emissive` (pools without one are not).
 PIXIE_RUNTIME_API void DrawParticlePools(World& world, ParticleRenderer& renderer, const Camera2D& camera,
                                          double alpha, bool emissive);
+
+// The most shadow-casting lights a frame draws at `quality`: 8, 32 or 64.
+PIXIE_RUNTIME_API int ShadowedLightCap(LightQuality2D quality);
+
+// Keeps at most `cap` shadow-casting lights in `lights`, those that contribute most (their summed
+// color times the area they cover in `view`; directional lights cover all of it), and removes the
+// others, keeping the order of the rest. Returns how many it removed.
+PIXIE_RUNTIME_API int CapShadowedLights(std::vector<LightInstance>& lights, int cap, const pxRect& view);
+
+// Debug drawing for lighting, over the frame and never lit: light bounds (a ring at each point or
+// spot light's range, a spot's cone edges, a directional light's direction) and occluder edges.
+inline constexpr std::uint32_t kLightingDebugLights2D = 1u;
+inline constexpr std::uint32_t kLightingDebugOccluders2D = 2u;
+PIXIE_RUNTIME_API void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const OccluderEdge> occluders,
+                                           ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags);
 
 // Whether any entity has a LightReceiver2D, so a frame needs the receiver pass.
 PIXIE_RUNTIME_API bool HasLightReceivers(World& world);

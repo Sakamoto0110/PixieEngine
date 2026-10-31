@@ -25,6 +25,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
+#include <map>
+#include <string>
 #include <memory>
 #include <numbers>
 #include <vector>
@@ -761,6 +763,76 @@ TEST(IlluminatingParticlesLightTheFloor) {
     CHECK(pixie::GatherParticleLights(lab.World(), 1.0, nullptr, 2048, lights) == 7 && lights.size() == 3);
     lights.clear();
     CHECK(pixie::GatherParticleLights(lab.World(), 1.0, nullptr, 2, lights) == 8 && lights.size() == 2);
+}
+
+// ---------------------------------------------------------------------------------------------
+// L4: budgets, telemetry and debug views (PIXIE-TASK-217).
+
+// LIT-008: over the quality cap, the shadow-casting lights that contribute least are left out, never
+// drawn unshadowed, and unshadowed lights are untouched; the count is reported.
+TEST(ShadowedLightsAreCappedByQuality) {
+    CHECK(pixie::ShadowedLightCap(pixie::LightQuality2D::Low) == 8 && pixie::ShadowedLightCap(pixie::LightQuality2D::Medium) == 32 &&
+          pixie::ShadowedLightCap(pixie::LightQuality2D::High) == 64);
+    std::vector<pixie::LightInstance> lights;
+    for (int i = 0; i < 6; ++i) {
+        pixie::LightInstance light;
+        light.x = static_cast<float>(i * 10);
+        light.range = 50.0f;
+        const float strength = 0.1f * static_cast<float>(i + 1);
+        light.color = {strength, strength, strength};
+        light.shadowLayers = i == 0 ? 0u : 0xFFu;  // the weakest casts no shadow
+        lights.push_back(light);
+    }
+    const pxRect view{-100.0, -100.0, 300.0, 200.0};
+    CHECK(pixie::CapShadowedLights(lights, 3, view) == 2);
+    CHECK(lights.size() == 4);
+    // The unshadowed one stays, and the two weakest shadowed ones (i = 1, 2) are gone.
+    CHECK(lights.size() == 4 && lights[0].x == 0.0f && lights[1].x == 30.0f && lights[2].x == 40.0f && lights[3].x == 50.0f);
+}
+
+// LIT-017: a lit frame records CPU time, GPU time of light accumulation, shadows and combine (from
+// timestamp queries, a few frames late), and light, shadow and occluder counts.
+TEST(LightingRecordsTelemetry) {
+    Lab lab;
+    lab.Settings(Dark());
+    lab.Add(pxPoint(-40.0, 0.0)).Add<pixie::Light2D>(FlatLight(120.0, 4.0));
+    pixie::Light2D plain = FlatLight(60.0, 0.0);
+    plain.castsShadows = false;
+    lab.Add(pxPoint(40.0, 0.0)).Add<pixie::Light2D>(plain);
+    Box(lab, pxPoint(0.0, 0.0), pxVec2(6.0, 12.0));
+    pixie::Telemetry& telemetry = lab.World().GetTelemetry();
+    telemetry.SetEnabled(true);
+    for (int i = 0; i < 8; ++i) {
+        lab.Render();
+    }
+    std::map<std::string, pixie::MetricSnapshot> metrics;
+    for (const auto& metric : telemetry.Snapshot()) metrics[metric.name] = metric;
+    CHECK(metrics.count("lighting.cpu") == 1 && metrics["lighting.cpu"].timing.samples == 8);
+    CHECK(metrics["lighting.gpu.shadows"].timing.samples >= 3 && metrics["lighting.gpu.combine"].timing.samples >= 3);
+    CHECK(metrics["lighting.gpu.combine"].timing.lastMs > 0.0);
+    CHECK(metrics["lighting.lights"].gauge == 2.0 && metrics["lighting.shadowed_lights"].gauge == 1.0);
+    CHECK(metrics["lighting.occluder_edges"].gauge == 4.0 && metrics["lighting.shadowed_lights_dropped"].gauge == 0.0);
+    std::fprintf(stderr, "  lighting cpu %.3f ms, gpu lights %.3f, shadows %.3f, combine %.3f ms\n",
+                 metrics["lighting.cpu"].timing.lastMs, metrics["lighting.gpu.lights"].timing.lastMs,
+                 metrics["lighting.gpu.shadows"].timing.lastMs, metrics["lighting.gpu.combine"].timing.lastMs);
+}
+
+// LIT-016: debug views draw light bounds and occluder edges over the frame, unlit; off, nothing.
+TEST(LightingDebugDrawsBoundsAndOccluders) {
+    for (const std::uint32_t flags : {0u, pixie::kLightingDebugLights2D | pixie::kLightingDebugOccluders2D}) {
+        Lab lab;
+        lab.Settings(Dark());
+        pixie::Light2D light = FlatLight(40.0, 2.0);
+        light.intensity = 0.0;
+        lab.Add(pxPoint(0.0, 0.0)).Add<pixie::Light2D>(light);
+        Box(lab, pxPoint(-50.0, -50.0), pxVec2(6.0, 6.0));
+        lab.session->SetLightingDebug(flags);
+        const auto pixels = lab.Render();
+        // The ring at the range, and the box's right edge at x = -44.
+        const bool ring = At(pixels, 40.0, 0.0) > 100 || At(pixels, 39.5, 0.0) > 100;
+        const bool edge = At(pixels, -44.0, -50.0, 2) > 100 || At(pixels, -44.5, -50.0, 2) > 100;
+        CHECK(ring == (flags != 0) && edge == (flags != 0));
+    }
 }
 
 int main() {

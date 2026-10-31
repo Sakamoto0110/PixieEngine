@@ -79,6 +79,16 @@ struct LightingParameters {
     ToneMapping toneMapping = ToneMapping::None;
 };
 
+// GPU time of a lit frame's lighting, in milliseconds, read a few frames after it was drawn: light
+// accumulation without shadows, the shadowed lights (masks and lights), and the combine.
+struct LightingGpuTimes {
+    double lights = 0.0;
+    double shadows = 0.0;
+    double combine = 0.0;
+    // Counts the results read so far; it changes when a new one arrives.
+    std::uint64_t sample = 0;
+};
+
 // The sRGB transfer function, exactly: an 8-bit-style channel in [0, 1] to linear and back.
 PIXIE_RENDER_API float DecodeSrgb(float channel);
 PIXIE_RENDER_API float EncodeSrgb(float linear);
@@ -117,6 +127,9 @@ public:
     // The lights drawn by the last Finish, and how many of them cast shadows.
     int LastLightCount() const { return lastLightCount_; }
     int LastShadowedCount() const { return lastShadowedCount_; }
+    // The latest GPU timing that has arrived, from timestamp queries kept for a few frames so
+    // reading them never waits for the GPU.
+    const LightingGpuTimes& GpuTimes() const { return gpuTimes_; }
 
 private:
     struct Target {
@@ -144,6 +157,11 @@ private:
     FramebufferSize size_;
     GLint outputFramebuffer_ = 0;
     std::array<GLint, 4> outputViewport_{};
+    static constexpr int kQueryFrames = 4;
+    std::array<std::array<GLuint, 4>, kQueryFrames> queries_{};
+    std::array<bool, kQueryFrames> issued_{};
+    int queryFrame_ = 0;
+    LightingGpuTimes gpuTimes_;
     int lastLightCount_ = 0;
     int lastShadowedCount_ = 0;
 };

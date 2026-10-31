@@ -308,11 +308,21 @@ bool LightRenderer::Create() {
     glCreateFramebuffers(1, &worldFramebuffer_);
     glCreateFramebuffers(1, &lightFramebuffer_);
     glCreateFramebuffers(1, &maskFramebuffer_);
+    for (auto& frame : queries_) {
+        glCreateQueries(GL_TIMESTAMP, static_cast<GLsizei>(frame.size()), frame.data());
+    }
+    issued_ = {};
     return true;
 }
 
 void LightRenderer::Destroy() {
     DestroyTargets();
+    for (auto& frame : queries_) {
+        if (frame[0] != 0) {
+            glDeleteQueries(static_cast<GLsizei>(frame.size()), frame.data());
+            frame = {};
+        }
+    }
     for (GLuint* framebuffer : {&maskFramebuffer_, &lightFramebuffer_, &worldFramebuffer_}) {
         if (*framebuffer != 0) {
             glDeleteFramebuffers(1, framebuffer);
@@ -397,6 +407,25 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
         glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(outputFramebuffer_));
         return;
     }
+    // Read the oldest frame's timestamps if they have arrived; then this frame reuses its queries.
+    std::array<GLuint, 4>& queries = queries_[static_cast<std::size_t>(queryFrame_)];
+    if (issued_[static_cast<std::size_t>(queryFrame_)]) {
+        GLint available = 0;
+        glGetQueryObjectiv(queries[3], GL_QUERY_RESULT_AVAILABLE, &available);
+        if (available != 0) {
+            std::array<GLuint64, 4> stamps{};
+            for (std::size_t i = 0; i < stamps.size(); ++i) {
+                glGetQueryObjectui64v(queries[i], GL_QUERY_RESULT, &stamps[i]);
+            }
+            gpuTimes_.lights = static_cast<double>(stamps[1] - stamps[0]) / 1.0e6;
+            gpuTimes_.shadows = static_cast<double>(stamps[2] - stamps[1]) / 1.0e6;
+            gpuTimes_.combine = static_cast<double>(stamps[3] - stamps[2]) / 1.0e6;
+            ++gpuTimes_.sample;
+        }
+    }
+    issued_[static_cast<std::size_t>(queryFrame_)] = true;
+    queryFrame_ = (queryFrame_ + 1) % kQueryFrames;
+    glQueryCounter(queries[0], GL_TIMESTAMP);
     glNamedFramebufferDrawBuffer(worldFramebuffer_, GL_COLOR_ATTACHMENT0);
     glBindFramebuffer(GL_FRAMEBUFFER, lightFramebuffer_);
     glViewport(0, 0, size_.width, size_.height);
@@ -444,6 +473,7 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
             glUseProgram(lightProgram_.Id());
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, unshadowed);
         }
+        glQueryCounter(queries[1], GL_TIMESTAMP);
         const std::array<GLfloat, 4> none{0.0f, 0.0f, 0.0f, 0.0f};
         glEnable(GL_SCISSOR_TEST);
         for (auto i = static_cast<GLint>(unshadowed); i < static_cast<GLint>(ordered_.size()); ++i) {
@@ -466,7 +496,10 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
         }
         glDisable(GL_SCISSOR_TEST);
         lastLightCount_ = static_cast<int>(lights.size());
+    } else {
+        glQueryCounter(queries[1], GL_TIMESTAMP);
     }
+    glQueryCounter(queries[2], GL_TIMESTAMP);
 
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(outputFramebuffer_));
     glViewport(outputViewport_[0], outputViewport_[1], outputViewport_[2], outputViewport_[3]);
@@ -481,6 +514,7 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
     glBindTextureUnit(2, receivers_.texture);
     glBindTextureUnit(3, emission_.texture);
     glDrawArrays(GL_TRIANGLES, 0, 3);
+    glQueryCounter(queries[3], GL_TIMESTAMP);
     // Leave the usual blending, and texture units 1 to 3 free.
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);

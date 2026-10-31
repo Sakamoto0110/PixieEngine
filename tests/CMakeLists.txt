@@ -113,6 +113,12 @@ target_link_libraries(lighting-tests PRIVATE Pixie::Runtime glfw)
 pixie_target_defaults(lighting-tests)
 add_test(NAME lighting-tests COMMAND lighting-tests)
 
+# Lighting budgets (PIXIE-TASK-217) through a ProjectSession: an explicit measurement tool, not a CTest test.
+add_executable(lighting-budget benchmarks/LightingBudget.cpp)
+set_target_properties(lighting-budget PROPERTIES FOLDER tests)
+target_link_libraries(lighting-budget PRIVATE Pixie::Runtime glfw)
+pixie_target_defaults(lighting-budget)
+
 # The L0 lighting prototype (PIXIE-TASK-213): an explicit measurement tool, not a CTest test.
 add_executable(lighting-prototype benchmarks/LightingPrototype.cpp)
 set_target_properties(lighting-prototype PROPERTIES FOLDER tests)

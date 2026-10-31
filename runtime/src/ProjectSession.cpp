@@ -279,30 +279,64 @@ void ProjectSession::Render(double alpha) {
         DrawParticles(*world_, particles_, camera_, alpha);
     }
     SubmitShapes(*world_, shapes_, alpha, &view);
+    std::size_t sceneLights = 0;
     if (lighting != nullptr) {
-        // World shapes are part of the lit image; gizmos and overlays are drawn over it, unlit.
-        shapes_.Flush(camera_.MakeView());
-        if (HasLightReceivers(*world_)) {
-            lighting_.BeginReceivers();
-            DrawLightingPass(alpha, texts, view, LightingPass::Receivers);
+        Telemetry& telemetry = world_->GetTelemetry();
+        if (lightingMetrics_.world != worldRevision_) {
+            lightingMetrics_ = {telemetry.RegisterTiming("lighting.cpu"), telemetry.RegisterTiming("lighting.gpu.lights"),
+                                telemetry.RegisterTiming("lighting.gpu.shadows"), telemetry.RegisterTiming("lighting.gpu.combine"),
+                                telemetry.RegisterGauge("lighting.lights"), telemetry.RegisterGauge("lighting.shadowed_lights"),
+                                telemetry.RegisterGauge("lighting.shadowed_lights_dropped"),
+                                telemetry.RegisterGauge("lighting.occluder_edges"), telemetry.RegisterGauge("lighting.particle_lights"),
+                                telemetry.RegisterGauge("lighting.particle_lights_dropped"), worldRevision_,
+                                lightingMetrics_.gpuSample};
         }
-        if (HasEmission(*world_)) {
-            lighting_.BeginEmission();
-            DrawLightingPass(alpha, texts, view, LightingPass::Emission);
-            particles_.SetEmissionPass(true);
-            DrawParticlePools(*world_, particles_, camera_, alpha, true);
-            particles_.SetEmissionPass(false);
+        int shadowedDropped = 0;
+        int particleDropped = 0;
+        {
+            const TelemetryScope cpu(telemetry, lightingMetrics_.cpu);
+            // World shapes are part of the lit image; gizmos and overlays are drawn over it, unlit.
+            shapes_.Flush(camera_.MakeView());
+            if (HasLightReceivers(*world_)) {
+                lighting_.BeginReceivers();
+                DrawLightingPass(alpha, texts, view, LightingPass::Receivers);
+            }
+            if (HasEmission(*world_)) {
+                lighting_.BeginEmission();
+                DrawLightingPass(alpha, texts, view, LightingPass::Emission);
+                particles_.SetEmissionPass(true);
+                DrawParticlePools(*world_, particles_, camera_, alpha, true);
+                particles_.SetEmissionPass(false);
+            }
+            GatherLights(*world_, alpha, &view, lights_);
+            shadowedDropped = CapShadowedLights(lights_, ShadowedLightCap(lighting->quality), view);
+            sceneLights = lights_.size();
+            particleDropped = GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
+            GatherOccluders(*world_, alpha, occluders_, &outlines_);
+            lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
         }
-        GatherLights(*world_, alpha, &view, lights_);
-        GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
-        GatherOccluders(*world_, alpha, occluders_, &outlines_);
-        lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
+        telemetry.SetGauge(lightingMetrics_.lights, static_cast<double>(lighting_.LastLightCount()));
+        telemetry.SetGauge(lightingMetrics_.shadowed, static_cast<double>(lighting_.LastShadowedCount()));
+        telemetry.SetGauge(lightingMetrics_.shadowedDropped, shadowedDropped);
+        telemetry.SetGauge(lightingMetrics_.edges, static_cast<double>(occluders_.size()));
+        telemetry.SetGauge(lightingMetrics_.particleLights, static_cast<double>(lights_.size() - sceneLights));
+        telemetry.SetGauge(lightingMetrics_.particleDropped, particleDropped);
+        if (const LightingGpuTimes& gpu = lighting_.GpuTimes(); gpu.sample != lightingMetrics_.gpuSample) {
+            lightingMetrics_.gpuSample = gpu.sample;
+            telemetry.RecordTiming(lightingMetrics_.gpuLights, gpu.lights);
+            telemetry.RecordTiming(lightingMetrics_.gpuShadows, gpu.shadows);
+            telemetry.RecordTiming(lightingMetrics_.gpuCombine, gpu.combine);
+        }
     }
     if (mode_ == SessionMode::Edit) {
         SyncSceneMovement2D(*world_);
         if (!physicsDebugExplicit_) DrawMovementGizmos2D(*world_, shapes_, camera_);
     }
     if (physicsDebugExplicit_) DrawPhysicsDebug2D(*world_, shapes_, camera_, physicsDebug_);
+    if (lighting != nullptr && LightingDebug() != 0) {
+        DrawLightingDebug2D(std::span<const LightInstance>(lights_.data(), sceneLights), occluders_, shapes_, camera_,
+                            LightingDebug());
+    }
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_.MakeView());
 

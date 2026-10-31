@@ -345,7 +345,8 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&LightingSettings2D::ambientIntensity>("ambientIntensity").Label("ambient intensity").Tooltip("Linear multiplier of the ambient color.").Range(0, 100).Scrub(0.01)
         .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
         .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.")
-        .Field<&LightingSettings2D::maxParticleLights>("maxParticleLights").Label("max particle lights").Tooltip("At most this many particle light splats a frame, over all pools.").Range(0, 65536);
+        .Field<&LightingSettings2D::maxParticleLights>("maxParticleLights").Label("max particle lights").Tooltip("At most this many particle light splats a frame, over all pools.").Range(0, 65536)
+        .Field<&LightingSettings2D::quality>("quality", {"Low", "Medium", "High"}).Tooltip("The most shadow-casting lights a frame draws: 8, 32 or 64. Over it, the weakest are left out and counted in telemetry.");
     types.Add<Emission2D>("Emission2D")
         .Field<&Emission2D::color>("color").Tooltip("The glow's tint: the sprite's image, or the shape, times this color shows unlit, even in darkness.")
         .Field<&Emission2D::intensity>("intensity").Tooltip("Linear multiplier from 0 to 16; game code fades it to show a state change.").Range(0, 16).Scrub(0.01);

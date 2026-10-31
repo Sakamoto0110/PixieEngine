@@ -431,6 +431,89 @@ void DrawParticlePools(World& world, ParticleRenderer& renderer, const Camera2D&
     }
 }
 
+int ShadowedLightCap(LightQuality2D quality) {
+    return quality == LightQuality2D::Low ? 8 : quality == LightQuality2D::High ? 64 : 32;
+}
+
+int CapShadowedLights(std::vector<LightInstance>& lights, int cap, const pxRect& view) {
+    std::vector<std::pair<double, std::size_t>> shadowed;
+    for (std::size_t i = 0; i < lights.size(); ++i) {
+        const LightInstance& light = lights[i];
+        if (light.shadowLayers == 0u) {
+            continue;
+        }
+        double area = view.width * view.height;
+        if (light.kind != LightKind::Directional) {
+            const double x0 = std::max(view.x, static_cast<double>(light.x - light.range));
+            const double x1 = std::min(view.x + view.width, static_cast<double>(light.x + light.range));
+            const double y0 = std::max(view.y, static_cast<double>(light.y - light.range));
+            const double y1 = std::min(view.y + view.height, static_cast<double>(light.y + light.range));
+            area = std::max(0.0, x1 - x0) * std::max(0.0, y1 - y0);
+        }
+        shadowed.emplace_back(area * (light.color[0] + light.color[1] + light.color[2]), i);
+    }
+    const auto keep = static_cast<std::size_t>(std::max(cap, 0));
+    if (shadowed.size() <= keep) {
+        return 0;
+    }
+    // The weakest first; ties by order, so the result does not depend on the sort.
+    std::stable_sort(shadowed.begin(), shadowed.end(), [](const auto& a, const auto& b) { return a.first < b.first; });
+    std::vector<bool> removed(lights.size(), false);
+    const std::size_t drop = shadowed.size() - keep;
+    for (std::size_t i = 0; i < drop; ++i) {
+        removed[shadowed[i].second] = true;
+    }
+    std::size_t next = 0;
+    for (std::size_t i = 0; i < lights.size(); ++i) {
+        if (!removed[i]) {
+            lights[next++] = lights[i];
+        }
+    }
+    lights.resize(next);
+    return static_cast<int>(drop);
+}
+
+void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const OccluderEdge> occluders,
+                         ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags) {
+    const double thickness = 0.75 / camera.Zoom();
+    const auto line = [&](double ax, double ay, double bx, double by, pxColorRgba color) {
+        ShapeInstance edge;
+        edge.position = {static_cast<float>((ax + bx) / 2), static_cast<float>((ay + by) / 2)};
+        edge.scale = {static_cast<float>(std::hypot(bx - ax, by - ay) / 2), static_cast<float>(thickness)};
+        edge.rotation = static_cast<float>(std::atan2(by - ay, bx - ax));
+        edge.color = color;
+        renderer.Submit(ShapeKind::Quad, edge);
+    };
+    if ((flags & kLightingDebugLights2D) != 0) {
+        const pxColorRgba color(255, 220, 90);
+        for (const LightInstance& light : lights) {
+            if (light.kind == LightKind::Directional) {
+                const double length = 60.0 / camera.Zoom();
+                line(light.x, light.y, light.x + light.directionX * length, light.y + light.directionY * length, color);
+                continue;
+            }
+            ShapeInstance ring;
+            ring.position = {light.x, light.y};
+            ring.scale = {light.range, light.range};
+            ring.color = color;
+            renderer.Submit(ShapeKind::Ring, ring);
+            if (light.kind == LightKind::Spot) {
+                const double half = std::acos(std::clamp(static_cast<double>(light.cosOuter), -1.0, 1.0));
+                const double angle = std::atan2(light.directionY, light.directionX);
+                for (const double side : {-half, half}) {
+                    line(light.x, light.y, light.x + std::cos(angle + side) * light.range,
+                         light.y + std::sin(angle + side) * light.range, color);
+                }
+            }
+        }
+    }
+    if ((flags & kLightingDebugOccluders2D) != 0) {
+        for (const OccluderEdge& edge : occluders) {
+            line(edge.ax, edge.ay, edge.bx, edge.by, pxColorRgba(120, 230, 255));
+        }
+    }
+}
+
 bool HasLightReceivers(World& world) {
     const auto receivers = world.Registry().view<const LightReceiver2D>();
     return receivers.begin() != receivers.end();

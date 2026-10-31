@@ -17,6 +17,11 @@ enum class LightToneMapping2D : std::uint8_t {
     Aces,
 };
 
+// How much lighting work a frame may do: the most shadow-casting lights in view, 8, 32 or 64. Over
+// the cap, the lights that contribute least are left out (drawing them without shadows would light
+// through walls) and counted in telemetry.
+enum class LightQuality2D : std::uint8_t { Low, Medium, High };
+
 // Lighting for a scene: one per scene, on any entity, like PhysicsSettings2D. Without one, the scene
 // is drawn unlit, exactly as before lighting existed, and its lights do nothing. Its defaults (white
 // ambient at 1, exposure 1, no tone mapping) leave an unlit image unchanged; lower the ambient for
@@ -31,6 +36,7 @@ struct LightingSettings2D {
     LightToneMapping2D toneMapping = LightToneMapping2D::None;
     // At most this many particle light splats a frame, over all pools, after each pool's cap.
     int maxParticleLights = 2048;
+    LightQuality2D quality = LightQuality2D::Medium;
     bool operator==(const LightingSettings2D&) const = default;
 };
 
