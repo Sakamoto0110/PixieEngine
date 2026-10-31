@@ -43,4 +43,4 @@ Walls, floor and platforms are occluders cast from their colliders; the back wal
 that receive the light. The door is the room's only game code: `Door2D` (`src/LightLabProject.cpp`)
 drives a kinematic body whose velocity reverses every `period` seconds of simulated time, and the
 door is an `Occluder2D` like any other; `LightLabScenario` on the `scenario` entity scales the
-doors' speed. Look and atmosphere have not been reviewed by the owner.
+doors' speed. The owner reviewed and accepted this room on 2026-10-31.

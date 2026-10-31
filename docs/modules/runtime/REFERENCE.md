@@ -841,8 +841,8 @@ their relief, with lights `normalHeight` world units above the plane, turning wi
 Shapes and texts do not take part in normal mapping.
 
 The editor's light handles, its light layer names and the development channel's
-`world.lighting_debug` are described in the [editor's README](../../../editor/README.md). The work is
-scheduled under [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
+`world.lighting_debug` are described in the [editor's README](../../../editor/README.md). The work was
+delivered by [PIXIE-TODO-052](../../archive/todo-052-2d-lighting-2026-10-31.md); the
 [L0 design record](../../lighting-l0-design.md) gives the order and units.
 
 ## Randomness

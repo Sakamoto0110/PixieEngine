@@ -25,7 +25,7 @@
 Design baseline: 2026-10-31. The [physics specification](rigid-body-physics-requirements.md#11-lighting-and-room-sequence-after-physics)
 required that lighting receive a render contract and acceptance budget of the same detail before
 any lighting code. The owner promoted this work on 2026-10-31 as
-[PIXIE-TODO-052](../TODO.md#pixie-todo-052--2d-lighting); TODO.md remains the scheduler.
+PIXIE-TODO-052 and accepted it the same day; its [completion record](archive/todo-052-2d-lighting-2026-10-31.md) keeps the scope and evidence.
 
 This document owns the proposed lighting design input and its acceptance matrix. The
 [consumer requirements](circuit-puzzle-requirements.md#4-lighting-quality-critical-requirements)

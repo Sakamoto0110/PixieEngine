@@ -52,5 +52,4 @@ same in telemetry.
 
 Room 4 is this room with the panel open and **F** pressed: ambient occlusion, height fog and bloom
 on `LightingSettings2D`, all off in the authored scene. Their cost is measured by the
-`lights-16-effects` room of `lighting-budget`. Look and atmosphere have not been reviewed by the
-owner.
+`lights-16-effects` room of `lighting-budget`. The owner reviewed and accepted this room on 2026-10-31.

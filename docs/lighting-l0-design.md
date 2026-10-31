@@ -22,7 +22,7 @@
 
 ## 1. Status
 
-Gate L0 of [PIXIE-TODO-052](../TODO.md#pixie-todo-052--2d-lighting), task `PIXIE-TASK-213`, on
+Gate L0 of [PIXIE-TODO-052](archive/todo-052-2d-lighting-2026-10-31.md), task `PIXIE-TASK-213`, on
 2026-10-31. This record fixes what the [lighting requirements](lighting-requirements.md) left as
 "pin at L0", with the measurements behind the shadow technique.
 
@@ -327,7 +327,7 @@ occlusion at L4.
   shadowed light that follows an emitter is an ordinary `Light2D` on the emitter's entity.
 - **Shadowed-light budget (LIT-008).** Quality presets bound the shadow-casting lights in view:
   `Low` 8 with a half-resolution occlusion mask, `Medium` 32, `High` 64, both at full resolution
-  (L4 implements the caps; every preset still uses a full-resolution mask).
+  (L4 implements the caps and Low's half-resolution mask).
   Over the cap, the lights with the smallest contribution (intensity times covered screen area)
   are dropped, not drawn unshadowed, which would leak; the dropped count is in telemetry and the
   debug view.

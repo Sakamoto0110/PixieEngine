@@ -22,13 +22,12 @@
 
 ## 1. Status
 
-Gate L5 of [PIXIE-TODO-052](../TODO.md#pixie-todo-052--2d-lighting), task `PIXIE-TASK-218`, on
+Gate L5 of [PIXIE-TODO-052](archive/todo-052-2d-lighting-2026-10-31.md), task `PIXIE-TASK-218`, on
 2026-10-31, at code `c4f9a58dc1cd397ea64b73fd8276f45748b2e654`. This record covers the parts of L5 that do not need the
 owner: the regression matrix, the stress report and the residual limits. Two parts remain open
 because they belong to the owner: approving reference images for the rooms (LIT-018, as for
 `PIXIE-TASK-212`) and the visual and readability review of the four rooms (LIT-014, consumers
-L01–L06). By instruction, no visual review was made: every look, atmosphere and readability result
-below is assumed acceptable and stays open to that review.
+L01–L06). Both were settled on 2026-10-31 (section 5).
 
 The [requirements](lighting-requirements.md) own the cases; the [L0 design record](lighting-l0-design.md)
 keeps the pinned choices and the L4 budget tables; the module references own the API.
@@ -129,12 +128,15 @@ these blocks a required case above; each is a candidate for later work or for th
   one of its labels (the number 1 for `Light2D.type`) wrote 255 instead of being refused; the
   qualification now sets it by label. Recorded here as a follow-up for the editor, not fixed in this work.
 
-## 5. Open for the owner
+## 5. Owner decisions
 
-1. **Reference images.** Captures exist for every room (fixed steps, seed 1, 1280 × 720, RX 7600
-   and llvmpipe) as machine-local evidence; none is approved, and no tolerance policy is implied.
-   Approval follows `PIXIE-TASK-212`.
-2. **Visual and readability review** of rooms 1–4 (`samples/light-lab`, `samples/light-machine`):
-   look, atmosphere, readability powered, unpowered and with reduced effects, pan and zoom near
-   bright sources with panels open, and whether each optional effect earns its place (L06).
-3. **The L0 choices** whose review was waived ([section 9 of the L0 record](lighting-l0-design.md#9-choices-open-to-the-owners-review)).
+1. **Reference images.** On 2026-10-31 the owner accepted ("parece tudo certo") the recommendation
+   to defer them to `PIXIE-TASK-212`, which chooses the samples and the tolerance policy. Captures
+   of every room (fixed steps, seed 1, 1280 × 720, RX 7600 and llvmpipe) remain machine-local
+   evidence; none is a reference.
+2. **Visual and readability review.** On 2026-10-31, after reviewing rooms 1 and 2 in the editor
+   and rooms 3 and 4 in the player, the owner stated "estao aceitas". This is recorded testimony;
+   no owner screenshot is attached.
+3. **The L0 choices** stay as pinned, with their review waived, not performed
+   ([section 9 of the L0 record](lighting-l0-design.md#9-choices-open-to-the-owners-review)); each
+   remains revisable.
