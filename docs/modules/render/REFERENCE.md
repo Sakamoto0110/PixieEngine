@@ -41,7 +41,9 @@ with shadow layers are drawn one by one when `Finish` gets `OccluderEdge`s: with
 pixel box, every edge of its shadow layers that faces away from it (toward it, for a self-shadowing
 occluder) becomes a quad over its umbra and penumbra, whose fragments add the fraction of the
 source's angular extent the edge hides into an R32F occlusion mask; the light then multiplies by
-one minus that, clamped. Directional lights extrude along their direction with an angular source.
+one minus that, clamped. Directional lights extrude along their direction with an angular source. With
+`halfResolutionShadows` the masks are drawn into a texture of half the size and sampled with
+linear filtering, clamped at its edges, which costs less and softens shadow edges by a pixel.
 Overlapping penumbrae of separate occluders add, so their crossings are slightly too dark.
 `BeginEmission` switches drawing to an RGBA16F emission target of linear radiance, cleared to zero,
 which the combine adds to `albedo * light` before exposure. SpriteRenderer and ShapeRenderer choose

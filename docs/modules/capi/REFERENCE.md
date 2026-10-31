@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (18), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (19), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -77,8 +77,10 @@ configuration-specific evidence and pending delivery gates.
   version 13 the read-only body mass query, and version 14 native collider handle
   queries and drag editing, and version 15 capsule radius/height handles and the
   expanded handle-result layout, version 16 session physics debug options,
-  version 17 development module loading in the shared engine, and version 18
-  development-only in-memory World dispatch; a
+  version 17 development module loading in the shared engine, version 18
+  development-only in-memory World dispatch, and version 19 lighting's light layer names
+  (`pixie_light_layer_name`, slots 1 to 8) and lighting debug options
+  (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`); a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.

@@ -811,8 +811,13 @@ particle, of its color times its alpha (faded with age when the pool fades) and 
 the first `lightCap` of the pool and at most `LightingSettings2D::maxParticleLights` in all,
 returning how many the caps left out.
 
+Light layers are 8 slots; `LightLayers2D`, a singleton like `CollisionLayers2D`, names them by
+stable slot, and `LightLayerNames` gives the display names ("Default" and "Light layer N"
+without one). The mask fields of `Light2D`, `Occluder2D` and `LightReceiver2D` reference it, so the
+Inspector shows them as named checkboxes.
+
 `LightingSettings2D::quality` caps the shadow-casting lights a frame draws at 8, 32 or 64
-(`ShadowedLightCap`); over the cap, `CapShadowedLights` removes those that contribute least (summed
+(`ShadowedLightCap`), and `Low` computes the occlusion masks at half resolution; over the cap, `CapShadowedLights` removes those that contribute least (summed
 color times the area they cover in view), never drawing them unshadowed. A lit frame records, in
 the World's telemetry when it is enabled, `lighting.cpu` (the lighting passes, gathering and issuing
 on the CPU), `lighting.gpu.lights`, `lighting.gpu.shadows` and `lighting.gpu.combine` (GPU timestamps
@@ -823,9 +828,9 @@ bounds (`kLightingDebugLights2D`: a ring at each range, a spot's cone edges, a d
 direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes;
 until it is called, light bounds show in Edit and nothing in Play.
 
-Light-layer names, editing lights with viewport handles and the development channel's lighting
-views are later stages of
-[PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
+The editor's light handles, its light layer names and the development channel's
+`world.lighting_debug` are described in the [editor's README](../../../editor/README.md). The work is
+scheduled under [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
 [L0 design record](../../lighting-l0-design.md) gives the order and units.
 
 ## Randomness
