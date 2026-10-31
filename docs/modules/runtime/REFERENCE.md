@@ -781,8 +781,24 @@ sprites, texts and shapes again as receivers (`SubmitSpriteReceivers`, `SubmitSh
 the renderers' receiver pass); gathers the lights (`GatherLights`, culled to the padded view); and
 combines into the session's output. Gizmos, physics debug, the project's overlay and the screen
 layer are drawn after, never lit. Paths and particles are not receivers: they take the layers of
-what lies under them. Shadows, emission, particle lights, light-layer names and authoring tools are
-later stages of [PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
+what lies under them.
+
+An `Occluder2D` makes its entity block light. With the `Collider` source it casts from the
+entity's `Collider2D` or `CompoundCollider2D` shapes (enabled, not sensors), or from a
+`CharacterMotor2D`'s upright capsule, so shadows and physics agree; with `Polygon`, from its own
+convex polygon in local units; with `SpriteAlpha`, from the outline of its sprite where the image's
+alpha reaches `alphaThreshold`. `SpriteAlphaOutlines` traces that outline once per image, region
+and threshold on a grid of at most 64 cells a side, as the edges between solid and empty cells
+merged into runs, and keeps it (a changed image file is traced again only after `Clear`); a session
+reads the images from its project folder. `OccluderPolygons` gives the convex pieces at a transform, circles and
+capsule caps as polygons within 0.5 world units of the curve; `GatherOccluders` collects their
+edges at the interpolated pose, as drawing does. A light with `castsShadows` is shadowed by the
+occluders whose `layers` meet its `shadowLayers`; its `sourceRadius` (or `sourceAngle` for a
+directional light) sets the penumbra. An occluder does not shadow its own interior, so its sprite is
+lit as if it were absent, unless `selfShadow` is set; the rule applies per convex piece, so pieces
+of one compound shadow each other; a sprite outline has no inner edges, so its interior is
+shadowed only where another part of the same outline stands between it and the light. Emission, particle lights, light-layer names and authoring tools are later stages of
+[PIXIE-TODO-052](../../../TODO.md#pixie-todo-052--2d-lighting); the
 [L0 design record](../../lighting-l0-design.md) gives the order and units.
 
 ## Randomness

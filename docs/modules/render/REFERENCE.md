@@ -36,7 +36,13 @@ receiver pass (`SetReceiverPass`), a second shader that writes the instance colo
 coverage reaches one half. `Finish` clears an RGBA16F light buffer to the linear ambient, adds
 point, spot and directional `LightInstance`s (64 bytes each, colors linear) where their layers meet
 the receiver's, then draws `encode(tonemap(exposure * decode(albedo) * light))`, blended back to
-the albedo by the unlit weight, into the remembered framebuffer with the albedo's alpha. The sRGB
+the albedo by the unlit weight, into the remembered framebuffer with the albedo's alpha. Lights
+with shadow layers are drawn one by one when `Finish` gets `OccluderEdge`s: within the light's
+pixel box, every edge of its shadow layers that faces away from it (toward it, for a self-shadowing
+occluder) becomes a quad over its umbra and penumbra, whose fragments add the fraction of the
+source's angular extent the edge hides into an R32F occlusion mask; the light then multiplies by
+one minus that, clamped. Directional lights extrude along their direction with an angular source.
+Overlapping penumbrae of separate occluders add, so their crossings are slightly too dark. The sRGB
 curves are exact (`DecodeSrgb`, `EncodeSrgb`). Without lights and with ambient 1, exposure 1 and no
 tone mapping, the result equals the albedo byte for byte on the qualified renderers.
 

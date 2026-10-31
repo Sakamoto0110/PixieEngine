@@ -306,6 +306,11 @@ occlusion at L4.
   soft rim on the light's side lit; volumes do it by extruding that occluder's light-facing edges
   instead. "Own" means every shape of the entity; the prototype applied the rule per convex piece,
   and L2 decides per entity with an occluder-ID mask if compound occluders show the difference.
+  L2 (2026-10-31) kept the per-piece rule: no room has shown the difference yet, and the review
+  that would decide it is pending.
+- **Mask precision.** L2 stores the occlusion mask in R32F, not the prototype's R16F: summed in
+  half floats, the fractions of adjacent edges stopped just short of 1 and left a faint value of 1
+  or 2 (out of 255) behind closed walls.
 - **Occluder geometry.** Boxes and polygons are used as they are; circles and capsules become
   polygons whose chords stay within 0.5 world units of the curve (8 to 32 segments per circle);
   sprite alpha is traced once per image, region and threshold into convex pieces and cached, not
