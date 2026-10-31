@@ -3,6 +3,7 @@
 
 #include "Check.hpp"
 
+#include "pixie/core/Image.hpp"
 #include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
@@ -22,6 +23,7 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <filesystem>
 #include <memory>
 #include <numbers>
 #include <vector>
@@ -560,6 +562,70 @@ TEST(OccluderGeometryFollowsColliders) {
             minY = std::min(minY, p.y); maxY = std::max(maxY, p.y); maxX = std::max(maxX, std::abs(p.x));
         }
         CHECK(std::abs(minY + 25.0) < 1e-9 && std::abs(maxY - 25.0) < 1e-9 && std::abs(maxX - 10.0) < 1e-9);
+    }
+}
+
+namespace {
+
+double OutlineArea(const std::vector<pixie::OutlineEdge>& edges) {
+    double sum = 0.0;
+    for (const auto& e : edges) sum += e.a.x * e.b.y - e.b.x * e.a.y;
+    return sum / 2.0;
+}
+
+double EdgeArea(const std::vector<pixie::OccluderEdge>& edges) {
+    double sum = 0.0;
+    for (const auto& e : edges) sum += static_cast<double>(e.ax) * e.by - static_cast<double>(e.bx) * e.ay;
+    return sum / 2.0;
+}
+
+} // namespace
+
+// LIT-006: a sprite's alpha outline is the boundary between solid and empty cells, merged into
+// runs, wound so that it encloses a positive area: an L of 48 of 64 pixels has 6 edges and 0.75 of
+// the sprite's area.
+TEST(SpriteAlphaOutlineTracesTheBoundary) {
+    std::vector<std::uint8_t> rgba(8 * 8 * 4, 0);
+    for (int y = 0; y < 8; ++y) {
+        for (int x = 0; x < 8; ++x) {
+            rgba[(static_cast<std::size_t>(y) * 8 + x) * 4 + 3] = x < 4 || y >= 4 ? 255 : 10;
+        }
+    }
+    const auto edges = pixie::SpriteAlphaOutlines::Trace(8, 8, rgba, 0.5, 8);
+    CHECK(edges.size() == 6);
+    CHECK(std::abs(OutlineArea(edges) - 0.75) < 1e-9);
+    CHECK(pixie::SpriteAlphaOutlines::Trace(8, 8, rgba, 0.01, 8).size() == 4);
+}
+
+// LIT-006: a SpriteAlpha occluder casts from its sprite's outline at the entity's transform, mirrored
+// sprites included.
+TEST(SpriteAlphaOccludersFollowTheSprite) {
+    const std::filesystem::path folder = std::filesystem::temp_directory_path() / "pixie-lighting-tests";
+    std::filesystem::create_directories(folder);
+    const std::vector<std::uint8_t> opaque(8 * 8 * 4, 255);
+    CHECK(pixie::WriteFileBytes(folder / "solid.png", pixie::EncodePng(8, 8, opaque)));
+    pixie::SpriteAlphaOutlines outlines;
+    outlines.SetFolder(folder);
+    for (const double flip : {1.0, -1.0}) {
+        pixie::World world;
+        pixie::Entity entity = world.Create();
+        entity.Add<pixie::Transform2D>(pixie::Transform2D{pxPoint(100.0, 0.0), 0.5, pxVec2(2.0 * flip, 2.0)});
+        pixie::Sprite sprite;
+        sprite.image = "solid.png";
+        entity.Add<pixie::Sprite>(sprite);
+        pixie::Occluder2D occluder;
+        occluder.source = pixie::OccluderSource2D::SpriteAlpha;
+        entity.Add<pixie::Occluder2D>(occluder);
+        std::vector<pixie::OccluderEdge> edges;
+        pixie::GatherOccluders(world, 1.0, edges, &outlines);
+        CHECK(edges.size() == 4);
+        CHECK(std::abs(EdgeArea(edges) - 256.0) < 1e-3);
+        double cx = 0.0;
+        for (const auto& e : edges) cx += e.ax / 4.0;
+        CHECK(std::abs(cx - 100.0) < 1e-3);
+        // Without outlines, a SpriteAlpha occluder casts nothing.
+        pixie::GatherOccluders(world, 1.0, edges);
+        CHECK(edges.empty());
     }
 }
 

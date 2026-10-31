@@ -1,7 +1,12 @@
 #include "pixie/runtime/LightingDrawing.hpp"
 
+#include "pixie/core/Image.hpp"
+#include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
+
+#include <format>
+#include <optional>
 
 #include <algorithm>
 #include <array>
@@ -175,7 +180,104 @@ std::vector<std::vector<pxPoint>> OccluderPolygons(const Occluder2D& occluder, c
     return polygons;
 }
 
-void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges) {
+std::vector<OutlineEdge> SpriteAlphaOutlines::Trace(int width, int height, std::span<const std::uint8_t> rgba,
+                                                     double threshold, int cells) {
+    std::vector<OutlineEdge> edges;
+    if (width <= 0 || height <= 0 || rgba.size() < static_cast<std::size_t>(width) * height * 4 || cells <= 0) {
+        return edges;
+    }
+    const int cell = std::max(1, (std::max(width, height) + cells - 1) / cells);
+    const int nx = (width + cell - 1) / cell;
+    const int ny = (height + cell - 1) / cell;
+    // A cell is solid when its mean alpha reaches the threshold.
+    std::vector<std::uint8_t> solid(static_cast<std::size_t>(nx) * ny, 0);
+    for (int cy = 0; cy < ny; ++cy) {
+        for (int cx = 0; cx < nx; ++cx) {
+            double sum = 0.0;
+            int count = 0;
+            for (int y = cy * cell; y < std::min(height, (cy + 1) * cell); ++y) {
+                for (int x = cx * cell; x < std::min(width, (cx + 1) * cell); ++x) {
+                    sum += rgba[(static_cast<std::size_t>(y) * width + x) * 4 + 3];
+                    ++count;
+                }
+            }
+            solid[static_cast<std::size_t>(cy) * nx + cx] = sum >= threshold * 255.0 * count ? 1 : 0;
+        }
+    }
+    const auto at = [&](int cx, int cy) {
+        return cx >= 0 && cy >= 0 && cx < nx && cy < ny && solid[static_cast<std::size_t>(cy) * nx + cx] != 0;
+    };
+    const auto u = [&](int cx) { return static_cast<double>(std::min(width, cx * cell)) / width; };
+    const auto v = [&](int cy) { return static_cast<double>(std::min(height, cy * cell)) / height; };
+    // Rows: top boundaries run left to right, bottom ones right to left, merged where they continue.
+    for (int cy = 0; cy < ny; ++cy) {
+        for (const int side : {-1, 1}) {
+            int start = -1;
+            for (int cx = 0; cx <= nx; ++cx) {
+                const bool edge = cx < nx && at(cx, cy) && !at(cx, cy + side);
+                if (edge && start < 0) {
+                    start = cx;
+                } else if (!edge && start >= 0) {
+                    const double y = v(side < 0 ? cy : cy + 1);
+                    edges.push_back(side < 0 ? OutlineEdge{pxPoint(u(start), y), pxPoint(u(cx), y)}
+                                             : OutlineEdge{pxPoint(u(cx), y), pxPoint(u(start), y)});
+                    start = -1;
+                }
+            }
+        }
+    }
+    // Columns: right boundaries run downward, left ones upward.
+    for (int cx = 0; cx < nx; ++cx) {
+        for (const int side : {-1, 1}) {
+            int start = -1;
+            for (int cy = 0; cy <= ny; ++cy) {
+                const bool edge = cy < ny && at(cx, cy) && !at(cx + side, cy);
+                if (edge && start < 0) {
+                    start = cy;
+                } else if (!edge && start >= 0) {
+                    const double x = u(side < 0 ? cx : cx + 1);
+                    edges.push_back(side > 0 ? OutlineEdge{pxPoint(x, v(start)), pxPoint(x, v(cy))}
+                                             : OutlineEdge{pxPoint(x, v(cy)), pxPoint(x, v(start))});
+                    start = -1;
+                }
+            }
+        }
+    }
+    return edges;
+}
+
+const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const Sprite& sprite, double threshold, pxVec2& pixelSize) {
+    const bool region = sprite.region.width > 0.0 && sprite.region.height > 0.0;
+    const std::string key = std::format("{}|{}|{}|{}|{}|{}", sprite.image, sprite.region.x, sprite.region.y,
+                                        sprite.region.width, sprite.region.height, threshold);
+    auto found = traced_.find(key);
+    if (found == traced_.end()) {
+        Traced traced;
+        std::string error;
+        if (const std::optional<Image> image = LoadPngFile(folder_ / sprite.image, error)) {
+            int x0 = 0, y0 = 0, w = image->width, h = image->height;
+            if (region) {
+                x0 = std::clamp(static_cast<int>(sprite.region.x), 0, image->width);
+                y0 = std::clamp(static_cast<int>(sprite.region.y), 0, image->height);
+                w = std::clamp(static_cast<int>(sprite.region.width), 0, image->width - x0);
+                h = std::clamp(static_cast<int>(sprite.region.height), 0, image->height - y0);
+            }
+            std::vector<std::uint8_t> part(static_cast<std::size_t>(w) * h * 4);
+            for (int y = 0; y < h; ++y) {
+                std::copy_n(image->pixels.begin() + (static_cast<std::ptrdiff_t>(y0 + y) * image->width + x0) * 4,
+                            static_cast<std::ptrdiff_t>(w) * 4,
+                            part.begin() + static_cast<std::ptrdiff_t>(y) * w * 4);
+            }
+            traced.pixelSize = region ? pxVec2(sprite.region.width, sprite.region.height) : pxVec2(w, h);
+            traced.edges = Trace(w, h, part, threshold);
+        }
+        found = traced_.emplace(key, std::move(traced)).first;
+    }
+    pixelSize = found->second.pixelSize;
+    return found->second.edges;
+}
+
+void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges, SpriteAlphaOutlines* outlines) {
     edges.clear();
     entt::registry& registry = world.Registry();
     for (auto [id, occluder, transform] : registry.view<const Occluder2D, const Transform2D>().each()) {
@@ -184,6 +286,30 @@ void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edge
         }
         const auto* previous = registry.try_get<const PreviousTransform2D>(id);
         const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, transform, alpha) : transform;
+        if (occluder.source == OccluderSource2D::SpriteAlpha) {
+            const auto* sprite = registry.try_get<const Sprite>(id);
+            if (outlines == nullptr || sprite == nullptr) {
+                continue;
+            }
+            pxVec2 pixelSize;
+            const std::vector<OutlineEdge>& outline =
+                outlines->Edges(*sprite, std::clamp(occluder.alphaThreshold, 0.0, 1.0), pixelSize);
+            // A mirrored sprite turns the outline's winding around.
+            const bool mirrored = drawn.scale.x * drawn.scale.y < 0.0;
+            for (const OutlineEdge& local : outline) {
+                const pxPoint a = SpritePoint(*sprite, drawn, pixelSize, mirrored ? local.b : local.a);
+                const pxPoint b = SpritePoint(*sprite, drawn, pixelSize, mirrored ? local.a : local.b);
+                OccluderEdge edge;
+                edge.ax = static_cast<float>(a.x);
+                edge.ay = static_cast<float>(a.y);
+                edge.bx = static_cast<float>(b.x);
+                edge.by = static_cast<float>(b.y);
+                edge.layers = static_cast<std::uint32_t>(occluder.layers) & 0xFFu;
+                edge.flags = occluder.selfShadow ? 1u : 0u;
+                edges.push_back(edge);
+            }
+            continue;
+        }
         const auto polygons = OccluderPolygons(occluder, drawn, registry.try_get<const Collider2D>(id),
                                                registry.try_get<const CompoundCollider2D>(id),
                                                registry.try_get<const CharacterMotor2D>(id));

@@ -5,12 +5,17 @@
 #include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
+#include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 
 #include <pixie/pxColorRgba.hpp>
 #include <pixie/pxRect.hpp>
 
 #include <cstdint>
+#include <filesystem>
+#include <map>
+#include <span>
+#include <string>
 #include <vector>
 
 namespace pixie {
@@ -43,9 +48,46 @@ PIXIE_RUNTIME_API std::vector<std::vector<pxPoint>> OccluderPolygons(const Occlu
                                                                     const CompoundCollider2D* compound,
                                                                     const CharacterMotor2D* motor);
 
+// One edge of a sprite's alpha outline, in the sprite's own units (0 to 1 across its drawn
+// rectangle, Y down), wound so that its outward normal is (b - a) turned to (dy, -dx).
+struct OutlineEdge {
+    pxPoint a;
+    pxPoint b;
+};
+
+// The alpha outlines of sprite images, traced once per image, region and threshold and kept. Images
+// are read from the project folder; one that cannot be read has no outline. A changed file is read
+// again only after Clear.
+class SpriteAlphaOutlines {
+public:
+    void SetFolder(const std::filesystem::path& folder) {
+        folder_ = folder;
+        Clear();
+    }
+    void Clear() { traced_.clear(); }
+    // The outline of `sprite`'s image (its region, when it has one) where alpha reaches
+    // `threshold`, and the drawn size in image pixels.
+    PIXIE_RUNTIME_API const std::vector<OutlineEdge>& Edges(const Sprite& sprite, double threshold, pxVec2& pixelSize);
+
+    // The outline of an RGBA image of `width` x `height`, first row at the top, on a grid of at most
+    // `cells` cells a side: the edges between solid and empty cells, merged along rows and columns.
+    PIXIE_RUNTIME_API static std::vector<OutlineEdge> Trace(int width, int height, std::span<const std::uint8_t> rgba,
+                                                            double threshold, int cells = 64);
+
+private:
+    struct Traced {
+        pxVec2 pixelSize;
+        std::vector<OutlineEdge> edges;
+    };
+    std::filesystem::path folder_;
+    std::map<std::string, Traced> traced_;
+};
+
 // Replaces `edges` with the edges of every enabled Occluder2D of an entity with a Transform2D,
-// interpolated `alpha` of the way from its previous transform to its current one.
-PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges);
+// interpolated `alpha` of the way from its previous transform to its current one. SpriteAlpha
+// occluders need `outlines`; without it they cast nothing.
+PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges,
+                                       SpriteAlphaOutlines* outlines = nullptr);
 
 // Whether any entity has a LightReceiver2D, so a frame needs the receiver pass.
 PIXIE_RUNTIME_API bool HasLightReceivers(World& world);

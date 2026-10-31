@@ -54,6 +54,7 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
         return false;
     }
     images_.SetFolder(opened.folder);
+    outlines_.SetFolder(opened.folder);
     text_.Destroy();
     fonts_.SetFolder(opened.folder);
     opened_ = std::move(opened);
@@ -288,7 +289,7 @@ void ProjectSession::Render(double alpha) {
             shapes_.SetReceiverPass(false);
         }
         GatherLights(*world_, alpha, &view, lights_);
-        GatherOccluders(*world_, alpha, occluders_);
+        GatherOccluders(*world_, alpha, occluders_, &outlines_);
         lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
     }
     if (mode_ == SessionMode::Edit) {

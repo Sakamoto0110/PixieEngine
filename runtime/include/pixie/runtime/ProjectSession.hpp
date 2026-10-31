@@ -14,6 +14,7 @@
 #include "pixie/render/2d/TextRenderer.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Fonts.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
@@ -173,6 +174,7 @@ private:
     LightRenderer lighting_;
     std::vector<LightInstance> lights_;
     std::vector<OccluderEdge> occluders_;
+    SpriteAlphaOutlines outlines_;
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;

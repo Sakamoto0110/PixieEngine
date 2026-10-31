@@ -79,6 +79,9 @@ enum class OccluderSource2D : std::uint8_t {
     Collider,
     // `polygon`, in the entity's local units.
     Polygon,
+    // The outline of the entity's Sprite where its image's alpha reaches `alphaThreshold`, traced
+    // on a grid of at most 64 cells a side.
+    SpriteAlpha,
 };
 
 // Makes the entity block light: its shape casts shadows from every light whose shadow layers
@@ -89,6 +92,8 @@ struct Occluder2D {
     OccluderSource2D source = OccluderSource2D::Collider;
     // A convex polygon in the entity's local units, before its scale, rotation and position.
     std::vector<pxPoint> polygon{{-16, -16}, {16, -16}, {16, 16}, {-16, 16}};
+    // For the SpriteAlpha source: the alpha, 0 to 1, from which a cell of the image counts as solid.
+    double alphaThreshold = 0.5;
     // The occluder layers (bits 0 to 7) it belongs to.
     int layers = 1;
     bool selfShadow = false;
