@@ -58,8 +58,9 @@ saving experiments.
 
 ## Owner review
 
-This room prepares the owner's movement-feel and debug-view review for PIXIE-TODO-043; it does
-not record that review. Things to judge while playing:
+The owner reviewed this room for PIXIE-TODO-043 and accepted the physics delivery on
+2026-10-31 (see its [completion record](../../docs/archive/todo-043-rigid-body-dynamics-2026-10-31.md)).
+The list below is what that review judged; use it again when coupling behavior changes:
 
 1. Riding A, B and C: does the rider stay planted, without sliding, jitter or a lag behind
    the platform, including at each reversal? And on the ramps: standing still on 25°, sliding

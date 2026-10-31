@@ -121,7 +121,7 @@ Save during Play retains the authored snapshot; Stop reconstructs it. Direct
 WriteScene of a live World still serializes its current Transform2D: use the
 session's authored-save workflow when that is the intended behavior.
 
-This baseline began with D0/D1 under [TODO-043](../TODO.md#pixie-todo-043--rigid-body-dynamics-and-authoring);
+This baseline began with D0/D1 under [TODO-043](archive/todo-043-rigid-body-dynamics-2026-10-31.md);
 later stage increments do not imply completion of the [full specification](rigid-body-physics-requirements.md).
 [Contact/sensor events and bounded dynamics qualification](body-events.md) are now
 available in the same service. The [editor workflow](editor-movement.md) now provides

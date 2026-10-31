@@ -190,5 +190,5 @@ The 2026-10-30 shared-engine run of all five workloads, including the mixed
 `coupled` workload, is summarized in the
 [physics qualification record](physics-qualification.md#workloads-and-stress),
 with its raw evidence under `.local/validation/physics-completion-2026-10-30/`.
-Its allocation column covers only the host executable. Renderer behavior and
-owner acceptance remain separate gates under TODO-043.
+Its allocation column covers only the host executable. Renderer behavior is not
+measured here; the owner accepted the physics delivery on 2026-10-31.

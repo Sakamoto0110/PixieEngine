@@ -152,9 +152,8 @@ Historical D3 workload CSVs describe their retained executable/source snapshots;
 they do not measure this coupled path. The benchmark's `coupled` workload does: reversing
 translating, rising and rotating platforms with riders, pushes into light, heavy and
 compound boxes, loaded crates and recurring crushes, measured on 2026-10-30 (see the
-[qualification record](physics-qualification.md#workloads-and-stress)). Owner
-movement-feel acceptance remains pending; the [coupling lab](../samples/coupling-lab/README.md)
-is the room for it. Unsafe placement is explicit failure evidence, not a guarantee of
+[qualification record](physics-qualification.md#workloads-and-stress)). The owner accepted the
+movement feel in the [coupling lab](../samples/coupling-lab/README.md) on 2026-10-31. Unsafe placement is explicit failure evidence, not a guarantee of
 continuous collision at arbitrary speed.
 
 Grounding ignores separation slower than 1 world unit/s. Pushing a box that is free to
