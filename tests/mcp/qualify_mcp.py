@@ -91,6 +91,10 @@ def main():
     suite("editor-mcp-without-save", [tests, "--editor", editor_without_save, project_copy("editor without save", sprites), mcp,
                                       run / "captures editor without save", None, "save=off"], 300)
     suite("editor-pipe-and-faults", [channel_tests, probe, run / "fault projects", None], 300)
+    physics = run / "projetos ação"
+    suite("editor-mcp-physics", [tests, "--editor-physics", editor, empty_project(physics / "física sem código"),
+                                 empty_project(physics / "segunda sessão"), legacy_project(physics / "legado v1"), mcp,
+                                 run / "captures physics", None], 600)
     records.append(orphan_case(run, mcp, player, project_copy("orphan", sprites)))
     if not args.skip_cold:
         cold = code_project(run / "projetos ação" / "Cold Code", args.cmake)
@@ -100,6 +104,30 @@ def main():
         suite("editor-mcp-cold-code", [tests, "--editor-code", editor, cold, mcp, run / "captures code", None, empty, deadline], 3600)
     (run / "results.json").write_text(json.dumps({"config": config, "suites": records}, indent=2), encoding="utf-8")
     print(f"PASS: {sum(r.get('cases', 1) for r in records)} MCP/development-channel cases in {config}. Evidence: {run}")
+
+
+def empty_project(folder):
+    """A project folder without code and an empty scene, for authoring from nothing."""
+    (folder / "scenes").mkdir(parents=True)
+    (folder / "physics.pixie").write_text(json.dumps({"format": "pixie-project", "version": 1, "name": "physics without code",
+                                                      "startScene": "scenes/main.scene"}, indent=2) + "\n", encoding="utf-8")
+    (folder / "scenes" / "main.scene").write_text(json.dumps({"format": "pixie-scene", "version": 1, "seed": 1, "entities": []}) + "\n",
+                                                  encoding="utf-8")
+    return folder
+
+
+def legacy_project(folder):
+    """The frozen version 1 movement laboratory with two differing legacy motor gravities (1650 and 0)."""
+    scene = json.loads((ENGINE / "tests/runtime/fixtures/movement-lab-v1.scene").read_text(encoding="utf-8"))
+    motor = next(e for e in scene["entities"] if "CharacterMotor2D" in e["components"])
+    motor["components"]["CharacterMotor2D"]["gravity"] = 1650
+    still = json.loads(json.dumps(motor))
+    still["id"], still["name"] = "0000000000000201", "weightless character"
+    still["components"]["CharacterMotor2D"]["gravity"] = 0
+    scene["entities"].append(still)
+    empty_project(folder)
+    (folder / "scenes" / "main.scene").write_text(json.dumps(scene, indent=2) + "\n", encoding="utf-8")
+    return folder
 
 
 def code_project(folder, cmake):

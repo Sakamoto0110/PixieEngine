@@ -34,7 +34,7 @@
 
 **Reference commit:** `d03db62c775005fc4c614f07e205b7a4a36d9efa`
 
-**Current state:** [dynamic particle guide](../particle-dynamics.md), [runtime reference](../modules/runtime/REFERENCE.md), [remaining physics scheduler](../../TASKLIST.md#pixie-todo-043--rigid-body-dynamics)
+**Current state:** [dynamic particle guide](../particle-dynamics.md), [runtime reference](../modules/runtime/REFERENCE.md), [physics completion record](todo-043-rigid-body-dynamics-2026-10-31.md)
 
 ## Accepted scope and implementation
 

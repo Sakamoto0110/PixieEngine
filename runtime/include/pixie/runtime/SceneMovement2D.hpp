@@ -81,6 +81,10 @@ struct CharacterMotor2D {
     double effectiveMass = 1;
     double maxPushForce = 1200, maxPushSpeed = 200, maxSupportForce = 1200;
     double maxInheritedSpeed = 512, maxCarryStep = 8, maxRecoveryDistance = 8;
+    // Layers, as Collider2D's: what the character collides with, and, through its character proxy,
+    // which bodies and particle pools stop against it.
+    int category = 1;
+    int mask = 0x7fffffff;
     bool operator==(const CharacterMotor2D&) const = default;
 };
 

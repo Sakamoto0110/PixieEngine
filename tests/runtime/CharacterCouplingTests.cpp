@@ -2,9 +2,13 @@
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/World.hpp"
 #include "pixie/runtime/Scene.hpp"
+#include "pixie/runtime/ParticlePhysics2D.hpp"
+#include "pixie/runtime/ParticleSystem.hpp"
+#include <algorithm>
 #include <array>
 #include <cmath>
 #include <stdexcept>
+#include <vector>
 
 using namespace pixie;
 namespace {
@@ -67,6 +71,49 @@ TEST(CharacterRotatingSupportUsesLocalPointAndInheritsClampedVelocityOnce) {
     CHECK(!actor.State().grounded && !actor.Coupling().support.value);
     Tick(world, actor);
     CHECK(actor.State().velocity.x < 25); // Existing air braking; the support velocity is not added again.
+}
+TEST(CharacterStaysPutOnATiltingAndReversingPlatform) {
+    // The support tilts to 40 degrees and back, three times. Rising and sinking must treat the
+    // rider alike: it returns to the same place on the platform instead of creeping off it.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    RigidBody2D body;
+    body.type = BodyType2D::Kinematic;
+    BodyShape2D shape;
+    shape.halfSize = {55, 6};
+    const auto platform = world.AddBody({0, 110}, 0, body, {&shape, 1});
+    CharacterController2D actor({25, 79.5});
+    std::vector<double> cycleEnds;
+    for (int i = 0; i < 720; ++i) {
+        world.SetBodyVelocity(platform, {0, 0}, (i / 120) % 2 == 0 ? 0.35 : -0.35);
+        Tick(world, actor);
+        if (i > 0) CHECK(actor.Coupling().support == platform && !actor.Coupling().unsafePlacement); // It starts 0.5 above.
+        if (i % 240 == 239) cycleEnds.push_back(world.BodyLocalPoint(platform, actor.State().position).x);
+    }
+    CHECK(cycleEnds.size() == 3);
+    for (double x : cycleEnds) CHECK(std::abs(x - 25) < 1);
+}
+TEST(CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction) {
+    // At 0.48 rad/s the capsule meets the rotated surface before the full carry; that is the support,
+    // not an obstacle. Until the slope passes the walkable limit, nothing is reported blocked.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    RigidBody2D body;
+    body.type = BodyType2D::Kinematic;
+    body.initialAngularVelocity = 0.48;
+    BodyShape2D shape;
+    shape.halfSize = {55, 6};
+    const auto platform = world.AddBody({0, 110}, 0, body, {&shape, 1});
+    CharacterController2D actor({25, 79.5});
+    int riding = 0;
+    for (int i = 0; i < 90; ++i) {
+        Tick(world, actor);
+        if (actor.Coupling().support != platform) continue;
+        ++riding;
+        CHECK(actor.Coupling().blocked == CharacterBlocked2D::None);
+        if (i >= 5) CHECK(std::abs(actor.Coupling().carried.y) > 0.1); // It is still carried down with the surface.
+    }
+    CHECK(riding > 80);
 }
 TEST(CharacterDropsRemovedDisabledTeleportedOrRebuiltSupport) {
     for (int mutation = 0; mutation < 4; ++mutation) {
@@ -133,6 +180,32 @@ TEST(CharacterPushBudgetDistinguishesLightAndHeavyBoxesWithoutLaunchingThem) {
     CHECK(distances[0] > 32); // The light box travels more than its full width in two seconds.
     CHECK(distances[1] >= 0 && distances[1] < distances[0] * 0.05);
 }
+TEST(CharacterPushingARotatableBoxKeepsItsGroundAndSupport) {
+    // A box free to rotate tilts its face slightly under the push; clipping against that face must
+    // not unground the motor or drop its floor support while it walks.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    const auto floor = world.AddBox({0, 200}, {660, 10});
+    RigidBody2D body;
+    body.massOverride = 1;
+    BodyShape2D shape;
+    shape.halfSize = {16, 16};
+    shape.friction = 0.3;
+    const auto box = world.AddBody({200, 174}, 0, body, {&shape, 1});
+    CharacterSettings2D settings;
+    settings.acceleration = 4500;
+    CharacterController2D actor({120, 165.5}, settings);
+    int pushing = 0;
+    for (int i = 0; i < 120; ++i) {
+        Tick(world, actor, 1);
+        if (actor.Coupling().pushedImpulse <= 0) continue;
+        ++pushing;
+        CHECK(actor.State().grounded);
+        CHECK(actor.Coupling().support.value != 0 && actor.Coupling().supportShape == floor);
+    }
+    CHECK(pushing > 90);
+    CHECK(world.BodyMotion(box).position.x > 260 && std::abs(world.BodyMotion(box).rotation) < 0.01);
+}
 TEST(CharacterEffectiveSupportLoadIsBoundedAndDoesNotChangeNativeMass) {
     CollisionWorld2D world;
     RigidBody2D body;
@@ -177,7 +250,11 @@ TEST(CharacterCompoundPushDeduplicatesBodyAndLeavingPlatformDropsCarry) {
     CHECK(ticks < 180 && !rider.Coupling().support.value);
     const auto before = rider.State().position;
     for (int i = 0; i < 10; ++i) Tick(platforms, rider, 1);
-    CHECK(std::abs(rider.State().position.x - before.x - settings.maxSpeed * dt * 10) < 0.4);
+    // The platform's 60 units/s was inherited once on leaving; air control returns to the 200
+    // maximum within three ticks (about 0.8 extra units), and nothing is carried any more.
+    const double extra = rider.State().position.x - before.x - settings.maxSpeed * dt * 10;
+    CHECK(extra > 0.5 && extra < 1.5);
+    CHECK(std::abs(rider.State().velocity.x - settings.maxSpeed) < 0.01);
     CHECK(std::hypot(rider.Coupling().carried.x, rider.Coupling().carried.y) < 0.001);
 }
 TEST(CharacterCarryObstructionIsBlockedWithoutUnsafePlacementOrPlatformReversal) {
@@ -289,7 +366,118 @@ TEST(CharacterCoupledPhaseGuardsResetAndSceneSingleStepPublication) {
     CHECK(std::abs(platform.Get<Transform2D>().position.x - 60) < 0.01);
     CHECK(std::abs(actor.Get<Transform2D>().position.x - 60) < 0.4);
     CHECK(std::abs(other.Get<Transform2D>().position.x - 100) < 0.4);
-    CHECK(SceneCollisionWorld2D(world)->Stats().bodies == 1);
+    CHECK(SceneCollisionWorld2D(world)->Stats().bodies == 3); // The platform and the two riders' proxies.
     CHECK(SceneMovementErrors2D(world).empty());
     CHECK(CharacterCoupling2D(world, actor.Id())->worldVelocity.x > 59);
+}
+namespace {
+// A scene floor with its top at y = 190 and a character standing on it at x.
+Entity StandingCharacter(World& world, double x) {
+    auto floor = world.Create("floor");
+    floor.Add<Transform2D>().position = {0, 200};
+    floor.Add<Collider2D>().halfSize = {600, 10};
+    AddToScene(floor);
+    auto actor = world.Create("character");
+    actor.Add<Transform2D>().position = {x, 165.5};
+    actor.Add<CharacterMotor2D>();
+    actor.Add<CharacterCommand2D>();
+    AddToScene(actor);
+    return actor;
+}
+Entity SceneBox(World& world, double x, double mass, pxVec2 velocity = {0, 0}) {
+    auto box = world.Create("box");
+    box.Add<Transform2D>().position = {x, 174};
+    auto& collider = box.Add<Collider2D>();
+    collider.halfSize = {16, 16};
+    collider.friction = 0;
+    auto& body = box.Add<RigidBody2D>();
+    body.massOverride = mass;
+    body.fixedRotation = true;
+    body.initialVelocity = velocity;
+    AddToScene(box);
+    return box;
+}
+}
+TEST(CharacterProxyStopsABoxThrownAtTheCharacterAndYieldsBoundedly) {
+    World world;
+    auto actor = StandingCharacter(world, 0);
+    auto box = SceneBox(world, 200, 1, {-600, 0});
+    InstallSceneMovement2D(world);
+    const CharacterMotor2D motor;
+    double previous = 0, pressed = 0;
+    int impact = -1;
+    for (int i = 0; i < 90; ++i) {
+        world.Step(dt, {});
+        const double x = actor.Get<Transform2D>().position.x;
+        const double gap = box.Get<Transform2D>().position.x - 16 - (x + 12);
+        if (impact < 0 && gap < 1) impact = i;
+        // At 600 units/s the box can enter the proxy within its impact tick (dynamic/kinematic pairs
+        // are not swept continuously). From the next tick on it stays outside the capsule, and the
+        // character never gives way faster than its push speed plus its overlap recovery.
+        if (impact >= 0 && i > impact) CHECK(gap >= -0.5);
+        CHECK(previous - x <= motor.maxPushSpeed * dt + motor.maxRecoveryDistance + 0.01);
+        pressed = std::max(pressed, CharacterCoupling2D(world, actor.Id())->receivedImpulse);
+        previous = x;
+    }
+    CHECK(impact >= 0);
+    CHECK(pressed > 0 && actor.Get<Transform2D>().position.x < -1);
+    CHECK(SceneMovementErrors2D(world).empty());
+}
+TEST(CharacterProxyKeepsPushLimitsForLightAndHeavyBoxes) {
+    std::array<double, 2> distances{};
+    for (int heavy = 0; heavy < 2; ++heavy) {
+        World world;
+        auto actor = StandingCharacter(world, 0);
+        auto box = SceneBox(world, 40, heavy ? 1000 : 1);
+        actor.Get<CharacterCommand2D>().horizontal = 1;
+        InstallSceneMovement2D(world);
+        for (int i = 0; i < 120; ++i) {
+            world.Step(dt, {});
+            CHECK(box.Get<Transform2D>().position.x - 16 >= actor.Get<Transform2D>().position.x + 12 - 0.5);
+        }
+        distances[heavy] = box.Get<Transform2D>().position.x - 40;
+    }
+    CHECK(distances[0] > 32);
+    CHECK(distances[1] >= 0 && distances[1] < distances[0] * 0.05);
+}
+TEST(CharacterLayersChooseWhichParticlePoolsStopAtTheCharacter) {
+    World world;
+    auto actor = StandingCharacter(world, 0);
+    actor.Get<CharacterMotor2D>().category = 2; // The character's own layer.
+    InstallSceneMovement2D(world);
+    world.Step(dt, {});
+    const auto* collision = SceneCollisionWorld2D(world);
+    CHECK(collision != nullptr);
+    if (!collision) return;
+    for (const bool seesCharacters : {true, false}) {
+        ParticlePhysics2D settings;
+        settings.mask = seesCharacters ? 0x7fffffff : 0x7fffffff & ~2;
+        ParticleSystem pool;
+        pool.EmitDynamic({-100, 166}, {4000, 0}, 2);
+        ParticlePhysicsStats2D stats;
+        for (auto& p : pool.particles) { p.previous = p.position; p.age += 0.05f; }
+        MoveDynamicParticles2D(pool, settings, collision, {0, 0}, 0.05, stats);
+        CHECK(pool.particles.size() == 1);
+        if (pool.particles.empty()) continue;
+        if (seesCharacters) CHECK(pool.particles[0].position.x < -11 && stats.contacts > 0);
+        else CHECK(pool.particles[0].position.x > 50 && stats.contacts == 0);
+    }
+}
+TEST(CharacterLeavingAMovingSupportKeepsItsVelocityOnce) {
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    auto platform = Platform(world, {120, 0});
+    CharacterController2D actor({140, 76});
+    std::vector<double> airborne;
+    for (int i = 0; i < 60 && airborne.size() < 3; ++i) {
+        Tick(world, actor, 1);
+        if (!actor.State().grounded && i > 2) airborne.push_back(actor.State().velocity.x);
+    }
+    CHECK(airborne.size() == 3);
+    if (airborne.size() < 3) return;
+    // Walking off at 200 on a platform moving at 120 leaves at about 320, once: air control then
+    // pulls it back toward the 200 maximum instead of adding the platform again.
+    CHECK(airborne[0] > 280);
+    CHECK(airborne[1] < airborne[0] && airborne[2] < airborne[1]);
+    (void)platform;
 }

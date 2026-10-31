@@ -15,10 +15,13 @@ pxVec2 Limited(pxVec2 value, double maximum) {
     const double length = std::hypot(value.x, value.y);
     return length > maximum && length > 0 ? value * (maximum / length) : value;
 }
+// Separation slower than this (world units/s) does not leave the ground. Clipping against a pushed
+// body's slightly tilted face leaves hundredths of a unit/s of upward velocity; a takeoff is hundreds.
+constexpr double kSeparatingSpeed = 1.0;
 const CapsuleContact2D* Ground(const std::vector<CapsuleContact2D>& contacts, double threshold, double slop, pxVec2 velocity) {
     const CapsuleContact2D* best = nullptr;
     for (const auto& c : contacts) {
-        if (c.separation > slop || c.normal.y > -threshold || Dot(velocity, c.normal) > 0.001) continue;
+        if (c.separation > slop || c.normal.y > -threshold || Dot(velocity, c.normal) > kSeparatingSpeed) continue;
         if (!best || c.normal.y < best->normal.y) best = &c;
     }
     return best;
@@ -69,6 +72,11 @@ bool CharacterController2D::IntegrateIntent(double horizontal, bool jumpPressed,
     if (jump) {
         state_.velocity.y = -settings_.jumpSpeed;
         coyote_ = bufferedJump_ = 0;
+    } else if (previouslyGrounded) {
+        // On walkable support gravity only presses into the surface, along its normal; its tangential
+        // part, clipped by the surface, would make a standing character creep downhill every step.
+        state_.velocity += state_.groundNormal * (settings_.gravity * delta * state_.groundNormal.y);
+        state_.velocity.y = std::min(state_.velocity.y, settings_.terminalSpeed);
     } else {
         state_.velocity.y = std::min(state_.velocity.y + settings_.gravity * delta, settings_.terminalSpeed);
     }
@@ -93,6 +101,7 @@ void CharacterController2D::PrepareStep(CollisionWorld2D& collision, double hori
     // Always reacquire from current geometry. A teleported support can supply a fresh anchor,
     // but its teleport delta can never become carry from the last completed tick.
     coupling_ = {};
+    received_ = {0, 0};
     const auto contacts = collision.CapsuleContacts(state_.position, settings_.radius, settings_.halfSegment, filter);
     const auto* ground = Ground(contacts, threshold, collision.CapsuleSlop(), state_.velocity);
     if (!ground && state_.grounded) coyote_ = settings_.coyoteSeconds + delta;
@@ -149,6 +158,12 @@ void CharacterController2D::PrepareStep(CollisionWorld2D& collision, double hori
     prepared_ = true;
 }
 
+void CharacterController2D::ReceiveImpulse(pxVec2 impulse) {
+    if (!prepared_) throw std::logic_error("prepare the character before it receives an impulse");
+    if (!std::isfinite(impulse.x) || !std::isfinite(impulse.y)) throw std::invalid_argument("received impulse must be finite");
+    received_ += impulse;
+}
+
 void CharacterController2D::FinishStep(const CollisionWorld2D& collision) {
     if (!prepared_) throw std::logic_error("prepare the character before finishing its step");
     prepared_ = false;
@@ -164,9 +179,11 @@ void CharacterController2D::FinishStep(const CollisionWorld2D& collision) {
     }
     const double threshold = std::cos(settings_.maxSlopeDegrees * std::numbers::pi / 180);
     pxVec2 carry{0, 0};
-    if (!jumping_ && coupling_.support.value && collision.ContainsBody(coupling_.support)
+    const bool carrying = !jumping_ && coupling_.support.value && collision.ContainsBody(coupling_.support)
         && collision.Contains(coupling_.supportShape) && collision.BodyEnabled(coupling_.support)
-        && collision.BodyRevision(coupling_.support) == preparedSupportRevision_)
+        && collision.BodyRevision(coupling_.support) == preparedSupportRevision_;
+    const auto carriedVelocity = coupling_.supportVelocity;
+    if (carrying)
         carry = Difference(collision.BodyWorldPoint(coupling_.support, coupling_.localSupportPoint), preparedSupportPoint_);
     if (std::hypot(carry.x, carry.y) > settings_.maxCarryStep + collision.CapsuleSlop()) {
         fail(CharacterBlocked2D::SupportStepLimit); return;
@@ -178,9 +195,24 @@ void CharacterController2D::FinishStep(const CollisionWorld2D& collision) {
     if (correction > settings_.maxRecoveryDistance + collision.CapsuleSlop()) {
         fail(CharacterBlocked2D::NoValidPlacement); return;
     }
-    if (std::hypot(carry.x, carry.y) > collision.CapsuleSlop() && correction > collision.CapsuleSlop())
-        coupling_.blocked = CharacterBlocked2D::CarryObstructed;
-    const auto moved = collision.MoveCapsule(carried.position, settings_.radius, settings_.halfSegment,
+    // A carry shortened by the support itself is the capsule settling on its rotated surface; only
+    // other geometry opposing the carry obstructs it.
+    if (std::hypot(carry.x, carry.y) > collision.CapsuleSlop() && correction > collision.CapsuleSlop()) {
+        const auto touching = collision.CapsuleContacts(carried.position, settings_.radius, settings_.halfSegment, preparedFilter_);
+        if (std::any_of(touching.begin(), touching.end(), [&](const CapsuleContact2D& c) {
+                return c.body != coupling_.support && c.separation <= collision.CapsuleSlop() && Dot(c.normal, carry) < 0;
+            }))
+            coupling_.blocked = CharacterBlocked2D::CarryObstructed;
+    }
+    // Bodies pressing on the character move it, bounded like its own push, without changing its velocity.
+    auto pressed = carried.position;
+    if ((received_.x != 0 || received_.y != 0) && settings_.effectiveMass > 0) {
+        const auto velocity = Limited(received_ * (1 / settings_.effectiveMass), settings_.maxPushSpeed);
+        pressed = collision.MoveCapsule(carried.position, settings_.radius, settings_.halfSegment,
+            velocity * preparedDelta_, {0, 0}, threshold, preparedFilter_).position;
+        coupling_.receivedImpulse = std::hypot(received_.x, received_.y);
+    }
+    const auto moved = collision.MoveCapsule(pressed, settings_.radius, settings_.halfSegment,
         state_.velocity * preparedDelta_, state_.velocity, threshold, preparedFilter_);
     const auto contacts = collision.CapsuleContacts(moved.position, settings_.radius, settings_.halfSegment, preparedFilter_);
     for (const auto& c : contacts) {
@@ -196,6 +228,9 @@ void CharacterController2D::FinishStep(const CollisionWorld2D& collision) {
         coupling_.supportPoint = ground->point;
         coupling_.localSupportPoint = collision.BodyLocalPoint(ground->body, ground->point);
         coupling_.supportVelocity = collision.BodyPointVelocity(ground->body, ground->point);
+    } else if (carrying) {
+        // Leaving a carrying support without jumping keeps its point velocity once, as a jump does.
+        state_.velocity += Limited(carriedVelocity, settings_.maxInheritedSpeed);
     }
 }
 } // namespace pixie

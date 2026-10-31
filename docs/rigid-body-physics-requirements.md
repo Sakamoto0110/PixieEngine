@@ -43,7 +43,8 @@ remain valid for those bounded deliveries, not for this wider target.
 Implementation progress is owned by TODO-043; the [body dynamics guide](body-dynamics.md)
 now describes its first native/scene increment and explicitly lists the remaining
 gates. The initial-baseline paragraph above is historical context, not current
-implemented capability status.
+implemented capability status. The [qualification record](physics-qualification.md)
+links each requirement below to its mechanism and evidence and lists the owner reviews that remain.
 
 The existing private Box2D 3.2.0 backend is retained. Its official
 [simulation documentation](https://box2d.org/documentation/md_simulation.html)

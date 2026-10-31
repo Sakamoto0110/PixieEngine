@@ -85,6 +85,9 @@ struct MovementState {
     bool validSettings = true;
     bool hasStepped = false;
     std::map<entt::entity, CharacterController2D> characters;
+    // Each character's stand-in for bodies and particles, rebuilt when its capsule or layers change.
+    struct Proxy { BodyHandle2D handle; double radius = 0, halfSegment = 0; CollisionFilter2D filter; };
+    std::map<entt::entity, Proxy> proxies;
     std::vector<entt::entity> preparedCharacters;
     std::vector<entt::entity> activeColliders, activeCharacters, activeBodies;
     std::vector<std::string> errors, lastLogged;
@@ -113,15 +116,36 @@ void CopyEvents(MovementState& state, std::span<const PhysicsEvent2D> source,
                                      b == state.owners.end() ? entt::null : b->second});
     }
 }
+void RemoveProxy(MovementState& state, MovementState::Proxy& proxy) {
+    if (!state.collision || !state.collision->ContainsBody(proxy.handle)) return;
+    for (auto handle : state.collision->BodyColliders(proxy.handle)) state.owners.erase(handle.value);
+    state.collision->RemoveBody(proxy.handle);
+    proxy.handle = {};
+}
 void ResetCollision(MovementState& state) {
     const TelemetryScope measure(state.metrics.telemetry, state.metrics.rebuild);
     if (state.collision) {
         state.collision->Reset();
         CopyEvents(state, state.collision->Events(), state.pendingResetEvents);
     }
-    state.bodies.clear(); state.colliders.clear(); state.characters.clear();
+    state.bodies.clear(); state.colliders.clear(); state.characters.clear(); state.proxies.clear();
     state.owners.clear(); state.retired.clear(); state.collision.reset();
     state.metrics.telemetry.SetGauge(state.metrics.motorCount, 0);
+}
+// What dynamic bodies pressed on each prepared character's proxy during the solve.
+void ReceiveProxyImpulses(MovementState& state) {
+    for (auto id : state.preparedCharacters) {
+        const auto proxy = state.proxies.at(id).handle;
+        pxVec2 impulse{0, 0};
+        for (const auto& contact : state.collision->BodyContacts(proxy)) {
+            const bool first = contact.a.body == proxy;
+            const auto other = first ? contact.b.body : contact.a.body;
+            if (contact.normalImpulse <= 0 || state.collision->BodyType(other) != BodyType2D::Dynamic) continue;
+            // The normal points from a to b; the impulse on b is along it, on a against it.
+            impulse += contact.normal * (first ? -contact.normalImpulse : contact.normalImpulse);
+        }
+        if (impulse.x != 0 || impulse.y != 0) state.characters.at(id).ReceiveImpulse(impulse);
+    }
 }
 PhysicsEndReason2D RemovalReason(World& world, entt::entity entity) {
     if (!world.Registry().valid(entity)) return PhysicsEndReason2D::Removed;
@@ -209,8 +233,10 @@ void MoveCharacters(World& world, const FrameTime& time, const Input& input) {
                             - (input.IsDown(Key::A) || input.IsDown(Key::Left) ? 1.0 : 0.0);
                 jump = jump || input.WasPressed(Key::Space);
             }
+            const auto& motor = world.Registry().get<CharacterMotor2D>(id);
             try {
-                controller.PrepareStep(*state.collision, horizontal, jump, time.delta);
+                controller.PrepareStep(*state.collision, horizontal, jump, time.delta,
+                    {static_cast<std::uint64_t>(motor.category), static_cast<std::uint64_t>(motor.mask), false});
                 state.preparedCharacters.push_back(id);
             } catch (const std::exception& error) { Error(state, id, error.what()); }
             if (command) command->jumpPressed = false;
@@ -218,7 +244,11 @@ void MoveCharacters(World& world, const FrameTime& time, const Input& input) {
     }
     try {
         if (state.collision->NeedsSimulation()) {
+            // Proxies stand where their characters completed the last step; they do not move during the solve.
+            for (auto id : state.preparedCharacters)
+                state.collision->PlaceCharacterProxy(state.proxies.at(id).handle, state.characters.at(id).State().position);
             state.collision->StepBodies(time.delta, state.settings.substeps);
+            ReceiveProxyImpulses(state);
             const TelemetryScope measure(state.metrics.telemetry, state.metrics.events);
             CopyEvents(state, state.collision->Events(), state.events);
         }
@@ -454,6 +484,8 @@ void SyncSceneMovement2D(World& world) {
             ValidateTransform(*transform);
             if (transform->rotation != 0 || transform->scale != pxVec2(1, 1))
                 throw std::invalid_argument("CharacterMotor2D requires upright, unit-scale Transform2D; edit radius/halfSegment instead");
+            if (motor.category <= 0 || motor.mask < 0) throw std::invalid_argument("invalid character collision category/mask");
+            const CollisionFilter2D filter{static_cast<std::uint64_t>(motor.category), static_cast<std::uint64_t>(motor.mask)};
             auto it = state.characters.find(id);
             if (it == state.characters.end()) {
                 const TelemetryScope rebuild(state.metrics.telemetry, state.metrics.rebuild);
@@ -466,11 +498,25 @@ void SyncSceneMovement2D(World& world) {
                     world.ResetInterpolation(world.Wrap(id));
                 }
             }
+            auto& proxy = state.proxies[id];
+            if (!state.collision->ContainsBody(proxy.handle) || proxy.radius != motor.radius || proxy.halfSegment != motor.halfSegment
+                || proxy.filter.category != filter.category || proxy.filter.mask != filter.mask) {
+                RemoveProxy(state, proxy);
+                proxy = {state.collision->AddCharacterProxy(it->second.State().position, motor.radius, motor.halfSegment, filter),
+                         motor.radius, motor.halfSegment, filter};
+                for (auto handle : state.collision->BodyColliders(proxy.handle)) state.owners[handle.value] = id;
+            }
+            state.collision->PlaceCharacterProxy(proxy.handle, it->second.State().position);
             activeCharacters.push_back(id);
         } catch (const std::exception& error) { Error(state, id, error.what()); }
     }
     std::sort(activeCharacters.begin(), activeCharacters.end());
     std::erase_if(state.characters, [&](const auto& entry) { return !std::binary_search(activeCharacters.begin(), activeCharacters.end(), entry.first); });
+    std::erase_if(state.proxies, [&](auto& entry) {
+        if (std::binary_search(activeCharacters.begin(), activeCharacters.end(), entry.first)) return false;
+        RemoveProxy(state, entry.second);
+        return true;
+    });
     state.metrics.telemetry.SetGauge(state.metrics.motorCount, static_cast<double>(state.characters.size()));
     // During a step, publish once after movement has added any execution errors.
     // Clearing the sync report must not make an unchanged runtime error log every frame.

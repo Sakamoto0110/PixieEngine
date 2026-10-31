@@ -73,8 +73,8 @@ bin/Release/physics-benchmark.exe 500 sleeping off 1200 output-off.csv
 
 Arguments are population (0..500), state (`awake`/`sleeping`), collection
 (`on`/`off`), warm sample count (100..100000), and CSV path. An optional final
-argument selects `sparse` (the compatible default), `compound`, `stack` or
-`sensors`. The default fixture is a
+argument selects `sparse` (the compatible default), `compound`, `stack`, `sensors`
+or `coupled`. The default fixture is a
 native World with seed 12345, zero gravity, scale 32 units/m, a 1/60-second tick
 and four solver substeps. Unit-mass 32x32 boxes use a sparse 128-unit grid with
 seeded X jitter. Awake boxes move at 10 units/s with no damping; sleeping boxes
@@ -89,8 +89,8 @@ contains the final collector snapshot.
 
 ## Extended native workloads
 
-The optional fixtures exercise authored topology and native pair lifetimes;
-they add no runtime API, rendering or character coupling. Scale (32 units/m),
+The optional fixtures exercise authored topology, native pair lifetimes and, in
+`coupled`, scene characters; they add no runtime API or rendering. Scale (32 units/m),
 substeps (four), seed, tick, cold and warm intervals are explicit. The population
 argument always counts dynamic bodies; supporting static bodies are additional.
 
@@ -100,6 +100,7 @@ argument always counts dynamic bodies; supporting static bodies are additional.
 | `compound` | Two adjacent 16x32 half-boxes make each 32x32 body; same sparse motion | N bodies, 2N shapes |
 | `stack` | Up to ten columns, 32.25-unit spacing with seeded X jitter; gravity 1100 down; a floor with top Y=0 | N+1 bodies/shapes, no sensors |
 | `sensors` | One static 32x32 sensor per dynamic box on the sparse grid; two-sided filters exclude solid body/body contacts | 2N bodies/shapes, N sensors |
+| `coupled` | Ten lanes 400 units apart, gravity 1100: a static floor, one 120x16 kinematic platform with a rider, a pusher and a stander per lane; every third lane has a ceiling over its platform. Dynamic boxes go round the lanes: the first in each lane is a 10 kg crate under the stander, the rest a row in front of the pusher cycling 1 kg, 10 kg and two-half compound boxes | 53+N bodies (13 static, 10 kinematic platforms, 30 character proxies), plus one shape per compound box; 30 motors |
 
 For `stack`, `awake` adds an in-tick zero-force wake request to each body;
 `sleeping` leaves the initially still pile unforced. These labels are requests,
@@ -115,13 +116,26 @@ inside the measured World tick; `benchmark.commands` measures it separately.
 Comparing these variants includes command overhead and changed physics work.
 It is not a pure sleeping/awake solver comparison.
 
+In awake `coupled`, the platforms reverse every 120 ticks: lanes cycle a 60 units/s
+translation, a 40 units/s rise into the ceiling (crush, then recovery) and a 0.3 rad/s
+rotation. Riders jump every 150 ticks, pushers walk into their rows and back every 240
+ticks, and every 480 ticks, when the platforms are back at their starts, the riders are
+teleported onto them again so riding and crushing recur. The still variant leaves the
+platforms and motors idle. Motors always run the coupled prepare/finish path, so the
+`coupled` population of zero bodies measures the 30 motors on their own.
+
 ```powershell
 bin/Release/physics-benchmark.exe 500 awake on 1200 stack.csv stack
 bin/Release/physics-benchmark.exe 500 awake on 1200 sensors.csv sensors
+bin/Release/physics-benchmark.exe 500 awake on 1200 coupled.csv coupled
 ```
 
 CSV schema 2 adds the fixture/driver, gravity/scale, sensor population and the
-four begin/end event counts. Raw population/transition snapshots are read after
+four begin/end event counts. Schema 3 adds the `physics.scene.coupling.prepare`
+stage and, per tick, the motors, those with a support, those on a kinematic
+support, and those reporting blocked or unsafe placement. Blocked and unsafe
+placement are scene diagnostics by design; the run fails on any other diagnostic.
+Raw population/transition snapshots are read after
 the timed step; final retained poses/velocities are checked for finiteness
 outside measurement. That audit does not establish penetration limits or stack
 stability. Runtime regressions check stable topology/handles, actual contact and
@@ -172,5 +186,9 @@ The extended workload qualification is recorded separately under
 `.local/validation/physics-workloads-2026-10-26/`. Any other active compiler or
 application can affect wall-clock tails on the same machine; process sampling
 is context, not proof of uninterrupted idle or causal attribution of a spike.
-Mixed kinematic/character performance qualification, renderer behavior and owner acceptance remain
-separate gates under TODO-043.
+The 2026-10-30 shared-engine run of all five workloads, including the mixed
+`coupled` workload, is summarized in the
+[physics qualification record](physics-qualification.md#workloads-and-stress),
+with its raw evidence under `.local/validation/physics-completion-2026-10-30/`.
+Its allocation column covers only the host executable. Renderer behavior is not
+measured here; the owner accepted the physics delivery on 2026-10-31.

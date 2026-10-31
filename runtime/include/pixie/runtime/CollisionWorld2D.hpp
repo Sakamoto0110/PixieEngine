@@ -24,6 +24,9 @@ struct ColliderHandle2D {
 struct CollisionFilter2D {
     std::uint64_t category = 1;
     std::uint64_t mask = ~std::uint64_t{0};
+    // Queries only: whether character proxies are seen. Motors query without them, so character
+    // proxies never block characters (character/character collision is not supported).
+    bool characters = true;
 };
 
 struct CollisionHit2D {
@@ -115,6 +118,14 @@ public:
     PIXIE_RUNTIME_API BodyHandle2D AddBody(pxPoint position, double rotation, const RigidBody2D& definition,
                          std::span<const BodyShape2D> shapes);
     PIXIE_RUNTIME_API bool RemoveBody(BodyHandle2D body, PhysicsEndReason2D reason = PhysicsEndReason2D::Removed);
+    // A character's stand-in for bodies and queries: a kinematic upright capsule that does not move
+    // during a step, so dynamic bodies and particles stop against it instead of passing through.
+    // It has no mass, raises no contact or sensor events and is not a simulated character. Remove it
+    // with RemoveBody; read what pressed on it with BodyContacts.
+    PIXIE_RUNTIME_API BodyHandle2D AddCharacterProxy(pxPoint center, double radius, double halfSegment,
+                                                     CollisionFilter2D filter);
+    // Places the proxy without a teleport revision, contact end events or velocity.
+    PIXIE_RUNTIME_API void PlaceCharacterProxy(BodyHandle2D proxy, pxPoint center);
     PIXIE_RUNTIME_API bool ContainsBody(BodyHandle2D body) const;
     PIXIE_RUNTIME_API std::vector<ColliderHandle2D> BodyColliders(BodyHandle2D body) const;
     PIXIE_RUNTIME_API CollisionMaterial2D Material(ColliderHandle2D collider) const;

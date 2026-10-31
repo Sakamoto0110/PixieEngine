@@ -48,6 +48,8 @@ world gravity and a kinematic platform; [current dynamics limits](docs/body-dyna
 keep character coupling and remaining authoring gates explicit.
 The [compound laboratory](samples/compound-lab/README.md) adds an authored L-shaped
 body and editor controls for multiple shapes on one body, with save/history support.
+The [coupling laboratory](samples/coupling-lab/README.md) puts a keyboard character among
+reversing platforms, pushable boxes and a crusher, with each character's support and status on screen.
 
 - [`ROADMAP.md`](ROADMAP.md): what the engine is and is not, and where it is going.
 - [`TODO.md`](TODO.md): promoted work. [`TASKLIST.md`](TASKLIST.md): its task breakdowns.

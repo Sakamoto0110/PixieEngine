@@ -6,6 +6,7 @@
 #include <array>
 #include <cmath>
 #include <limits>
+#include <numbers>
 #include <stdexcept>
 #include <vector>
 
@@ -186,6 +187,21 @@ TEST(CharacterClimbsWalkableRampAndRejectsSteepSupportAsGround) {
     steep.AddBox({0, 100}, {100, 10}, -1.2);
     auto result = steep.MoveCapsule({0, 0}, 12, 12, {0, 100}, {0, 100});
     CHECK(!result.grounded);
+}
+
+TEST(CharacterStandsStillOnWalkableSlopes) {
+    // Gravity presses a grounded character into a walkable slope; it must not creep downhill.
+    for (const double degrees : {10.0, 23.0, 40.0}) {
+        CollisionWorld2D collision;
+        collision.AddBox({0, 110}, {200, 6}, degrees * std::numbers::pi / 180);
+        CharacterController2D actor({0, 60});
+        Steps(actor, collision, 60);
+        CHECK(actor.State().grounded);
+        const auto landed = actor.State().position;
+        Steps(actor, collision, 120);
+        CHECK(std::hypot(actor.State().position.x - landed.x, actor.State().position.y - landed.y) < 0.01);
+        CHECK(actor.State().grounded);
+    }
 }
 
 TEST(CharacterLocalReplayIsRepeatableAndTeleportClearsMotion) {

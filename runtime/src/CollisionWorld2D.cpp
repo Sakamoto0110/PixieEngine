@@ -10,6 +10,7 @@
 #include <format>
 #include <limits>
 #include <map>
+#include <set>
 #include <numbers>
 #include <stdexcept>
 
@@ -29,6 +30,7 @@ void Finite(double value) {
 }
 b2QueryFilter Filter(CollisionFilter2D filter) { return {filter.category, filter.mask}; }
 struct Planes {
+    const std::set<std::uint64_t>* skipped = nullptr; // Character proxy shapes a query does not see.
     std::array<b2CollisionPlane, 64> values{};
     std::array<b2ShapeId, 64> shapes{};
     std::array<b2Vec2, 64> points{};
@@ -38,6 +40,7 @@ struct Planes {
 bool CollectPlane(b2ShapeId shape, const b2PlaneResult* result, void* context) {
     if (b2Shape_IsSensor(shape)) return true;
     auto& planes = *static_cast<Planes*>(context);
+    if (planes.skipped && planes.skipped->contains(b2StoreShapeId(shape))) return true;
     if (!result->hit) return true;
     if (planes.count == static_cast<int>(planes.values.size())) {
         planes.overflow = true;
@@ -51,7 +54,7 @@ bool CollectPlane(b2ShapeId shape, const b2PlaneResult* result, void* context) {
 }
 
 struct CollisionWorld2D::Impl {
-    struct Shape { b2ShapeId shape{}; ColliderHandle2D handle; std::uint64_t body = 0; bool sensor = false; };
+    struct Shape { b2ShapeId shape{}; ColliderHandle2D handle; std::uint64_t body = 0; bool sensor = false, proxy = false; };
     struct Body { b2BodyId body{}; std::vector<ColliderHandle2D> shapes; double area = 0; std::uint64_t revision = 1; };
     double units;
     pxVec2 gravity{0, 0};
@@ -61,6 +64,10 @@ struct CollisionWorld2D::Impl {
     Telemetry* telemetry;
     MetricHandle moveTime, rayTime, bodyCount, iterationCount, stepTime, staticCount;
     std::size_t statics = 0, sensorCount = 0, contacts = 0, overlaps = 0;
+    std::set<std::uint64_t> proxyShapes; // Backend shape IDs of character proxies.
+    const std::set<std::uint64_t>* Skipped(CollisionFilter2D filter) const {
+        return filter.characters || proxyShapes.empty() ? nullptr : &proxyShapes;
+    }
     std::uint64_t generation = Identity(), steps = 0;
     using PairKey = std::tuple<std::uint64_t, std::uint64_t, PhysicsPairKind2D>;
     std::map<PairKey, PhysicsEvent2D> pairs;
@@ -183,28 +190,31 @@ struct CollisionWorld2D::Impl {
         for (int i = 0; i < sensor.beginCount; ++i)
             Touch(sensor.beginEvents[i].sensorShapeId, sensor.beginEvents[i].visitorShapeId, PhysicsPairKind2D::Sensor, true);
     }
-    struct RayQuery { const Impl* owner; bool sensors; std::optional<CollisionHit2D> hit; };
+    struct RayQuery { const Impl* owner; bool sensors; std::optional<CollisionHit2D> hit; bool characters = true; };
     static float RayHit(b2ShapeId id, b2Pos point, b2Vec2 normal, float fraction, void* context) {
         auto& query = *static_cast<RayQuery*>(context);
         const auto* shape = static_cast<const Shape*>(b2Shape_GetUserData(id));
         if (shape->sensor && !query.sensors) return -1;
+        if (shape->proxy && !query.characters) return -1;
         if (!query.hit || fraction < query.hit->fraction
             || (fraction == query.hit->fraction && shape->handle.value < query.hit->collider.value))
             query.hit = CollisionHit2D{shape->handle, {point.x * query.owner->units, point.y * query.owner->units},
                 {normal.x, normal.y}, fraction, shape->sensor, {query.owner, shape->body}};
         return static_cast<float>(query.hit->fraction);
     }
-    struct OverlapQuery { bool sensors; std::vector<ColliderHandle2D> hits; };
+    struct OverlapQuery { bool sensors; std::vector<ColliderHandle2D> hits; bool characters = true; };
     static bool OverlapHit(b2ShapeId id, void* context) {
         auto& query = *static_cast<OverlapQuery*>(context);
         const auto* shape = static_cast<const Shape*>(b2Shape_GetUserData(id));
+        if (shape->proxy && !query.characters) return true;
         if (query.sensors || !shape->sensor) query.hits.push_back(shape->handle);
         return true;
     }
-    struct MoverQuery { b2Pos origin; b2Capsule capsule; b2Vec2 delta; float fraction = 1; };
+    struct MoverQuery { b2Pos origin; b2Capsule capsule; b2Vec2 delta; float fraction = 1; const std::set<std::uint64_t>* skipped = nullptr; };
     static bool MoverHit(b2ShapeId id, void* context) {
         if (b2Shape_IsSensor(id)) return true;
         auto& query = *static_cast<MoverQuery*>(context);
+        if (query.skipped && query.skipped->contains(b2StoreShapeId(id))) return true;
         const auto transform = b2ToRelativeTransform(b2Body_GetTransform(b2Shape_GetBody(id)), query.origin);
         const b2Vec2 points[]{b2InvTransformPoint(transform, query.capsule.center1),
                               b2InvTransformPoint(transform, query.capsule.center2)};
@@ -223,9 +233,10 @@ struct CollisionWorld2D::Impl {
         if (output.hit && output.fraction > 0) query.fraction = std::min(query.fraction, output.fraction);
         return true;
     }
-    float CastMover(b2Pos origin, const b2Capsule& capsule, b2Vec2 delta, b2QueryFilter filter) const {
-        if (sensorCount == 0) return b2World_CastMover(world, origin, &capsule, delta, filter);
-        MoverQuery query{origin, capsule, delta};
+    float CastMover(b2Pos origin, const b2Capsule& capsule, b2Vec2 delta, b2QueryFilter filter,
+                    const std::set<std::uint64_t>* skipped) const {
+        if (sensorCount == 0 && !skipped) return b2World_CastMover(world, origin, &capsule, delta, filter);
+        MoverQuery query{origin, capsule, delta, 1, skipped};
         const float x = capsule.radius, y = std::abs(capsule.center1.y) + capsule.radius;
         const b2AABB box{{-x + std::min(0.0f, delta.x), -y + std::min(0.0f, delta.y)},
                         {x + std::max(0.0f, delta.x), y + std::max(0.0f, delta.y)}};
@@ -368,6 +379,43 @@ BodyHandle2D CollisionWorld2D::AddBody(pxPoint position, double rotation, const 
     p.Count();
     return handle;
 }
+BodyHandle2D CollisionWorld2D::AddCharacterProxy(pxPoint center, double radius, double halfSegment, CollisionFilter2D filter) {
+    ValidateMoverCapsule(radius, halfSegment);
+    if (filter.category == 0) throw std::invalid_argument("collision category must be nonzero");
+    auto& p = *impl_;
+    auto def = b2DefaultBodyDef();
+    def.type = b2_kinematicBody;
+    def.position = p.Position(center);
+    const BodyHandle2D handle{&p, Identity()};
+    auto& record = p.bodies.try_emplace(handle.value).first->second;
+    record.body = b2CreateBody(p.world, &def);
+    const ColliderHandle2D collider{&p, Identity()};
+    auto& shapeRecord = p.shapes.try_emplace(collider.value).first->second;
+    record.shapes.push_back(collider);
+    shapeRecord.handle = collider;
+    shapeRecord.body = handle.value;
+    shapeRecord.proxy = true;
+    auto shape = b2DefaultShapeDef();
+    shape.filter.categoryBits = filter.category;
+    shape.filter.maskBits = filter.mask;
+    shape.userData = &shapeRecord;
+    shape.density = 0;
+    shape.enableSensorEvents = false;
+    shape.enableContactEvents = false;
+    // Smaller than the character by the mover's touching tolerance, so a body the character only
+    // touches is not pushed by the proxy: pushing stays the motor's bounded impulse.
+    const auto half = p.Scalar(halfSegment);
+    const b2Capsule capsule{{0, -half}, {0, half}, std::max(p.Scalar(radius - CapsuleSlop()), 0.011f)};
+    shapeRecord.shape = b2CreateCapsuleShape(record.body, &shape, &capsule);
+    p.backendShapes.emplace(b2StoreShapeId(shapeRecord.shape), collider.value);
+    p.proxyShapes.insert(b2StoreShapeId(shapeRecord.shape));
+    p.Count();
+    return handle;
+}
+void CollisionWorld2D::PlaceCharacterProxy(BodyHandle2D proxy, pxPoint center) {
+    const auto id = impl_->Get(proxy).body;
+    b2Body_SetTransform(id, impl_->Position(center), b2Rot_identity);
+}
 bool CollisionWorld2D::ContainsBody(BodyHandle2D body) const {
     return body.owner == impl_.get() && impl_->bodies.contains(body.value);
 }
@@ -379,6 +427,7 @@ bool CollisionWorld2D::RemoveBody(BodyHandle2D body, PhysicsEndReason2D reason) 
         impl_->EndShape(handle.value, reason);
         const auto& shape = impl_->shapes.at(handle.value);
         impl_->backendShapes.erase(b2StoreShapeId(shape.shape));
+        impl_->proxyShapes.erase(b2StoreShapeId(shape.shape));
         if (shape.sensor) --impl_->sensorCount;
     }
     b2DestroyBody(record.body);
@@ -470,6 +519,8 @@ std::vector<PhysicsDebugLine2D> CollisionWorld2D::DebugGeometry(std::uint32_t fl
         (void)identity;
         const auto body = record.body;
         if (!b2Body_IsEnabled(body)) continue;
+        // The character draws its own capsule; its proxy would only repeat it.
+        if (impl_->shapes.at(record.shapes.front().value).proxy) continue;
         const bool dynamic = b2Body_GetType(body) == b2_dynamicBody;
         const bool awake = b2Body_IsAwake(body);
         const pxColorRgba stateColor = awake ? pxColorRgba{80, 240, 120} : pxColorRgba{130, 130, 150};
@@ -659,7 +710,7 @@ bool CollisionWorld2D::OverlapsCircle(pxPoint center, double radius, CollisionFi
     if (r <= 0) throw std::invalid_argument("overlap circle radius must be positive");
     const b2Vec2 point{0, 0};
     const auto proxy = b2MakeProxy(&point, 1, r);
-    Impl::OverlapQuery query{false, {}};
+    Impl::OverlapQuery query{false, {}, filter.characters};
     b2World_OverlapShape(impl_->world, impl_->Position(center), &proxy, Filter(filter), &Impl::OverlapHit, &query);
     return !query.hits.empty();
 }
@@ -669,7 +720,7 @@ std::optional<CollisionHit2D> CollisionWorld2D::CircleCast(pxPoint origin, doubl
     if (r <= 0) throw std::invalid_argument("circle cast radius must be positive");
     const b2Vec2 point{0, 0};
     const auto proxy = b2MakeProxy(&point, 1, r);
-    Impl::RayQuery query{impl_.get(), false, {}};
+    Impl::RayQuery query{impl_.get(), false, {}, filter.characters};
     b2World_CastShape(impl_->world, impl_->Position(origin), &proxy, impl_->Vector(translation), Filter(filter), &Impl::RayHit, &query);
     return query.hit;
 }
@@ -678,7 +729,7 @@ std::optional<CollisionHit2D> CollisionWorld2D::RayCast(pxPoint origin, pxVec2 t
     std::optional<TelemetryScope> timing;
     if (impl_->telemetry) timing.emplace(*impl_->telemetry, impl_->rayTime);
     impl_->Count();
-    Impl::RayQuery query{impl_.get(), includeSensors, {}};
+    Impl::RayQuery query{impl_.get(), includeSensors, {}, filter.characters};
     b2World_CastRay(impl_->world, impl_->Position(origin), impl_->Vector(translation), Filter(filter), &Impl::RayHit, &query);
     return query.hit;
 }
@@ -688,7 +739,7 @@ std::vector<ColliderHandle2D> CollisionWorld2D::OverlapBox(pxPoint center, pxVec
     if (half.x <= 0 || half.y <= 0) throw std::invalid_argument("overlap box half sizes must be positive");
     const auto box = b2MakeBox(half.x, half.y);
     const auto proxy = b2MakeProxy(box.vertices, box.count, box.radius);
-    Impl::OverlapQuery query{includeSensors, {}};
+    Impl::OverlapQuery query{includeSensors, {}, filter.characters};
     b2World_OverlapShape(impl_->world, impl_->Position(center), &proxy, Filter(filter), &Impl::OverlapHit, &query);
     std::sort(query.hits.begin(), query.hits.end(), [](auto a, auto b) { return a.value < b.value; });
     return query.hits;
@@ -721,7 +772,8 @@ PhysicsStats2D CollisionWorld2D::Stats() const {
 }
 std::uint64_t CollisionWorld2D::Generation() const { return impl_->generation; }
 bool CollisionWorld2D::NeedsSimulation() const {
-    return impl_->bodies.size() > impl_->statics || impl_->sensorCount > 0 || !impl_->pending.empty();
+    // Proxies only stop moving bodies; with nothing else in motion there is nothing to solve.
+    return impl_->bodies.size() > impl_->statics + impl_->proxyShapes.size() || impl_->sensorCount > 0 || !impl_->pending.empty();
 }
 void CollisionWorld2D::Reset() {
     while (!impl_->bodies.empty()) RemoveBody({impl_.get(), impl_->bodies.begin()->first}, PhysicsEndReason2D::Reset);
@@ -758,6 +810,7 @@ std::vector<CapsuleContact2D> CollisionWorld2D::CapsuleContacts(pxPoint center, 
     const auto origin = impl_->Position(center);
     const b2Capsule capsule{{0, -impl_->Scalar(halfSegment)}, {0, impl_->Scalar(halfSegment)}, impl_->Scalar(radius)};
     Planes planes;
+    planes.skipped = impl_->Skipped(filter);
     b2World_CollideMover(impl_->world, origin, &capsule, Filter(filter), &CollectPlane, &planes);
     if (planes.overflow) throw std::runtime_error("capsule contact plane capacity exceeded");
     std::vector<CapsuleContact2D> result;
@@ -791,7 +844,9 @@ CapsuleMotion2D CollisionWorld2D::MoveCapsule(pxPoint center, double radius, dou
     const auto initialVelocity = impl_->Vector(velocity);
     const b2Capsule capsule{{0, -half}, {0, half}, r};
     const auto query = Filter(filter);
+    const auto* skipped = impl_->Skipped(filter);
     Planes planes;
+    planes.skipped = skipped;
     int iterations = 0;
     auto collect = [&] {
         planes.count = 0;
@@ -803,7 +858,7 @@ CapsuleMotion2D CollisionWorld2D::MoveCapsule(pxPoint center, double radius, dou
         const b2Vec2 remaining{static_cast<float>(target.x - position.x), static_cast<float>(target.y - position.y)};
         const auto solve = b2SolvePlanes(remaining, planes.values.data(), planes.count);
         iterations += solve.iterationCount;
-        const float fraction = impl_->CastMover(position, capsule, solve.delta, query);
+        const float fraction = impl_->CastMover(position, capsule, solve.delta, query, skipped);
         const auto advance = b2MulSV(fraction, solve.delta);
         position = b2OffsetPos(position, advance);
         if (b2LengthSquared(advance) < 1e-10f) break;

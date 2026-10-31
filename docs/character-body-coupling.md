@@ -55,8 +55,12 @@ The scene tick synchronizes authored data, collects gameplay commands, then:
 
 Jump takeoff adds the clamped support-point velocity (linear plus angular)
 exactly once and detaches before carry correction, avoiding double carry.
-Subsequent air input/braking retains the existing motor rules; stepping off
-drops the anchor, without an indefinitely retained platform reference.
+Since the owner's decision of 2026-10-31, leaving a carrying support without jumping
+(walking or sliding off it) also adds that clamped velocity once, in the finish that loses
+the support, so a character does not drop the platform's motion into a sudden free fall.
+A support removed, disabled or explicitly moved is not inherited. Subsequent air
+input/braking retains the existing motor rules; leaving drops the anchor, without an
+indefinitely retained platform reference.
 
 Initial authored coupling defaults: effective mass 1 kg, push force limit 1200
 kg*worldUnits/s^2, contact push speed limit 200 worldUnits/s, support-load force
@@ -66,8 +70,9 @@ parameters, not physical character inertia or a universal supported envelope.
 
 Carry and overlap recovery are bounded. If a moved body/platform leaves no
 placement within the declared recovery tolerance, keep the last completed pose,
-clear support and publish blocked/unsafe status. A clipped carry with a valid
-placement is blocked without inventing a crush/death rule. The retained pose may
+clear support and publish blocked/unsafe status. A carry clipped by other geometry,
+with a valid placement, is blocked without inventing a crush/death rule; a carry shortened
+only by the support itself (the capsule settling on a rotated surface) is not an obstruction. The retained pose may
 now be occupied by the mechanism: unsafe explicitly means no feasible placement
 was established. Damage, stopping/reversing a platform and respawning are host
 policy. Excessive support displacement is diagnosed rather than accepted as a
@@ -109,6 +114,30 @@ when a teleport is smaller than the carry limit. Body commands are applied befor
 single backend step. Character/character collision and motor-trigger events are
 outside this increment.
 
+## Character proxies
+
+Owner decision, 2026-10-31: a scene character is also represented in the physics world by
+a character proxy (`CollisionWorld2D::AddCharacterProxy`), so dynamic bodies and particles
+stop against it instead of passing through. The proxy is a kinematic upright capsule, smaller
+than the character by the mover's touching tolerance, placed where the character completed
+the last step and not moved during the solve. It has no mass, raises no contact or sensor
+events, never blocks a character (motor queries leave proxies out, so character/character
+collision remains unsupported) and is not a second simulated character body. It counts in
+the world's body and shape populations; debug views draw the character capsule instead.
+
+- Pushing is unchanged: the motor's bounded impulses move bodies, and the smaller proxy does
+  not push what the character only touches.
+- What bodies press on the proxy during the solve is read from its contacts and passed to
+  `CharacterController2D::ReceiveImpulse`; finish moves the character by impulse divided by
+  effective mass, capped at the push speed limit and through collision, without changing its
+  velocity. `CharacterCouplingState2D::receivedImpulse` reports it.
+- `CharacterMotor2D` has `belongs to` and `collides with` layers like Collider2D's. They filter
+  the character's own queries and its proxy, so a body or particle pool whose layers leave out
+  the character's passes through it. Particle pools choose this per pool, not per particle.
+- A fast body can enter the proxy within the tick it arrives (dynamic/kinematic pairs are not
+  swept continuously); from the next tick it stays outside, and the character's overlap
+  recovery moves the character out of the way.
+
 The native regression fixture is
 [CharacterCouplingTests.cpp](../tests/runtime/CharacterCouplingTests.cpp).
 It exercises horizontal/vertical/reversing supports, local rotation and jump
@@ -120,9 +149,32 @@ restarting without stale anchors and exposed movement diagnostics. The older
 movement/gravity tests remain independent regression checks.
 
 Historical D3 workload CSVs describe their retained executable/source snapshots;
-they do not measure this new coupled path. Coupled performance qualification and
-owner movement-feel acceptance remain pending. Unsafe placement is explicit
-failure evidence, not a guarantee of continuous collision at arbitrary speed.
+they do not measure this coupled path. The benchmark's `coupled` workload does: reversing
+translating, rising and rotating platforms with riders, pushes into light, heavy and
+compound boxes, loaded crates and recurring crushes, measured on 2026-10-30 (see the
+[qualification record](physics-qualification.md#workloads-and-stress)). The owner accepted the
+movement feel in the [coupling lab](../samples/coupling-lab/README.md) on 2026-10-31. Unsafe placement is explicit failure evidence, not a guarantee of
+continuous collision at arbitrary speed.
+
+Grounding ignores separation slower than 1 world unit/s. Pushing a box that is free to
+rotate tilts its face slightly, and clipping against it leaves hundredths of a unit/s of
+upward velocity; with the earlier 0.001 tolerance the motor lost its ground and published
+support for almost every pushing tick. `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`
+covers this.
+
+Owner review on 2026-10-30 found two more defects in the coupling lab, both fixed:
+
+- A grounded character crept downhill on every walkable slope (6.6 units/s at 23°): gravity
+  was added in full and clipping turned its tangential part into motion. On a tilting
+  platform this showed as sliding while the rider's side sank and stopping while it rose.
+  Grounded gravity now only presses along the support's normal (identical on flat ground);
+  `CharacterStandsStillOnWalkableSlopes` and `CharacterStaysPutOnATiltingAndReversingPlatform`
+  cover it.
+- A rider on a fast-tilting platform (0.48 rad/s) was reported as carry obstructed on every
+  sinking tick, although only its own support shortened the carry.
+  `CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction` covers it.
+
+The prepare/solve/finish algorithm is unchanged.
 
 The 2026-10-26 bounded increment passed 211 runtime tests and all 15 CTest suites
 in Debug and Release. Disabling actual support carry produced 10 failed checks;
