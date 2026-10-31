@@ -422,6 +422,8 @@ PIXIE_API PixieResult pixie_field_enum_name(PixieSession* session, int32_t type,
                                             int32_t value, char* buffer, int32_t capacity);
 PIXIE_API PixieResult pixie_field_get(PixieSession* session, uint32_t entity, int32_t type,
                                       int32_t field, PixieValue* value);
+/* An ENUM field takes a whole x from 0 to pixie_field_enum_count - 1; other values are refused
+ * with PIXIE_ERROR_ARGUMENT and leave it unchanged, here and in pixie_record_set. */
 PIXIE_API PixieResult pixie_field_set(PixieSession* session, uint32_t entity, int32_t type,
                                       int32_t field, const PixieValue* value);
 /* A TEXT field, in UTF-8. pixie_field_get_text writes it into `buffer` with a NUL and sets `length`

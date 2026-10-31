@@ -565,6 +565,14 @@ static void Exercise(PixieSession* s) {
     uint32_t made = 0;
     CHECK(api.entity_create(s, "made", &made) == PIXIE_OK && api.entity_alive(s, made) == 1);
     CHECK(api.component_add(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 1);
+    /* An enum field takes only the values its names cover: Shape.kind has four. */
+    const int32_t shapeKind = FindField(s, shapeType, "kind");
+    PixieValue kindValue = {3, 0, 0, 0};
+    CHECK(shapeKind >= 0 && api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_OK);
+    kindValue.x = 4; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    kindValue.x = -1; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    kindValue.x = 1.5; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_get(s, made, shapeType, shapeKind, &kindValue) == PIXIE_OK && kindValue.x == 3);
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 0);
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
     CHECK(api.component_add(s, made, 9999) == PIXIE_ERROR_ARGUMENT);

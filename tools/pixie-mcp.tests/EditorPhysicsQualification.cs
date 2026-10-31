@@ -202,6 +202,17 @@ internal static class EditorPhysicsQualification
                 var lamp = await Create(client, "create");
                 await Gesture(client, "add=Light2D");
                 await Set(client, "Light2D.type", "Spot");
+                // A choice is written by its name: a number or an unknown name is refused, not stored as 255.
+                var spot = (await Get(client, lamp, "Light2D.type"))?.ToJsonString();
+                undos = await Undos(client);
+                foreach (var wrong in new JsonNode[] { JsonValue.Create(1), JsonValue.Create("Sun") })
+                {
+                    var (receipt, tool) = await Call(client, "inspector.set", new()
+                        { ["generation"] = (await Good(client, "inspector.tree"))["generation"]!.GetValue<long>(), ["path"] = "Light2D.type", ["value"] = wrong });
+                    var outcome = tool.IsError == true ? "error" : receipt["result"]?["value"]?["outcome"]?.GetValue<string>();
+                    Check(outcome is "refused" or "error" && (await Get(client, lamp, "Light2D.type"))?.ToJsonString() == spot && await Undos(client) == undos,
+                        "choice-outside-its-names-is-refused", JsonValue.Create(wrong.ToJsonString() + " -> " + outcome));
+                }
                 var lampAt = await Pair(client, lamp, "Transform2D.position");
                 // World points in the gesture text, in invariant culture whatever the machine's.
                 string At(double dx, double dy) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{lampAt.X + dx},{lampAt.Y + dy}");

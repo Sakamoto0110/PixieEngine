@@ -102,6 +102,18 @@ const pixie::FieldDescriptor* FieldAt(PixieSession* s, int32_t type, int32_t fie
     return &descriptor->fields[static_cast<std::size_t>(field)];
 }
 
+// An enum field takes only the values its names cover; anything else would land in the member's
+// underlying byte as a value no name describes.
+PixieResult CheckEnumValue(const pixie::FieldDescriptor& field, double value) {
+    const auto count = static_cast<double>(field.enumNames.size());
+    if (field.kind != pixie::FieldKind::Enum || field.enumNames.empty() ||
+        (value >= 0.0 && value < count && value == std::floor(value))) {
+        return PIXIE_OK;
+    }
+    return Fail(PIXIE_ERROR_ARGUMENT, std::format("{} takes a whole number from 0 to {}, not {}", field.name,
+                                                  field.enumNames.size() - 1, value));
+}
+
 // The component instance of `type` on `entity`, or null after recording why.
 void* ComponentOf(PixieSession* s, uint32_t entity, int32_t type, PixieResult& result) {
     const pixie::ComponentDescriptor* descriptor = TypeAt(s, type);
@@ -1186,7 +1198,10 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
                         std::format("{} is not a value; use pixie_field_set_text, pixie_field_set_points or pixie_record_* for its kind",
                                     descriptor->name));
         }
-        PixieResult result = PIXIE_OK;
+        PixieResult result = CheckEnumValue(*descriptor, value->x);
+        if (result != PIXIE_OK) {
+            return result;
+        }
         void* component = ComponentOf(s, entity, type, result);
         if (component == nullptr) {
             return result;
@@ -1359,6 +1374,7 @@ PixieResult pixie_record_set(PixieSession* s, uint32_t entity, int32_t type, int
         if (result != PIXIE_OK) return result;
         if (!access.field->write || access.field->metadata.readOnly || access.list->metadata.readOnly)
             return Fail(PIXIE_ERROR_ARGUMENT, "record field is not writable numeric data");
+        if (const auto checked = CheckEnumValue(*access.field, value->x); checked != PIXIE_OK) return checked;
         access.field->write(access.item, {value->x, value->y, value->z, value->w});
         RecordChanged(s, entity);
         return PIXIE_OK;
