@@ -105,6 +105,14 @@ set_target_properties(physics-benchmark PROPERTIES FOLDER tests)
 target_link_libraries(physics-benchmark PRIVATE Pixie::Runtime)
 pixie_target_defaults(physics-benchmark)
 
+# Lighting through a ProjectSession, in a hidden OpenGL 4.5 window.
+add_executable(lighting-tests runtime/LightingTests.cpp)
+set_target_properties(lighting-tests PROPERTIES FOLDER tests)
+target_include_directories(lighting-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(lighting-tests PRIVATE Pixie::Runtime glfw)
+pixie_target_defaults(lighting-tests)
+add_test(NAME lighting-tests COMMAND lighting-tests)
+
 # The L0 lighting prototype (PIXIE-TASK-213): an explicit measurement tool, not a CTest test.
 add_executable(lighting-prototype benchmarks/LightingPrototype.cpp)
 set_target_properties(lighting-prototype PROPERTIES FOLDER tests)

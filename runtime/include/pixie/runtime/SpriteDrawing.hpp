@@ -82,5 +82,10 @@ struct TextSources {
 // the renderer afterwards.
 PIXIE_RUNTIME_API void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
                    const TextSources* texts = nullptr, const pxRect* view = nullptr);
+// The same sprites and texts, in the same order, for the lighting's receiver pass: each one's color
+// is its LightReceiver2D (ReceiverColor). Flush with the renderer's receiver pass on.
+PIXIE_RUNTIME_API void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                             double alpha, const TextSources* texts = nullptr,
+                                             const pxRect* view = nullptr);
 
 } // namespace pixie

@@ -2,6 +2,7 @@ add_library(pixie_render OBJECT
     src/2d/OverlayDrawing.cpp
     src/2d/Camera2D.cpp
     src/2d/Font.cpp
+    src/2d/LightRenderer.cpp
     src/2d/ParticleRenderer.cpp
     src/2d/PathRenderer.cpp
     src/2d/ShapeRenderer.cpp

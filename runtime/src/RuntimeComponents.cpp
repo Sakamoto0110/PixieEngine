@@ -3,6 +3,7 @@
 #include "pixie/runtime/AttractorAffector.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
+#include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/ParticlePhysics2D.hpp"
@@ -338,6 +339,25 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&PhysicsSettings2D::gravity>("gravity").Tooltip("World gravity in world units/s^2; Y points down. One settings entity per scene.").Scrub(10)
         .Field<&PhysicsSettings2D::unitsPerMeter>("unitsPerMeter").Label("units per meter").Tooltip("World units per physical meter. Change only while editing; default 32.").Range(0.001, 1000000)
         .Field<&PhysicsSettings2D::substeps>("substeps").Tooltip("Solver subdivisions per fixed World step, from 1 to 32.").Range(1, 32);
+    types.Add<LightingSettings2D>("LightingSettings2D")
+        .Singleton()
+        .Field<&LightingSettings2D::ambient>("ambient").Tooltip("Light every receiver gets, whatever its layers. White at intensity 1 with exposure 1 looks as the scene does unlit; lower it for darkness.")
+        .Field<&LightingSettings2D::ambientIntensity>("ambientIntensity").Label("ambient intensity").Tooltip("Linear multiplier of the ambient color.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.");
+    types.Add<Light2D>("Light2D")
+        .Field<&Light2D::type>("type", {"Point", "Spot", "Directional"}).Tooltip("Point shines all around to its range; spot within a cone along the entity's rotation; directional over the whole view.")
+        .Field<&Light2D::color>("color").Tooltip("The light's color.")
+        .Field<&Light2D::intensity>("intensity").Tooltip("Linear multiplier: 1 shows a surface at its own brightness where the light is strongest.").Range(0, 1000).Scrub(0.01)
+        .Field<&Light2D::range>("range").Tooltip("World units; the light falls to exactly 0 there (point and spot).").Range(0, 1000000).Scrub(1)
+        .Field<&Light2D::falloff>("falloff").Tooltip("How fast it fades toward its range: 0 is flat to the edge, 2 smooth, higher tighter.").Range(0, 16).Scrub(0.05)
+        .Field<&Light2D::coneAngle>("coneAngle").Label("cone angle").Tooltip("The spot's full cone, in degrees.").Degrees().Range(0, 360).Scrub(1)
+        .Field<&Light2D::coneSoftness>("coneSoftness").Label("cone softness").Tooltip("The part of the cone, from its edge inward, over which the spot fades in: 0 hard, 1 from the center.").Range(0, 1).Scrub(0.01)
+        .Field<&Light2D::lightLayers>("lightLayers").Label("light layers").Tooltip("Bits 0 to 7: the receivers' light layers this light reaches; 255 reaches all.").Range(0, 255)
+        .Field<&Light2D::enabled>("enabled").Tooltip("Whether the light shines.");
+    types.Add<LightReceiver2D>("LightReceiver2D")
+        .Field<&LightReceiver2D::lightLayers>("lightLayers").Label("light layers").Tooltip("Bits 0 to 7: the light layers this sprite, text or shape belongs to; a light reaches it when they share one. Ambient reaches it anyway.").Range(0, 255)
+        .Field<&LightReceiver2D::unlit>("unlit").Tooltip("Shown at its own color, ignoring light, exposure and tone mapping.");
     types.Add<CollisionLayer2D>("CollisionLayer2D").ValueType()
         .Field<&CollisionLayer2D::slot>("slot").Range(1, 31).Tooltip("Stable 1-based bit position; never an index into the name list.")
         .Field<&CollisionLayer2D::name>("name").Tooltip("Display name only; empty means unnamed. Renaming does not change collision filters.");

@@ -1,6 +1,7 @@
 #include "pixie/runtime/SpriteDrawing.hpp"
 
 #include "pixie/runtime/Culling.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
@@ -140,8 +141,10 @@ void ForEachSpriteInDrawOrder(World& world,
     });
 }
 
-void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
-                   const TextSources* texts, const pxRect* view) {
+namespace {
+
+void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha, const TextSources* texts,
+            const pxRect* view, bool receivers) {
     entt::registry& registry = world.Registry();
     ForEachDrawnInOrder(world, [&](const Drawn& item) {
         const auto* previous = registry.try_get<const PreviousTransform2D>(item.id);
@@ -149,7 +152,13 @@ void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images,
             previous != nullptr ? Interpolate(previous->value, item.transform, alpha) : item.transform;
         if (item.text != nullptr) {
             if (texts != nullptr && (view == nullptr || TextInView(*item.text, drawn, TextBlock(*item.text, texts->fonts), *view))) {
-                SubmitText(*item.text, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
+                if (receivers) {
+                    Text receiver = *item.text;
+                    receiver.color = ReceiverColor(registry.try_get<const LightReceiver2D>(item.id), item.text->color.a);
+                    SubmitText(receiver, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
+                } else {
+                    SubmitText(*item.text, drawn, texts->fonts, texts->renderer, renderer, texts->zoom);
+                }
             }
             return;
         }
@@ -172,9 +181,22 @@ void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images,
             instance.uv = {static_cast<float>(r.x / image.x), static_cast<float>(r.y / image.y),
                            static_cast<float>((r.x + r.width) / image.x), static_cast<float>((r.y + r.height) / image.y)};
         }
-        instance.color = sprite.color;
+        instance.color =
+            receivers ? ReceiverColor(registry.try_get<const LightReceiver2D>(item.id), sprite.color.a) : sprite.color;
         renderer.Submit(texture.Id(), sprite.filter, sprite.layer, instance);
     });
+}
+
+} // namespace
+
+void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                   const TextSources* texts, const pxRect* view) {
+    Submit(world, renderer, images, alpha, texts, view, false);
+}
+
+void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
+                           const TextSources* texts, const pxRect* view) {
+    Submit(world, renderer, images, alpha, texts, view, true);
 }
 
 } // namespace pixie

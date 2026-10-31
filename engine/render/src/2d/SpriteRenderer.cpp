@@ -52,12 +52,29 @@ void main() {
 }
 )";
 
+// The lighting's receiver pass (LightRenderer): the instance color carries a receiver instead of a
+// tint, red its light layers, green whether it is unlit, blue the sprite's own alpha. A pixel at
+// least half covered replaces the receiver below it; the rest leave it.
+constexpr std::string_view kReceiverFragmentShader = R"(#version 450 core
+in vec2 vUv;
+in vec4 vColor;
+
+layout(binding = 0) uniform sampler2D uImage;
+
+out vec4 oColor;
+
+void main() {
+    oColor = vec4(vColor.rg, 0.0, 1.0) * step(0.5, texture(uImage, vUv).a * vColor.b);
+}
+)";
+
 constexpr GLint kViewProjectionLocation = 0;
 
 } // namespace
 
 bool SpriteRenderer::Create() {
-    if (!program_.Create("SpriteRenderer", kVertexShader, kFragmentShader)) {
+    if (!program_.Create("SpriteRenderer", kVertexShader, kFragmentShader) ||
+        !receiverProgram_.Create("SpriteRenderer receivers", kVertexShader, kReceiverFragmentShader)) {
         return false;
     }
     instances_.Create();
@@ -91,6 +108,7 @@ void SpriteRenderer::Destroy() {
     }
     vertexArray_.Destroy();
     instances_.Destroy();
+    receiverProgram_.Destroy();
     program_.Destroy();
     pending_.clear();
 }
@@ -115,11 +133,12 @@ void SpriteRenderer::Flush(const View& view, int belowLayer) {
     }
     instances_.Upload(std::span<const SpriteInstance>(ordered_));
 
+    const GLuint program = receiverPass_ ? receiverProgram_.Id() : program_.Id();
     const pxMat4f viewProjection(view.ViewProjection());
-    glProgramUniformMatrix4fv(program_.Id(), kViewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
+    glProgramUniformMatrix4fv(program, kViewProjectionLocation, 1, GL_FALSE, glm::value_ptr(viewProjection));
     glEnable(GL_BLEND);
     glBlendFunc(GL_ONE, GL_ONE_MINUS_SRC_ALPHA);
-    glUseProgram(program_.Id());
+    glUseProgram(program);
     glBindVertexArray(vertexArray_.Id());
 
     std::size_t first = 0;

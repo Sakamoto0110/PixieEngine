@@ -32,8 +32,14 @@ public:
     // How many shapes wait for the next flush.
     PIXIE_RENDER_API std::size_t PendingCount() const;
 
+    // While on, draws are the lighting's receiver pass (LightRenderer::BeginReceivers): each
+    // instance's color holds its receiver, not a color.
+    void SetReceiverPass(bool on) { receiverPass_ = on; }
+
 private:
     ShaderProgram program_;
+    ShaderProgram receiverProgram_;
+    bool receiverPass_ = false;
     GlVertexArray vertexArray_;
     GlBuffer instances_;
     std::array<std::vector<ShapeInstance>, kShapeKindCount> pending_;

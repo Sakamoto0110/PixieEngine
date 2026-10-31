@@ -62,6 +62,10 @@ public:
     // Something else can be drawn between two flushes, such as paths over backgrounds.
     PIXIE_RENDER_API void Flush(const View& view, int belowLayer = INT_MAX);
 
+    // While on, flushes draw the lighting's receiver pass (LightRenderer::BeginReceivers): each
+    // instance's color holds its receiver, not a tint.
+    void SetReceiverPass(bool on) { receiverPass_ = on; }
+
     // Draw calls made by the last Flush.
     int LastDrawCalls() const { return lastDrawCalls_; }
     // How many sprites wait for a flush.
@@ -76,6 +80,8 @@ private:
     };
 
     ShaderProgram program_;
+    ShaderProgram receiverProgram_;
+    bool receiverPass_ = false;
     GlVertexArray vertexArray_;
     GlBuffer instances_;
     std::array<unsigned, 2> samplers_{};

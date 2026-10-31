@@ -4,6 +4,7 @@
 
 #include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/core/FixedStepper.hpp"
+#include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/platform/Input.hpp"
 #include "pixie/render/2d/ParticleRenderer.hpp"
 #include "pixie/render/2d/PathRenderer.hpp"
@@ -26,6 +27,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace pixie {
 
@@ -168,6 +170,8 @@ private:
     Fonts fonts_;
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
+    LightRenderer lighting_;
+    std::vector<LightInstance> lights_;
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;

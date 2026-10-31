@@ -4,6 +4,7 @@
 
 #include "pixie/render/RenderTarget.hpp"
 #include "pixie/core/Log.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
@@ -71,7 +72,7 @@ std::string_view ProjectSession::ProjectName() const {
 }
 
 bool ProjectSession::Start(FramebufferSize size) {
-    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create()) {
+    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create() || !lighting_.Create()) {
         return false;
     }
     camera_.SetViewport(size);
@@ -86,6 +87,7 @@ void ProjectSession::Stop() {
     target_.Destroy();
     images_.Destroy();
     text_.Destroy();
+    lighting_.Destroy();
     paths_.Destroy();
     sprites_.Destroy();
     particles_.Destroy();
@@ -115,6 +117,10 @@ void ProjectSession::Build(bool resetCamera) {
     AddParticleStep(*world_);
     InstallSceneMovement2D(*world_);
     SyncSceneMovement2D(*world_);
+    const auto lights = world_->Registry().view<const Light2D>();
+    if (lights.begin() != lights.end() && FindLightingSettings(*world_) == nullptr) {
+        LogWarning(std::format("{}: the scene has lights but no LightingSettings2D, so it is drawn unlit", ProjectName()));
+    }
 }
 
 void ProjectSession::Reset() {
@@ -245,7 +251,13 @@ constexpr double kCullPadding = 32.0;
 
 void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
-    pixie::ClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
+    // Lighting is opt-in: without LightingSettings2D the scene is drawn exactly as before lighting.
+    const LightingSettings2D* lighting = FindLightingSettings(*world_);
+    if (lighting != nullptr) {
+        lighting_.BeginWorld(camera_.Viewport(), background);
+    } else {
+        pixie::ClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
+    }
     if (const auto now = std::chrono::steady_clock::now(); now >= nextImageCheck_) {
         images_.CheckForChanges();
         nextImageCheck_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -261,6 +273,23 @@ void ProjectSession::Render(double alpha) {
     sprites_.Flush(camera_.MakeView());
     DrawParticles(*world_, particles_, camera_, alpha);
     SubmitShapes(*world_, shapes_, alpha, &view);
+    if (lighting != nullptr) {
+        // World shapes are part of the lit image; gizmos and overlays are drawn over it, unlit.
+        shapes_.Flush(camera_.MakeView());
+        if (HasLightReceivers(*world_)) {
+            lighting_.BeginReceivers();
+            sprites_.SetReceiverPass(true);
+            SubmitSpriteReceivers(*world_, sprites_, images_, alpha, &texts, &view);
+            sprites_.Flush(camera_.MakeView());
+            sprites_.SetReceiverPass(false);
+            shapes_.SetReceiverPass(true);
+            SubmitShapeReceivers(*world_, shapes_, alpha, &view);
+            shapes_.Flush(camera_.MakeView());
+            shapes_.SetReceiverPass(false);
+        }
+        GatherLights(*world_, alpha, &view, lights_);
+        lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_);
+    }
     if (mode_ == SessionMode::Edit) {
         SyncSceneMovement2D(*world_);
         if (!physicsDebugExplicit_) DrawMovementGizmos2D(*world_, shapes_, camera_);
