@@ -41,6 +41,7 @@ owns the authority table: which document owns which kind of fact.
 | [`collision-movement.md`](collision-movement.md) | Static collision queries, capsule movement, controller ownership and neutral room |
 | [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
 | [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
+| [`lighting-requirements.md`](lighting-requirements.md) | Proposed 2D lights, shadows, emissive surfaces and particles, composition, authoring, budgets and staged acceptance |
 | [`body-dynamics.md`](body-dynamics.md) | Initial native/scene body dynamics, world gravity, units, lifecycle and remaining delivery gates |
 | [`body-events.md`](body-events.md) | Contact/sensor lifetimes, queries, scene identities and bounded stack/material/fast-body qualification |
 | [`particle-dynamics.md`](particle-dynamics.md) | Native dynamic particles, world gravity, bounded circle-sweep bounce and the playable sparks room |

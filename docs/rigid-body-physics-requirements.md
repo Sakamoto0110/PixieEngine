@@ -339,7 +339,7 @@ Existing scene serialization is retained; a room is representative content, not
 an excuse to replace the scene model. Lighting requirements already live under
 L01 onward in the [consumer analysis](circuit-puzzle-requirements.md#4-lighting-quality-critical-requirements).
 Before lighting code, expand its render contract and acceptance budget with the
-same level of detail as this physics design. Deferred choices include shadow
+same level of detail as this physics design. That expansion is the [lighting specification](lighting-requirements.md). Deferred choices include shadow
 technique, translucency, composition, light units and material response.
 
 Proposed rooms: (1) a dark room with one movable light, static occluders and a
