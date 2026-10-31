@@ -273,7 +273,10 @@ the editor.
 test clients and both save variants of the editor, and runs, in disposable
 projects under `build/tests/mcp/`: the player's real-pipe and MCP cases, the
 editor's Inspector/history cases with and without save, the direct pipe and
-fault fixtures, a killed server closing its host, and a project with code opened
+fault fixtures, a killed server closing its host, the no-code physics authoring
+workflow (presets, handles, layers, compounds, Play/Stop, save/reopen and a legacy
+migration; see the [physics qualification](../docs/physics-qualification.md#no-code-editor-workflow)),
+and a project with code opened
 cold, which builds the engine again (`--skip-cold` leaves it out). For the `ci`
 preset, pass `--bin build-ci/bin --work build-ci/tests/mcp`. See the
 [qualification record](../docs/shared-engine-export-validation.md) for Windows

@@ -36,6 +36,7 @@ owns the authority table: which document owns which kind of fact.
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
 | [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |
+| [`physics-qualification.md`](physics-qualification.md) | PHY-001 to PHY-021 coverage, executed physics qualification, residual limits and pending owner review |
 | [`character-body-coupling.md`](character-body-coupling.md) | D4 motor preparation, bounded body impulses, support carry and unsafe-placement policy |
 | [`collision-movement.md`](collision-movement.md) | Static collision queries, capsule movement, controller ownership and neutral room |
 | [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
