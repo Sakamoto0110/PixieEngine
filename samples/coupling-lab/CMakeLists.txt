@@ -1,0 +1,11 @@
+if(CMAKE_CURRENT_SOURCE_DIR STREQUAL CMAKE_SOURCE_DIR)
+    cmake_minimum_required(VERSION 3.25)
+    project(coupling-lab LANGUAGES C CXX)
+    if(NOT IS_DIRECTORY "${PIXIE_ENGINE_DIR}")
+        message(FATAL_ERROR "PIXIE_ENGINE_DIR must name the engine folder")
+    endif()
+    include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
+endif()
+pixie_game(coupling-lab SOURCES src/CouplingLabProject.cpp INCLUDE_DIRS src PROJECT_DIR ${CMAKE_CURRENT_SOURCE_DIR}
+    ASSETS fonts/inter-regular.ttf)
+set_target_properties(coupling-lab-game coupling-lab PROPERTIES FOLDER samples/coupling-lab)

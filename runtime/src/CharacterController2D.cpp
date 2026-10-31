@@ -15,10 +15,13 @@ pxVec2 Limited(pxVec2 value, double maximum) {
     const double length = std::hypot(value.x, value.y);
     return length > maximum && length > 0 ? value * (maximum / length) : value;
 }
+// Separation slower than this (world units/s) does not leave the ground. Clipping against a pushed
+// body's slightly tilted face leaves hundredths of a unit/s of upward velocity; a takeoff is hundreds.
+constexpr double kSeparatingSpeed = 1.0;
 const CapsuleContact2D* Ground(const std::vector<CapsuleContact2D>& contacts, double threshold, double slop, pxVec2 velocity) {
     const CapsuleContact2D* best = nullptr;
     for (const auto& c : contacts) {
-        if (c.separation > slop || c.normal.y > -threshold || Dot(velocity, c.normal) > 0.001) continue;
+        if (c.separation > slop || c.normal.y > -threshold || Dot(velocity, c.normal) > kSeparatingSpeed) continue;
         if (!best || c.normal.y < best->normal.y) best = &c;
     }
     return best;

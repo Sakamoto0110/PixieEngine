@@ -34,8 +34,8 @@ void operator delete[](void* p, std::size_t) noexcept { std::free(p); }
 
 namespace {
 using Clock = std::chrono::steady_clock;
-constexpr std::array<const char*, 8> names{
-    "physics.scene.sync", "physics.scene.rebuild", "physics.solve", "physics.scene.motors",
+constexpr std::array<const char*, 9> names{
+    "physics.scene.sync", "physics.scene.rebuild", "physics.solve", "physics.scene.coupling.prepare", "physics.scene.motors",
     "physics.events.collect", "physics.scene.events.publish", "physics.scene.publish", "benchmark.commands"};
 struct Sample {
     const char* phase;
@@ -45,10 +45,11 @@ struct Sample {
     std::uint64_t newCalls, rebuildScopes;
     pixie::PhysicsStats2D population;
     std::array<std::size_t, 4> events{}; // contact begin/end, sensor begin/end
+    std::array<std::size_t, 5> motors{}; // motors, supported, on a kinematic support, blocked, unsafe placement
 };
 int Run(int argc, char** argv) {
     if (argc != 6 && argc != 7) {
-        std::cerr << "usage: physics-benchmark <0..500 bodies> <awake|sleeping> <on|off> <warm steps> <output.csv> [sparse|compound|stack|sensors]\n";
+        std::cerr << "usage: physics-benchmark <0..500 bodies> <awake|sleeping> <on|off> <warm steps> <output.csv> [sparse|compound|stack|sensors|coupled]\n";
         return 2;
     }
     const int count = std::stoi(argv[1]), steps = std::stoi(argv[4]);
@@ -84,15 +85,28 @@ int Run(int argc, char** argv) {
             const std::size_t pair = event.event.pair == pixie::PhysicsPairKind2D::Contact ? 0 : 2;
             ++sample.events[pair + (event.event.kind == pixie::PhysicsEventKind2D::Begin ? 0 : 1)];
         }
+        // Read after the timed step, like the population: each motor's completed coupling.
+        for (auto id : setup.motors) {
+            const auto* coupling = pixie::CharacterCoupling2D(world, id);
+            if (!coupling) continue;
+            ++sample.motors[0];
+            if (coupling->support.value) {
+                ++sample.motors[1];
+                if (pixie::SceneCollisionWorld2D(world)->BodyType(coupling->support) == pixie::BodyType2D::Kinematic) ++sample.motors[2];
+            }
+            if (coupling->blocked != pixie::CharacterBlocked2D::None) ++sample.motors[3];
+            if (coupling->unsafePlacement) ++sample.motors[4];
+        }
         if (sample.population.bodies != setup.expectedBodies || sample.population.shapes != setup.expectedShapes
-            || sample.population.sensors != setup.expectedSensors || !pixie::SceneMovementErrors2D(world).empty())
+            || sample.population.sensors != setup.expectedSensors || sample.motors[0] != setup.expectedMotors
+            || !pixie::benchmark::OnlyCouplingStatus2D(world, setup))
             throw std::runtime_error("physics workload population/configuration mismatch");
         samples.push_back(sample);
     };
     for (int i = 0; i < 60; ++i) measure("cold", i);
     for (int i = 0; i < 300; ++i) world.Step(1.0 / 60, {});
     for (int i = 0; i < steps; ++i) measure("warm", i);
-    if (!pixie::SceneMovementErrors2D(world).empty()) return 1;
+    if (!pixie::benchmark::OnlyCouplingStatus2D(world, setup)) return 1;
     // Audit the retained final poses outside the measured tick; this is not a penetration oracle.
     const auto* physics = pixie::SceneCollisionWorld2D(world);
     for (auto id : setup.dynamicBodies) {
@@ -106,9 +120,10 @@ int Run(int argc, char** argv) {
     output << std::setprecision(17);
     output << "schema_version,scenario,driver,gravity_y,units_per_meter,configuration,seed,update_hz,substeps,render,requested_bodies,mode,telemetry,phase,index,wall_ms";
     for (const auto* name : names) output << ',' << name << "_ms";
-    output << ",cpp_new_calls,rebuild_scopes,bodies,shapes,sensors,awake_bodies,contacts,sensor_pairs,contact_begin,contact_end,sensor_begin,sensor_end\n";
+    output << ",cpp_new_calls,rebuild_scopes,bodies,shapes,sensors,awake_bodies,contacts,sensor_pairs,contact_begin,contact_end,sensor_begin,sensor_end"
+              ",motors,supported_motors,kinematic_supported_motors,blocked_motors,unsafe_motors\n";
     for (const auto& sample : samples) {
-        output << "2," << scenario << ',' << setup.driver << ',' << setup.gravityY << ",32,";
+        output << "3," << scenario << ',' << setup.driver << ',' << setup.gravityY << ",32,";
 #ifdef NDEBUG
         output << "Release";
 #else
@@ -119,6 +134,7 @@ int Run(int argc, char** argv) {
         output << ',' << sample.newCalls << ',' << sample.rebuildScopes << ',' << sample.population.bodies << ',' << sample.population.shapes
             << ',' << sample.population.sensors << ',' << sample.population.awakeBodies << ',' << sample.population.contactPairs << ',' << sample.population.sensorPairs;
         for (auto events : sample.events) output << ',' << events;
+        for (auto motors : sample.motors) output << ',' << motors;
         output << '\n';
     }
     std::ofstream metrics(std::string(argv[5]) + ".metrics.csv");

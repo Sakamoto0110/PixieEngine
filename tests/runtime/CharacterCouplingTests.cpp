@@ -133,6 +133,32 @@ TEST(CharacterPushBudgetDistinguishesLightAndHeavyBoxesWithoutLaunchingThem) {
     CHECK(distances[0] > 32); // The light box travels more than its full width in two seconds.
     CHECK(distances[1] >= 0 && distances[1] < distances[0] * 0.05);
 }
+TEST(CharacterPushingARotatableBoxKeepsItsGroundAndSupport) {
+    // A box free to rotate tilts its face slightly under the push; clipping against that face must
+    // not unground the motor or drop its floor support while it walks.
+    CollisionWorld2D world;
+    world.SetGravity({0, 1100});
+    const auto floor = world.AddBox({0, 200}, {660, 10});
+    RigidBody2D body;
+    body.massOverride = 1;
+    BodyShape2D shape;
+    shape.halfSize = {16, 16};
+    shape.friction = 0.3;
+    const auto box = world.AddBody({200, 174}, 0, body, {&shape, 1});
+    CharacterSettings2D settings;
+    settings.acceleration = 4500;
+    CharacterController2D actor({120, 165.5}, settings);
+    int pushing = 0;
+    for (int i = 0; i < 120; ++i) {
+        Tick(world, actor, 1);
+        if (actor.Coupling().pushedImpulse <= 0) continue;
+        ++pushing;
+        CHECK(actor.State().grounded);
+        CHECK(actor.Coupling().support.value != 0 && actor.Coupling().supportShape == floor);
+    }
+    CHECK(pushing > 90);
+    CHECK(world.BodyMotion(box).position.x > 260 && std::abs(world.BodyMotion(box).rotation) < 0.01);
+}
 TEST(CharacterEffectiveSupportLoadIsBoundedAndDoesNotChangeNativeMass) {
     CollisionWorld2D world;
     RigidBody2D body;

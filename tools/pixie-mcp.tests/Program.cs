@@ -7,6 +7,7 @@ using ModelContextProtocol.Protocol;
 
 if (args.Length > 0 && args[0] == "--editor") { await EditorQualification.Run(args[1..]); return; }
 if (args.Length > 0 && args[0] == "--editor-code") { await EditorCodeQualification.Run(args[1..]); return; }
+if (args.Length > 0 && args[0] == "--editor-physics") { await EditorPhysicsQualification.Run(args[1..]); return; }
 
 if (args.Length != 5) throw new ArgumentException("usage: tests <player> <project> <mcp.dll> <capture-root> <receipt.json>");
 var player = Path.GetFullPath(args[0]);
