@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-28
+**Last promotion decision:** 2026-10-31
 
 ## Purpose and admission rule
 
@@ -56,6 +56,15 @@ entry may keep an explicit gate after promotion.
 **Dependencies and gates:** L0 pins the data model, units, composition order and shadow technique (by measured prototypes, including on Mesa llvmpipe) and gets the owner's review before lighting code beyond those prototypes. Scenes without lighting render pixel-identically. Native engine code never depends on the editor; C API additions raise its version. Reference images need the owner's approval with a stated reason. Physics behavior and its qualification must not regress.
 **Completion criteria:** every LIT requirement is linked to its mechanism and evidence; the acceptance matrix passes in vs2026 and ci, Debug and Release; the four rooms have captures, editor/player parity and the owner's visual and readability review; budgets are recorded for named machines and rooms; unmet requirements remain explicit.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-052--2d-lighting)
+
+### `PIXIE-TODO-053` — Inspector fields, options and interactions overhaul
+
+**Status:** promoted (expansion required)
+**Source:** owner promotion on 2026-10-31: review and overhaul all the Inspector fields and options, and how they interact. Promoted deliberately vague; the owner marked it expansion required.
+**Accepted scope:** every field and option the editor's Inspector shows for engine components and settings, and the interactions between them, such as options that enable, disable, hide or override other fields, and fields that have no effect in a given mode. The review covers labels, units, ranges, defaults, tooltips and widget choice. The overhaul applies the decisions from that review. The expansion defines the inventory, the target rules and the order of work, and where changes land: engine metadata, the editor or PixieInspector.
+**Dependencies and gates:** expansion required. No implementation starts until the inventory and the proposed rules have the owner's review and this entry has a concrete scope and completion criteria. Edits keep undo/redo, save/reopen and the development channel's Inspector paths, and existing scenes load unchanged. Native engine code never depends on the editor. Lighting fields added by PIXIE-TODO-052 join the review once they exist.
+**Completion criteria:** to be defined by the expansion. At minimum, every reviewed field and option has a recorded decision, and the agreed changes are covered by Inspector qualification over the development channel.
+**Breakdown:** none
 
 ## Completed
 
