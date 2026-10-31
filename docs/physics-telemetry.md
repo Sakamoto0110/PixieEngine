@@ -100,7 +100,7 @@ argument always counts dynamic bodies; supporting static bodies are additional.
 | `compound` | Two adjacent 16x32 half-boxes make each 32x32 body; same sparse motion | N bodies, 2N shapes |
 | `stack` | Up to ten columns, 32.25-unit spacing with seeded X jitter; gravity 1100 down; a floor with top Y=0 | N+1 bodies/shapes, no sensors |
 | `sensors` | One static 32x32 sensor per dynamic box on the sparse grid; two-sided filters exclude solid body/body contacts | 2N bodies/shapes, N sensors |
-| `coupled` | Ten lanes 400 units apart, gravity 1100: a static floor, one 120x16 kinematic platform with a rider, a pusher and a stander per lane; every third lane has a ceiling over its platform. Dynamic boxes go round the lanes: the first in each lane is a 10 kg crate under the stander, the rest a row in front of the pusher cycling 1 kg, 10 kg and two-half compound boxes | 23+N bodies (13 static, 10 kinematic), plus one shape per compound box; 30 motors |
+| `coupled` | Ten lanes 400 units apart, gravity 1100: a static floor, one 120x16 kinematic platform with a rider, a pusher and a stander per lane; every third lane has a ceiling over its platform. Dynamic boxes go round the lanes: the first in each lane is a 10 kg crate under the stander, the rest a row in front of the pusher cycling 1 kg, 10 kg and two-half compound boxes | 53+N bodies (13 static, 10 kinematic platforms, 30 character proxies), plus one shape per compound box; 30 motors |
 
 For `stack`, `awake` adds an in-tick zero-force wake request to each body;
 `sleeping` leaves the initially still pile unforced. These labels are requests,

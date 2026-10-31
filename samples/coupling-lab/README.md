@@ -45,8 +45,8 @@ support load it applied this tick, and its placement status.
 | Ramps | The left ramp (25°) is walkable; the right ramp (55°) is not, so the player slides back down it. |
 | C, elevator | C rides up and down 100 units; jump from it to feel the inherited velocity. |
 | D, crusher | The platform rises into a ceiling and crushes D: **UNSAFE placement**. Its `reverseOnCrush` sends it back at once (game policy). Turn it off in the editor to see the engine's own behavior: it keeps the last valid pose and reports the failure, and the platform moves on through the capsule. |
-| E, player | Push the ball and the 1 kg, 10 kg and compound boxes, stand on them (support load), jump against them and walk onto the platforms. The ram at the right shoves the 2 kg box into a stack of four boxes. |
-| Particles | Dynamic particles rain on B, C, the stack and the ram, and bounce off the bodies and platforms (not off the characters, which are query-only). |
+| E, player | Push the ball and the 1 kg, 10 kg and compound boxes, stand on them (support load), jump against them and walk onto the platforms. The ram at the right shoves the 2 kg box into a stack of four boxes. Boxes thrown, dragged or shoved at a character stop against it and push it aside, within its push speed limit. |
+| Particles | Dynamic particles rain on B and C and bounce off the bodies, the platforms and the characters. The rain over the stack and the ram comes from a second pool whose collision layers leave out "characters", so it falls through them. |
 
 The platforms and the ram are kinematic bodies with a `Shuttle` component: the sample's code
 reverses their velocity every period of simulated time, and, with `reverseOnCrush`, as soon as a

@@ -74,8 +74,9 @@ not dragged with a mouse. The room uses the native character/body coupling;
 mouse input is reserved for spark bursts. The profile component is required on
 the receiving pool to enable gravity/collision; omitting it keeps motion
 ballistic, while preserving dynamic newborn timing. Collision uses the shared
-profile radius, independently of artwork size/shape. Query-only character
-capsules are not particle obstacles in this first increment.
+profile radius, independently of artwork size/shape. Since 2026-10-31 scene characters
+are particle obstacles through their character proxies, filtered by the pool's collision
+layers against the character's; particles still never push characters or bodies.
 
 `particles.physics` measures the configured pool's integration pass, including
 flag scanning and ordinary-particle fallback. Gauges report dynamic particles

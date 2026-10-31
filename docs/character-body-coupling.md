@@ -55,8 +55,12 @@ The scene tick synchronizes authored data, collects gameplay commands, then:
 
 Jump takeoff adds the clamped support-point velocity (linear plus angular)
 exactly once and detaches before carry correction, avoiding double carry.
-Subsequent air input/braking retains the existing motor rules; stepping off
-drops the anchor, without an indefinitely retained platform reference.
+Since the owner's decision of 2026-10-31, leaving a carrying support without jumping
+(walking or sliding off it) also adds that clamped velocity once, in the finish that loses
+the support, so a character does not drop the platform's motion into a sudden free fall.
+A support removed, disabled or explicitly moved is not inherited. Subsequent air
+input/braking retains the existing motor rules; leaving drops the anchor, without an
+indefinitely retained platform reference.
 
 Initial authored coupling defaults: effective mass 1 kg, push force limit 1200
 kg*worldUnits/s^2, contact push speed limit 200 worldUnits/s, support-load force
@@ -109,6 +113,30 @@ or filter change increments its revision; finish rejects that old anchor even
 when a teleport is smaller than the carry limit. Body commands are applied before the
 single backend step. Character/character collision and motor-trigger events are
 outside this increment.
+
+## Character proxies
+
+Owner decision, 2026-10-31: a scene character is also represented in the physics world by
+a character proxy (`CollisionWorld2D::AddCharacterProxy`), so dynamic bodies and particles
+stop against it instead of passing through. The proxy is a kinematic upright capsule, smaller
+than the character by the mover's touching tolerance, placed where the character completed
+the last step and not moved during the solve. It has no mass, raises no contact or sensor
+events, never blocks a character (motor queries leave proxies out, so character/character
+collision remains unsupported) and is not a second simulated character body. It counts in
+the world's body and shape populations; debug views draw the character capsule instead.
+
+- Pushing is unchanged: the motor's bounded impulses move bodies, and the smaller proxy does
+  not push what the character only touches.
+- What bodies press on the proxy during the solve is read from its contacts and passed to
+  `CharacterController2D::ReceiveImpulse`; finish moves the character by impulse divided by
+  effective mass, capped at the push speed limit and through collision, without changing its
+  velocity. `CharacterCouplingState2D::receivedImpulse` reports it.
+- `CharacterMotor2D` has `belongs to` and `collides with` layers like Collider2D's. They filter
+  the character's own queries and its proxy, so a body or particle pool whose layers leave out
+  the character's passes through it. Particle pools choose this per pool, not per particle.
+- A fast body can enter the proxy within the tick it arrives (dynamic/kinematic pairs are not
+  swept continuously); from the next tick it stays outside, and the character's overlap
+  recovery moves the character out of the way.
 
 The native regression fixture is
 [CharacterCouplingTests.cpp](../tests/runtime/CharacterCouplingTests.cpp).

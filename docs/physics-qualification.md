@@ -77,7 +77,7 @@ give; it is pending everywhere it appears.
 | PHY-011 layers | Named slots, two-sided filters, native bits kept | `CollisionLayerNamesAndUnknownItemDataRoundTripWithoutRewritingLegacyFilters`, C API `collision-layers`; editor layer-checkbox cases including the last-membership guard | None | Met |
 | PHY-012 events and identities | Copied begin/end events with scene identities and generations ([body events](body-events.md)) | The `Sensor*`, `Contact*` and `Scene*` cases in `PhysicsEventsTests.cpp` | None | Met; body hit events are not offered |
 | PHY-013 support motion | Local support point, one carry per step, inherited velocity once ([coupling](character-body-coupling.md)) | `CharacterFollowsTranslationReversalAndVerticalSupportExactlyOnce`, `CharacterRotatingSupportUsesLocalPointAndInheritsClampedVelocityOnce`, `CharacterDropsRemovedDisabledTeleportedOrRebuiltSupport`, `CharacterStaysPutOnATiltingAndReversingPlatform`, `CharacterSettlingOnAFastTiltingSupportIsNotAnObstruction`, `CharacterStandsStillOnWalkableSlopes`; the mixed workload | Movement feel in the [coupling lab](../samples/coupling-lab/README.md); the owner's first observations led to the [slope fixes](#defects-found-and-fixed) | Native met; owner pending |
-| PHY-014 pushing and receiving | Bounded push impulses and support load | `CharacterPushBudgetDistinguishesLightAndHeavyBoxesWithoutLaunchingThem`, `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`, `CharacterEffectiveSupportLoadIsBoundedAndDoesNotChangeNativeMass`, `CharacterReceivesMovingBodyWithoutASecondSimulatedCharacter`, `CharacterJumpAgainstBoxDoesNotLaunchTheBox` | Push strength and caps in the coupling lab | Native met; owner pending |
+| PHY-014 pushing and receiving | Bounded push impulses and support load | `CharacterPushBudgetDistinguishesLightAndHeavyBoxesWithoutLaunchingThem`, `CharacterPushingARotatableBoxKeepsItsGroundAndSupport`, `CharacterEffectiveSupportLoadIsBoundedAndDoesNotChangeNativeMass`, `CharacterReceivesMovingBodyWithoutASecondSimulatedCharacter`, `CharacterJumpAgainstBoxDoesNotLaunchTheBox`, `CharacterProxyStopsABoxThrownAtTheCharacterAndYieldsBoundedly`, `CharacterProxyKeepsPushLimitsForLightAndHeavyBoxes` | Push strength and caps in the coupling lab; the [2026-10-31 decisions](#owner-decisions-of-2026-10-31) | Native met; owner pending |
 | PHY-015 blocked and crushing | Last valid pose, blocked and unsafe placement reported, platform not reversed by the engine | `CharacterCarryObstructionIsBlockedWithoutUnsafePlacementOrPlatformReversal`, `CharacterCrushAndUnsupportedCarryRetainLastPoseAndReportUnsafePlacement`, `CharacterFallingBodyCrushReportsFailureWithoutReversingTheBody`; recurring crush in the mixed workload; the room's crusher reverses on crush as game policy | Whether the reported statuses and the game-side policy suit games | Native met; owner pending |
 | PHY-016 fixed timeline | Host fixed stepper; one prepare, one solve, one finish per tick; shortest-path interpolation | `FixedStepTraceIsIndependentOfTheRenderRate` (30, 60 and 144 render frames per second give bitwise-equal traces; stepping by the frame delta does not); the engine's `FixedStepper` tests | Smooth interpolated rotation, seen | Native met; visual check pending |
 | PHY-017 persistence and reset | Authored save; Play uses runtime state; Stop rebuilds | `SceneBodyAuthoredStateRoundTripsWithoutBackendMotion`, `SceneSensorRoundTripsWithoutSavingActivePairs`, C API Save during Play; editor Play/Stop, save/reopen and second-session cases | None | Met (bounded) |
@@ -161,6 +161,34 @@ crusher reverses as soon as its rider is crushed, and the owner can switch that 
 engine's own behavior. An engine-side ejection of the capsule would change the pinned D4
 algorithm and needs an owner decision.
 
+## Owner decisions of 2026-10-31
+
+After a second review of the coupling lab the owner reported boxes pushed into the character,
+a rider losing all momentum when a rolling ball dropped it, and particles passing through the
+character, and decided:
+
+- **Character proxies** (approved): each scene character gets a kinematic stand-in capsule so
+  bodies and particles stop against it, and bodies can push it, within its push speed limit;
+  layers on `CharacterMotor2D` let each body or particle pool decide whether it collides with
+  characters. The [coupling guide](character-body-coupling.md#character-proxies) owns the rules.
+  A first version pushed boxes the character only touched with infinite mass (the 1000 kg box
+  moved 2.1 units instead of about 0.3); the proxy is now smaller by the mover's touching
+  tolerance and pushing stays the motor's bounded impulse.
+- **Velocity inherited on leaving a support** (approved): leaving a carrying support without a
+  jump adds its clamped point velocity once, as a jump does.
+- **Surface materials for characters** (friction-driven sliding, ice): a separate item after
+  TODO-043, not this increment's scope.
+
+Regressions: `CharacterProxyStopsABoxThrownAtTheCharacterAndYieldsBoundedly`,
+`CharacterProxyKeepsPushLimitsForLightAndHeavyBoxes`,
+`CharacterLayersChooseWhichParticlePoolsStopAtTheCharacter` and
+`CharacterLeavingAMovingSupportKeepsItsVelocityOnce`;
+`CharacterCompoundPushDeduplicatesBodyAndLeavingPlatformDropsCarry` now expects the inherited
+velocity once instead of none. Four test-only mutations, each restored byte for byte, failed
+exactly the matching tests: a proxy that collides with nothing (thrown box and particle-layer
+tests, 74 checks), a full-size proxy (push limits), no inheritance on leaving (both leaving
+tests) and ignored received impulses (thrown box). The runtime suite has 245 tests.
+
 ## Workloads and stress
 
 The headless benchmark gains a `coupled` workload: ten lanes, each a reversing kinematic
@@ -236,6 +264,8 @@ same matrix ran again, serially, from the working tree on `b46b7d0`: vs2026 CTes
 275.4 s, Release 244.2 s), 241 runtime tests with no failed check in both, MCP 177 cases each;
 ci CTest 22/22 (224.8 s, 190.4 s) and MCP 170 cases each; the editor built with no warnings.
 
+After the 2026-10-31 decisions (character proxies, inheritance on leaving, room layers) the matrix ran a third time from the working tree on `e6760a5`: vs2026 and ci CTest 22/22 in Debug and Release, 245 runtime tests with no failed check in both vs2026 configurations, MCP 177 (vs2026) and 170 (ci) cases per configuration, no compiler warning. The coupling lab was open on the same machine for the owner's review during this run, so its durations are not comparable with the earlier runs.
+
 The 22 CTest suites are the 20 of the baseline plus `coupling-lab-module` and
 `coupling-lab-project`; the MCP counts include the 42 `editor-mcp-physics` cases. The editor
 built in Release with no warnings, `scripts/check_docs.py` checked 167 documents with no
@@ -248,7 +278,10 @@ problem, and `git diff --check` was clean. The 2026-10-26 D4 review room also op
   (PHY-019), debug-view readability (PHY-020) and interpolated rotation (PHY-016). The coupling
   lab and the captures prepare them; nothing here replaces them.
 - Character/character collision, motor trigger events, joints and arbitrary-speed continuous
-  character/body collision are outside this increment. Unsafe placement reports failure; damage,
+  character/body collision are outside this increment. Character proxies raise no contact
+  events, and a fast body can enter a proxy within the tick it arrives.
+- Surface materials for characters (friction-driven sliding) are a separate item after
+  TODO-043. Unsafe placement reports failure; damage,
   reversal and respawn are game policy.
 - No universal no-tunneling guarantee, particularly for moving sensors; the fast-body cases
   qualify only their declared envelope.
