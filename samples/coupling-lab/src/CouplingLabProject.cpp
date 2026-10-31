@@ -69,6 +69,7 @@ void Character(World& world, std::string_view name, double x, double feet, pxCol
     // The default capsule is 48 units tall; its center sits 24.5 above the surface it stands on.
     auto character = Visible(world, name, {x, feet - 24.5}, {12, 24}, color);
     auto& motor = character.Add<CharacterMotor2D>();
+    motor.category = 2; // The "characters" layer.
     if (keyboard) { motor.acceleration = 4500; character.Add<KeyboardControl2D>(); }
 }
 // kind: 0 box, 1 compound box (two halves), 2 ball. Zero mass keeps the density-derived mass.
@@ -102,6 +103,15 @@ void Rain(World& world, std::string_view name, pxPoint at, double width, Entity 
     spawner.direction = std::numbers::pi / 2; spawner.spread = 0.3;
     spawner.dynamic = true; spawner.ownLook = true; spawner.particleColor = color; spawner.particleSize = 2.5;
 }
+Entity Pool(World& world, std::string_view name, int mask) {
+    auto pool = world.Create(name);
+    AddToScene(pool);
+    auto& particles = pool.Add<ParticleSystem>();
+    particles.capacity = 4000; particles.style.fade = true;
+    auto& profile = pool.Add<ParticlePhysics2D>();
+    profile.collisionRadius = 2; profile.restitution = 0.5; profile.mask = mask;
+    return pool;
+}
 void BuildRoom(World& world) {
     auto scenario = world.Create("scenario");
     AddToScene(scenario);
@@ -109,6 +119,9 @@ void BuildRoom(World& world) {
     auto settings = world.Create("world physics");
     AddToScene(settings);
     settings.Add<PhysicsSettings2D>();
+    auto layers = world.Create("collision layers");
+    AddToScene(layers);
+    layers.Add<CollisionLayers2D>().layers = {{{1, "world"}, {}}, {{2, "characters"}, {}}};
     Static(world, "floor", {0, 200}, {880, 10});
     Static(world, "left wall", {-890, 0}, {10, 210});
     Static(world, "right wall", {890, 0}, {10, 210});
@@ -143,15 +156,10 @@ void BuildRoom(World& world) {
         Body(world, std::format("stacked box {}", i + 1), {440, 174.0 - 32 * i}, {16, 16}, 1, {200, 200, 120});
     Body(world, "incoming box 2 kg", {520, 174}, {16, 16}, 2, {235, 200, 120});
     Platform(world, "ram", {600, 170}, {10, 20}, {{-160, 0}, 0, 1.0, false});
-    // Dynamic particles over the rotating platform and the elevator, and over the stack and the ram.
-    auto pool = world.Create("particle pool");
-    AddToScene(pool);
-    auto& particles = pool.Add<ParticleSystem>();
-    particles.capacity = 4000; particles.style.fade = true;
-    auto& profile = pool.Add<ParticlePhysics2D>();
-    profile.collisionRadius = 2; profile.restitution = 0.5;
-    Rain(world, "rain over B and C", {-360, -260}, 260, pool, {255, 200, 120});
-    Rain(world, "rain over the stack", {380, -260}, 240, pool, {140, 220, 255});
+    // Dynamic particles over the rotating platform and the elevator, which also bounce off the
+    // characters, and over the stack and the ram, whose pool leaves out the "characters" layer.
+    Rain(world, "rain over B and C", {-360, -260}, 260, Pool(world, "particles hitting characters", 0x7fffffff), {255, 200, 120});
+    Rain(world, "rain over the stack", {380, -260}, 240, Pool(world, "particles passing characters", 0x7fffffff & ~2), {140, 220, 255});
 }
 }
 

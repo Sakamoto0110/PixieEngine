@@ -75,7 +75,8 @@ PhysicsWorkload2D BuildCoupledWorkload2D(World& world, int count, bool awake) {
         }
         result.dynamicBodies.push_back(box.Id());
     }
-    result.expectedBodies = statics + platforms.size() + static_cast<std::size_t>(count);
+    // Each motor adds its character proxy: one kinematic body with one capsule shape.
+    result.expectedBodies = statics + platforms.size() + static_cast<std::size_t>(count) + result.motors.size();
     result.expectedShapes = result.expectedBodies + compounds;
     InstallSceneMovement2D(world);
     if (!awake) return result;

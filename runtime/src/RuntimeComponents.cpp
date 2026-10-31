@@ -387,7 +387,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&CharacterMotor2D::maxSupportForce>("maxSupportForce").Label("support load limit").Tooltip("Caps effective downward weight on dynamic support, in kg*worldUnits/s^2.").Range(0, 100000000).Scrub(10)
         .Field<&CharacterMotor2D::maxInheritedSpeed>("maxInheritedSpeed").Label("inherited speed limit").Tooltip("Caps support-point velocity added once at jump takeoff, in world units/s.").Range(0, 100000).Scrub(1)
         .Field<&CharacterMotor2D::maxCarryStep>("maxCarryStep").Label("carry step limit").Tooltip("Maximum qualified support-point displacement per fixed tick, in world units.").Range(0, 100000).Scrub(0.1)
-        .Field<&CharacterMotor2D::maxRecoveryDistance>("maxRecoveryDistance").Label("recovery limit").Tooltip("Maximum extra overlap correction before reporting unsafe placement, in world units.").Range(0, 100000).Scrub(0.1);
+        .Field<&CharacterMotor2D::maxRecoveryDistance>("maxRecoveryDistance").Label("recovery limit").Tooltip("Maximum extra overlap correction before reporting unsafe placement, in world units.").Range(0, 100000).Scrub(0.1)
+        .Field<&CharacterMotor2D::category>("category").Label("belongs to").Tooltip("The character's membership layers. Bodies and particle pools whose collision layers exclude these pass through it; at least one is required.").Editor(FieldEditor::LayerMask).References("CollisionLayers2D").Range(1, 2147483647)
+        .Field<&CharacterMotor2D::mask>("mask").Label("collides with").Tooltip("Membership layers of the colliders this character collides with and of the bodies it stops; both sides must allow the pair.").Editor(FieldEditor::LayerMask).References("CollisionLayers2D").Range(0, 2147483647);
     types.Add<KeyboardControl2D>("KeyboardControl2D")
         .Field<&KeyboardControl2D::enabled>("enabled")
         .Tooltip("A/D or arrows move; Space jumps. Remove this component when game code supplies commands.");

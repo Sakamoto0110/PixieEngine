@@ -32,6 +32,7 @@ struct CharacterCouplingState2D {
     pxPoint supportPoint, localSupportPoint;
     pxVec2 supportVelocity{0, 0}, carried{0, 0}, worldVelocity{0, 0};
     double pushedImpulse = 0, supportLoad = 0;
+    double receivedImpulse = 0; // What bodies pressed on the character this tick (kg*worldUnits/s).
     CharacterBlocked2D blocked = CharacterBlocked2D::None;
     bool unsafePlacement = false;
 };
@@ -50,6 +51,10 @@ public:
     // Preparation integrates intent once and applies bounded body commands; finish only queries.
     PIXIE_RUNTIME_API void PrepareStep(CollisionWorld2D& collision, double horizontal, bool jumpPressed, double delta,
                      CollisionFilter2D filter = {});
+    // Between PrepareStep and FinishStep: an impulse bodies applied to the character, for example
+    // read from its character proxy's contacts. Finish moves the capsule by impulse / effectiveMass
+    // over the step, capped at maxPushSpeed and through collision; it never changes motor velocity.
+    PIXIE_RUNTIME_API void ReceiveImpulse(pxVec2 impulse);
     PIXIE_RUNTIME_API void FinishStep(const CollisionWorld2D& collision);
     // Motor velocity excludes carry while supported; Coupling().worldVelocity includes solved displacement.
     const CapsuleMotion2D& State() const { return state_; }
@@ -69,6 +74,7 @@ private:
     std::uint64_t preparedGeneration_ = 0;
     std::uint64_t preparedSupportRevision_ = 0;
     pxPoint preparedPosition_, preparedSupportPoint_;
+    pxVec2 received_{0, 0};
 };
 
 } // namespace pixie
