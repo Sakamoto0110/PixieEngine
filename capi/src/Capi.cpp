@@ -294,6 +294,18 @@ PixieResult pixie_physics_debug_set(PixieSession* s, uint32_t flags) {
     s->session.SetPhysicsDebug(flags);
     return PIXIE_OK;
 }
+PixieResult pixie_lighting_debug_get(PixieSession* s, uint32_t* flags) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!flags) return Fail(PIXIE_ERROR_ARGUMENT, "null lighting debug output");
+    *flags = s->session.LightingDebug();
+    return PIXIE_OK;
+}
+PixieResult pixie_lighting_debug_set(PixieSession* s, uint32_t flags) {
+    PIXIE_REQUIRE_SESSION(s);
+    if ((flags & ~PIXIE_LIGHTING_DEBUG_ALL) != 0) return Fail(PIXIE_ERROR_ARGUMENT, "unknown lighting debug bits");
+    s->session.SetLightingDebug(flags);
+    return PIXIE_OK;
+}
 
 PixieResult pixie_movement_status(PixieSession* s, char* buffer, int32_t capacity, int32_t* required) {
     PIXIE_REQUIRE_SESSION(s);
@@ -367,6 +379,18 @@ PixieResult pixie_collision_layer_name(PixieSession* s, int32_t slot, char* buff
     return Guard([&] {
         const auto names = pixie::DescribeCollisionLayers2D(s->session.GetWorld());
         const auto& name = names.names[slot - 1];
+        *required = static_cast<int32_t>(name.size() + 1);
+        return capacity == 0 ? PIXIE_OK : Copy(name, buffer, capacity);
+    });
+}
+
+PixieResult pixie_light_layer_name(PixieSession* s, int32_t slot, char* buffer, int32_t capacity, int32_t* required) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (slot < 1 || slot > 8 || !required || capacity < 0 || (!buffer && capacity > 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid light layer name query (slots are 1..8)");
+    return Guard([&] {
+        const auto names = pixie::LightLayerNames(s->session.GetWorld());
+        const auto& name = names[static_cast<std::size_t>(slot - 1)];
         *required = static_cast<int32_t>(name.size() + 1);
         return capacity == 0 ? PIXIE_OK : Copy(name, buffer, capacity);
     });

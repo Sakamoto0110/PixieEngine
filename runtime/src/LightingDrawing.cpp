@@ -57,6 +57,7 @@ LightingParameters MakeLightingParameters(const LightingSettings2D& settings) {
     parameters.exposure = static_cast<float>(std::max(settings.exposure, 0.0));
     parameters.toneMapping =
         settings.toneMapping == LightToneMapping2D::Aces ? ToneMapping::Aces : ToneMapping::None;
+    parameters.halfResolutionShadows = settings.quality == LightQuality2D::Low;
     return parameters;
 }
 
@@ -512,6 +513,35 @@ void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const 
             line(edge.ax, edge.ay, edge.bx, edge.by, pxColorRgba(120, 230, 255));
         }
     }
+}
+
+std::array<std::string, 8> LightLayerNames(const World& world) {
+    std::array<std::string, 8> names;
+    for (std::size_t i = 0; i < names.size(); ++i) {
+        names[i] = "Light layer " + std::to_string(i + 1);
+    }
+    const auto view = world.Registry().view<const LightLayers2D>();
+    if (view.begin() == view.end()) {
+        names[0] = "Default";
+        return names;
+    }
+    if (std::next(view.begin()) != view.end()) {
+        return names;
+    }
+    std::array<int, 8> counts{};
+    for (const auto& record : view.get<const LightLayers2D>(*view.begin()).layers) {
+        const int slot = record.value.slot;
+        if (slot < 1 || slot > 8) {
+            continue;
+        }
+        const auto index = static_cast<std::size_t>(slot - 1);
+        if (++counts[index] > 1) {
+            names[index] = "Light layer " + std::to_string(slot);
+        } else if (!record.value.name.empty()) {
+            names[index] = record.value.name;
+        }
+    }
+    return names;
 }
 
 bool HasLightReceivers(World& world) {

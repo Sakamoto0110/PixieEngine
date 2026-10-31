@@ -419,6 +419,18 @@ struct WorldDispatcher::Impl {
             return {{"alpha", 1.0}, {"pending_next_render", true}};
         }
         if (method == "world.stats") return Stats();
+        if (method == "world.lighting_debug") {
+            // A view option, not a World change: {flags} sets it, and the reply says what is on.
+            if (p.contains("flags")) {
+                const double flags = Number(p, "flags");
+                if (flags < 0 || flags > PIXIE_LIGHTING_DEBUG_ALL || flags != std::floor(flags))
+                    Reject("lighting debug flags are 0..3: 1 light bounds, 2 occluder edges");
+                Check(pixie_lighting_debug_set(S(), static_cast<uint32_t>(flags)));
+            }
+            uint32_t flags = 0;
+            Check(pixie_lighting_debug_get(S(), &flags));
+            return {{"flags", flags}};
+        }
         if (method == "world.types") {
             Json types = Json::array();
             for (int t = 0; t < pixie_type_count(S()); ++t) types.push_back(TypeName(t));

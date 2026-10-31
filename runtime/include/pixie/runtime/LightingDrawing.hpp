@@ -132,6 +132,11 @@ inline constexpr std::uint32_t kLightingDebugOccluders2D = 2u;
 PIXIE_RUNTIME_API void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const OccluderEdge> occluders,
                                            ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags);
 
+// The display names of light layer slots 1 to 8 (index 0 to 7): the scene's LightLayers2D names,
+// "Default" for slot 1 without one, "Light layer N" for the rest. A duplicate configuration or slot
+// leaves the affected names unnamed.
+PIXIE_RUNTIME_API std::array<std::string, 8> LightLayerNames(const World& world);
+
 // Whether any entity has a LightReceiver2D, so a frame needs the receiver pass.
 PIXIE_RUNTIME_API bool HasLightReceivers(World& world);
 

@@ -11,7 +11,7 @@ internal static class ToolCatalog
     public static readonly string[] WorldCommands = ["hello", "stats", "play", "stop", "pause", "resume", "step", "advance",
         "time_scale", "reset", "types", "type", "entities", "entity", "create", "destroy", "rename", "add_component",
         "remove_component", "get", "set", "record_insert", "record_remove", "snapshot", "restore", "release_snapshot",
-        "key", "mouse_button", "cursor", "scroll", "pick", "pick_box", "view_to_world", "world_to_view", "capture"];
+        "key", "mouse_button", "cursor", "scroll", "pick", "pick_box", "view_to_world", "world_to_view", "capture", "lighting_debug"];
     public static readonly IReadOnlyList<Tool> Tools = WorldCommands.Select(command => new Tool
     {
         Name = $"world.{command}",

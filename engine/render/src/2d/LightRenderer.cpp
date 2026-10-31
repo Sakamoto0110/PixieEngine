@@ -70,7 +70,8 @@ void main() {
         }
     }
     if (uShadowed != 0) {
-        attenuation *= 1.0 - clamp(texelFetch(uOcclusion, ivec2(gl_FragCoord.xy), 0).r, 0.0, 1.0);
+        // The mask covers the frame at full or half resolution; filtered, clamped at its edges.
+        attenuation *= 1.0 - clamp(texture(uOcclusion, gl_FragCoord.xy / uSize).r, 0.0, 1.0);
     }
     oLight = vec4(b.rgb * attenuation, 0.0);
 }
@@ -244,12 +245,12 @@ constexpr GLint kExposureLocation = 0;
 constexpr GLint kToneMappingLocation = 1;
 constexpr GLint kOriginLocation = 2;
 
-GLuint CreateTarget(GLenum format, FramebufferSize size) {
+GLuint CreateTarget(GLenum format, FramebufferSize size, GLint filter = GL_NEAREST) {
     GLuint texture = 0;
     glCreateTextures(GL_TEXTURE_2D, 1, &texture);
     glTextureStorage2D(texture, 1, format, size.width, size.height);
-    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
-    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+    glTextureParameteri(texture, GL_TEXTURE_MIN_FILTER, filter);
+    glTextureParameteri(texture, GL_TEXTURE_MAG_FILTER, filter);
     glTextureParameteri(texture, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_EDGE);
     glTextureParameteri(texture, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE);
     return texture;
@@ -308,6 +309,7 @@ bool LightRenderer::Create() {
     glCreateFramebuffers(1, &worldFramebuffer_);
     glCreateFramebuffers(1, &lightFramebuffer_);
     glCreateFramebuffers(1, &maskFramebuffer_);
+    glCreateFramebuffers(1, &halfMaskFramebuffer_);
     for (auto& frame : queries_) {
         glCreateQueries(GL_TIMESTAMP, static_cast<GLsizei>(frame.size()), frame.data());
     }
@@ -323,7 +325,7 @@ void LightRenderer::Destroy() {
             frame = {};
         }
     }
-    for (GLuint* framebuffer : {&maskFramebuffer_, &lightFramebuffer_, &worldFramebuffer_}) {
+    for (GLuint* framebuffer : {&halfMaskFramebuffer_, &maskFramebuffer_, &lightFramebuffer_, &worldFramebuffer_}) {
         if (*framebuffer != 0) {
             glDeleteFramebuffers(1, framebuffer);
             *framebuffer = 0;
@@ -341,7 +343,7 @@ void LightRenderer::Destroy() {
 }
 
 void LightRenderer::DestroyTargets() {
-    for (Target* target : {&albedo_, &receivers_, &emission_, &light_, &mask_}) {
+    for (Target* target : {&albedo_, &receivers_, &emission_, &light_, &mask_, &halfMask_}) {
         if (target->texture != 0) {
             glDeleteTextures(1, &target->texture);
             target->texture = 0;
@@ -362,12 +364,15 @@ bool LightRenderer::Resize(FramebufferSize size) {
     receivers_ = {CreateTarget(GL_RGBA8, size), GL_RGBA8};
     emission_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
     light_ = {CreateTarget(GL_RGBA16F, size), GL_RGBA16F};
-    mask_ = {CreateTarget(GL_R32F, size), GL_R32F};
+    // Filtered: a half-resolution mask is sampled between its texels.
+    mask_ = {CreateTarget(GL_R32F, size, GL_LINEAR), GL_R32F};
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT0, albedo_.texture, 0);
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT1, receivers_.texture, 0);
     glNamedFramebufferTexture(worldFramebuffer_, GL_COLOR_ATTACHMENT2, emission_.texture, 0);
     glNamedFramebufferTexture(lightFramebuffer_, GL_COLOR_ATTACHMENT0, light_.texture, 0);
     glNamedFramebufferTexture(maskFramebuffer_, GL_COLOR_ATTACHMENT0, mask_.texture, 0);
+    halfMask_ = {CreateTarget(GL_R32F, {(size.width + 1) / 2, (size.height + 1) / 2}, GL_LINEAR), GL_R32F};
+    glNamedFramebufferTexture(halfMaskFramebuffer_, GL_COLOR_ATTACHMENT0, halfMask_.texture, 0);
     size_ = size;
     return true;
 }
@@ -461,10 +466,16 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
         const pxVec4 highCorner = pxInverse(view.ViewProjection()) * pxVec4(1.0, 1.0, 0.0, 1.0);
         const double diagonal = std::hypot(highCorner.x - lowCorner.x, highCorner.y - lowCorner.y);
         glProgramUniform1f(shadowProgram_.Id(), kFarLocation, static_cast<float>(4.0 * diagonal));
+        // The mask covers the frame at full or half resolution, from its lower-left corner.
+        const FramebufferSize mask = parameters.halfResolutionShadows
+                                         ? FramebufferSize{(size_.width + 1) / 2, (size_.height + 1) / 2}
+                                         : size_;
+        glProgramUniform2f(shadowProgram_.Id(), kSizeLocation, static_cast<float>(mask.width), static_cast<float>(mask.height));
+        const GLuint maskFramebuffer = parameters.halfResolutionShadows ? halfMaskFramebuffer_ : maskFramebuffer_;
+        glBindTextureUnit(1, parameters.halfResolutionShadows ? halfMask_.texture : mask_.texture);
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 0, lightBuffer_.Id());
         glBindBufferBase(GL_SHADER_STORAGE_BUFFER, 1, edgeBuffer_.Id());
         glBindTextureUnit(0, receivers_.texture);
-        glBindTextureUnit(1, mask_.texture);
         glEnable(GL_BLEND);
         glBlendFunc(GL_ONE, GL_ONE);
         if (unshadowed > 0) {
@@ -481,13 +492,22 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
             if (box[2] <= 0 || box[3] <= 0) {
                 continue;
             }
-            glScissor(box[0], box[1], box[2], box[3]);
-            glBindFramebuffer(GL_FRAMEBUFFER, maskFramebuffer_);
-            glClearNamedFramebufferfv(maskFramebuffer_, GL_COLOR, 0, none.data());
+            // The mask's box, a texel wider at half resolution for the filtering.
+            const GLint pad = mask.width < size_.width ? 1 : 0;
+            const GLint mx0 = std::max(0, box[0] * mask.width / size_.width - pad);
+            const GLint my0 = std::max(0, box[1] * mask.height / size_.height - pad);
+            const GLint mx1 = std::min(mask.width, (box[0] + box[2]) * mask.width / size_.width + 1 + pad);
+            const GLint my1 = std::min(mask.height, (box[1] + box[3]) * mask.height / size_.height + 1 + pad);
+            glBindFramebuffer(GL_FRAMEBUFFER, maskFramebuffer);
+            glViewport(0, 0, mask.width, mask.height);
+            glScissor(mx0, my0, mx1 - mx0, my1 - my0);
+            glClearNamedFramebufferfv(maskFramebuffer, GL_COLOR, 0, none.data());
             glProgramUniform1i(shadowProgram_.Id(), kLightLocation, i);
             glUseProgram(shadowProgram_.Id());
             glDrawArraysInstanced(GL_TRIANGLE_STRIP, 0, 4, static_cast<GLsizei>(occluders.size()));
             glBindFramebuffer(GL_FRAMEBUFFER, lightFramebuffer_);
+            glViewport(0, 0, size_.width, size_.height);
+            glScissor(box[0], box[1], box[2], box[3]);
             glProgramUniform1i(lightProgram_.Id(), kFirstLocation, i);
             glProgramUniform1i(lightProgram_.Id(), kShadowedLocation, 1);
             glUseProgram(lightProgram_.Id());

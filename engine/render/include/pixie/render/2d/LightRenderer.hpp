@@ -77,6 +77,8 @@ struct LightingParameters {
     std::array<float, 3> ambient{1.0f, 1.0f, 1.0f};
     float exposure = 1.0f;
     ToneMapping toneMapping = ToneMapping::None;
+    // Shadows computed at half the resolution and filtered up: cheaper, softer at their edges.
+    bool halfResolutionShadows = false;
 };
 
 // GPU time of a lit frame's lighting, in milliseconds, read a few frames after it was drawn: light
@@ -153,6 +155,8 @@ private:
     Target emission_;
     Target light_;
     Target mask_;
+    Target halfMask_;
+    GLuint halfMaskFramebuffer_ = 0;
     std::vector<LightInstance> ordered_;
     FramebufferSize size_;
     GLint outputFramebuffer_ = 0;

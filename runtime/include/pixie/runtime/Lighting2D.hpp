@@ -1,10 +1,13 @@
 #pragma once
 
+#include "pixie/runtime/ComponentTypes.hpp"
+
 #include <pixie/pxColorRgba.hpp>
 #include <pixie/pxPoint.hpp>
 
 #include <cstdint>
 #include <numbers>
+#include <string>
 #include <vector>
 
 namespace pixie {
@@ -144,6 +147,20 @@ struct LightReceiver2D {
     // Shown at its own color, ignoring light, exposure and tone mapping.
     bool unlit = false;
     bool operator==(const LightReceiver2D&) const = default;
+};
+
+// One light layer's name; `slot` is the stable 1-based bit (1 to 8), never a list index.
+struct LightLayer2D {
+    int slot = 1;
+    std::string name;
+    bool operator==(const LightLayer2D&) const = default;
+};
+
+// Names for the scene's 8 light layers, one per scene, as CollisionLayers2D names collision layers.
+// Names are for display only: renaming one changes no mask.
+struct LightLayers2D {
+    std::vector<ComponentRecord<LightLayer2D>> layers{{{1, "Default"}, {}}};
+    bool operator==(const LightLayers2D&) const = default;
 };
 
 } // namespace pixie

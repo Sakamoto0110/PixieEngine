@@ -790,6 +790,46 @@ TEST(ShadowedLightsAreCappedByQuality) {
     CHECK(lights.size() == 4 && lights[0].x == 0.0f && lights[1].x == 30.0f && lights[2].x == 40.0f && lights[3].x == 50.0f);
 }
 
+// LIT-008: the Low preset computes shadows at half resolution: a closed room still lets no light out
+// beyond a pixel of filtering at its walls, and soft shadows stay near the reference.
+TEST(LowQualityShadowsAtHalfResolution) {
+    Lab lab;
+    pixie::LightingSettings2D settings = Dark();
+    settings.quality = pixie::LightQuality2D::Low;
+    lab.Settings(settings);
+    lab.Add(pxPoint(0.0, 0.0)).Add<pixie::Light2D>(FlatLight(120.0, 4.0));
+    Box(lab, pxPoint(0.0, -31.0), pxVec2(32.0, 1.0));
+    Box(lab, pxPoint(0.0, 31.0), pxVec2(32.0, 1.0));
+    Box(lab, pxPoint(-31.0, 0.0), pxVec2(1.0, 30.0));
+    Box(lab, pxPoint(31.0, 0.0), pxVec2(1.0, 30.0));
+    const auto room = lab.Render();
+    int leaks = 0;
+    for (int y = 0; y < kSide; ++y) {
+        for (int x = 0; x < kSide; ++x) {
+            const double wx = x + 0.5 - 64.0, wy = y + 0.5 - 64.0;
+            if (std::abs(wx) > 34.0 || std::abs(wy) > 34.0) leaks += Channel(room, x, y) != 0 ? 1 : 0;
+        }
+    }
+    std::fprintf(stderr, "  low quality closed room: %d lit pixels beyond a pixel of the walls\n", leaks);
+    CHECK(leaks == 0);
+}
+
+// LIT-005: light layers have names, per scene, by stable slot: "Default" and "Light layer N" without a
+// LightLayers2D, the scene's names with one, and unnamed again for duplicate slots.
+TEST(LightLayersHaveNames) {
+    pixie::World world;
+    auto names = pixie::LightLayerNames(world);
+    CHECK(names[0] == "Default" && names[7] == "Light layer 8");
+    pixie::LightLayers2D layers;
+    layers.layers.push_back({{2, "Background"}, {}});
+    pixie::Entity config = world.Create();
+    config.Add<pixie::LightLayers2D>(layers);
+    names = pixie::LightLayerNames(world);
+    CHECK(names[0] == "Default" && names[1] == "Background" && names[2] == "Light layer 3");
+    config.Get<pixie::LightLayers2D>().layers.push_back({{2, "Again"}, {}});
+    CHECK(pixie::LightLayerNames(world)[1] == "Light layer 2");
+}
+
 // LIT-017: a lit frame records CPU time, GPU time of light accumulation, shadows and combine (from
 // timestamp queries, a few frames late), and light, shadow and occluder counts.
 TEST(LightingRecordsTelemetry) {

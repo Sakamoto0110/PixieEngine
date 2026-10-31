@@ -143,6 +143,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
             if (texture != 0) ImGui.Image(new ImTextureRef(null, new ImTextureID(texture)), size, new Vector2(0, 1), new Vector2(1, 0));
             DrawSelection();
             DrawColliderHandles();
+            DrawLightHandles();
             DrawMenu();
             // A project at play is framed, so it is never mistaken for the scene being edited.
             if (session.ProjectFolder != null && !session.Editing)
@@ -160,6 +161,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
             Focused = false;
             PressedAt = null;
             FinishColliderDrag();
+            FinishLightDrag(cancel: false);
 #if PIXIE_DEVELOPMENT
             if (!AgentDriven)
 #endif
@@ -274,7 +276,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     // Select mode's gestures with the left button.
     private void Select()
     {
-        if (HandleColliderInput()) return;
+        if (HandleColliderInput() || HandleLightInput()) return;
         var io = ImGui.GetIO();
         var mouse = MouseInView();
         if (Hovered && ImGui.IsMouseClicked(ImGuiMouseButton.Left))

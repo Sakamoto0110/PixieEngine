@@ -79,6 +79,19 @@ TEST(HandshakeProtocolAndNoFilesystemAliases) {
     CHECK(s.Good("world.stats")["paused"] == true);
 }
 
+// Lighting debug views over the channel (C API 19): {flags} sets them, the reply says what is on,
+// and unknown bits are refused without changing them.
+TEST(LightingDebugViewsOverTheChannel) {
+    Session s;
+    s.Good("world.hello");
+    CHECK(s.Good("world.lighting_debug")["flags"] == 0);
+    CHECK(s.Good("world.lighting_debug", {{"flags", 3}})["flags"] == 3);
+    CHECK(s.Call("world.lighting_debug", {{"flags", 4}}).contains("error"));
+    CHECK(s.Call("world.lighting_debug", {{"flags", 1.5}}).contains("error"));
+    CHECK(s.Good("world.lighting_debug")["flags"] == 3);
+    CHECK(s.Good("world.lighting_debug", {{"flags", 0}})["flags"] == 0);
+}
+
 TEST(BufferPreflightAndOwnerThreadDoNotMutate) {
     Session s;
     s.Good("world.hello");

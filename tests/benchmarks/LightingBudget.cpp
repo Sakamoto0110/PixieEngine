@@ -162,6 +162,8 @@ int Run(int argc, char** argv) {
             {"lights-16", 16, 128, 0, pixie::LightQuality2D::Medium},
             {"lights-64-high", 64, 128, 0, pixie::LightQuality2D::High},
             {"lights-64-medium-cap", 64, 128, 0, pixie::LightQuality2D::Medium},
+            {"lights-8-low-half-mask", 8, 128, 0, pixie::LightQuality2D::Low},
+            {"lights-8-medium", 8, 128, 0, pixie::LightQuality2D::Medium},
             {"lights-16-burst-2000", 16, 128, 2000, pixie::LightQuality2D::Medium},
         };
         std::ofstream csv(out / "budget.csv");

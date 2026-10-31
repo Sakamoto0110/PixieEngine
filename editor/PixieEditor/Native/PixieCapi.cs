@@ -132,7 +132,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 18;
+    internal const int Version = 19;
 #if PIXIE_DEVELOPMENT
     [LibraryImport(Library, EntryPoint = "pixie_dev_dispatch", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult DevDispatch(nint session, string request, byte* response, int capacity);
@@ -145,6 +145,10 @@ internal static unsafe partial class PixieCapi
     internal static partial PixieResult PhysicsDebugGet(nint session, out uint flags);
     [LibraryImport(Library, EntryPoint = "pixie_physics_debug_set")]
     internal static partial PixieResult PhysicsDebugSet(nint session, uint flags);
+    [LibraryImport(Library, EntryPoint = "pixie_lighting_debug_get")]
+    internal static partial PixieResult LightingDebugGet(nint session, out uint flags);
+    [LibraryImport(Library, EntryPoint = "pixie_lighting_debug_set")]
+    internal static partial PixieResult LightingDebugSet(nint session, uint flags);
 
     [LibraryImport(Library, EntryPoint = "pixie_collider_handles_2d")]
     internal static partial PixieResult ColliderHandles2D(nint session, uint entity, int shape, out PixieColliderHandles2D handles);
@@ -166,6 +170,8 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_collision_layer_name")]
     internal static partial PixieResult CollisionLayerName(nint session, int slot, byte* buffer, int capacity, out int required);
+    [LibraryImport(Library, EntryPoint = "pixie_light_layer_name")]
+    internal static partial PixieResult LightLayerName(nint session, int slot, byte* buffer, int capacity, out int required);
 
     [LibraryImport(Library, EntryPoint = "pixie_session_create")]
     internal static partial PixieResult SessionCreate(int width, int height, ulong seed, out nint session);

@@ -228,6 +228,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var files = new AssetChooser(session.ProjectFolder);
         using var inspector = new InspectorPanel(session, authoring, recorder, files);
         var viewport = new ViewportPanel(session, selection, authoring, files).Started();
+        viewport.Recorder = recorder;
         viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
         var entities = new EntitiesPanel(session, selection, authoring);
         var controls = new SessionPanel(session, gameName);
@@ -631,6 +632,18 @@ internal sealed class EditorWindow(EditorOptions options)
                 var shapeParts = argument.Split(':', 3);
                 ok = shapeParts.Length == 3 && int.TryParse(shapeParts[0], out var shapeIndex) && inspector.SetShape(shapeIndex, shapeParts[1], shapeParts[2]);
                 break;
+            case "lightlayername":
+                var lightNameParts = argument.Split(':', 2);
+                ok = lightNameParts.Length == 2 && int.TryParse(lightNameParts[0], out var lightSlot)
+                    && inspector.RenameLayer(LayerScheme.Light, lightSlot, lightNameParts[1]);
+                break;
+            case "lightdrag" when chosen.Length == 1 && argument.Split(':') is [var lightHandle, var lightTarget]
+                && lightTarget.Split(',') is [var lightX, var lightY]
+                && double.TryParse(lightX, System.Globalization.CultureInfo.InvariantCulture, out var lightWorldX)
+                && double.TryParse(lightY, System.Globalization.CultureInfo.InvariantCulture, out var lightWorldY):
+                var cancelLight = lightHandle.StartsWith("cancel", StringComparison.Ordinal);
+                ok = viewport.DragLight(cancelLight ? lightHandle["cancel".Length..] : lightHandle, lightWorldX, lightWorldY, cancelLight);
+                break;
             case "layername":
                 var nameParts = argument.Split(':', 2);
                 ok = nameParts.Length == 2 && int.TryParse(nameParts[0], out var layerSlot) && inspector.RenameLayer(layerSlot, nameParts[1]);
@@ -733,6 +746,9 @@ internal sealed class EditorWindow(EditorOptions options)
                 break;
             case "physicsdebug" when uint.TryParse(argument, out var debugFlags) && debugFlags <= 127:
                 session.PhysicsDebug = debugFlags;
+                break;
+            case "lightingdebug" when uint.TryParse(argument, out var lightingFlags) && lightingFlags <= 3:
+                session.LightingDebug = lightingFlags;
                 break;
             case "colliderdrag" when chosen.Length == 1 && argument.Split(':') is [var shapeText, var operation, var target]
                 && int.TryParse(shapeText, out var colliderShapeIndex) && target.Split(',') is [var targetX, var targetY]
