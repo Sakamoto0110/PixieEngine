@@ -747,7 +747,7 @@ internal sealed class EditorWindow(EditorOptions options)
             case "physicsdebug" when uint.TryParse(argument, out var debugFlags) && debugFlags <= 127:
                 session.PhysicsDebug = debugFlags;
                 break;
-            case "lightingdebug" when uint.TryParse(argument, out var lightingFlags) && lightingFlags <= 3:
+            case "lightingdebug" when uint.TryParse(argument, out var lightingFlags) && lightingFlags <= 15:
                 session.LightingDebug = lightingFlags;
                 break;
             case "colliderdrag" when chosen.Length == 1 && argument.Split(':') is [var shapeText, var operation, var target]

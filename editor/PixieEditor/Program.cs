@@ -59,7 +59,7 @@ internal static class Program
           --recent <on|off>        add the project to the recent projects (default on; off for scripted runs)
           --do <command>           after the --set edits, one per frame: create, collider, character, dynamic, kinematic, sensor, world,
                                   compoundbox, compound, addshape, removeshape=<index>, shape=<index>:<field>:<value>, wait=<seconds>,
-                                   duplicate, delete, undo, redo, colliderhandles, physicsdebug=<0..127>, lightingdebug=<0..3>, lightlayername=<1..8>:<name>,
+                                   duplicate, delete, undo, redo, colliderhandles, physicsdebug=<0..127>, lightingdebug=<0..15>, lightlayername=<1..8>:<name>,
                                    lightdrag=<range|direction|cone|cancelrange|canceldirection|cancelcone>:<worldX>,<worldY>,
                                    colliderdrag=<shape>:<resize|rotate|height|cancel|cancelheight>:<worldX>,<worldY> (shape -1 is the root),
                                    select=<name>, select+=<name>, rename=<name>, move=<dx>,<dy>,

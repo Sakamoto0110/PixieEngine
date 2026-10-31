@@ -545,6 +545,12 @@ void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const 
     }
 }
 
+LightingView LightingDebugView(std::uint32_t flags) {
+    if ((flags & kLightingDebugOverdraw2D) != 0) return LightingView::Overdraw;
+    if ((flags & kLightingDebugLightBuffer2D) != 0) return LightingView::LightBuffer;
+    return LightingView::Lit;
+}
+
 std::array<std::string, 8> LightLayerNames(const World& world) {
     std::array<std::string, 8> names;
     for (std::size_t i = 0; i < names.size(); ++i) {

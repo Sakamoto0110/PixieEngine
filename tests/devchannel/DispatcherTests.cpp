@@ -86,7 +86,9 @@ TEST(LightingDebugViewsOverTheChannel) {
     s.Good("world.hello");
     CHECK(s.Good("world.lighting_debug")["flags"] == 0);
     CHECK(s.Good("world.lighting_debug", {{"flags", 3}})["flags"] == 3);
-    CHECK(s.Call("world.lighting_debug", {{"flags", 4}}).contains("error"));
+    CHECK(s.Good("world.lighting_debug", {{"flags", 12}})["flags"] == 12);
+    CHECK(s.Call("world.lighting_debug", {{"flags", 16}}).contains("error"));
+    CHECK(s.Good("world.lighting_debug", {{"flags", 3}})["flags"] == 3);
     CHECK(s.Call("world.lighting_debug", {{"flags", 1.5}}).contains("error"));
     CHECK(s.Good("world.lighting_debug")["flags"] == 3);
     CHECK(s.Good("world.lighting_debug", {{"flags", 0}})["flags"] == 0);

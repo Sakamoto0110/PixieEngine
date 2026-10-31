@@ -48,10 +48,13 @@ typedef struct PixieSession PixieSession;
 #define PIXIE_PHYSICS_DEBUG_SENSORS 16u
 #define PIXIE_PHYSICS_DEBUG_AWAKE 32u
 #define PIXIE_PHYSICS_DEBUG_CONTACTS 64u
-/* Lighting debug drawing in lit scenes (version 19): light bounds and occluder edges. */
-#define PIXIE_LIGHTING_DEBUG_ALL 3u
+/* Lighting debug in lit scenes (version 19): light bounds and occluder edges drawn over the frame;
+   the light buffer alone or the lights shading each pixel in place of it (overdraw wins over both). */
+#define PIXIE_LIGHTING_DEBUG_ALL 15u
 #define PIXIE_LIGHTING_DEBUG_LIGHTS 1u
 #define PIXIE_LIGHTING_DEBUG_OCCLUDERS 2u
+#define PIXIE_LIGHTING_DEBUG_LIGHT_BUFFER 4u
+#define PIXIE_LIGHTING_DEBUG_OVERDRAW 8u
 
 typedef enum PixieResult {
     PIXIE_OK = 0,

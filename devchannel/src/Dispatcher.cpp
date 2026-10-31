@@ -424,7 +424,7 @@ struct WorldDispatcher::Impl {
             if (p.contains("flags")) {
                 const double flags = Number(p, "flags");
                 if (flags < 0 || flags > PIXIE_LIGHTING_DEBUG_ALL || flags != std::floor(flags))
-                    Reject("lighting debug flags are 0..3: 1 light bounds, 2 occluder edges");
+                    Reject("lighting debug flags are 0..15: 1 light bounds, 2 occluder edges, 4 light buffer, 8 overdraw");
                 Check(pixie_lighting_debug_set(S(), static_cast<uint32_t>(flags)));
             }
             uint32_t flags = 0;

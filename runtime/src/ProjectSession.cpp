@@ -320,7 +320,9 @@ void ProjectSession::Render(double alpha) {
             sceneLights = lights_.size();
             particleDropped = GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
             GatherOccluders(*world_, alpha, occluders_, &outlines_);
-            lighting_.Finish(camera_.MakeView(), MakeLightingParameters(*lighting), lights_, occluders_);
+            LightingParameters parameters = MakeLightingParameters(*lighting);
+            parameters.view = LightingDebugView(LightingDebug());
+            lighting_.Finish(camera_.MakeView(), parameters, lights_, occluders_);
         }
         telemetry.SetGauge(lightingMetrics_.lights, static_cast<double>(lighting_.LastLightCount()));
         telemetry.SetGauge(lightingMetrics_.shadowed, static_cast<double>(lighting_.LastShadowedCount()));

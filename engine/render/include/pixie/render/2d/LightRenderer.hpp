@@ -71,6 +71,12 @@ enum class ToneMapping : std::uint8_t {
     Aces,
 };
 
+enum class LightingView : std::uint8_t {
+    Lit,
+    LightBuffer,
+    Overdraw,
+};
+
 // What a lit frame combines with: the ambient light (linear, already times its intensity), exposure
 // and tone mapping.
 struct LightingParameters {
@@ -95,6 +101,9 @@ struct LightingParameters {
     // above the plane.
     bool normalMaps = false;
     float normalHeight = 48.0f;
+    // A debug view in place of the lit frame: the light buffer alone, times exposure and tone mapped,
+    // or how many lights shade each pixel (black none, blue 1, green 4, red 8 or more).
+    LightingView view = LightingView::Lit;
 };
 
 // GPU time of a lit frame's lighting, in milliseconds, read a few frames after it was drawn: light

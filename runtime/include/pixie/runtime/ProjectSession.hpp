@@ -110,9 +110,9 @@ public:
     // Session presentation only; retained across World rebuilds and never saved to a scene.
     void SetPhysicsDebug(std::uint32_t flags) { physicsDebug_ = flags & kPhysicsDebugAll2D; physicsDebugExplicit_ = true; }
     std::uint32_t PhysicsDebug() const { return physicsDebugExplicit_ ? physicsDebug_ : mode_ == SessionMode::Edit ? 17u : 0u; }
-    // Lighting debug drawing in lit scenes (kLightingDebugLights2D, kLightingDebugOccluders2D); until
-    // set, light bounds in Edit and nothing in Play.
-    void SetLightingDebug(std::uint32_t flags) { lightingDebug_ = flags; lightingDebugExplicit_ = true; }
+    // Lighting debug drawing and views in lit scenes (kLightingDebug*2D bits); until set, light bounds
+    // in Edit and nothing in Play.
+    void SetLightingDebug(std::uint32_t flags) { lightingDebug_ = flags & kLightingDebugAll2D; lightingDebugExplicit_ = true; }
     std::uint32_t LightingDebug() const {
         return lightingDebugExplicit_ ? lightingDebug_ : mode_ == SessionMode::Edit ? kLightingDebugLights2D : 0u;
     }

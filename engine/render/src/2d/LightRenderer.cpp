@@ -93,7 +93,8 @@ void main() {
         // The mask covers the frame at full or half resolution; filtered, clamped at its edges.
         attenuation *= 1.0 - clamp(texture(uOcclusion, gl_FragCoord.xy / uSize).r, 0.0, 1.0);
     }
-    oLight = vec4(b.rgb * attenuation, 0.0);
+    // Alpha counts the lights that shade the pixel, for the overdraw view.
+    oLight = vec4(b.rgb * attenuation, 1.0);
 }
 )";
 
@@ -248,6 +249,7 @@ layout(location = 7) uniform vec2 uFogRange;
 layout(location = 8) uniform mat4 uInverseViewProjection;
 layout(location = 9) uniform vec2 uSize;
 layout(location = 10) uniform float uBloomIntensity;
+layout(location = 11) uniform int uView;
 
 out vec4 oColor;
 
@@ -257,12 +259,28 @@ vec3 Encode(vec3 c) { return mix(c * 12.92, 1.055 * pow(c, vec3(1.0 / 2.4)) - 0.
 void main() {
     ivec2 p = ivec2(gl_FragCoord.xy) - uOrigin;
     vec4 albedo = texelFetch(uAlbedo, p, 0);
-    vec3 light = texelFetch(uLight, p, 0).rgb;
+    vec4 accumulated = texelFetch(uLight, p, 0);
+    if (uView == 2) {
+        float n = accumulated.a;
+        vec3 heat = n < 4.0 ? mix(vec3(0.0, 0.0, 1.0), vec3(0.0, 1.0, 0.0), (n - 1.0) / 3.0)
+                            : mix(vec3(0.0, 1.0, 0.0), vec3(1.0, 0.0, 0.0), min((n - 4.0) / 4.0, 1.0));
+        oColor = vec4(n < 0.5 ? vec3(0.0) : heat, 1.0);
+        return;
+    }
+    vec3 light = accumulated.rgb;
     if (uOcclusionStrength > 0.0) {
         // Ambient occlusion darkens only the ambient part of the light.
         light = max(light - uAmbient * uOcclusionStrength * texelFetch(uAmbientOcclusion, p, 0).r, vec3(0.0));
     }
-    vec3 color = (Decode(albedo.rgb) * light + texelFetch(uEmission, p, 0).rgb) * uExposure;
+    vec3 color = uView == 1 ? light * uExposure : (Decode(albedo.rgb) * light + texelFetch(uEmission, p, 0).rgb) * uExposure;
+    if (uView == 1) {
+        // The light a white surface would receive: no emission, fog, bloom or unlit receivers.
+        if (uToneMapping == 1) {
+            color = color * (2.51 * color + 0.03) / (color * (2.43 * color + 0.59) + 0.14);
+        }
+        oColor = vec4(Encode(clamp(color, 0.0, 1.0)), 1.0);
+        return;
+    }
     if (uFog.a > 0.0) {
         vec4 w = uInverseViewProjection * vec4((vec2(p) + 0.5) / uSize * 2.0 - 1.0, 0.0, 1.0);
         float amount = uFog.a * smoothstep(uFogRange.x, uFogRange.y, w.y / w.w);
@@ -367,6 +385,7 @@ constexpr GLint kFogRangeLocation = 7;
 constexpr GLint kCombineInverseLocation = 8;
 constexpr GLint kCombineSizeLocation = 9;
 constexpr GLint kBloomIntensityLocation = 10;
+constexpr GLint kViewLocation = 11;
 constexpr GLint kRadiusLocation = 3;
 constexpr GLint kNormalHeightLocation = 7;
 
@@ -719,6 +738,7 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
         glBindFramebuffer(GL_FRAMEBUFFER, effectFramebuffer_);
         glViewport(0, 0, size_.width, size_.height);
         glProgramUniform1i(combine, kStageLocation, 1);
+        glProgramUniform1i(combine, kViewLocation, 0);
         glProgramUniform2i(combine, kOriginLocation, 0, 0);
         glUseProgram(combine);
         glDrawArrays(GL_TRIANGLES, 0, 3);
@@ -745,6 +765,7 @@ void LightRenderer::Finish(const View& view, const LightingParameters& parameter
     glBindFramebuffer(GL_FRAMEBUFFER, static_cast<GLuint>(outputFramebuffer_));
     glViewport(outputViewport_[0], outputViewport_[1], outputViewport_[2], outputViewport_[3]);
     glProgramUniform1i(combine, kStageLocation, 0);
+    glProgramUniform1i(combine, kViewLocation, static_cast<GLint>(parameters.view));
     glProgramUniform2i(combine, kOriginLocation, outputViewport_[0], outputViewport_[1]);
     glProgramUniform1f(combine, kBloomIntensityLocation, bloom ? parameters.bloomIntensity : 0.0f);
     glUseProgram(combine);

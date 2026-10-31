@@ -132,6 +132,12 @@ PIXIE_RUNTIME_API int CapShadowedLights(std::vector<LightInstance>& lights, int 
 // spot light's range, a spot's cone edges, a directional light's direction) and occluder edges.
 inline constexpr std::uint32_t kLightingDebugLights2D = 1u;
 inline constexpr std::uint32_t kLightingDebugOccluders2D = 2u;
+// Views in place of the lit frame (LightingView): the light buffer alone, or the number of lights
+// shading each pixel; with both, overdraw.
+inline constexpr std::uint32_t kLightingDebugLightBuffer2D = 4u;
+inline constexpr std::uint32_t kLightingDebugOverdraw2D = 8u;
+inline constexpr std::uint32_t kLightingDebugAll2D = 15u;
+PIXIE_RUNTIME_API LightingView LightingDebugView(std::uint32_t flags);
 PIXIE_RUNTIME_API void DrawLightingDebug2D(std::span<const LightInstance> lights, std::span<const OccluderEdge> occluders,
                                            ShapeRenderer& renderer, const Camera2D& camera, std::uint32_t flags);
 

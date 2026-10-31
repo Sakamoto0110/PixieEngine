@@ -968,6 +968,34 @@ TEST(LightingDebugDrawsBoundsAndOccluders) {
     }
 }
 
+// LIT-016: the light buffer view shows the light alone, as a white surface would receive it, and the
+// overdraw view how many lights shade each pixel: two flat lights at a quarter, overlapping in the
+// middle, one shadowed and one not, over a colored background.
+TEST(LightingDebugViewsReplaceTheFrame) {
+    Lab lab(pxColorRgba(200, 60, 30));
+    lab.Settings(Dark());
+    pixie::Light2D left = FlatLight(30.0, 0.0);
+    left.intensity = 0.25;
+    pixie::Light2D right = left;
+    right.castsShadows = false;
+    lab.Add(pxPoint(-15.0, 0.0)).Add<pixie::Light2D>(left);
+    lab.Add(pxPoint(15.0, 0.0)).Add<pixie::Light2D>(right);
+    lab.session->SetLightingDebug(pixie::kLightingDebugLightBuffer2D);
+    const auto light = lab.Render();
+    for (int channel = 0; channel < 3; ++channel) {
+        CHECK(Near(At(light, 0.5, 0.5, channel), Expected(0.5)));
+        CHECK(Near(At(light, -40.5, 0.5, channel), Expected(0.25)));
+        CHECK(At(light, -60.5, 0.5, channel) == 0);
+    }
+    lab.session->SetLightingDebug(pixie::kLightingDebugOverdraw2D | pixie::kLightingDebugLightBuffer2D);
+    const auto overdraw = lab.Render();
+    CHECK(At(overdraw, -40.5, 0.5, 0) == 0 && At(overdraw, -40.5, 0.5, 1) == 0 && At(overdraw, -40.5, 0.5, 2) == 255);
+    CHECK(Near(At(overdraw, 0.5, 0.5, 1), 85) && Near(At(overdraw, 0.5, 0.5, 2), 170));
+    CHECK(At(overdraw, -60.5, 0.5, 2) == 0);
+    lab.session->SetLightingDebug(0);
+    CHECK(Near(At(lab.Render(), -40.5, 0.5, 0), Expected(Linear(200) * 0.25)));
+}
+
 int main() {
     if (!glfwInit()) return 2;
     glfwWindowHint(GLFW_VISIBLE, GLFW_FALSE);

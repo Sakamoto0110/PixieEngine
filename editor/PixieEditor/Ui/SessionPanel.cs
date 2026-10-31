@@ -82,7 +82,7 @@ internal sealed class SessionPanel(EngineSession session, string game)
             }
             if (ImGui.CollapsingHeader("Lighting debug"))
             {
-                string[] labels = ["Light bounds", "Occluder edges"];
+                string[] labels = ["Light bounds", "Occluder edges", "Light buffer", "Light overdraw"];
                 var flags = session.LightingDebug;
                 for (var i = 0; i < labels.Length; i++)
                 {
@@ -94,7 +94,8 @@ internal sealed class SessionPanel(EngineSession session, string game)
                         session.LightingDebug = flags;
                     }
                 }
-                ImGui.TextWrapped("Drawn over scenes with LightingSettings2D. Yellow: light ranges, spot cones and directions; cyan: occluder edges.");
+                ImGui.TextWrapped("Drawn over scenes with LightingSettings2D. Yellow: light ranges, spot cones and directions; cyan: occluder edges. " +
+                                  "Light buffer replaces the frame with the light alone; overdraw, with the lights shading each pixel (blue 1, green 4, red 8 or more).");
             }
             if (Environment.TickCount64 >= NextStatusRead)
             {
