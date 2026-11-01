@@ -1,0 +1,16 @@
+{
+  "scenarios": {
+    "rooms-running": {
+      "steps": 120,
+      "seed": 1,
+      "size": "960x540",
+      "approved": true,
+      "renderer": "llvmpipe (LLVM 23.1.2, 256 bits)",
+      "reference": "rooms-running.png",
+      "tolerance": {
+        "max_channel_difference": 1,
+        "max_differing_pixel_share": 0.15
+      }
+    }
+  }
+}
