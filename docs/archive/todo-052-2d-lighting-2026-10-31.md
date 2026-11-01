@@ -59,6 +59,9 @@ four rooms live in `samples/light-lab` (1 and 2) and `samples/light-machine` (3 
 from L0 (R32F occlusion mask, particle lights gathered on the CPU, 8-bit emission intensity,
 per-piece self shadow) are recorded in the L0 record.
 
+The work reached `main` in merge `47a07bf`, which raised the engine's product version from
+`0.1.0.0` to `0.2.0.0` (a compatible capability, `MINOR`).
+
 ## Owner decisions and acceptance
 
 - L0 review: waived on 2026-10-31 ("Yes, continue to L1"), not performed; the pinned choices stay
