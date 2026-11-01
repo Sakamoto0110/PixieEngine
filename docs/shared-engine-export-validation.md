@@ -22,10 +22,16 @@
 
 ## Scope and status
 
-[PIXIE-TODO-051](../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel)
-owns accepted scope and gates. [TASKLIST.md](../TASKLIST.md#pixie-todo-051--shared-engine-export-and-local-mcp-development)
-owns progress. This guide maps that scope to evidence; it does not authorize
-additional work or claim that any row has passed.
+PIXIE-TODO-051 closed on 2026-11-01 for the bounded Windows delivery. The
+[completion record](archive/todo-051-shared-engine-export-mcp-2026-11-01.md) preserves
+the accepted scope, final task snapshot, producer inventory, sizes and residual limits.
+The sections below retain the staged observations rather than turning old pending
+notes into claims about later code.
+
+[PIXIE-TODO-051](archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel)
+owns accepted scope and gates. [TASKLIST.md](archive/todo-051-shared-engine-export-mcp-2026-11-01.md#task-snapshot)
+owns progress until archival. This guide maps that scope to evidence and records
+the staged executed outcomes below; it does not authorize additional work.
 
 The implementation baseline is the local native split at
 `f634eeeef474eac34b780fc2e43f11c239e2cd6d`. The owner promoted distribution and
@@ -79,7 +85,102 @@ not performed; the code commit alone is not proof of the remaining gates.
 | Distribution reduces duplication | Before/after sizes of players, old per-game C API libraries, new game modules and shared engine, with configuration and exact binaries/revisions. Historical proposal estimates are not measurements. | Baseline preservation, final artifacts |
 | Consumers and documentation can resume accurately | PixieLib/Inspector responses distinguish recommendations from executed acceptance. Record final full code hashes, package/binary provenance, LogicSandbox header/build/loading breaks without migrating it, documentation checks and unmet rows. | Final implementation and consumer feedback |
 
+### Final closure executions
+
+Closure source is `92c6a642eedf7fedd1f19c7752f2f4a170be36d0`, product revision
+0.2.0.1, with no new runtime behavior or C API change. After that commit:
+
+| Configuration | Fresh native build | Targeted CTest: engine, runtime, lighting, module lifetime, approved snapshot |
+|---|---|---|
+| vs2026 Debug | Pass, no compiler warnings | 5/5, 24.54 s |
+| vs2026 Release | Pass, no compiler warnings | 5/5, 8.64 s |
+| ci Debug | Pass, no compiler warnings | 5/5, 24.74 s |
+| ci Release | Pass, no compiler warnings | 5/5, 8.49 s |
+
+The final registered ci Release `game-export` suite passed all 33 expected-outcome
+cases in 144.66 s, including all four barrier sensitivities and restored clean
+outputs. The fresh editor publish harness again passed its three cases on this
+revision; both MCP server/client publication attempts were refused with zero
+payload files. The Release editor built with zero warnings/errors. The 100-entry
+active solution runtime-property audit had zero /MD(d) mismatches.
+
+These final builds and targeted runs supplement the earlier full matrices and
+baseline remote CI; they are not relabeled as a fresh 28/28 run or remote CI of
+the local closure. The concrete real-editor lighting workflow's 23 records and
+lighting export/captures precede the revision-only increment and remain separately
+identified. No push, tag or external publication was performed.
+
 ## Evidence and recovery
+
+### Concrete lighting-room scenario, 2026-10-31
+
+The owner selected the existing lighting room for TODO-051 acceptance. The
+`light-lab` sample now describes the reproducible workflow and keeps an unapproved
+`rooms-running` snapshot manifest: 120 total fixed steps, authored seed 1 and
+960x540 framebuffer pixels. This choice does not approve a reference image or
+tolerance, and no reference file has been installed or registered as a snapshot test.
+
+The official MCP client fixture `--editor-lighting` opens an isolated copy of the
+actual code project in the Release editor, edits `cyan light` through
+`inspector.set`, confirms `Light2D.intensity` in native storage and one history entry,
+and verifies a substantial change in the rendered scene. Undo restores the native
+value and scene pixels within isolated one-level raster rounding; redo reapplies it.
+Play/Pause then 120 additional steps and Stop restore the authored scene without
+rewriting its file. The current fixture passed 23 checks/receipt records. A disposable
+room with that light disabled failed specifically at the viewport-effect assertion;
+the unmodified room passed again. Source and test-client changes are uncommitted,
+on main baseline `a6fc4180435f725b81ef4d30c6bccfef219cc224`.
+
+This is a bounded default-layout fixture: the screenshot is the 1600x900 editor
+window; viewport visibility is asserted, and only scene rectangle
+(360,250)-(1150,700) is compared. Inspector text cannot establish a visual scene
+change. The fixture refuses a preexisting project `imgui.ini`. Early attempts with
+a saved/collapsed layout were rejected during qualification; a dirty-marker-only
+image difference was not retained as scene-effect evidence. No production renderer
+fix was needed. The restored viewport permits at most one channel level in 0.001%
+of compared pixels; a substantial off-state change requires at least eight channel
+levels and 0.1% changed pixels. These functional checks are distinct from golden
+reference approval.
+
+Two native player captures of the candidate were pixel-identical on the RX 7600;
+two were pixel-identical on Mesa 26.2.4 llvmpipe (LLVM 23.1.2, 256 bits). GPU versus
+llvmpipe differed by at most one channel level in 12.83% of pixels. The manifest
+therefore proposes, without approving, a maximum difference of 1 and differing-pixel
+share of 0.15. Comparing the wrong lighting room was rejected and produced a diff.
+The separate `light-machine` experiment is not adopted as a golden: cross-renderer
+differences there reached 47 channel levels, so the lab tolerance cannot be reused.
+
+The native exporter built the actual `light-lab` project as shipping Release,
+verified its manifest, development exclusions and native dependency closure, and
+the isolated exported player ran and captured successfully. This concrete room
+run supplements the existing 33-case export suite; it is not a new complete barrier
+matrix, remote release or editor-publish qualification. Raw local receipts/captures
+are retained in the working validation directory for this round.
+
+Remaining TODO-051 gates still include reference/tolerance approval, final artifact/
+publication reconciliation and the complete row-by-row documentary closure. This
+scenario does not by itself close tasks 202..206, 209, 210 or 212.
+
+#### Reference approval and registration
+
+On 2026-10-31 the owner answered "sim" to the presented lab image and the explicit
+120-step, seed-1, 960x540 recipe and tolerance (maximum channel delta 1, differing-pixel
+share 0.15). The exact reviewed PNG was copied into
+`samples/light-lab/snapshots/rooms-running.png`, SHA-256
+`d64e5bfb536dac2ab821e9f4c31772352c7255f3b39caef3edb4277e9ba1e39d`;
+it was not regenerated during approval. The manifest is now `approved: true`.
+The reason is to establish a regression reference for the owner's selected concrete
+TODO-051 lighting scenario. Other laboratories/reference candidates are not approved.
+
+Reconfiguration registered `snapshot-light-lab-rooms-running` in both vs2026 and ci.
+Its targeted CTest invocation passed in Debug and Release for both presets using
+the existing configured native binaries. This is four registered-test executions,
+not four new native builds or a fresh complete matrix. A separate invocation on the
+pinned llvmpipe staging passed with the approved image. An isolated manifest pointing
+to the wrong room was rejected with maximum channel delta 250 and 96.84% differing
+pixels, retaining actual/diff outputs outside its reference directory. The approved
+repository PNG was never changed by the negative fixture. TASK-212's initial selected
+reference gate is fulfilled; broader artifact/documentary closure remains open.
 
 ### Export-stage resumption, 2026-10-29
 

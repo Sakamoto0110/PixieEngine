@@ -22,16 +22,19 @@
 
 ## Status and source
 
-Export is being implemented under
-[PIXIE-TODO-051](../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
-Windows boids and no-code sprites exports passed the 23-case native qualification,
+Export was delivered under
+[PIXIE-TODO-051](archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+Windows boids and no-code sprites exports passed the 33-case native qualification,
 including isolated launches, observed app-local DLL loading and four-barrier
 sensitivity/restoration cases. Three local editor publish checks also passed:
 development publication rejected, fresh shipping publication accepted with
 development types absent, and reuse of an existing binary rejected. The editor's
 real `--do export` route exported sprites through the native CLI successfully;
-the final regression matrix remains pending. This guide
-does not claim a finished distribution guarantee or publication.
+the current qualification and closure are recorded in the
+[qualification guide](shared-engine-export-validation.md). The owner-selected
+light-lab code project also exported, verified and ran in an isolated output folder.
+This is bounded Windows distribution evidence, not a universal platform guarantee
+or external publication.
 
 `tools/export/` owns the native command and verifier; CMake owns shipping
 configuration and product metadata. Qualification currently covers Windows

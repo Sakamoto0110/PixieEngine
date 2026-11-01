@@ -52,7 +52,7 @@ their remaining library/context ownership.
 Module loading is development-only, not a player export mechanism. Ordinary
 game players link their game directly. App-local runtime packaging and
 development-free export/MCP barriers remain separately qualified under
-[PIXIE-TODO-051](../../../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+[PIXIE-TODO-051](../../archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 See the [qualification matrix](../../shared-engine-export-validation.md) for
 configuration-specific evidence and pending delivery gates.
 

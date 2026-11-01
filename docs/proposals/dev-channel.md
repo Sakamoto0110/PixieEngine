@@ -160,7 +160,7 @@ keeps the engine single-threaded where it matters.
 4. Should the player get the editor's `--seed`, so a player run and an editor run of the same scene
    start from the same World?
 
-**Promotion target:** [PIXIE-TODO-051](../../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+**Promotion target:** [PIXIE-TODO-051](../archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
 **Source:** owner request in conversation, 2026-10-28: a development-only library that agents use
 to drive the editor without desktop automation, with a path through the inspector itself so that the

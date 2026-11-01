@@ -68,9 +68,10 @@ cmake --build --preset vs2026-release
   Release. The engine is built once as `pixie.dll`; game players link their
   code directly and development builds also produce `<game>-module.dll`.
   The shared native dependency `glfw3.dll` belongs beside the corresponding
-  binaries. App-local Visual C++ runtime export deployment is being qualified
-  under [PIXIE-TODO-051](../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel);
-  a development build directory is not yet a qualified standalone export.
+  binaries. App-local Visual C++ runtime export deployment was qualified for Windows
+  under [PIXIE-TODO-051](archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel);
+  use the manifest exporter for a qualified standalone game folder; copying the
+  development bin directory is not a shipping procedure.
 - The project's own targets compile with `/W4 /WX`: a warning is an error.
   Third-party code under `external/` compiles with its own settings.
 - On x86-64 they also compile for AVX2 (`/arch:AVX2`; `-mavx2 -mfma -mf16c`

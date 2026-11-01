@@ -23,13 +23,21 @@
 ## Status and scope
 
 Proposal 014 is delivered in increments under
-[PIXIE-TODO-051](../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+[PIXIE-TODO-051](archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 Local Visual Studio and Ninja Debug/Release matrices passed, including fixed-step
 capture and export exclusions. Snapshot registration/comparison fixtures and
-editor repetition passed separately. No reference image, initial sample selection or
-tolerance policy has been approved. The
+editor repetition passed separately. On 2026-10-31 the owner approved the initial
+`light-lab/rooms-running` reference and its scenario-specific tolerance. The
 [qualification record](shared-engine-export-validation.md) distinguishes
 executed checks from remaining work.
+
+The approved scenario captures the existing lighting rooms after 120 fixed steps,
+seed 1, at 960x540 pixels on Mesa 26.2.4 llvmpipe. Its tolerance is a maximum channel
+difference of 1 and a maximum differing-pixel share of 0.15, accommodating the
+measured RX 7600/llvmpipe rounding difference. The reference SHA-256 is
+`d64e5bfb536dac2ab821e9f4c31772352c7255f3b39caef3edb4277e9ba1e39d`.
+CTest registers `snapshot-light-lab-rooms-running`. Other images/scenarios are not
+approved by this decision.
 
 ## Capture inputs
 

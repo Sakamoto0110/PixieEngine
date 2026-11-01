@@ -48,7 +48,7 @@ That reverses a recorded decision, which is why this is its own proposal. At pro
 **Rationale:** The original 2026-10-15 motivation was to reduce repeated engine copies when
 exporting games while keeping the executable as what a player runs. The owner promoted this
 direction on 2026-10-28. Current execution scope and the mandatory EnTT-first gate are owned by
-[PIXIE-TODO-051](../../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+[PIXIE-TODO-051](../archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
 **Constraints:** The editor keeps running any game without being rebuilt; the C API stays the
 boundary the editor sees.

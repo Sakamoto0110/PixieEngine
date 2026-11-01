@@ -30,7 +30,7 @@ owns the authority table: which document owns which kind of fact.
 | [`../TASKLIST.md`](../TASKLIST.md) | Task breakdowns of promoted work |
 | [`../DEPENDENCIES.md`](../DEPENDENCIES.md) | Dependencies, versions, status, and candidates |
 | [`development.md`](development.md) | How to build, check, and commit a change |
-| [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | Qualification plan for PIXIE-TODO-051: shared engine, export barriers and separately isolated local MCP development |
+| [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | PIXIE-TODO-051 qualification and closure: shared engine, export barriers, local MCP and the approved lighting snapshot |
 | [`game-export.md`](game-export.md) | Native manifest export command, shipping/build separation and current qualification limits |
 | [`deterministic-capture.md`](deterministic-capture.md) | Development fixed-step capture, seed precedence and snapshot candidate/approval boundaries |
 | [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |

@@ -151,7 +151,7 @@ remote-release artifacts. The owner included proposals 013/014 for distinct
 World and Inspector/history paths, repeatable capture and approved snapshot
 qualification; this does not approve reference images or enable channel save.
 Execution, the EnTT-first gate and qualification are
-owned by [PIXIE-TODO-051](TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
 ## Active guardrails
 

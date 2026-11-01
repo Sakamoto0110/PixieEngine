@@ -79,7 +79,7 @@ the same rendering rule.
 1. Which samples get references first? The recommendation is the three anchors and `sparks`.
 2. Should the tolerance be one value for the repository or set per scenario?
 
-**Promotion target:** [PIXIE-TODO-051](../../TODO.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
+**Promotion target:** [PIXIE-TODO-051](../archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
 **Source:** owner discussion in conversation, 2026-10-28: the fast open-capture-close run as the
 agents' main way to look at a program, made repeatable and given its own place in the filesystem.

@@ -278,7 +278,10 @@ workflow (presets, handles, layers, compounds, Play/Stop, save/reopen and a lega
 migration; see the [physics qualification](../docs/physics-qualification.md#no-code-editor-workflow)),
 and a project with code opened
 cold, which builds the engine again (`--skip-cold` leaves it out). For the `ci`
-preset, pass `--bin build-ci/bin --work build-ci/tests/mcp`. See the
+preset, pass `--work build-ci/tests/mcp` and set `--bin` to that cache's
+`PIXIE_OUTPUT_ROOT`. Both presets default to the source-root `bin/`; use
+`--bin build-ci/bin` only when configuring that separate output root explicitly.
+Build/test presets serially when they share native output folders. See the
 [qualification record](../docs/shared-engine-export-validation.md) for Windows
 scope, executed cases and remaining project-wide gates.
 

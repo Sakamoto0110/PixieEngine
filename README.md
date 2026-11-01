@@ -8,11 +8,12 @@ executable, and a C# editor that inspects engine state through
 from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
 Early stage: Core, Platform, Render and App native boundaries, with Runtime
-and C API being packaged into a shared engine, the samples under [`samples/`](samples/) (three of them the anchors:
+and C API packaged into one shared engine, the samples under [`samples/`](samples/) (three of them the anchors:
 boids, flocks, and particles; `sprites` a project without code), and the C# ImGui editor under [`editor/`](editor/README.md),
-which runs any of the anchors. Shared-engine/export/MCP work is in progress;
-the [qualification matrix](docs/shared-engine-export-validation.md) distinguishes
-completed checks from pending distribution and development-channel delivery.
+which runs any of the anchors. Windows shared-engine distribution, manifest-only
+game export, local MCP and the initial approved lighting snapshot are delivered;
+the [qualification record](docs/shared-engine-export-validation.md) states their
+executed evidence and platform, tooling and reference-selection limits.
 From the Visual Studio 2026 developer prompt:
 
 ```bash
