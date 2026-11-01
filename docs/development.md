@@ -158,28 +158,45 @@ Third-party code lives unmodified under `external/<name>/`, built by
 On the owner's machine, this repository lives inside a Void Agent Workplace
 checkout, in its Pixie family of managed projects (`projects/Pixie/`, beside
 PixieInspector and PixieLib), and is bound to the VAW profile `pixieengine`,
-revision 1, for project binding and skill discovery only. Since 2026-10-31 the
-checkout is on the local branch `codex/pixie-workplace` (commit `1bc14c2`,
-version 0.2.0.0), whose `profiles/pixieengine/` holds the profile; the binding
-is in VAW's default machine-local registry. VAW ignores `projects/`, so the
-repository keeps its own history and remote. The profile maps VAW's authority
-roles to this repository's documents, routes each source area to the documents
-that own it, and lists the checks above as its validation. Nothing in this
-repository depends on it: a machine without it builds, checks, and commits as
-before.
+revision 2. The checkout is on the local branch `codex/pixie-workplace`
+(commit `05b04c2`, VAW 0.3.0.0), whose `profiles/pixieengine/` holds the
+profile. The binding is in an explicit registry for the Pixie family,
+`.local\bindings\pixie.json` in the VAW checkout, passed with `-BindingsPath`
+on every command: agents have seen different copies of the default AppData
+registry ([PIXIE-ARCHIVE-071](archive/vaw-explicit-registry-2026-10-16.md)). VAW ignores
+`projects/`, so the repository keeps its own history and remote. The profile
+maps VAW's authority roles to this repository's documents, routes each source
+area to the documents that own it, and lists the full matrix as its
+validation. Nothing in this repository depends on it: a machine without it
+builds, checks, and commits as before.
 
-Before a task, an agent resolves the binding for the task's routes (`engine`,
-`runtime`, `capi`, `editor`, `samples`, `build`, `documentation`), from the
-repository root, in PowerShell 7 (the VAW checkout is three directories up):
+Revision 2 adopts, besides binding and skill discovery: workflow records with
+planned-pause checkpoints that another agent can verify and resume, scoped
+premises (to skip re-reviewing validated code that has not changed), repository
+state in those records, multi-agent validation and documentation records,
+package validation, and product versioning (below). Campaigns stay frozen in
+VAW. Two skills of this profile, `pixieengine-documentation` and
+`pixieengine-qualification`, route an agent to this guide and the
+[documentation policy](governance/documentation-policy.md); the repository's
+documents remain the authority. VAW records live in `.local/vaw/` (unversioned)
+and never replace `TODO.md`, `TASKLIST.md`, the archive, or the code: they point
+to them.
+
+Before a task, an agent resolves the binding for the task's routes (`core`,
+`platform`, `render`, `app`, `engine`, `runtime`, `capi`, `devchannel`, `tools`,
+`editor`, `samples`, `build`, `documentation`), from the repository root, in
+PowerShell 7 (the VAW checkout is three directories up):
 
 ```powershell
-..\..\..\scripts\resolve-project-binding.ps1 -RepositoryPath . `
+$bindings = (Resolve-Path ..\..\..\.local\bindings\pixie.json).Path  # VAW needs it absolute
+..\..\..\scripts\resolve-project-binding.ps1 -RepositoryPath . -BindingsPath $bindings `
     -CompatibilityScope Routes -RouteId runtime,documentation
-..\..\..\vaw.ps1 skills list -Agent claude -RepositoryPath .
+..\..\..\vaw.ps1 skills list -Agent claude -RepositoryPath . -BindingsPath $bindings
 ```
 
 Select all routes affected by the actual task; `runtime,documentation` is an
-example. `skills show <name>` takes the same arguments as `skills list`.
+example. `skills show <name>` takes the same arguments as `skills list`, and
+Codex passes `-Agent codex`.
 
 Never delete ignored files in the VAW checkout (`git clean -x` and the like):
 `projects/` is ignored there, so that would delete this repository and its
@@ -188,9 +205,28 @@ unpushed work.
 It requires `bound_scoped` with every selected route checked (or `bound` without
 `-CompatibilityScope`), and the task's archive record states the VAW commit, the
 profile and revision, and the routes checked. A binding grants no authority:
-commits, pushes, and releases follow the rules below. Workflow records,
-continuity checkpoints, campaigns, and premises are not adopted; campaigns are
-frozen in VAW itself.
+commits, pushes, and releases follow the rules below.
+
+## Product version
+
+The root `version.json` owns the engine's product version, in four components:
+`MAJOR.MINOR.PATCH.REVISION` (VAW's `void.versioning/2`). CMake reads it as the
+project version; the player logs `PixieEngine <version>` when it starts, the
+editor shows the public projection (the first three components) in its title,
+and an export's manifest records it as `engine_version`.
+
+The version rises once per change set that reaches `main` (a merged pull
+request, or a closed `TODO.md` entry), by its highest-impact change: `MINOR`
+for a compatible capability, `PATCH` for a correction, `REVISION` when external
+behavior is unchanged (documentation, infrastructure, refactors). Below 1.0 the
+engine is in initial development and a break raises `MINOR`; 1.0 is an owner
+decision. Raise it with VAW's `scripts/update-version.ps1 -VersionPath
+version.json -Component <component> -ExpectedVersion <current>`, and cite the
+new version in the change's archive record.
+
+Other version axes stay independent and change on their own rules: the C API
+(`PIXIE_CAPI_VERSION`), the scene and documentation schemas, and the VAW profile
+revision. A product version grants no authority to tag, push, or publish.
 
 ## Commits and pushes
 

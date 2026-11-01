@@ -48,6 +48,7 @@ to its owner; they must not maintain a competing mutable copy.
 | Implemented behavior | Current source code |
 | Build configuration, targets, toolchain, and dependency wiring | CMake files: the root `CMakeLists.txt`, `CMakePresets.json`, `cmake/`, and each directory's `CMakeLists.txt` |
 | Dependencies (toolchain, third-party, own projects), versions, status, and candidates | Root `DEPENDENCIES.md` |
+| The engine's product version (`MAJOR.MINOR.PATCH.REVISION`) | Root `version.json`, raised as `docs/development.md` describes |
 | How to build, check, and commit a change | `docs/development.md`, under the commit rules below |
 | What a sample shows and how to run it | `samples/<sample>/README.md` |
 | Third-party source code | `external/<name>/`, unmodified from the release recorded in `DEPENDENCIES.md` |
@@ -65,6 +66,7 @@ to its owner; they must not maintain a competing mutable copy.
 | Chronology, completed work, superseded state, and dated rationale | `docs/archive/` |
 | Documentation structure and vocabulary | `docs/schemas/documentation-schema.json` |
 | Open questions and answers before promotion | `.local/` (unversioned; never authority) |
+| VAW coordination records: workflow state, checkpoints, premises, validation | `.local/vaw/` (unversioned; never authority; they point to the owners above) |
 
 Generated output is never authority and is never versioned: `build/`, `bin/`, and the root
 `PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
