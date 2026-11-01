@@ -17,6 +17,9 @@ namespace PixieEditor.Ui;
 // one library per process, so another one opens in a new editor.
 internal sealed class EditorWindow(EditorOptions options)
 {
+    // The engine's public version (three components of version.json), shown in the title.
+    private static readonly string ProductVersion = typeof(EditorWindow).Assembly.GetName().Version?.ToString(3) ?? "?";
+
     // What closing the window, or opening another project, waits on when the scene is not saved.
     private enum Leaving { None, Close, OtherProject, Reopen }
 
@@ -457,7 +460,7 @@ internal sealed class EditorWindow(EditorOptions options)
             }
 
             var name = project ? session.ProjectName : gameName;
-            var current = $"PixieEditor - {name}{(project && session.Unsaved ? " *" : "")}{(project && !session.Editing ? " - playing" : "")}";
+            var current = $"PixieEditor {ProductVersion} - {name}{(project && session.Unsaved ? " *" : "")}{(project && !session.Editing ? " - playing" : "")}";
             if (current != title)
             {
                 GLFW.SetWindowTitle(window, current);

@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 3.25)
 
-project(PixieEngine LANGUAGES C CXX)
+# The product version has one owner, version.json: MAJOR.MINOR.PATCH.REVISION (docs/development.md).
+file(READ "${CMAKE_CURRENT_LIST_DIR}/version.json" pixie_version_json)
+string(JSON pixie_product_version GET "${pixie_version_json}" version)
+set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${CMAKE_CURRENT_LIST_DIR}/version.json")
+project(PixieEngine VERSION ${pixie_product_version} LANGUAGES C CXX)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)

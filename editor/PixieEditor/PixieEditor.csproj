@@ -17,6 +17,8 @@
     <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true' And '$(PixieChannelSave)' == 'true'">$(DefineConstants);PIXIE_CHANNEL_SAVE</DefineConstants>
     <!-- The neko mark from the shared asset store (vdr: neko-purple-light), copied by vdr cp. -->
     <ApplicationIcon>assets/neko-purple-light.ico</ApplicationIcon>
+    <!-- The editor ships with the engine, so it carries the product version owned by version.json. -->
+    <Version>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../../version.json')), '(?s).*"version"\s*:\s*"([0-9.]+)".*', '$1'))</Version>
   </PropertyGroup>
 
   <ItemGroup Condition="'$(PixieDevelopmentTools)' != 'true'">

@@ -145,8 +145,8 @@ void Closure(const Json& manifest, const fs::path& output, bool sourcePaths) {
 class Plan {
 public:
     explicit Plan(fs::path project) : project_(fs::canonical(project)) {
-        manifest = {{"format", "pixie-export"}, {"version", 1}, {"development", false},
-            {"dev_channel", false}, {"project", Utf8(project_)}, {"files", Json::array()}};
+        manifest = {{"format", "pixie-export"}, {"version", 1}, {"engine_version", PIXIE_PRODUCT_VERSION},
+            {"development", false}, {"dev_channel", false}, {"project", Utf8(project_)}, {"files", Json::array()}};
     }
     void Add(const fs::path& source, const std::string& destination, const std::string& role) {
         Relative(destination);

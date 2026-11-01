@@ -138,6 +138,7 @@ int Run(App& app, const RunConfig& config) {
         return 1;
     }
     window.SetVsync(config.vsync);
+    LogInfo("PixieEngine " PIXIE_PRODUCT_VERSION);
     LogInfo(std::format("Update rate: {} Hz; frame cap: {}; vsync: {}", config.updateRate,
                         config.frameRateCap > 0.0 ? std::format("{} Hz", config.frameRateCap)
                                                   : std::string("none"),

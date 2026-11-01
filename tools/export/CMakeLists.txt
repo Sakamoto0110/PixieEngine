@@ -5,6 +5,7 @@ if(WIN32)
 endif()
 target_compile_definitions(pixie-export PRIVATE
     "PIXIE_EXPORT_ENGINE_ROOT=\"${PROJECT_SOURCE_DIR}\"" "PIXIE_EXPORT_CMAKE=\"${CMAKE_COMMAND}\""
-    "PIXIE_EXPORT_GENERATOR=\"${CMAKE_GENERATOR}\"" "PIXIE_EXPORT_MAKE_PROGRAM=\"${CMAKE_MAKE_PROGRAM}\"")
+    "PIXIE_EXPORT_GENERATOR=\"${CMAKE_GENERATOR}\"" "PIXIE_EXPORT_MAKE_PROGRAM=\"${CMAKE_MAKE_PROGRAM}\""
+    "PIXIE_PRODUCT_VERSION=\"${PixieEngine_VERSION}\"")
 pixie_target_defaults(pixie-export)
 set_target_properties(pixie-export PROPERTIES FOLDER tools)
