@@ -66,7 +66,7 @@ internal sealed class EngineConnection : IAsyncDisposable
             }
             var hello = await connection.SendAsync("world.hello", new JsonObject(), cancellationToken);
             var value = hello["result"]?["value"];
-            if (value?["protocol_version"]?.GetValue<int>() != 1 || value?["pixie_api_version"]?.GetValue<int>() != 18)
+            if (value?["protocol_version"]?.GetValue<int>() != 1 || value?["pixie_api_version"]?.GetValue<int>() != 19)
                 throw new IOException("Host development protocol/API version mismatch.");
             var actualRoot = value?["capture_directory"]?.GetValue<string>();
             if (!string.Equals(Path.GetFullPath(actualRoot ?? ""), root, StringComparison.OrdinalIgnoreCase))

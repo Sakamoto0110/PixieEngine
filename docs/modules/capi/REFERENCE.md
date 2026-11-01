@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (18), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (19), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -77,8 +77,11 @@ configuration-specific evidence and pending delivery gates.
   version 13 the read-only body mass query, and version 14 native collider handle
   queries and drag editing, and version 15 capsule radius/height handles and the
   expanded handle-result layout, version 16 session physics debug options,
-  version 17 development module loading in the shared engine, and version 18
-  development-only in-memory World dispatch; a
+  version 17 development module loading in the shared engine, version 18
+  development-only in-memory World dispatch, and version 19 lighting's light layer names
+  (`pixie_light_layer_name`, slots 1 to 8) and lighting debug options
+  (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`: light bounds, occluder edges,
+  and the light buffer and overdraw views); a
   host checks the version and does not load a library of another one.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
@@ -328,7 +331,9 @@ Events are kept until the next step reads them.
   them.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
   `PixieValue`; `PixieFieldKind` says which members are used. A `PIXIE_FIELD_ENTITY` field holds an
-  entity handle in `x`, with 4294967295 for none. Writing outside a step is safe;
+  entity handle in `x`, with 4294967295 for none. A `PIXIE_FIELD_ENUM` field takes a whole `x`
+  from 0 to `pixie_field_enum_count` - 1; any other value, here and in `pixie_record_set`, is
+  refused with `PIXIE_ERROR_ARGUMENT` and leaves the field unchanged. Writing outside a step is safe;
   the value takes effect at the next step. A missing entity or component returns
   `PIXIE_ERROR_NOT_FOUND`.
 - A `PIXIE_FIELD_TEXT` field holds UTF-8 text, such as a sprite's image path, and goes only through

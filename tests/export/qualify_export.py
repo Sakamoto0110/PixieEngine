@@ -12,6 +12,9 @@ import subprocess
 import tempfile
 import time
 
+# The engine's product version, owned by version.json; exports and the player must carry it.
+PRODUCT_VERSION = json.loads((Path(__file__).resolve().parents[2] / "version.json").read_text(encoding="utf-8"))["version"]
+
 
 def sha(path):
     return hashlib.sha256(path.read_bytes()).hexdigest()
@@ -180,6 +183,7 @@ def main():
         assert not product["development"] and not product["dev_channel"]
         data = json.loads(manifest.read_text(encoding="utf-8"))
         assert all("-module" not in x["destination"] and "-capi" not in x["destination"] for x in data["files"])
+        assert data["engine_version"] == PRODUCT_VERSION, data.get("engine_version")
         runnable = output
         if args.graphics_runtime:
             # The raw default export remains untouched. CI may qualify a second explicit manifest
@@ -206,6 +210,7 @@ def main():
                     break
                 time.sleep(0.05)
             assert process.wait(timeout=30) == 0
+        assert ("PixieEngine " + PRODUCT_VERSION) in (run / (name + "-run.log")).read_text(encoding="utf-8", errors="replace")
         for dll in ("pixie.dll", "glfw3.dll", "vcruntime140.dll", "msvcp140.dll"):
             assert Path(observed[dll]).parent == runnable.resolve(), (dll, observed)
         assert screenshot.read_bytes()[:8] == b"\x89PNG\r\n\x1a\n"

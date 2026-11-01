@@ -12,5 +12,5 @@ target_include_directories(pixie_app PUBLIC include)
 target_link_libraries(pixie_app PUBLIC pixie_core pixie_platform pixie_render)
 # Console text tessellation uses private stb headers.
 target_include_directories(pixie_app SYSTEM PRIVATE ${PROJECT_SOURCE_DIR}/external/stb)
-target_compile_definitions(pixie_app PRIVATE GLFW_INCLUDE_NONE)
+target_compile_definitions(pixie_app PRIVATE GLFW_INCLUDE_NONE "PIXIE_PRODUCT_VERSION=\"${PixieEngine_VERSION}\"")
 pixie_target_defaults(pixie_app)

@@ -3,6 +3,7 @@
 #include <glm/gtc/type_ptr.hpp>
 
 #include <cstddef>
+#include <string>
 #include <string_view>
 
 namespace pixie {
@@ -72,10 +73,35 @@ void main() {
 constexpr GLint kViewProjectionLocation = 0;
 constexpr GLint kKindLocation = 1;
 
+// The lighting's receiver pass (LightRenderer): the same coverage, but the instance color carries
+// a receiver instead of a color, red its light layers, green whether it is unlit, blue the shape's
+// own alpha. A pixel at least half covered replaces the receiver below it; the rest leave it.
+std::string ReceiverFragmentShader() {
+    std::string source(kFragmentShader);
+    const std::string_view color = "oColor = vec4(vColor.rgb, vColor.a * coverage);";
+    source.replace(source.find(color), color.size(), "oColor = vec4(vColor.rg, 0.0, step(0.5, vColor.b * coverage));");
+    return source;
+}
+
+// The lighting's emission pass: the instance color carries an emissive tint in RGB and intensity / 16
+// in alpha; the tint glows as linear radiance over the shape's coverage, and a shape that does not
+// glow still covers what glows below it.
+std::string EmissionFragmentShader() {
+    std::string source(kFragmentShader);
+    const std::string_view color = "oColor = vec4(vColor.rgb, vColor.a * coverage);";
+    source.replace(source.find(color), color.size(),
+                   "vec3 c = vColor.rgb;\n"
+                   "    oColor = vec4(mix(c / 12.92, pow((c + 0.055) / 1.055, vec3(2.4)), step(0.04045, c)) * (vColor.a * 16.0), "
+                   "coverage);");
+    return source;
+}
+
 } // namespace
 
 bool ShapeRenderer::Create() {
-    if (!program_.Create("ShapeRenderer", kVertexShader, kFragmentShader)) {
+    if (!program_.Create("ShapeRenderer", kVertexShader, kFragmentShader) ||
+        !receiverProgram_.Create("ShapeRenderer receivers", kVertexShader, ReceiverFragmentShader()) ||
+        !emissionProgram_.Create("ShapeRenderer emission", kVertexShader, EmissionFragmentShader())) {
         return false;
     }
     instances_.Create();
@@ -91,6 +117,8 @@ bool ShapeRenderer::Create() {
 void ShapeRenderer::Destroy() {
     vertexArray_.Destroy();
     instances_.Destroy();
+    emissionProgram_.Destroy();
+    receiverProgram_.Destroy();
     program_.Destroy();
 }
 
@@ -101,14 +129,17 @@ void ShapeRenderer::Draw(ShapeKind kind, std::span<const ShapeInstance> instance
     }
     instances_.Upload(instances);
 
+    const GLuint program = pass_ == LightingPass::Receivers ? receiverProgram_.Id()
+                          : pass_ == LightingPass::Emission ? emissionProgram_.Id()
+                                                            : program_.Id();
     const pxMat4f viewProjection(view.ViewProjection());
-    glProgramUniformMatrix4fv(program_.Id(), kViewProjectionLocation, 1, GL_FALSE,
+    glProgramUniformMatrix4fv(program, kViewProjectionLocation, 1, GL_FALSE,
                               glm::value_ptr(viewProjection));
-    glProgramUniform1i(program_.Id(), kKindLocation, static_cast<GLint>(kind));
+    glProgramUniform1i(program, kKindLocation, static_cast<GLint>(kind));
 
     glEnable(GL_BLEND);
     glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glUseProgram(program_.Id());
+    glUseProgram(program);
     glBindVertexArray(vertexArray_.Id());
     const bool isTriangle = kind == ShapeKind::Triangle;
     glDrawArraysInstanced(isTriangle ? GL_TRIANGLES : GL_TRIANGLE_STRIP, 0, isTriangle ? 3 : 4,

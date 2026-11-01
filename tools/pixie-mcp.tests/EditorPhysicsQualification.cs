@@ -194,6 +194,52 @@ internal static class EditorPhysicsQualification
                 await Gesture(client, "physicsdebug=127");
                 var debug = await Call(client, "world.capture", new() { ["name"] = "authoring-debug" });
                 Check(debug.Tool.IsError != true && debug.Tool.Content.OfType<ImageContentBlock>().Count() == 1, "debug-view-capture-in-edit");
+
+                // Lighting authoring (PIXIE-TASK-217): a lit scene, a spot light's viewport handles as
+                // history steps, a cancelled drag, light layer names and debug views over the channel.
+                var lit = await Create(client, "create");
+                await Gesture(client, "add=LightingSettings2D");
+                var lamp = await Create(client, "create");
+                await Gesture(client, "add=Light2D");
+                await Set(client, "Light2D.type", "Spot");
+                // A choice is written by its name: a number or an unknown name is refused, not stored as 255.
+                var spot = (await Get(client, lamp, "Light2D.type"))?.ToJsonString();
+                undos = await Undos(client);
+                foreach (var wrong in new JsonNode[] { JsonValue.Create(1), JsonValue.Create("Sun") })
+                {
+                    var (receipt, tool) = await Call(client, "inspector.set", new()
+                        { ["generation"] = (await Good(client, "inspector.tree"))["generation"]!.GetValue<long>(), ["path"] = "Light2D.type", ["value"] = wrong });
+                    var outcome = tool.IsError == true ? "error" : receipt["result"]?["value"]?["outcome"]?.GetValue<string>();
+                    Check(outcome is "refused" or "error" && (await Get(client, lamp, "Light2D.type"))?.ToJsonString() == spot && await Undos(client) == undos,
+                        "choice-outside-its-names-is-refused", JsonValue.Create(wrong.ToJsonString() + " -> " + outcome));
+                }
+                var lampAt = await Pair(client, lamp, "Transform2D.position");
+                // World points in the gesture text, in invariant culture whatever the machine's.
+                string At(double dx, double dy) => string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{lampAt.X + dx},{lampAt.Y + dy}");
+                undos = await Undos(client);
+                await Gesture(client, $"lightdrag=range:{At(120, 0)}");
+                Check(Math.Abs(await Number(client, lamp, "Light2D.range") - 120) < 1e-6 && await Undos(client) == undos + 1,
+                    "light-range-handle-is-one-history-step", JsonValue.Create(await Number(client, lamp, "Light2D.range")));
+                await Gesture(client, "undo");
+                Check(Math.Abs(await Number(client, lamp, "Light2D.range") - 300) < 1e-6, "light-range-handle-undoes");
+                await Gesture(client, $"lightdrag=direction:{At(0, 50)}");
+                Check(Math.Abs(await Number(client, lamp, "Transform2D.rotation") - Math.PI / 2) < 1e-6, "light-direction-handle-turns-the-entity");
+                await Gesture(client, $"lightdrag=cancelcone:{At(50, 50)}");
+                Check(Math.Abs(await Number(client, lamp, "Light2D.coneAngle") - Math.PI / 3) < 1e-6, "cancelled-cone-drag-restores-the-cone");
+                await Gesture(client, $"lightdrag=cone:{At(50, 50)}");
+                Check(Math.Abs(await Number(client, lamp, "Light2D.coneAngle") - Math.PI / 2) < 1e-6, "cone-handle-opens-the-cone");
+                await Gesture(client, "lightlayername=2:Background");
+                var named = (await Good(client, "world.entities"))["entities"]!.AsArray().Any(e => e!["name"]?.GetValue<string>() == "light layers");
+                Check(named, "light-layer-name-creates-the-names-configuration");
+                await Gesture(client, "lightingdebug=3");
+                Check((await Good(client, "world.lighting_debug"))["flags"]!.GetValue<int>() == 3, "lighting-debug-views-over-the-channel");
+                var litCapture = await Call(client, "world.capture", new() { ["name"] = "lighting-authoring" });
+                Check(litCapture.Tool.IsError != true && litCapture.Tool.Content.OfType<ImageContentBlock>().Count() == 1, "lit-scene-captures-in-edit");
+                await Gesture(client, "lightingdebug=0");
+                await Select(client, lit);
+                await Gesture(client, "delete");
+                await Select(client, lamp);
+                await Gesture(client, "delete");
                 count = await Entities(client);
                 var authored = await Pair(client, box, "Transform2D.position");
                 var fall = await FallAfterPlay(client, box, 45);

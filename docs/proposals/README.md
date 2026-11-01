@@ -44,3 +44,4 @@ update its state, and link the outcome.
 | [`player-builds-once.md`](player-builds-once.md) | PIXIE-PROPOSAL-012 | idea | Requires an owner decision |
 | [`dev-channel.md`](dev-channel.md) | PIXIE-PROPOSAL-013 | promoted | PIXIE-TODO-051 (2026-10-28); local Engine/Inspector MCP channel; save remains disabled pending owner question 2 |
 | [`deterministic-capture.md`](deterministic-capture.md) | PIXIE-PROPOSAL-014 | promoted | PIXIE-TODO-051 (2026-10-28); fixed-step captures and approved snapshot scenarios; sample/tolerance choices remain explicit |
+| [`gpu-particle-simulation.md`](gpu-particle-simulation.md) | PIXIE-PROPOSAL-015 | idea | Requires an owner decision; measure the CPU simulation at high counts first |

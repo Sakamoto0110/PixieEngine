@@ -80,6 +80,23 @@ internal sealed class SessionPanel(EngineSession session, string game)
                 }
                 ImGui.TextWrapped("Velocity: 0.25 s of travel. Green: awake; gray: asleep; pink: sensors. Contact normals may be speculative.");
             }
+            if (ImGui.CollapsingHeader("Lighting debug"))
+            {
+                string[] labels = ["Light bounds", "Occluder edges", "Light buffer", "Light overdraw"];
+                var flags = session.LightingDebug;
+                for (var i = 0; i < labels.Length; i++)
+                {
+                    var bit = 1u << i;
+                    var enabled = (flags & bit) != 0;
+                    if (ImGui.Checkbox(labels[i], ref enabled))
+                    {
+                        flags = enabled ? flags | bit : flags & ~bit;
+                        session.LightingDebug = flags;
+                    }
+                }
+                ImGui.TextWrapped("Drawn over scenes with LightingSettings2D. Yellow: light ranges, spot cones and directions; cyan: occluder edges. " +
+                                  "Light buffer replaces the frame with the light alone; overdraw, with the lights shading each pixel (blue 1, green 4, red 8 or more).");
+            }
             if (Environment.TickCount64 >= NextStatusRead)
             {
                 MovementStatus = session.MovementStatus;

@@ -82,5 +82,18 @@ struct TextSources {
 // the renderer afterwards.
 PIXIE_RUNTIME_API void SubmitSprites(World& world, SpriteRenderer& renderer, SpriteImages& images, double alpha,
                    const TextSources* texts = nullptr, const pxRect* view = nullptr);
+// The same sprites and texts, in the same order, for the lighting's receiver pass: each one's color
+// is its LightReceiver2D (ReceiverColor). Flush with the renderer's receiver pass on.
+PIXIE_RUNTIME_API void SubmitSpriteReceivers(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                             double alpha, const TextSources* texts = nullptr,
+                                             const pxRect* view = nullptr);
+// The same for the emission pass: each one's color is its Emission2D (EmissionColor).
+PIXIE_RUNTIME_API void SubmitSpriteEmission(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                            double alpha, const TextSources* texts = nullptr,
+                                            const pxRect* view = nullptr);
+// The same for the normal pass: a sprite with a NormalMap2D draws its map, with its strength.
+PIXIE_RUNTIME_API void SubmitSpriteNormals(World& world, SpriteRenderer& renderer, SpriteImages& images,
+                                           double alpha, const TextSources* texts = nullptr,
+                                           const pxRect* view = nullptr);
 
 } // namespace pixie

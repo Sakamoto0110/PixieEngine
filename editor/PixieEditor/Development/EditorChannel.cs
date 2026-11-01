@@ -31,7 +31,7 @@ internal sealed class EditorChannel : IDisposable
     {
         "select", "create", "collider", "character", "compound", "addshape", "removeshape", "shape", "layername",
         "layer", "shapelayer", "dynamic", "compoundbox", "kinematic", "sensor", "world", "duplicate", "delete",
-        "undo", "redo", "add", "remove", "rename", "addpoint", "removepoint", "move", "colliderhandles", "physicsdebug", "colliderdrag", "play", "stop",
+        "undo", "redo", "add", "remove", "rename", "addpoint", "removepoint", "move", "colliderhandles", "physicsdebug", "lightingdebug", "lightdrag", "lightlayername", "colliderdrag", "play", "stop",
 #if PIXIE_CHANNEL_SAVE
         "save",
 #endif

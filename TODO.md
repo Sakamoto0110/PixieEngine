@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-10-28
+**Last promotion decision:** 2026-10-31
 
 ## Purpose and admission rule
 
@@ -47,6 +47,15 @@ entry may keep an explicit gate after promotion.
 **Dependencies and gates:** first prove module-defined EnTT components can be added, iterated and removed across the DLL boundary, and registered through ComponentTypes/read through the C API. Stop on type-ID disagreement and report mechanisms/costs instead of bypassing the gate. Only after it passes migrate production targets to /MD (/MDd for Debug), including third parties. Preserve the four-library dependency directions from the split baseline. Keep existing C API functions and semantics; additions raise the API version, and removals or semantic changes require a new owner decision. Obtain PixieLib shared-runtime evidence and agree the Inspector channel contract before dependent changes. Native engine code never depends on Inspector or the editor.
 **Completion criteria:** all child tasks finish with the [qualification matrix](docs/shared-engine-export-validation.md), including project-code, both native presets/configurations, visual comparison, editor/module lifecycle, isolated exports, dependency closure, size measurements, and independently broken copies of all four development-artifact barriers. Qualify each accepted channel command group in memory and one real local IPC session, Inspector write/read/undo and refusal behavior, deterministic capture inputs and snapshot mismatch detection. Reference image updates need owner approval and a stated reason. The local MCP channel works through the agreed Engine/Inspector paths and is absent from publish/remote-release and exported runtime dependency closures. Record remaining LogicSandbox migration breaks without migrating it. No installer, additional export format, push or publication is authorized by this entry. PIXIE-TODO-043 was completed independently on 2026-10-31; this work did not complete physics or its owner acceptance.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-051--shared-engine-export-and-local-mcp-development)
+
+### `PIXIE-TODO-053` — Inspector fields, options and interactions overhaul
+
+**Status:** promoted (expansion required)
+**Source:** owner promotion on 2026-10-31: review and overhaul all the Inspector fields and options, and how they interact. Promoted deliberately vague; the owner marked it expansion required.
+**Accepted scope:** every field and option the editor's Inspector shows for engine components and settings, and the interactions between them, such as options that enable, disable, hide or override other fields, and fields that have no effect in a given mode. The review covers labels, units, ranges, defaults, tooltips and widget choice. The overhaul applies the decisions from that review. The expansion defines the inventory, the target rules and the order of work, and where changes land: engine metadata, the editor or PixieInspector.
+**Dependencies and gates:** expansion required. No implementation starts until the inventory and the proposed rules have the owner's review and this entry has a concrete scope and completion criteria. Edits keep undo/redo, save/reopen and the development channel's Inspector paths, and existing scenes load unchanged. Native engine code never depends on the editor. Lighting fields added by PIXIE-TODO-052 join the review once they exist.
+**Completion criteria:** to be defined by the expansion. At minimum, every reviewed field and option has a recorded decision, and the agreed changes are covered by Inspector qualification over the development channel.
+**Breakdown:** none
 
 ## Completed
 
@@ -105,3 +114,4 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-047` | each particle carries its look | 2026-10-26 | [Completion](docs/archive/todo-047-particle-look-2026-10-26.md) |
 | `PIXIE-TODO-048` | lightweight dynamic particles and native contact sparks room | 2026-10-27 | [Completion](docs/archive/todo-048-dynamic-contact-sparks-2026-10-27.md) |
 | `PIXIE-TODO-049` | published Inspector 0.3.0 adoption in the editor | 2026-10-27 | [Completion](docs/archive/todo-049-inspector-030-adoption-2026-10-27.md) |
+| `PIXIE-TODO-052` | 2D lighting: lights, shadows, emission, particle light, authoring, budgets and optional effects | 2026-10-31 | [Completion](docs/archive/todo-052-2d-lighting-2026-10-31.md) |
