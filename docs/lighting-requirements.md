@@ -25,13 +25,15 @@
 Design baseline: 2026-10-31. The [physics specification](rigid-body-physics-requirements.md#11-lighting-and-room-sequence-after-physics)
 required that lighting receive a render contract and acceptance budget of the same detail before
 any lighting code. The owner promoted this work on 2026-10-31 as
-[PIXIE-TODO-052](../TODO.md#pixie-todo-052--2d-lighting); TODO.md remains the scheduler.
+PIXIE-TODO-052 and accepted it the same day; its [completion record](archive/todo-052-2d-lighting-2026-10-31.md) keeps the scope and evidence.
 
 This document owns the proposed lighting design input and its acceptance matrix. The
 [consumer requirements](circuit-puzzle-requirements.md#4-lighting-quality-critical-requirements)
 (L01–L06) own the game's needs; [ROADMAP.md](../ROADMAP.md) owns direction. On implementation,
 public headers and the module references own the actual API and contract. Use the stable IDs
-below when splitting work. Choices marked "pin at L0" are proposals until that gate decides them.
+below when splitting work. Choices marked "pin at L0" are proposals until that gate decides them;
+the [L0 design record](lighting-l0-design.md) pins them, with the shadow technique's measured
+prototypes; the owner waived their review on 2026-10-31, so they remain revisable.
 
 Starting point: the session renders sprites, paths, particles and shapes in world space, then
 gizmos, physics debug and the project overlay, then the screen canvas, all through OpenGL 4.5
@@ -106,7 +108,8 @@ occluder's own sprite is lit on its facing side (self-shadowing rule pinned at L
 Mesa llvmpipe, from: geometric shadow volumes from occluder edges (exact, soft edges by penumbra
 wedges), per-light 1D polar shadow maps (bounded cost, soft edges by filtering), or a distance
 field built per frame. Whatever is chosen must give soft shadows, configurable quality, and
-stable results under motion.
+stable results under motion. L0 pinned shadow volumes with analytic penumbra coverage
+([design record](lighting-l0-design.md#5-shadow-technique)).
 
 **LIT-008 — No leaks or flicker.** Light does not leak through closed geometry or at wall corners
 and touching occluders; moving or rotating occluders and a moving camera do not make shadows

@@ -21,17 +21,20 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
 
     // Names are scene data; slots never follow list order. A rename/clear is one native
     // snapshot history step and never writes any collider category or mask.
-    public bool RenameCollisionLayer(int slot, string name)
+    public bool RenameCollisionLayer(int slot, string name) => RenameLayer(LayerScheme.Collision, slot, name);
+
+    // The same for any names type: light layers too (LayerScheme.Light). Names never change masks.
+    public bool RenameLayer(LayerScheme scheme, int slot, string name)
     {
         return Guard(() =>
         {
-            if (slot is < 1 or > 31) throw new EngineException("Collision layer slots are 1..31.");
-            var type = session.TypeIndex("CollisionLayers2D");
-            if (type < 0) throw new EngineException("Rebuild the library for collision layer authoring.");
+            if (slot < 1 || slot > scheme.Slots) throw new EngineException($"{scheme.Noun} layer slots are 1..{scheme.Slots}.");
+            var type = session.TypeIndex(scheme.NamesType);
+            if (type < 0) throw new EngineException($"Rebuild the library for {scheme.Noun.ToLowerInvariant()} layer authoring.");
             var owners = session.Entities().Where(e => session.Has(e, type)).ToArray();
-            if (owners.Length > 1) throw new EngineException("Remove the duplicate CollisionLayers2D configuration first.");
+            if (owners.Length > 1) throw new EngineException($"Remove the duplicate {scheme.NamesType} configuration first.");
             var created = owners.Length == 0;
-            var owner = created ? session.CreateEntity("collision layers") : owners[0];
+            var owner = created ? session.CreateEntity($"{scheme.Noun.ToLowerInvariant()} layers") : owners[0];
             try
             {
                 if (created) session.AddComponent(owner, type);
@@ -55,9 +58,9 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
                 if (created)
                 {
                     Write(owner);
-                    Record("creation of collision layer names", [owner], before: null, after: true);
+                    Record($"creation of {scheme.Noun.ToLowerInvariant()} layer names", [owner], before: null, after: true);
                 }
-                else Change([owner], $"rename of collision layer {slot}", Write);
+                else Change([owner], $"rename of {scheme.Noun.ToLowerInvariant()} layer {slot}", Write);
                 return true;
             }
             catch { if (created) session.Destroy(owner); throw; }

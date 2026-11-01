@@ -4,6 +4,7 @@
 
 #include "pixie/render/2d/Camera2D.hpp"
 #include "pixie/core/FixedStepper.hpp"
+#include "pixie/render/2d/LightRenderer.hpp"
 #include "pixie/platform/Input.hpp"
 #include "pixie/render/2d/ParticleRenderer.hpp"
 #include "pixie/render/2d/PathRenderer.hpp"
@@ -13,8 +14,10 @@
 #include "pixie/render/2d/TextRenderer.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Fonts.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
+#include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/World.hpp"
 #include "pixie/runtime/PhysicsDebug2D.hpp"
@@ -26,6 +29,7 @@
 #include <optional>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace pixie {
 
@@ -106,6 +110,12 @@ public:
     // Session presentation only; retained across World rebuilds and never saved to a scene.
     void SetPhysicsDebug(std::uint32_t flags) { physicsDebug_ = flags & kPhysicsDebugAll2D; physicsDebugExplicit_ = true; }
     std::uint32_t PhysicsDebug() const { return physicsDebugExplicit_ ? physicsDebug_ : mode_ == SessionMode::Edit ? 17u : 0u; }
+    // Lighting debug drawing and views in lit scenes (kLightingDebug*2D bits); until set, light bounds
+    // in Edit and nothing in Play.
+    void SetLightingDebug(std::uint32_t flags) { lightingDebug_ = flags & kLightingDebugAll2D; lightingDebugExplicit_ = true; }
+    std::uint32_t LightingDebug() const {
+        return lightingDebugExplicit_ ? lightingDebug_ : mode_ == SessionMode::Edit ? kLightingDebugLights2D : 0u;
+    }
 
     // How fast simulated time runs against wall time in Advance: 0.5 is half speed. The fixed step
     // stays the same; a faster scale runs more steps per frame. Clamped to [kMinTimeScale,
@@ -151,6 +161,8 @@ public:
 
 private:
     PIXIE_RUNTIME_API void Build(bool resetCamera);
+    // A lit frame's receiver or emission pass: the sprites, texts and shapes again, in that pass.
+    void DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass);
 
     std::unique_ptr<Project> project_;
     SessionSettings settings_;
@@ -168,6 +180,20 @@ private:
     Fonts fonts_;
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
+    LightRenderer lighting_;
+    std::vector<LightInstance> lights_;
+    std::vector<OccluderEdge> occluders_;
+    SpriteAlphaOutlines outlines_;
+    // Lighting telemetry, registered in a World's collector at its first lit frame.
+    struct LightingMetrics {
+        MetricHandle cpu, gpuLights, gpuShadows, gpuCombine;
+        MetricHandle lights, shadowed, shadowedDropped, edges, particleLights, particleDropped;
+        std::uint64_t world = 0;
+        std::uint64_t gpuSample = 0;
+    };
+    LightingMetrics lightingMetrics_;
+    std::uint32_t lightingDebug_ = 0;
+    bool lightingDebugExplicit_ = false;
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;

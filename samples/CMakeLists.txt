@@ -8,6 +8,8 @@ add_subdirectory(telemetry)
 add_subdirectory(movement)
 add_subdirectory(sparks)
 add_subdirectory(coupling-lab)
+add_subdirectory(light-lab)
+add_subdirectory(light-machine)
 
 # The sprites sample is a project folder without code, so it has no CMakeLists.txt of its own: the
 # generic player plays it (pixie-player --project samples/sprites), and the generic library opens it.

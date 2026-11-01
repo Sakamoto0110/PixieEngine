@@ -87,7 +87,7 @@ internal static class InspectorFactory
                 var names = Enumerable.Range(0, info.EnumCount).Select(v => session.EnumName(type, field, v)).ToArray();
                 var choice = inspector.AddField<ComponentHandle, string>(name,
                     h => Name(names, (int)h.Get(field).X),
-                    readOnly ? null : (h, v) => h.Set(field, new PixieValue { X = Array.IndexOf(names, v) }));
+                    readOnly ? null : (h, v) => h.Set(field, new PixieValue { X = Choice(names, v) }));
                 choice.Choices = () => names;
                 yield return Labeled(choice, label);
                 break;
@@ -186,6 +186,10 @@ internal static class InspectorFactory
 
     private static string Name(string[] names, int value) =>
         value >= 0 && value < names.Length ? names[value] : value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    // A choice is written by its name; text that names none of them is refused, never stored as -1.
+    private static int Choice(string[] names, string name) => Array.IndexOf(names, name) is var index and >= 0 ? index
+        : throw new ArgumentException($"'{name}' is not one of: {string.Join(", ", names)}.");
 
     private static void ApplyOptions(InspectorNode node, EngineSession session, int type, int field, PixieFieldInfo info)
     {

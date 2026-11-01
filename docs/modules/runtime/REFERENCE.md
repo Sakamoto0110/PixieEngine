@@ -758,6 +758,93 @@ be seen selected and picked; so is the block of a text with no characters. `Text
 rectangle, and `SubmitText` draws one text. The font field's asset kind is `ttf`, so a tool offers
 `.ttf` files for it. There is no wrapping at a width, rich text, kerning, outline, or shadow.
 
+### Lighting
+
+Lighting is opt-in per scene (`Lighting2D.hpp`). A scene without `LightingSettings2D` is drawn by
+`ProjectSession::Render` exactly as before lighting existed, and its `Light2D` components do nothing
+(the session warns once when it builds such a scene). `LightingSettings2D` is a singleton, like
+`PhysicsSettings2D`: an ambient color and intensity, exposure and tone mapping (`None` clamps,
+`Aces` is a filmic curve). Its defaults, white ambient at 1, exposure 1 and no tone mapping, leave
+the unlit image unchanged byte for byte.
+
+A `Light2D` at its entity's interpolated transform is a point light, a spot (its cone around the
+rotation) or a directional light over the whole view. Its color is authored in sRGB and decoded,
+its intensity is a linear multiplier, and point and spot lights fall off as
+`saturate(1 - (d / range)^2)^falloff`, reaching 0 at their range. `lightLayers` (bits 0 to 7) are
+the receivers it reaches; a `LightReceiver2D` gives an entity's sprite, text or shape its layers and
+can mark it unlit, shown at its own color. Without one, a receiver is in every layer and lit;
+ambient reaches every receiver.
+
+In a lit scene, `Render` draws the world as usual into the `LightRenderer`'s albedo target; flushes
+the world shapes before the gizmos and overlays; when some entity has a `LightReceiver2D`, draws the
+sprites, texts and shapes again as receivers (`SubmitSpriteReceivers`, `SubmitShapeReceivers`, with
+the renderers' receiver pass); gathers the lights (`GatherLights`, culled to the padded view); and
+combines into the session's output. Gizmos, physics debug, the project's overlay and the screen
+layer are drawn after, never lit. Paths and particles are not receivers: they take the layers of
+what lies under them.
+
+An `Occluder2D` makes its entity block light. With the `Collider` source it casts from the
+entity's `Collider2D` or `CompoundCollider2D` shapes (enabled, not sensors), or from a
+`CharacterMotor2D`'s upright capsule, so shadows and physics agree; with `Polygon`, from its own
+convex polygon in local units; with `SpriteAlpha`, from the outline of its sprite where the image's
+alpha reaches `alphaThreshold`. `SpriteAlphaOutlines` traces that outline once per image, region
+and threshold on a grid of at most 64 cells a side, as the edges between solid and empty cells
+merged into runs, and keeps it (a changed image file is traced again only after `Clear`); a session
+reads the images from its project folder. `OccluderPolygons` gives the convex pieces at a transform, circles and
+capsule caps as polygons within 0.5 world units of the curve; `GatherOccluders` collects their
+edges at the interpolated pose, as drawing does. A light with `castsShadows` is shadowed by the
+occluders whose `layers` meet its `shadowLayers`; its `sourceRadius` (or `sourceAngle` for a
+directional light) sets the penumbra. An occluder does not shadow its own interior, so its sprite is
+lit as if it were absent, unless `selfShadow` is set; the rule applies per convex piece, so pieces
+of one compound shadow each other; a sprite outline has no inner edges, so its interior is
+shadowed only where another part of the same outline stands between it and the light.
+
+An `Emission2D` makes an entity's sprite, text or shape glow: its image (a shape's flat area, not
+its color) times the emission `color` times `intensity` (0 to 16, kept in steps of 1/16 of the
+0-255 range) is added unlit after the light, so it shows in darkness; game code fades `intensity`
+to show a state change. In a lit frame with emission, the sprites, texts and shapes are drawn once
+more in the emission pass (`SubmitSpriteEmission`, `SubmitShapeEmission`, `EmissionColor`), where
+those without `Emission2D` still cover what glows below them. A `ParticleLight2D` on a pool makes
+it `emissive`, drawn only in the emission pass at its own color (`DrawParticlePools`), and/or
+`illuminates`: `GatherParticleLights` adds an unshadowed point light of `lightRadius` per live
+particle, of its color times its alpha (faded with age when the pool fades) and `lightIntensity`,
+the first `lightCap` of the pool and at most `LightingSettings2D::maxParticleLights` in all,
+returning how many the caps left out.
+
+Light layers are 8 slots; `LightLayers2D`, a singleton like `CollisionLayers2D`, names them by
+stable slot, and `LightLayerNames` gives the display names ("Default" and "Light layer N"
+without one). The mask fields of `Light2D`, `Occluder2D` and `LightReceiver2D` reference it, so the
+Inspector shows them as named checkboxes.
+
+`LightingSettings2D::quality` caps the shadow-casting lights a frame draws at 8, 32 or 64
+(`ShadowedLightCap`), and `Low` computes the occlusion masks at half resolution; over the cap, `CapShadowedLights` removes those that contribute least (summed
+color times the area they cover in view), never drawing them unshadowed. A lit frame records, in
+the World's telemetry when it is enabled, `lighting.cpu` (the lighting passes, gathering and issuing
+on the CPU), `lighting.gpu.lights`, `lighting.gpu.shadows` and `lighting.gpu.combine` (GPU timestamps
+read a few frames late, recorded as each arrives), and the gauges `lighting.lights`,
+`lighting.shadowed_lights`, `lighting.shadowed_lights_dropped`, `lighting.occluder_edges`,
+`lighting.particle_lights` and `lighting.particle_lights_dropped`. `SetLightingDebug` draws light
+bounds (`kLightingDebugLights2D`: a ring at each range, a spot's cone edges, a directional light's
+direction) and occluder edges (`kLightingDebugOccluders2D`) over the frame, unlit, in lit scenes,
+and two views in place of the lit frame: `kLightingDebugLightBuffer2D`, the light alone as a white
+surface would receive it (exposure and tone mapping applied; no emission, fog, bloom or unlit
+receivers), and `kLightingDebugOverdraw2D`, the number of lights shading each pixel (black none,
+blue 1, green 4, red 8 or more), which wins when both are set; until it is called, light bounds
+show in Edit and nothing in Play.
+
+Optional effects are `LightingSettings2D` fields, all off by default (LIT-013): `ambientOcclusion`
+darkens the ambient light within `occlusionRadius` of the outer side of occluder edges, by up to
+`occlusionStrength`; `fog` blends toward `fogColor`, none at world y `fogTop` and `fogDensity` from
+`fogBottom` down; `bloom` spreads light above `bloomThreshold` at `bloomIntensity`; `normalMaps`
+shades sprites that have a `NormalMap2D` (a PNG in tangent space, green toward the image's top) by
+their relief, with lights `normalHeight` world units above the plane, turning with the sprite.
+Shapes and texts do not take part in normal mapping.
+
+The editor's light handles, its light layer names and the development channel's
+`world.lighting_debug` are described in the [editor's README](../../../editor/README.md). The work was
+delivered by [PIXIE-TODO-052](../../archive/todo-052-2d-lighting-2026-10-31.md); the
+[L0 design record](../../lighting-l0-design.md) gives the order and units.
+
 ## Randomness
 
 `World(seed)` seeds the World's `Random`. `Random` is xoshiro256** seeded through splitmix64; its

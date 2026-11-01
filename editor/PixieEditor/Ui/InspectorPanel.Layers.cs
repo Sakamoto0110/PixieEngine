@@ -16,12 +16,13 @@ internal sealed partial class InspectorPanel
             var info = session.FieldInfo(type, field);
             if (info.Editor != PixieEditorKind.LayerMask) continue;
             var label = session.FieldText(type, field, PixieFieldText.Label);
+            var scheme = LayerScheme.Of(session, type, field);
             var held = handles.Select(h => (int)h.Get(field).X).Distinct().ToArray();
-            var selected = Enumerable.Range(1, 31).Where(s => (held[0] & (1 << (s - 1))) != 0).ToArray();
-            var summary = held.Length > 1 ? "mixed" : selected.Length switch
+            var selected = Enumerable.Range(1, scheme.Slots).Where(s => (held[0] & (1 << (s - 1))) != 0).ToArray();
+            var summary = held.Length > 1 ? "mixed" : selected.Length == scheme.Slots ? "all layers" : selected.Length switch
             {
-                0 => "none", 31 => "all layers",
-                <= 2 => string.Join(", ", selected.Select(session.CollisionLayerName)),
+                0 => "none",
+                <= 2 => string.Join(", ", selected.Select(s => scheme.Name(session, s))),
                 _ => $"{selected.Length} layers"
             };
             ImGui.PushID(field);
@@ -30,7 +31,7 @@ internal sealed partial class InspectorPanel
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip(session.FieldText(type, field, PixieFieldText.Tooltip));
                 if (ImGui.BeginChild("layers", new Vector2(0, 150), ImGuiChildFlags.Borders))
                 {
-                    for (var slot = 1; slot <= 31; ++slot)
+                    for (var slot = 1; slot <= scheme.Slots; ++slot)
                     {
                         var bit = 1 << (slot - 1);
                         var values = handles.Select(h => (int)h.Get(field).X).ToArray();
@@ -39,7 +40,7 @@ internal sealed partial class InspectorPanel
                         // Keep the last membership bit: zero membership is invalid natively.
                         var lastMembership = info.RangeMin > 0 && active && values.Any(v => v == bit);
                         ImGui.BeginDisabled(info.Flags.HasFlag(PixieFieldFlags.ReadOnly) || lastMembership);
-                        if (ImGui.Checkbox($"{slot}: {session.CollisionLayerName(slot)}{(mixed ? " (mixed)" : "")}##{slot}", ref active))
+                        if (ImGui.Checkbox($"{slot}: {scheme.Name(session, slot)}{(mixed ? " (mixed)" : "")}##{slot}", ref active))
                             WriteLayerBit(handles, field, slot, active);
                         ImGui.EndDisabled();
                         if (lastMembership && ImGui.IsItemHovered(ImGuiHoveredFlags.AllowWhenDisabled))
@@ -51,17 +52,24 @@ internal sealed partial class InspectorPanel
             }
             ImGui.PopID();
         }
-        if (!Enumerable.Range(0, session.FieldCount(type)).Any(f => session.FieldInfo(type, f).Editor == PixieEditorKind.LayerMask)) return;
-        if (ImGui.SmallButton("Edit layer names...")) ImGui.OpenPopup("layer-names");
-        if (ImGui.BeginPopup("layer-names"))
+        var schemes = Enumerable.Range(0, session.FieldCount(type))
+            .Where(f => session.FieldInfo(type, f).Editor == PixieEditorKind.LayerMask)
+            .Select(f => LayerScheme.Of(session, type, f)).Distinct().ToArray();
+        foreach (var scheme in schemes)
         {
-            ImGui.TextUnformatted("Scene layer names (fixed slots)");
-            ImGui.TextDisabled("Clearing a name preserves its collision bits.");
-            var namesType = session.TypeIndex("CollisionLayers2D");
-            var owners = session.Entities().Where(e => session.Has(e, namesType)).ToArray();
-            if (owners.Length > 1) ImGui.TextUnformatted("Remove the duplicate configuration in Entities first.");
-            else DrawLayerNameInputs(owners.Length == 0 ? null : owners[0], namesType);
-            ImGui.EndPopup();
+            var popup = $"{scheme.NamesType}-names";
+            if (ImGui.SmallButton(schemes.Length > 1 || scheme != LayerScheme.Collision ? $"Edit {scheme.Noun.ToLowerInvariant()} layer names..." : "Edit layer names..."))
+                ImGui.OpenPopup(popup);
+            if (ImGui.BeginPopup(popup))
+            {
+                ImGui.TextUnformatted($"Scene {scheme.Noun.ToLowerInvariant()} layer names (fixed slots)");
+                ImGui.TextDisabled("Clearing a name preserves its bits.");
+                var namesType = session.TypeIndex(scheme.NamesType);
+                var owners = session.Entities().Where(e => session.Has(e, namesType)).ToArray();
+                if (owners.Length > 1) ImGui.TextUnformatted("Remove the duplicate configuration in Entities first.");
+                else DrawLayerNameInputs(owners.Length == 0 ? null : owners[0], namesType);
+                ImGui.EndPopup();
+            }
         }
     }
 
@@ -69,25 +77,27 @@ internal sealed partial class InspectorPanel
     {
         if (Entities.Length != 1) { ImGui.TextDisabled("Select one configuration to edit its layer names."); return; }
         DrawLayerNameInputs(Entities[0], type);
+        var scheme = LayerScheme.OfNamesType(session, type);
         var (itemType, count) = session.RecordInfo(Entities[0], type, list);
         var slotField = session.FieldIndex(itemType, "slot");
         var slots = Enumerable.Range(0, count).Select(i => (int)session.GetRecord(Entities[0], type, list, i, slotField).X).ToArray();
         int? remove = null;
         for (var i = 0; i < slots.Length; ++i)
-            if (slots[i] is < 1 or > 31 || slots.Count(s => s == slots[i]) > 1)
+            if (slots[i] < 1 || slots[i] > scheme.Slots || slots.Count(s => s == slots[i]) > 1)
                 if (ImGui.SmallButton($"Remove invalid/duplicate record {i + 1} (slot {slots[i]})")) remove = i;
         if (remove is { } index)
         {
             recorder.Close();
-            authoring.Change(Entities, "removal of invalid collision layer name", e => session.EditRecord(e, type, list, index, remove: true));
+            authoring.Change(Entities, $"removal of invalid {scheme.Noun.ToLowerInvariant()} layer name", e => session.EditRecord(e, type, list, index, remove: true));
         }
     }
 
     private void DrawLayerNameInputs(uint? owner, int type)
     {
+        var scheme = LayerScheme.OfNamesType(session, type);
         if (ImGui.BeginChild("name-slots", new Vector2(300, 300), ImGuiChildFlags.Borders))
         {
-            for (var slot = 1; slot <= 31; ++slot)
+            for (var slot = 1; slot <= scheme.Slots; ++slot)
             {
                 var text = "";
                 if (owner is { } entity)
@@ -105,7 +115,7 @@ internal sealed partial class InspectorPanel
                 if (ImGui.IsItemActive()) LayerTyping[slot] = text; else LayerTyping.Remove(slot);
                 if (ImGui.IsItemDeactivatedAfterEdit())
                 {
-                    RenameLayer(slot, text);
+                    RenameLayer(scheme, slot, text);
                     // Creation may have changed the owner list. Resume with fresh handles next frame.
                     if (owner == null) break;
                 }
@@ -126,17 +136,19 @@ internal sealed partial class InspectorPanel
         recorder.Close();
     }
 
-    public bool RenameLayer(int slot, string name)
+    public bool RenameLayer(int slot, string name) => RenameLayer(LayerScheme.Collision, slot, name);
+
+    public bool RenameLayer(LayerScheme scheme, int slot, string name)
     {
         recorder.Close();
-        return authoring.RenameCollisionLayer(slot, name);
+        return authoring.RenameLayer(scheme, slot, name);
     }
 
     // The script exercises the same checkbox operation, including mixed selections and the
     // last-membership guard; it never substitutes a precomputed whole filter value.
     public bool SetLayer(string component, string property, int slot, bool enabled, int? shape = null)
     {
-        if (slot is < 1 or > 31 || Entities.Length == 0) return false;
+        if (slot < 1 || Entities.Length == 0) return false;
         var type = session.TypeIndex(component);
         if (type < 0) return false;
         ComponentHandle[] handles;
@@ -156,6 +168,7 @@ internal sealed partial class InspectorPanel
         var field = session.FieldIndex(type, property);
         var info = session.FieldInfo(type, field);
         if (info.Editor != PixieEditorKind.LayerMask || info.Flags.HasFlag(PixieFieldFlags.ReadOnly)) return false;
+        if (slot > LayerScheme.Of(session, type, field).Slots) return false;
         if (!enabled && info.RangeMin > 0 && handles.Any(h => (int)h.Get(field).X == (1 << (slot - 1)))) return false;
         WriteLayerBit(handles, field, slot, enabled);
         return true;

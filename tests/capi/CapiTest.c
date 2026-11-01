@@ -53,6 +53,7 @@ static struct {
     int32_t (*last_error)(char*, int32_t);
     PixieResult (*movement_status)(PixieSession*, char*, int32_t, int32_t*);
     PixieResult (*collision_layer_name)(PixieSession*, int32_t, char*, int32_t, int32_t*);
+    PixieResult (*light_layer_name)(PixieSession*, int32_t, char*, int32_t, int32_t*);
     PixieResult (*session_create)(int32_t, int32_t, uint64_t, PixieSession**);
     void (*session_destroy)(PixieSession*);
     PixieResult (*project_name)(PixieSession*, char*, int32_t);
@@ -156,6 +157,7 @@ static int Load(Library library) {
     LOAD(last_error, "pixie_last_error")
     LOAD(movement_status, "pixie_movement_status")
     LOAD(collision_layer_name, "pixie_collision_layer_name")
+    LOAD(light_layer_name, "pixie_light_layer_name")
     LOAD(session_create, "pixie_session_create")
     LOAD(session_destroy, "pixie_session_destroy")
     LOAD(project_name, "pixie_project_name")
@@ -563,6 +565,14 @@ static void Exercise(PixieSession* s) {
     uint32_t made = 0;
     CHECK(api.entity_create(s, "made", &made) == PIXIE_OK && api.entity_alive(s, made) == 1);
     CHECK(api.component_add(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 1);
+    /* An enum field takes only the values its names cover: Shape.kind has four. */
+    const int32_t shapeKind = FindField(s, shapeType, "kind");
+    PixieValue kindValue = {3, 0, 0, 0};
+    CHECK(shapeKind >= 0 && api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_OK);
+    kindValue.x = 4; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    kindValue.x = -1; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    kindValue.x = 1.5; CHECK(api.field_set(s, made, shapeType, shapeKind, &kindValue) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_get(s, made, shapeType, shapeKind, &kindValue) == PIXIE_OK && kindValue.x == 3);
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_OK && api.entity_has(s, made, shapeType) == 0);
     CHECK(api.component_remove(s, made, shapeType) == PIXIE_ERROR_NOT_FOUND);
     CHECK(api.component_add(s, made, 9999) == PIXIE_ERROR_ARGUMENT);
@@ -1746,6 +1756,11 @@ static void ExerciseLayers(const char* folder) {
     CHECK(api.collision_layer_name(s, 1, NULL, 1, &required) == PIXIE_ERROR_ARGUMENT);
     CHECK(api.collision_layer_name(s, 1, name, sizeof name, NULL) == PIXIE_ERROR_ARGUMENT);
     CHECK(api.collision_layer_name(s, 31, name, 2, &required) == PIXIE_ERROR_BUFFER && required == 17 && name[1] == '\0');
+    /* Light layers: 8 slots, "Default" then "Light layer N" without LightLayers2D (version 19). */
+    CHECK(api.light_layer_name(s, 1, name, sizeof name, &required) == PIXIE_OK && strcmp(name, "Default") == 0);
+    CHECK(api.light_layer_name(s, 8, name, sizeof name, &required) == PIXIE_OK && strcmp(name, "Light layer 8") == 0);
+    CHECK(api.light_layer_name(s, 0, name, sizeof name, &required) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.light_layer_name(s, 9, name, sizeof name, &required) == PIXIE_ERROR_ARGUMENT);
     uint32_t config = 0, entity = 0;
     CHECK(api.entity_create(s, "names", &config) == PIXIE_OK);
     CHECK(api.component_add(s, config, layers) == PIXIE_OK);

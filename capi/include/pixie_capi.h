@@ -34,7 +34,7 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 18
+#define PIXIE_CAPI_VERSION 19
 
 typedef struct PixieSession PixieSession;
 
@@ -48,6 +48,13 @@ typedef struct PixieSession PixieSession;
 #define PIXIE_PHYSICS_DEBUG_SENSORS 16u
 #define PIXIE_PHYSICS_DEBUG_AWAKE 32u
 #define PIXIE_PHYSICS_DEBUG_CONTACTS 64u
+/* Lighting debug in lit scenes (version 19): light bounds and occluder edges drawn over the frame;
+   the light buffer alone or the lights shading each pixel in place of it (overdraw wins over both). */
+#define PIXIE_LIGHTING_DEBUG_ALL 15u
+#define PIXIE_LIGHTING_DEBUG_LIGHTS 1u
+#define PIXIE_LIGHTING_DEBUG_OCCLUDERS 2u
+#define PIXIE_LIGHTING_DEBUG_LIGHT_BUFFER 4u
+#define PIXIE_LIGHTING_DEBUG_OVERDRAW 8u
 
 typedef enum PixieResult {
     PIXIE_OK = 0,
@@ -106,8 +113,9 @@ typedef enum PixieEditorKind {
     PIXIE_EDITOR_CHOICE = 4,
     PIXIE_EDITOR_COLOR = 5,
     PIXIE_EDITOR_ARC = 6, /* an angle and the width around it; PIXIE_TEXT_ARC_SPREAD names the width */
-    PIXIE_EDITOR_LAYER_MASK = 7, /* 31 membership/collision checkboxes, numeric Int storage unchanged */
-    PIXIE_EDITOR_LAYER_NAMES = 8 /* RecordList of CollisionLayer2D values, edited by stable slot */
+    PIXIE_EDITOR_LAYER_MASK = 7, /* checkboxes, one per slot of the names type PIXIE_TEXT_REFERENCES gives
+                                  * (31 for CollisionLayers2D, 8 for LightLayers2D); numeric Int storage */
+    PIXIE_EDITOR_LAYER_NAMES = 8 /* RecordList of CollisionLayer2D or LightLayer2D values, edited by stable slot */
 } PixieEditorKind;
 
 /* PixieFieldInfo.flags */
@@ -200,6 +208,9 @@ PIXIE_API PixieResult pixie_collider_drag_2d(PixieSession* session, uint32_t ent
 PIXIE_API int32_t pixie_api_version(void);
 PIXIE_API PixieResult pixie_physics_debug_get(PixieSession* session, uint32_t* flags);
 PIXIE_API PixieResult pixie_physics_debug_set(PixieSession* session, uint32_t flags);
+/* PIXIE_LIGHTING_DEBUG_* bits; until set, light bounds show in Edit and nothing in Play. */
+PIXIE_API PixieResult pixie_lighting_debug_get(PixieSession* session, uint32_t* flags);
+PIXIE_API PixieResult pixie_lighting_debug_set(PixieSession* session, uint32_t flags);
 /* The last failure on this thread, as text. Returns the full length, which may exceed capacity. */
 PIXIE_API int32_t pixie_last_error(char* buffer, int32_t capacity);
 /* Scene movement and particle-physics diagnostics from the latest sync/update. required includes the null
@@ -209,6 +220,10 @@ PIXIE_API PixieResult pixie_movement_status(PixieSession* session, char* buffer,
 /* Display name of scene filter slot 1..31, including undefined/invalid-slot fallback names.
  * No simulation/backend allocation. required includes NUL; capacity 0 measures. */
 PIXIE_API PixieResult pixie_collision_layer_name(PixieSession* session, int32_t slot,
+    char* buffer, int32_t capacity, int32_t* required);
+/* Display name of light layer slot 1..8 (LightLayers2D, else "Default" for slot 1 and
+ * "Light layer N"). Version 19. required includes NUL; capacity 0 measures. */
+PIXIE_API PixieResult pixie_light_layer_name(PixieSession* session, int32_t slot,
     char* buffer, int32_t capacity, int32_t* required);
 
 /* Session: the game, its World, and its time. Create it with the host's GL context current; the
@@ -407,6 +422,8 @@ PIXIE_API PixieResult pixie_field_enum_name(PixieSession* session, int32_t type,
                                             int32_t value, char* buffer, int32_t capacity);
 PIXIE_API PixieResult pixie_field_get(PixieSession* session, uint32_t entity, int32_t type,
                                       int32_t field, PixieValue* value);
+/* An ENUM field takes a whole x from 0 to pixie_field_enum_count - 1; other values are refused
+ * with PIXIE_ERROR_ARGUMENT and leave it unchanged, here and in pixie_record_set. */
 PIXIE_API PixieResult pixie_field_set(PixieSession* session, uint32_t entity, int32_t type,
                                       int32_t field, const PixieValue* value);
 /* A TEXT field, in UTF-8. pixie_field_get_text writes it into `buffer` with a NUL and sets `length`

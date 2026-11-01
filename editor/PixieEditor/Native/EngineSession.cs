@@ -81,6 +81,12 @@ public sealed unsafe class EngineSession : IDisposable
         set => Check(PixieCapi.PhysicsDebugSet(Handle, value), "set physics debug options");
     }
 
+    public uint LightingDebug
+    {
+        get { Check(PixieCapi.LightingDebugGet(Handle, out var flags), "read lighting debug options"); return flags; }
+        set => Check(PixieCapi.LightingDebugSet(Handle, value), "set lighting debug options");
+    }
+
     public PixieColliderHandles2D? ColliderHandles2D(uint entity, int shape) =>
         Found(PixieCapi.ColliderHandles2D(Handle, entity, shape, out var handles), "read collider handles") ? handles : null;
 
@@ -262,6 +268,15 @@ public sealed unsafe class EngineSession : IDisposable
         var buffer = new byte[required];
         fixed (byte* output = buffer)
             Check(PixieCapi.CollisionLayerName(Handle, slot, output, buffer.Length, out _), "read a collision layer name");
+        return System.Text.Encoding.UTF8.GetString(buffer, 0, required - 1);
+    }
+
+    public unsafe string LightLayerName(int slot)
+    {
+        Check(PixieCapi.LightLayerName(Handle, slot, null, 0, out var required), "measure a light layer name");
+        var buffer = new byte[required];
+        fixed (byte* output = buffer)
+            Check(PixieCapi.LightLayerName(Handle, slot, output, buffer.Length, out _), "read a light layer name");
         return System.Text.Encoding.UTF8.GetString(buffer, 0, required - 1);
     }
 

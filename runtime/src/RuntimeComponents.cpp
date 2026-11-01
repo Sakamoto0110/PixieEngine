@@ -3,6 +3,7 @@
 #include "pixie/runtime/AttractorAffector.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/InteractionAffector.hpp"
+#include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/ParticlePhysics2D.hpp"
@@ -338,6 +339,70 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&PhysicsSettings2D::gravity>("gravity").Tooltip("World gravity in world units/s^2; Y points down. One settings entity per scene.").Scrub(10)
         .Field<&PhysicsSettings2D::unitsPerMeter>("unitsPerMeter").Label("units per meter").Tooltip("World units per physical meter. Change only while editing; default 32.").Range(0.001, 1000000)
         .Field<&PhysicsSettings2D::substeps>("substeps").Tooltip("Solver subdivisions per fixed World step, from 1 to 32.").Range(1, 32);
+    types.Add<LightingSettings2D>("LightingSettings2D")
+        .Singleton()
+        .Field<&LightingSettings2D::ambient>("ambient").Tooltip("Light every receiver gets, whatever its layers. White at intensity 1 with exposure 1 looks as the scene does unlit; lower it for darkness.")
+        .Field<&LightingSettings2D::ambientIntensity>("ambientIntensity").Label("ambient intensity").Tooltip("Linear multiplier of the ambient color.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::toneMapping>("toneMapping", {"None", "Aces"}).Label("tone mapping").Tooltip("None clamps light above 1; Aces rolls bright light off with a filmic curve.")
+        .Field<&LightingSettings2D::maxParticleLights>("maxParticleLights").Label("max particle lights").Tooltip("At most this many particle light splats a frame, over all pools.").Range(0, 65536)
+        .Field<&LightingSettings2D::quality>("quality", {"Low", "Medium", "High"}).Tooltip("The most shadow-casting lights a frame draws: 8, 32 or 64; Low also computes shadows at half resolution. Over the cap, the weakest are left out and counted in telemetry.")
+        .Field<&LightingSettings2D::ambientOcclusion>("ambientOcclusion").Label("ambient occlusion").Tooltip("Darkens the ambient light near the outer side of occluder edges, where floors meet walls and boxes.")
+        .Field<&LightingSettings2D::occlusionRadius>("occlusionRadius").Label("occlusion radius").Tooltip("How far from an occluder edge, in world units, the ambient light is darkened.").Range(0.001, 10000).Scrub(0.5)
+        .Field<&LightingSettings2D::occlusionStrength>("occlusionStrength").Label("occlusion strength").Tooltip("The share of the ambient light removed right at an edge, 0 to 1.").Range(0, 1).Scrub(0.01)
+        .Field<&LightingSettings2D::fog>("fog").Tooltip("Blends the lit image toward a fog color, more toward the bottom of the world.")
+        .Field<&LightingSettings2D::fogColor>("fogColor").Label("fog color").Tooltip("The fog's color.")
+        .Field<&LightingSettings2D::fogDensity>("fogDensity").Label("fog density").Tooltip("How much of the fog color shows at the fog's bottom and below, 0 to 1.").Range(0, 1).Scrub(0.01)
+        .Field<&LightingSettings2D::fogTop>("fogTop").Label("fog top").Tooltip("World y where the fog starts (Y points down).").Scrub(1)
+        .Field<&LightingSettings2D::fogBottom>("fogBottom").Label("fog bottom").Tooltip("World y where the fog reaches its density; below the top.").Scrub(1)
+        .Field<&LightingSettings2D::bloom>("bloom").Tooltip("Spreads light brighter than the threshold into a soft glow.")
+        .Field<&LightingSettings2D::bloomThreshold>("bloomThreshold").Label("bloom threshold").Tooltip("Linear brightness above which light glows; 1 is the brightest an unlit surface shows.").Range(0, 100).Scrub(0.01)
+        .Field<&LightingSettings2D::bloomIntensity>("bloomIntensity").Label("bloom intensity").Tooltip("How strongly the glow is added.").Range(0, 16).Scrub(0.01)
+        .Field<&LightingSettings2D::normalMaps>("normalMaps").Label("normal maps").Tooltip("Shades sprites with a NormalMap2D by their relief.")
+        .Field<&LightingSettings2D::normalHeight>("normalHeight").Label("normal height").Tooltip("How high lights stand above the plane for normal maps, in world units: lower is more raking light.").Range(0.001, 100000).Scrub(1);
+    types.Add<NormalMap2D>("NormalMap2D")
+        .Field<&NormalMap2D::image>("image").Asset("png").Tooltip("The normal map PNG, the sprite's size, relative to the project folder; green points to the image's top.")
+        .Field<&NormalMap2D::strength>("strength").Tooltip("0 ignores the map, 1 applies it fully.").Range(0, 1).Scrub(0.01);
+    types.Add<Emission2D>("Emission2D")
+        .Field<&Emission2D::color>("color").Tooltip("The glow's tint: the sprite's image, or the shape, times this color shows unlit, even in darkness.")
+        .Field<&Emission2D::intensity>("intensity").Tooltip("Linear multiplier from 0 to 16; game code fades it to show a state change.").Range(0, 16).Scrub(0.01);
+    types.Add<ParticleLight2D>("ParticleLight2D")
+        .CanAdd(NeedsParticleSystem)
+        .Field<&ParticleLight2D::emissive>("emissive").Tooltip("Draws the particles unlit, at their own color, so they glow in darkness.")
+        .Field<&ParticleLight2D::illuminates>("illuminates").Tooltip("Each live particle lights its surroundings with an unshadowed light of its color.")
+        .Field<&ParticleLight2D::lightRadius>("lightRadius").Label("light radius").Tooltip("Reach of each particle's light, in world units.").Range(0, 10000).Scrub(0.5)
+        .Field<&ParticleLight2D::lightIntensity>("lightIntensity").Label("light intensity").Tooltip("Linear multiplier of each particle's light.").Range(0, 100).Scrub(0.01)
+        .Field<&ParticleLight2D::lightCap>("lightCap").Label("light cap").Tooltip("At most this many of the pool's particles cast light, the first in the pool's order.").Range(0, 65536);
+    types.Add<Light2D>("Light2D")
+        .Field<&Light2D::type>("type", {"Point", "Spot", "Directional"}).Tooltip("Point shines all around to its range; spot within a cone along the entity's rotation; directional over the whole view.")
+        .Field<&Light2D::color>("color").Tooltip("The light's color.")
+        .Field<&Light2D::intensity>("intensity").Tooltip("Linear multiplier: 1 shows a surface at its own brightness where the light is strongest.").Range(0, 1000).Scrub(0.01)
+        .Field<&Light2D::range>("range").Tooltip("World units; the light falls to exactly 0 there (point and spot).").Range(0, 1000000).Scrub(1)
+        .Field<&Light2D::falloff>("falloff").Tooltip("How fast it fades toward its range: 0 is flat to the edge, 2 smooth, higher tighter.").Range(0, 16).Scrub(0.05)
+        .Field<&Light2D::coneAngle>("coneAngle").Label("cone angle").Tooltip("The spot's full cone, in degrees.").Degrees().Range(0, 360).Scrub(1)
+        .Field<&Light2D::coneSoftness>("coneSoftness").Label("cone softness").Tooltip("The part of the cone, from its edge inward, over which the spot fades in: 0 hard, 1 from the center.").Range(0, 1).Scrub(0.01)
+        .Field<&Light2D::lightLayers>("lightLayers").Label("light layers").Tooltip("The receivers' light layers this light reaches.").Editor(FieldEditor::LayerMask).References("LightLayers2D").Range(0, 255)
+        .Field<&Light2D::enabled>("enabled").Tooltip("Whether the light shines.")
+        .Field<&Light2D::castsShadows>("castsShadows").Label("casts shadows").Tooltip("Whether occluders of its shadow layers cast shadows from it.")
+        .Field<&Light2D::shadowLayers>("shadowLayers").Label("shadow layers").Tooltip("The occluder layers that shadow it.").Editor(FieldEditor::LayerMask).References("LightLayers2D").Range(0, 255)
+        .Field<&Light2D::sourceRadius>("sourceRadius").Label("source radius").Tooltip("The light's size in world units, which sets how soft its shadows are (point and spot); 0 is hard.").Range(0, 10000).Scrub(0.5)
+        .Field<&Light2D::sourceAngle>("sourceAngle").Label("source angle").Tooltip("The directional light's angular radius, in degrees, which sets how soft its shadows are; 0 is hard.").Degrees().Range(0, 45).Scrub(0.05);
+    types.Add<Occluder2D>("Occluder2D")
+        .Field<&Occluder2D::source>("source", {"Collider", "Polygon", "SpriteAlpha"}).Tooltip("Collider casts from the entity's collider or compound shapes, or a character's capsule, so shadows match physics; Polygon from the points below; SpriteAlpha from the outline of the entity's sprite.")
+        .Field<&Occluder2D::polygon>("polygon").Tooltip("A convex polygon in the entity's local units, for the Polygon source.")
+        .Field<&Occluder2D::alphaThreshold>("alphaThreshold").Label("alpha threshold").Tooltip("For SpriteAlpha: the alpha, 0 to 1, from which the image counts as solid.").Range(0, 1).Scrub(0.01)
+        .Field<&Occluder2D::layers>("layers").Tooltip("The light layers it belongs to as an occluder; a light's shadow layers decide whether it blocks that light.").Editor(FieldEditor::LayerMask).References("LightLayers2D").Range(0, 255)
+        .Field<&Occluder2D::selfShadow>("selfShadow").Label("self shadow").Tooltip("Off, its own sprite is lit as if it were not there; on, it shadows its own interior and only a rim on the light's side is lit.")
+        .Field<&Occluder2D::enabled>("enabled").Tooltip("Whether it casts shadows.");
+    types.Add<LightReceiver2D>("LightReceiver2D")
+        .Field<&LightReceiver2D::lightLayers>("lightLayers").Label("light layers").Tooltip("The light layers this sprite, text or shape belongs to; a light reaches it when they share one. Ambient reaches it anyway.").Editor(FieldEditor::LayerMask).References("LightLayers2D").Range(0, 255)
+        .Field<&LightReceiver2D::unlit>("unlit").Tooltip("Shown at its own color, ignoring light, exposure and tone mapping.");
+    types.Add<LightLayer2D>("LightLayer2D").ValueType()
+        .Field<&LightLayer2D::slot>("slot").Range(1, 8).Tooltip("Stable 1-based bit position; never an index into the name list.")
+        .Field<&LightLayer2D::name>("name").Tooltip("Display name only; empty means unnamed. Renaming changes no light, occluder or receiver mask.");
+    types.Add<LightLayers2D>("LightLayers2D").Singleton()
+        .Field<&LightLayers2D::layers>("layers").Label("light layer names")
+        .Editor(FieldEditor::LayerNames).Tooltip("Scene-wide names for 8 fixed light layer slots, used by lights, occluders and receivers.");
     types.Add<CollisionLayer2D>("CollisionLayer2D").ValueType()
         .Field<&CollisionLayer2D::slot>("slot").Range(1, 31).Tooltip("Stable 1-based bit position; never an index into the name list.")
         .Field<&CollisionLayer2D::name>("name").Tooltip("Display name only; empty means unnamed. Renaming does not change collision filters.");

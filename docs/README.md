@@ -42,6 +42,8 @@ owns the authority table: which document owns which kind of fact.
 | [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
 | [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
 | [`lighting-requirements.md`](lighting-requirements.md) | Proposed 2D lights, shadows, emissive surfaces and particles, composition, authoring, budgets and staged acceptance |
+| [`lighting-l0-design.md`](lighting-l0-design.md) | L0 choices for lighting: data model, units, composition order, compatibility and the measured shadow technique; owner review waived on 2026-10-31 |
+| [`lighting-l5-consolidation.md`](lighting-l5-consolidation.md) | L5 for lighting: regression matrix against the acceptance cases, stress report and residual limits; references and the owner's visual review open |
 | [`body-dynamics.md`](body-dynamics.md) | Initial native/scene body dynamics, world gravity, units, lifecycle and remaining delivery gates |
 | [`body-events.md`](body-events.md) | Contact/sensor lifetimes, queries, scene identities and bounded stack/material/fast-body qualification |
 | [`particle-dynamics.md`](particle-dynamics.md) | Native dynamic particles, world gravity, bounded circle-sweep bounce and the playable sparks room |

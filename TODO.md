@@ -48,15 +48,6 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** all child tasks finish with the [qualification matrix](docs/shared-engine-export-validation.md), including project-code, both native presets/configurations, visual comparison, editor/module lifecycle, isolated exports, dependency closure, size measurements, and independently broken copies of all four development-artifact barriers. Qualify each accepted channel command group in memory and one real local IPC session, Inspector write/read/undo and refusal behavior, deterministic capture inputs and snapshot mismatch detection. Reference image updates need owner approval and a stated reason. The local MCP channel works through the agreed Engine/Inspector paths and is absent from publish/remote-release and exported runtime dependency closures. Record remaining LogicSandbox migration breaks without migrating it. No installer, additional export format, push or publication is authorized by this entry. PIXIE-TODO-043 was completed independently on 2026-10-31; this work did not complete physics or its owner acceptance.
 **Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-051--shared-engine-export-and-local-mcp-development)
 
-### `PIXIE-TODO-052` — 2D lighting
-
-**Status:** in-progress
-**Source:** owner promotion on 2026-10-31, after completing PIXIE-TODO-043, with the scope discussed that day: ambient, point, spot and directional lights; occluders with shadows cast by platforms and other geometry; emissive surfaces; particle pools that may glow and light their surroundings; optional normal maps and ambient occlusion.
-**Accepted scope:** [LIT-001 through LIT-019](docs/lighting-requirements.md), delivered through L0–L5. Optional effects (normal maps, ambient occlusion, bloom, fog) stay behind quality settings and must justify themselves in the rooms. Character surface materials, joints, global illumination and per-particle shadows are not in scope.
-**Dependencies and gates:** L0 pins the data model, units, composition order and shadow technique (by measured prototypes, including on Mesa llvmpipe) and gets the owner's review before lighting code beyond those prototypes. Scenes without lighting render pixel-identically. Native engine code never depends on the editor; C API additions raise its version. Reference images need the owner's approval with a stated reason. Physics behavior and its qualification must not regress.
-**Completion criteria:** every LIT requirement is linked to its mechanism and evidence; the acceptance matrix passes in vs2026 and ci, Debug and Release; the four rooms have captures, editor/player parity and the owner's visual and readability review; budgets are recorded for named machines and rooms; unmet requirements remain explicit.
-**Breakdown:** [TASKLIST.md](TASKLIST.md#pixie-todo-052--2d-lighting)
-
 ### `PIXIE-TODO-053` — Inspector fields, options and interactions overhaul
 
 **Status:** promoted (expansion required)
@@ -123,3 +114,4 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-047` | each particle carries its look | 2026-10-26 | [Completion](docs/archive/todo-047-particle-look-2026-10-26.md) |
 | `PIXIE-TODO-048` | lightweight dynamic particles and native contact sparks room | 2026-10-27 | [Completion](docs/archive/todo-048-dynamic-contact-sparks-2026-10-27.md) |
 | `PIXIE-TODO-049` | published Inspector 0.3.0 adoption in the editor | 2026-10-27 | [Completion](docs/archive/todo-049-inspector-030-adoption-2026-10-27.md) |
+| `PIXIE-TODO-052` | 2D lighting: lights, shadows, emission, particle light, authoring, budgets and optional effects | 2026-10-31 | [Completion](docs/archive/todo-052-2d-lighting-2026-10-31.md) |

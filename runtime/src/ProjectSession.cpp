@@ -4,6 +4,7 @@
 
 #include "pixie/render/RenderTarget.hpp"
 #include "pixie/core/Log.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/ParticleStep.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/SceneProject.hpp"
@@ -53,6 +54,7 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
         return false;
     }
     images_.SetFolder(opened.folder);
+    outlines_.SetFolder(opened.folder);
     text_.Destroy();
     fonts_.SetFolder(opened.folder);
     opened_ = std::move(opened);
@@ -71,7 +73,7 @@ std::string_view ProjectSession::ProjectName() const {
 }
 
 bool ProjectSession::Start(FramebufferSize size) {
-    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create()) {
+    if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create() || !lighting_.Create()) {
         return false;
     }
     camera_.SetViewport(size);
@@ -86,6 +88,7 @@ void ProjectSession::Stop() {
     target_.Destroy();
     images_.Destroy();
     text_.Destroy();
+    lighting_.Destroy();
     paths_.Destroy();
     sprites_.Destroy();
     particles_.Destroy();
@@ -115,6 +118,10 @@ void ProjectSession::Build(bool resetCamera) {
     AddParticleStep(*world_);
     InstallSceneMovement2D(*world_);
     SyncSceneMovement2D(*world_);
+    const auto lights = world_->Registry().view<const Light2D>();
+    if (lights.begin() != lights.end() && FindLightingSettings(*world_) == nullptr) {
+        LogWarning(std::format("{}: the scene has lights but no LightingSettings2D, so it is drawn unlit", ProjectName()));
+    }
 }
 
 void ProjectSession::Reset() {
@@ -245,7 +252,13 @@ constexpr double kCullPadding = 32.0;
 
 void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
-    pixie::ClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
+    // Lighting is opt-in: without LightingSettings2D the scene is drawn exactly as before lighting.
+    const LightingSettings2D* lighting = FindLightingSettings(*world_);
+    if (lighting != nullptr) {
+        lighting_.BeginWorld(camera_.Viewport(), background);
+    } else {
+        pixie::ClearColor(background.r / 255.0f, background.g / 255.0f, background.b / 255.0f, 1.0f);
+    }
     if (const auto now = std::chrono::steady_clock::now(); now >= nextImageCheck_) {
         images_.CheckForChanges();
         nextImageCheck_ = now + std::chrono::duration_cast<std::chrono::steady_clock::duration>(
@@ -259,13 +272,80 @@ void ProjectSession::Render(double alpha) {
     SubmitPaths(*world_, paths_, alpha, &view);
     paths_.Flush(camera_.MakeView());
     sprites_.Flush(camera_.MakeView());
-    DrawParticles(*world_, particles_, camera_, alpha);
+    if (lighting != nullptr) {
+        // Emissive pools glow in the emission pass instead of being lit.
+        DrawParticlePools(*world_, particles_, camera_, alpha, false);
+    } else {
+        DrawParticles(*world_, particles_, camera_, alpha);
+    }
     SubmitShapes(*world_, shapes_, alpha, &view);
+    std::size_t sceneLights = 0;
+    if (lighting != nullptr) {
+        Telemetry& telemetry = world_->GetTelemetry();
+        if (lightingMetrics_.world != worldRevision_) {
+            lightingMetrics_ = {telemetry.RegisterTiming("lighting.cpu"), telemetry.RegisterTiming("lighting.gpu.lights"),
+                                telemetry.RegisterTiming("lighting.gpu.shadows"), telemetry.RegisterTiming("lighting.gpu.combine"),
+                                telemetry.RegisterGauge("lighting.lights"), telemetry.RegisterGauge("lighting.shadowed_lights"),
+                                telemetry.RegisterGauge("lighting.shadowed_lights_dropped"),
+                                telemetry.RegisterGauge("lighting.occluder_edges"), telemetry.RegisterGauge("lighting.particle_lights"),
+                                telemetry.RegisterGauge("lighting.particle_lights_dropped"), worldRevision_,
+                                lightingMetrics_.gpuSample};
+        }
+        int shadowedDropped = 0;
+        int particleDropped = 0;
+        {
+            const TelemetryScope cpu(telemetry, lightingMetrics_.cpu);
+            // World shapes are part of the lit image; gizmos and overlays are drawn over it, unlit.
+            shapes_.Flush(camera_.MakeView());
+            if (HasLightReceivers(*world_)) {
+                lighting_.BeginReceivers();
+                DrawLightingPass(alpha, texts, view, LightingPass::Receivers);
+            }
+            if (HasEmission(*world_)) {
+                lighting_.BeginEmission();
+                DrawLightingPass(alpha, texts, view, LightingPass::Emission);
+                particles_.SetEmissionPass(true);
+                DrawParticlePools(*world_, particles_, camera_, alpha, true);
+                particles_.SetEmissionPass(false);
+            }
+            if (lighting->normalMaps && HasNormalMaps(*world_)) {
+                lighting_.BeginNormals();
+                sprites_.SetLightingPass(LightingPass::Normals);
+                SubmitSpriteNormals(*world_, sprites_, images_, alpha, &texts, &view);
+                sprites_.Flush(camera_.MakeView());
+                sprites_.SetLightingPass(LightingPass::Color);
+            }
+            GatherLights(*world_, alpha, &view, lights_);
+            shadowedDropped = CapShadowedLights(lights_, ShadowedLightCap(lighting->quality), view);
+            sceneLights = lights_.size();
+            particleDropped = GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
+            GatherOccluders(*world_, alpha, occluders_, &outlines_);
+            LightingParameters parameters = MakeLightingParameters(*lighting);
+            parameters.view = LightingDebugView(LightingDebug());
+            lighting_.Finish(camera_.MakeView(), parameters, lights_, occluders_);
+        }
+        telemetry.SetGauge(lightingMetrics_.lights, static_cast<double>(lighting_.LastLightCount()));
+        telemetry.SetGauge(lightingMetrics_.shadowed, static_cast<double>(lighting_.LastShadowedCount()));
+        telemetry.SetGauge(lightingMetrics_.shadowedDropped, shadowedDropped);
+        telemetry.SetGauge(lightingMetrics_.edges, static_cast<double>(occluders_.size()));
+        telemetry.SetGauge(lightingMetrics_.particleLights, static_cast<double>(lights_.size() - sceneLights));
+        telemetry.SetGauge(lightingMetrics_.particleDropped, particleDropped);
+        if (const LightingGpuTimes& gpu = lighting_.GpuTimes(); gpu.sample != lightingMetrics_.gpuSample) {
+            lightingMetrics_.gpuSample = gpu.sample;
+            telemetry.RecordTiming(lightingMetrics_.gpuLights, gpu.lights);
+            telemetry.RecordTiming(lightingMetrics_.gpuShadows, gpu.shadows);
+            telemetry.RecordTiming(lightingMetrics_.gpuCombine, gpu.combine);
+        }
+    }
     if (mode_ == SessionMode::Edit) {
         SyncSceneMovement2D(*world_);
         if (!physicsDebugExplicit_) DrawMovementGizmos2D(*world_, shapes_, camera_);
     }
     if (physicsDebugExplicit_) DrawPhysicsDebug2D(*world_, shapes_, camera_, physicsDebug_);
+    if (lighting != nullptr && LightingDebug() != 0) {
+        DrawLightingDebug2D(std::span<const LightInstance>(lights_.data(), sceneLights), occluders_, shapes_, camera_,
+                            LightingDebug());
+    }
     project_->DrawOverlay(*world_, shapes_, camera_);
     shapes_.Flush(camera_.MakeView());
 
@@ -275,6 +355,25 @@ void ProjectSession::Render(double alpha) {
     shapes_.Flush(pixels.MakeView());
     paths_.Flush(pixels.MakeView());
     sprites_.Flush(pixels.MakeView());
+}
+
+void ProjectSession::DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass) {
+    sprites_.SetLightingPass(pass);
+    if (pass == LightingPass::Emission) {
+        SubmitSpriteEmission(*world_, sprites_, images_, alpha, &texts, &view);
+    } else {
+        SubmitSpriteReceivers(*world_, sprites_, images_, alpha, &texts, &view);
+    }
+    sprites_.Flush(camera_.MakeView());
+    sprites_.SetLightingPass(LightingPass::Color);
+    shapes_.SetLightingPass(pass);
+    if (pass == LightingPass::Emission) {
+        SubmitShapeEmission(*world_, shapes_, alpha, &view);
+    } else {
+        SubmitShapeReceivers(*world_, shapes_, alpha, &view);
+    }
+    shapes_.Flush(camera_.MakeView());
+    shapes_.SetLightingPass(LightingPass::Color);
 }
 
 unsigned ProjectSession::RenderToTarget() {
