@@ -158,8 +158,8 @@ Third-party code lives unmodified under `external/<name>/`, built by
 On the owner's machine, this repository lives inside a Void Agent Workplace
 checkout, in its Pixie family of managed projects (`projects/Pixie/`, beside
 PixieInspector and PixieLib), and is bound to the VAW profile `pixieengine`,
-revision 2. The checkout is on the local branch `codex/pixie-workplace`
-(commit `05b04c2`, VAW 0.3.0.0), whose `profiles/pixieengine/` holds the
+revision 3. The checkout is on the local branch `codex/pixie-workplace`
+(commit `bb1c8b3`, VAW 0.3.0.0), whose `profiles/pixieengine/` holds the
 profile. The binding is in an explicit registry for the Pixie family,
 `.local\bindings\pixie.json` in the VAW checkout, passed with `-BindingsPath`
 on every command: agents have seen different copies of the default AppData
@@ -170,7 +170,10 @@ area to the documents that own it, and lists the full matrix as its
 validation. Nothing in this repository depends on it: a machine without it
 builds, checks, and commits as before.
 
-Revision 2 adopts, besides binding and skill discovery: workflow records with
+The three Pixie profiles (`pixieengine`, `pixieinspector`, `pixielib`) share one
+revision number and are revised together, even when only one of them changes.
+
+The profile adopts, besides binding and skill discovery: workflow records with
 planned-pause checkpoints that another agent can verify and resume, scoped
 premises (to skip re-reviewing validated code that has not changed), repository
 state in those records, multi-agent validation and documentation records,
