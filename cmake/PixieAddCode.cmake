@@ -44,7 +44,27 @@ string(REPLACE "\\" "\\\\" PIXIE_NAME_LITERAL "${PIXIE_NAME}")
 string(REPLACE "\"" "\\\"" PIXIE_NAME_LITERAL "${PIXIE_NAME_LITERAL}")
 
 set(templates "${CMAKE_CURRENT_LIST_DIR}/../templates/project-code")
+
+# Preflight every destination before the first write. Existing source is never overwritten.
+set(destinations CMakeLists.txt src/${PIXIE_ID}Project.hpp src/${PIXIE_ID}Project.cpp
+    src/PixieComponents.generated.hpp src/PixieComponents.generated.cpp
+    .pixie-code/Components.cmake .pixie-code/manifest.json)
+foreach(destination IN LISTS destinations)
+    if(EXISTS "${PIXIE_PROJECT_DIR}/${destination}" OR IS_SYMLINK "${PIXIE_PROJECT_DIR}/${destination}")
+        message(FATAL_ERROR "Refusing to overwrite existing project code: ${destination}")
+    endif()
+endforeach()
+foreach(directory src .pixie-code)
+    if(EXISTS "${PIXIE_PROJECT_DIR}/${directory}" AND NOT IS_DIRECTORY "${PIXIE_PROJECT_DIR}/${directory}")
+        message(FATAL_ERROR "A generated code directory is an existing file: ${directory}")
+    endif()
+    if(IS_SYMLINK "${PIXIE_PROJECT_DIR}/${directory}")
+        message(FATAL_ERROR "Generated code cannot be written through a linked directory: ${directory}")
+    endif()
+endforeach()
 configure_file("${templates}/CMakeLists.txt.in" "${PIXIE_PROJECT_DIR}/CMakeLists.txt" @ONLY)
 configure_file("${templates}/Project.hpp.in" "${PIXIE_PROJECT_DIR}/src/${PIXIE_ID}Project.hpp" @ONLY)
 configure_file("${templates}/Project.cpp.in" "${PIXIE_PROJECT_DIR}/src/${PIXIE_ID}Project.cpp" @ONLY)
-message(STATUS "Added code to ${PIXIE_NAME}: CMakeLists.txt, src/${PIXIE_ID}Project.hpp, src/${PIXIE_ID}Project.cpp")
+include("${CMAKE_CURRENT_LIST_DIR}/PixieComponentRegistry.cmake")
+pixie_initialize_component_registry("${PIXIE_PROJECT_DIR}" "${PIXIE_ID}")
+message(STATUS "Added project code, explicit component registry and CMake wiring to ${PIXIE_NAME}.")

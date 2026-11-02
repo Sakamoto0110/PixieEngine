@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (19), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (20), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -83,6 +83,8 @@ configuration-specific evidence and pending delivery gates.
   (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`: light bounds, occluder edges,
   and the light buffer and overdraw views); a
   host checks the version and does not load a library of another one.
+  Version20 adds structured ordered input and explicit type-source metadata,
+  along with the changed C++ Behaviour/descriptor/input ABI; rebuild modules and players.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
@@ -259,6 +261,17 @@ returns `PIXIE_ERROR_IO`, with the reason (a missing file, not a PNG) in `pixie_
 needs the session's GL context, as rendering does.
 
 ## Input
+
+`pixie_input_event` accepts the version20 PixieInputEvent layout: kind0 key,
+1 button,2 cursor,3 scroll,4 cancellation; action0 release,1 press,2 key repeat,
+plus scan_code/modifiers and x/y. Invalid kinds/actions/modifiers or nonfinite
+cursor/scroll coordinates are refused before mutation. Existing bool input
+functions remain compatible state-transition shims. The [input guide](../../entity-input-and-code-components.md#device-contract)
+owns ordering, fixed-step, cancellation, polling and entity filtering semantics.
+
+`pixie_type_source` measures/copies the descriptor's explicit project-relative
+user implementation path; empty means no user-code association. It never
+searches the filesystem or derives a filename from a type name.
 
 Input arrives as events, in view pixels with the origin at the top-left: `pixie_input_cursor`,
 `pixie_input_mouse_button`, `pixie_input_key`, and `pixie_input_scroll`. Key and button codes are

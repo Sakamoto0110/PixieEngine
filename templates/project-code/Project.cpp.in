@@ -1,4 +1,5 @@
 #include "@PIXIE_ID@Project.hpp"
+#include "PixieComponents.generated.hpp"
 
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -7,7 +8,8 @@
 #include <memory>
 
 void @PIXIE_ID@Project::Describe(pixie::ComponentTypes& types) const {
-    types.Add<Spinner>("Spinner")
+    pixie::generated::DescribeComponents(types);
+    types.Add<Spinner>("Spinner").Source("src/@PIXIE_ID@Project.cpp")
         .Field<&Spinner::speed>("speed")
         .Tooltip("How fast the entity turns; negative turns the other way.")
         .Degrees("°/s")

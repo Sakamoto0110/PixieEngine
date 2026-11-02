@@ -23,6 +23,7 @@ function(pixie_game name)
     endif()
 
     add_library(${name}-game STATIC ${GAME_SOURCES})
+    set_property(DIRECTORY APPEND PROPERTY PIXIE_GAME_CODE_TARGETS ${name}-game)
     target_include_directories(${name}-game PUBLIC ${GAME_INCLUDE_DIRS})
     target_link_libraries(${name}-game PUBLIC Pixie::Runtime)
     pixie_target_defaults(${name}-game)

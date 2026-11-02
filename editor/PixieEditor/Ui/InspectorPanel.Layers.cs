@@ -26,6 +26,9 @@ internal sealed partial class InspectorPanel
                 _ => $"{selected.Length} layers"
             };
             ImGui.PushID(field);
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            var editLocked = DrawCustomEditControls(type, field, handles[0].Record);
+#endif
             if (ImGui.TreeNodeEx($"{label}: {summary}##filter", ImGuiTreeNodeFlags.DefaultOpen))
             {
                 if (ImGui.IsItemHovered()) ImGui.SetTooltip(session.FieldText(type, field, PixieFieldText.Tooltip));
@@ -39,7 +42,11 @@ internal sealed partial class InspectorPanel
                         var mixed = !active && values.Any(v => (v & bit) != 0);
                         // Keep the last membership bit: zero membership is invalid natively.
                         var lastMembership = info.RangeMin > 0 && active && values.Any(v => v == bit);
-                        ImGui.BeginDisabled(info.Flags.HasFlag(PixieFieldFlags.ReadOnly) || lastMembership);
+                        ImGui.BeginDisabled(info.Flags.HasFlag(PixieFieldFlags.ReadOnly) || lastMembership
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+                            || editLocked
+#endif
+                        );
                         if (ImGui.Checkbox($"{slot}: {scheme.Name(session, slot)}{(mixed ? " (mixed)" : "")}##{slot}", ref active))
                             WriteLayerBit(handles, field, slot, active);
                         ImGui.EndDisabled();

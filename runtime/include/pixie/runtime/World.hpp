@@ -6,6 +6,7 @@
 #include "pixie/platform/Input.hpp"
 #include "pixie/core/Telemetry.hpp"
 #include "pixie/runtime/Behaviour.hpp"
+#include "pixie/runtime/InputControl.hpp"
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"
 
@@ -16,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <type_traits>
 #include <vector>
 
 namespace pixie {
@@ -129,6 +131,7 @@ private:
     std::uint64_t steps_ = 0;
     double elapsed_ = 0.0;
     bool stepping_ = false;
+    bool advancing_ = false;
 };
 
 // --- Templates of World ---------------------------------------------------------------------------
@@ -151,6 +154,25 @@ void World::UpdateAll(World& world, const FrameTime& time, const Input& input) {
         if (!behaviour.started_) {
             behaviour.started_ = true;
             behaviour.Start();
+        }
+        const auto* keys = world.registry_.try_get<KeyboardControl>(id);
+        const auto* mouse = world.registry_.try_get<MouseControl>(id);
+        if ((keys && keys->enabled) || (mouse && mouse->enabled)) {
+            for (const auto& event : input.Events()) {
+                std::visit([&](const auto& args) {
+                    using Event = std::decay_t<decltype(args)>;
+                    if constexpr (std::is_same_v<Event, KeyEvent>) {
+                        const auto* control = world.registry_.try_get<KeyboardControl>(id);
+                        if (control && control->enabled) behaviour.OnKey(args, input);
+                    } else {
+                        const auto* control = world.registry_.try_get<MouseControl>(id);
+                        if (!control || !control->enabled) return;
+                        if constexpr (std::is_same_v<Event, MouseButtonEvent>) behaviour.OnMouseButton(args, input);
+                        else if constexpr (std::is_same_v<Event, MouseMoveEvent>) behaviour.OnMouseMove(args, input);
+                        else if constexpr (std::is_same_v<Event, MouseScrollEvent>) behaviour.OnMouseScroll(args, input);
+                    }
+                }, event);
+            }
         }
         behaviour.Update(time, input);
     }

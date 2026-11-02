@@ -1,4 +1,5 @@
 #include "pixie/runtime/SceneMovement2D.hpp"
+#include "pixie/runtime/LegacyKeyboardControl2D.hpp"
 #include "pixie/runtime/World.hpp"
 #include "pixie/core/Log.hpp"
 #include <algorithm>
@@ -229,9 +230,9 @@ void MoveCharacters(World& world, const FrameTime& time, const Input& input) {
             double horizontal = command ? command->horizontal : 0;
             bool jump = command && command->jumpPressed;
             if (const auto* keyboard = world.Registry().try_get<KeyboardControl2D>(id); keyboard && keyboard->enabled) {
-                horizontal += (input.IsDown(Key::D) || input.IsDown(Key::Right) ? 1.0 : 0.0)
-                            - (input.IsDown(Key::A) || input.IsDown(Key::Left) ? 1.0 : 0.0);
-                jump = jump || input.WasPressed(Key::Space);
+                const auto legacy = LegacyKeyboardCommand(*keyboard, input);
+                horizontal += legacy.horizontal;
+                jump = jump || legacy.jumpPressed;
             }
             const auto& motor = world.Registry().get<CharacterMotor2D>(id);
             try {

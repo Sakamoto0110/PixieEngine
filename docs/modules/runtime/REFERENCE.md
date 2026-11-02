@@ -48,7 +48,8 @@ All under `runtime/include/pixie/runtime/`:
 |---|---|
 | `World.hpp` | `World`, `SystemPhase`, `System`, and the template members of `Entity` |
 | `Entity.hpp` | `Entity`, a handle (World pointer and EnTT entity) |
-| `Behaviour.hpp` | `Behaviour`, the base of logic classes |
+| `Behaviour.hpp` | `Behaviour`, the base of logic classes with optional generic device callbacks |
+| `InputControl.hpp` | Entity KeyboardControl/MouseControl with enabled-aware queries and callback opt-in |
 | `Random.hpp` | `Random`, the seeded generator |
 | `Transform2D.hpp` | `Transform2D` and `PreviousTransform2D` |
 | `Velocity2D.hpp` | `Velocity2D` |
@@ -110,8 +111,8 @@ paused one, keep separate clocks.
 
 ## Behaviours
 
-- A Behaviour derives from `Behaviour` and overrides any of `Start`, `Update(time, input)`, and
-  `Stop`. `Self()` is its entity; `GetWorld()` its World.
+- A Behaviour derives from `Behaviour` and overrides any of `Start`, `Update(time, input)`,
+  `Stop`, and the optional device callbacks in the [entity input contract](../../entity-input-and-code-components.md#device-contract). `Self()` is its entity; `GetWorld()` its World.
 - `Entity::AddBehaviour<T>(args...)` constructs it in place, replacing a `T` already there.
   (`Entity::Add<T>` returns the component, or nothing for an empty tag type, which EnTT stores
   without instances.)
@@ -374,6 +375,10 @@ state. A tool offers to rebuild the scene after editing one.
 `Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity and draw style), `ParticleAttraction`, `ParticleInteraction`, and
 `ParticleSpawner`. The C API and scenes read and
 write fields only through these descriptors.
+
+`ComponentBuilder::Source(projectRelativeCppPath)` declares user implementation provenance;
+engine-owned types have no source association. See [component authoring](../../entity-input-and-code-components.md#create-and-edit-a-component)
+for registry ownership, preserving generation and Open code.
 
 A Behaviour can be described like any component (`types.Add<Spinner>("Spinner").Field<...>`); it is
 then saved in scenes and added back as a Behaviour.
@@ -918,7 +923,7 @@ the same collision world, as described below.
 ## Authored scene movement
 
 [SceneMovement2D.hpp](../../../runtime/include/pixie/runtime/SceneMovement2D.hpp)
-owns Collider2D, CharacterMotor2D, KeyboardControl2D and the optional runtime-only
+owns Collider2D, CharacterMotor2D, the explicit legacy KeyboardControl2D adapter and the optional runtime-only
 CharacterCommand2D. ProjectSession installs the native scene service after Build;
 Edit synchronizes without advancing time and displays reusable gizmos. Play
 steps motors, and Stop/reload reconstructs their transient state from authored
@@ -1017,3 +1022,10 @@ MoveDynamicParticles2D API retains throwing validation. A corrected next tick
 clears the diagnostic. World::Step always restores IsStepping on an exception;
 it does not roll back earlier work or complete a failed tick. Deferred actions
 are retained for a later successful finish. General systems may still throw.
+
+## Generic entity input and C++ authoring
+
+The [entity input and code guide](../../entity-input-and-code-components.md) owns
+the generic device/callback contract, old KeyboardControl2D compatibility, API20
+module rebuild requirements, generated registry and preserving editor workflow.
+These features do not introduce action maps or physical movement rules.

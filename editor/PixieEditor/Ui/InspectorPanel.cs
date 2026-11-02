@@ -29,12 +29,32 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
     // Set by a scenario's button; the editor rebuilds the scene at the start of the next frame, not
     // while an inspector is drawing.
     public bool RebuildRequested { get; set; }
+    private CodeReopen.Request? CreatedCodeComponent;
+    internal CodeReopen.Request? TakeCreatedCodeComponent()
+    {
+        var request = CreatedCodeComponent; CreatedCodeComponent = null; return request;
+    }
+    private string NewCodeName = "";
+    private string? CodeProblem;
+
+    internal bool CreateCodeComponent(string name)
+    {
+        if (session.ProjectFolder == null || !session.Editing || Entities.Length == 0)
+            throw new EngineException("Select scene entities in Edit mode in an open project before creating a code component.");
+        if (session.TypeIndex(name) >= 0) throw new EngineException("A registered component already has this name. Add its existing type instead.");
+        var targets = Entities.Select(session.SceneId).ToArray();
+        if (targets.Any(id => id == null)) throw new EngineException("Code components can only be carried across rebuilds for persistent scene entities.");
+        var source = ProjectCode.CreateComponent(session.ProjectFolder, name);
+        CreatedCodeComponent = new(name, source, targets.OfType<ulong>().ToArray());
+        return true;
+    }
 
     private sealed record TextField(int Field, string Name, string Label, string Tooltip, string Asset, PixieFieldKind Kind);
 
     private sealed record Section(int Type, string Name, Inspector Inspector, ImGuiInspectorView View, TextField[] Texts);
 
     private readonly List<Section> Sections = [];
+    private long BoundRevision = -1;
     private uint[] Entities = [];
     private int[] Types = [];
     // The name being typed in the name field, while it has the keyboard.
@@ -50,11 +70,14 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         var types = selected.Count == 0
             ? []
             : Enumerable.Range(0, session.TypeCount).Where(t => selected.All(id => session.Has(id, t))).ToArray();
-        if (!selected.SequenceEqual(Entities) || !types.SequenceEqual(Types))
+        if (BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types))
             Rebuild([.. selected], types);
 
         if (ImGui.Begin("Inspector"))
         {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            if (InteractionProblem != null) ImGui.TextColored(ProblemColor, InteractionProblem);
+#endif
             if (Entities.Length == 0)
             {
                 ImGui.TextDisabled("Choose an entity.");
@@ -77,6 +100,12 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                     var keep = true;
                     if (ImGui.CollapsingHeader(section.Name, ref keep, ImGuiTreeNodeFlags.DefaultOpen))
                     {
+                        var source = session.ComponentSource(section.Type);
+                        if (session.ProjectFolder != null && source.Length > 0 && ImGui.SmallButton("Open code"))
+                        {
+                            try { if (CodeEditor.Open(session.ProjectFolder, source) is { } notice) Status.Show(notice, error: true); }
+                            catch (EngineException error) { Status.Show(error.Message, error: true); }
+                        }
                         foreach (var text in section.Texts)
                         {
                             if (text.Kind == PixieFieldKind.RecordList)
@@ -133,7 +162,7 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                 continue;
             var reason = authoring.AdditionError(Entities, type);
             ImGui.BeginDisabled(reason != null);
-            if (ImGui.Selectable(session.TypeName(type)))
+            if (ImGui.Selectable(session.TypeName(type) == "KeyboardControl2D" ? "KeyboardControl2D (legacy)" : session.TypeName(type)))
             {
                 var chosen = type;
                 authoring.AddComponent(Entities, chosen);
@@ -143,6 +172,32 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                 ImGui.SetTooltip(reason);
         }
 
+        if (session.ProjectFolder != null)
+        {
+            ImGui.Separator();
+            ImGui.TextUnformatted("Create a C++ component");
+            ImGui.SetNextItemWidth(230);
+            ImGui.InputText("Name##code-component", ref NewCodeName, 128);
+            ImGui.BeginDisabled(!session.Editing || !ProjectCode.ValidName(NewCodeName) || session.TypeIndex(NewCodeName) >= 0);
+            if (ImGui.Button("Create component and rebuild"))
+            {
+                try
+                {
+                    recorder.Close();
+                    CreateCodeComponent(NewCodeName);
+                    CodeProblem = null;
+                    ImGui.CloseCurrentPopup();
+                }
+                catch (Exception error) when (error is EngineException or IOException or UnauthorizedAccessException or System.Text.Json.JsonException)
+                { CodeProblem = error.Message; }
+            }
+            ImGui.EndDisabled();
+            if (CodeProblem != null)
+            {
+                ImGui.PushTextWrapPos(0); ImGui.TextUnformatted(CodeProblem); ImGui.PopTextWrapPos();
+            }
+            ImGui.TextDisabled("Writes reusable C++ code, then rebuilds and reopens this project.");
+        }
         ImGui.EndPopup();
     }
 
@@ -173,6 +228,10 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         if (!Typing.TryGetValue(key, out var text))
             text = mixed ? "" : values[0];
 
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        var editLocked = DrawCustomEditControls(type, field.Field);
+        ImGui.BeginDisabled(editLocked);
+#endif
         ImGui.TextUnformatted(mixed ? $"{field.Label} (mixed)" : field.Label);
         if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(field.Tooltip);
@@ -183,7 +242,11 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
             Typing[key] = text;
         else
             Typing.Remove(key);
-        if (ImGui.IsItemDeactivatedAfterEdit())
+        if (ImGui.IsItemDeactivatedAfterEdit()
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            && !editLocked
+#endif
+        )
             authoring.SetText(Entities, type, field.Field, text.Trim());
         if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(field.Tooltip);
@@ -213,6 +276,9 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                 ImGui.TextColored(ProblemColor, $"{values[0]}: the file does not exist");
         }
 
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ImGui.EndDisabled();
+#endif
         ImGui.Spacing();
         ImGui.PopID();
     }
@@ -224,12 +290,19 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         ImGui.PushID(field.Field);
         var lists = Entities.Select(e => session.GetPoints(e, type, field.Field)).ToArray();
         var mixed = lists.Skip(1).Any(l => !l.SequenceEqual(lists[0]));
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        var editLocked = DrawCustomEditControls(type, field.Field);
+        ImGui.BeginDisabled(editLocked);
+#endif
         ImGui.TextUnformatted(mixed ? $"{field.Label} (mixed)" : $"{field.Label} ({lists[0].Length})");
         if (field.Tooltip.Length > 0 && ImGui.IsItemHovered())
             ImGui.SetTooltip(field.Tooltip);
         if (mixed)
         {
             ImGui.TextDisabled("The selected entities differ; select one to edit its points.");
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            ImGui.EndDisabled();
+#endif
             ImGui.PopID();
             return;
         }
@@ -248,7 +321,11 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                 PointTyping[key] = value;
             else
                 PointTyping.Remove(key);
-            if (ImGui.IsItemDeactivatedAfterEdit())
+            if (ImGui.IsItemDeactivatedAfterEdit()
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            && !editLocked
+#endif
+        )
             {
                 var changed = points.ToArray();
                 changed[i] = (value.X, value.Y);
@@ -267,6 +344,9 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
             authoring.AddPoint(Entities, type, field.Field);
         if (remove is { } index)
             authoring.RemovePoint(Entities, type, field.Field, index);
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ImGui.EndDisabled();
+#endif
         ImGui.Spacing();
         ImGui.PopID();
     }
@@ -396,6 +476,7 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         LayerTyping.Clear();
         Entities = entities;
         Types = types;
+        BoundRevision = session.BindingRevision;
         foreach (var type in types)
         {
             var handles = entities.Select(id => new ComponentHandle(session, id, type, recorder)).ToArray();
@@ -406,15 +487,28 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                 .Select(f => new TextField(f.Field, session.FieldName(type, f.Field), session.FieldText(type, f.Field, PixieFieldText.Label),
                     session.FieldText(type, f.Field, PixieFieldText.Tooltip), session.FieldText(type, f.Field, PixieFieldText.Asset), f.Kind))
                 .ToArray();
-            Sections.Add(new Section(type, session.TypeName(type), inspector, inspector.CreateImGuiView(), texts));
+            var view = inspector.CreateImGuiView();
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            ConfigureInteraction(view);
+#endif
+            Sections.Add(new Section(type, session.TypeName(type), inspector, view, texts));
         }
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ConfigureDimensionChains();
+#endif
     }
 
     private void Release()
     {
         ReleaseRecords();
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ReleaseCustomEditControls();
+#endif
         foreach (var section in Sections)
         {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            section.View.EndInteraction(abandon: true);
+#endif
             section.View.Dispose();
             section.Inspector.Dispose();
         }
@@ -422,5 +516,11 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
         Sections.Clear();
     }
 
-    public void Dispose() => Release();
+    public void Dispose()
+    {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        if (InteractionSubscribed) session.BindingsReplacing -= BeforeBindingsReplace;
+#endif
+        Release();
+    }
 }

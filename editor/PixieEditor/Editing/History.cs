@@ -113,10 +113,54 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
     private readonly Dictionary<(uint Entity, int Type, int Field), (ulong Id, PixieValue Before, PixieValue After)> Open = [];
     private readonly Dictionary<uint, (ulong Id, string Before)> Records = [];
 
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+    private bool Grouping;
+    private readonly Dictionary<uint, (ulong Id, string Before)> RecordStarts = [];
+
+    public void BeginInteraction(IReadOnlyList<uint> recordEntities)
+    {
+        Close();
+        if (recording())
+            foreach (var entity in recordEntities.Distinct())
+                if (session.SceneId(entity) is { } id)
+                    RecordStarts[entity] = (id, session.Snapshot([entity]));
+        Grouping = true;
+    }
+
+    private void CloseInteraction()
+    {
+        var records = new List<IStep>();
+        foreach (var (entity, change) in Records)
+        {
+            if (!session.IsAlive(entity)) continue;
+            var after = session.Snapshot([entity]);
+            if (change.Before != after)
+                records.Add(new ReplaceStep("edit of shape properties", [change.Id], change.Before, after));
+        }
+        var changes = Open.Where(c => !Same(c.Value.Before, c.Value.After))
+            .Select(c => new FieldStep.Change(c.Value.Id, c.Key.Type, c.Key.Field, c.Value.Before, c.Value.After)).ToArray();
+        var steps = new List<IStep>();
+        if (changes.Length > 0) steps.Add(new FieldStep("edit of field properties", changes));
+        // Redo fields before records, undo in reverse: restoring a record replaces its entity.
+        // Record snapshots start before the entire gesture, including preceding Shape writes.
+        steps.AddRange(records);
+        if (steps.Count > 0)
+            history.Record(steps.Count == 1 ? steps[0] : new GroupStep("edit of chained properties", steps));
+        Grouping = false;
+        RecordStarts.Clear(); Records.Clear(); Open.Clear();
+    }
+#endif
+
     public void WriteRecord(uint entity, RecordAddress address, int field, PixieValue value)
     {
         if (!Records.ContainsKey(entity) && recording() && session.SceneId(entity) is { } id)
+        {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            Records[entity] = RecordStarts.TryGetValue(entity, out var start) ? start : (id, session.Snapshot([entity]));
+#else
             Records[entity] = (id, session.Snapshot([entity]));
+#endif
+        }
         session.SetRecord(entity, address.OwnerType, address.List, address.Index, field, value);
     }
 
@@ -147,6 +191,9 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void Close()
     {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        if (Grouping) { CloseInteraction(); return; }
+#endif
         foreach (var (entity, change) in Records)
         {
             if (!session.IsAlive(entity)) continue;

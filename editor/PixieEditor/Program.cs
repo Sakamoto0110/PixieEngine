@@ -11,6 +11,7 @@ internal sealed record EditorOptions
     // screen.
     public string? Game { get; init; }
     public string? Project { get; init; }
+    public string? ResumeCode { get; init; }
     public ulong Seed { get; init; } = 1;
     // The entity, by name, selected at the start.
     public string? Select { get; init; }
@@ -122,6 +123,9 @@ internal static class Program
                 case "--seed" when ulong.TryParse(value, CultureInfo.InvariantCulture, out var seed):
                     options = options with { Seed = seed };
                     break;
+                case "--resume-code":
+                    options = options with { ResumeCode = value };
+                    break;
                 case "--select":
                     options = options with { Select = value };
                     break;
@@ -177,6 +181,7 @@ internal static class Program
             }
         }
 
+        if (options.ResumeCode != null && options.Project == null) return false;
 #if PIXIE_DEVELOPMENT
         if (options.QuitAfterSteps.HasValue && options.Game == null && options.Project == null)
             return false;

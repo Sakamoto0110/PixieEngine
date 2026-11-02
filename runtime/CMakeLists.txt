@@ -5,6 +5,7 @@ add_library(pixie_runtime OBJECT
     src/CollisionWorld2D.cpp
     src/CharacterController2D.cpp
     src/SceneMovement2D.cpp
+    src/LegacyKeyboardControl2D.cpp
     src/MovementGizmos2D.cpp
     src/ColliderEditing2D.cpp
     src/PhysicsDebug2D.cpp

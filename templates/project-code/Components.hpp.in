@@ -1,0 +1,4 @@
+#pragma once
+namespace pixie { class ComponentTypes; namespace generated {
+void DescribeComponents(ComponentTypes& types);
+} }

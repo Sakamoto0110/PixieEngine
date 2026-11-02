@@ -64,6 +64,13 @@ Confirmed consumer needs and proposed acceptance scenarios are separated in the
 
 ### Promoted work
 
+The 2026-11-02 owner decision prioritizes a coherent C++ authoring/editing loop:
+usable Behaviour code and input, predictable viewport interaction, then reviewed
+fields/presets and editor composition. World/Scene backend work keeps its separate
+contract and acceptance; later diagnostics/resources do not block the core loop.
+[PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation)
+owns that front's accepted scope and ordered blocks, rather than this summary.
+
 [TODO.md](TODO.md#current-promoted-work) owns the current execution queue,
 scope and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
 Neither a roadmap direction nor a requirement schedules implementation.

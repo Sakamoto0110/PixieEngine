@@ -260,7 +260,7 @@ PixieResult pixie_module_load(const char* path) {
         const auto version = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_api_version"));
         module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
         if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
-            return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible");
+            return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible; rebuild the project with this engine before opening it");
         loadedModule = std::move(module);
         return PIXIE_OK;
     });
@@ -562,6 +562,31 @@ PixieResult pixie_session_stats(PixieSession* s, PixieStats* stats) {
         stats->entities = static_cast<int32_t>(world.EntityCount());
         stats->paused = s->session.IsPaused() ? 1 : 0;
         stats->timeScale = s->session.TimeScale();
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_input_event(PixieSession* s, const PixieInputEvent* event) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!event || event->kind < 0 || event->kind > 4 || (event->modifiers & ~63u) != 0)
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid input event kind or modifiers");
+    if (event->kind == 0 && (event->code < 0 || event->code >= pixie::Input::kKeyCount || event->action < 0 || event->action > 2))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid key event");
+    if (event->kind == 1 && (event->code < 0 || event->code >= pixie::Input::kButtonCount || event->action < 0 || event->action > 1))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid mouse button event");
+    if ((event->kind == 2 || event->kind == 3) && (!std::isfinite(event->x) || !std::isfinite(event->y)))
+        return Fail(PIXIE_ERROR_ARGUMENT, "input coordinates must be finite");
+    return Guard([&] {
+        auto& input = s->session.GetInput();
+        const auto action = static_cast<pixie::InputAction>(event->action);
+        const auto modifiers = static_cast<pixie::InputModifiers>(event->modifiers);
+        switch (event->kind) {
+        case 0: input.SetKey(event->code, action, modifiers, event->scan_code); break;
+        case 1: input.SetMouseButton(event->code, action, modifiers); break;
+        case 2: input.SetCursor(pxPoint(event->x, event->y), modifiers); break;
+        case 3: input.AddScroll(pxVec2(event->x, event->y), modifiers); break;
+        case 4: input.ReleaseAll(); break;
+        }
         return PIXIE_OK;
     });
 }
@@ -994,6 +1019,14 @@ PixieResult pixie_type_find(PixieSession* s, const char* name, int32_t* type) {
     }
     *type = index;
     return PIXIE_OK;
+}
+
+PixieResult pixie_type_source(PixieSession* s, int32_t type, char* buffer, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    const auto* descriptor = TypeAt(s, type);
+    if (!descriptor || !length) return Fail(PIXIE_ERROR_ARGUMENT, "invalid component type or source length output");
+    *length = static_cast<int32_t>(descriptor->source.size()) + 1;
+    return capacity == 0 ? PIXIE_OK : Copy(descriptor->source, buffer, capacity);
 }
 
 uint32_t pixie_type_flags(PixieSession* s, int32_t type) {

@@ -21,8 +21,9 @@ internal sealed partial class InspectorPanel
     {
         var types = selected.Count == 0 ? [] : Enumerable.Range(0, session.TypeCount)
             .Where(t => selected.All(id => session.Has(id, t))).ToArray();
-        if (!selected.SequenceEqual(Entities) || !types.SequenceEqual(Types)) Rebuild([.. selected], types);
-        if (epoch != ChannelEpoch) ReleaseRecords();
+        var rebuilt = BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types);
+        if (rebuilt) Rebuild([.. selected], types);
+        if (!rebuilt && epoch != ChannelEpoch) ReleaseRecords();
         var instances = Sections.Select(s => s.Inspector).Concat(RecordSections.Values.Select(s => s.Inspector)).ToArray();
         if (!instances.SequenceEqual(ChannelInstances) || !selected.SequenceEqual(ChannelEntities) || epoch != ChannelEpoch)
         {

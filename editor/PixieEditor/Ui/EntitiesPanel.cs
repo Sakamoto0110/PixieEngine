@@ -16,27 +16,27 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection, 
     {
         if (ImGui.Begin("Entities"))
         {
-            if (ImGui.Button("Create entity"))
-                authoring.CreateEntity();
             var entities = session.Entities();
-            ImGui.SameLine();
-            ImGui.TextUnformatted(selection.Items.Count > 1
-                ? $"{entities.Length} entities, {selection.Items.Count} selected"
-                : $"{entities.Length} entities");
-            if (session.TypeIndex("Collider2D") >= 0)
+            if (ImGui.Button("+ Create")) ImGui.OpenPopup("entity-presets");
+            if (ImGui.BeginPopup("entity-presets"))
             {
-                if (ImGui.SmallButton("Collider")) authoring.CreateMovementEntity(false);
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Character")) authoring.CreateMovementEntity(true);
-                ImGui.SameLine();
-                if (ImGui.SmallButton("Physics...")) ImGui.OpenPopup("physics-presets");
-                if (ImGui.BeginPopup("physics-presets"))
+                ImGui.TextDisabled("CREATE ENTITY");
+                if (ImGui.MenuItem("Basic shape")) authoring.CreateEntity();
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("A visible circle with a transform, ready to select and edit.");
+                if (session.TypeIndex("Collider2D") >= 0)
                 {
+                    ImGui.Separator(); ImGui.TextDisabled("PHYSICS PRESETS");
                     foreach (var (kind, label) in Authoring.PhysicsPresets)
+                    {
+                        if (kind == PhysicsPreset.World) { ImGui.Separator(); ImGui.TextDisabled("SETTINGS"); }
                         if (ImGui.MenuItem(label)) authoring.CreatePhysicsEntity(kind);
-                    ImGui.EndPopup();
+                        if (ImGui.IsItemHovered()) ImGui.SetTooltip(Description(kind));
+                    }
                 }
+                ImGui.EndPopup();
             }
+            ImGui.SameLine(); ImGui.TextDisabled($"{entities.Length} total");
+            if (selection.Items.Count > 0) ImGui.TextDisabled($"{selection.Items.Count} selected");
             ImGui.Separator();
 
             if (ImGui.BeginChild("##list"))
@@ -63,6 +63,17 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection, 
 
         ImGui.End();
     }
+
+    private static string Description(PhysicsPreset preset) => preset switch
+    {
+        PhysicsPreset.Character => "A body and character motor starter. Supply movement logic in your project Behaviours.",
+        PhysicsPreset.Static => "A stationary obstacle with collision geometry.",
+        PhysicsPreset.Dynamic => "A dynamic box affected by physics.",
+        PhysicsPreset.Compound => "A dynamic body with multiple collider shapes.",
+        PhysicsPreset.Kinematic => "A body moved explicitly by game logic.",
+        PhysicsPreset.Sensor => "A sensor region for detecting overlaps.",
+        _ => "Select or create the scene's physics settings."
+    };
 
     private void Click(uint[] entities, uint id)
     {

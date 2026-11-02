@@ -1,4 +1,5 @@
 #include "pixie/runtime/World.hpp"
+#include <stdexcept>
 
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Name.hpp"
@@ -101,6 +102,9 @@ void World::RunSystems(SystemPhase phase, const FrameTime& time, const Input& in
 }
 
 void World::Step(double delta, const Input& input) {
+    if (advancing_) throw std::logic_error("World::Step cannot be reentered, including from deferred actions.");
+    advancing_ = true;
+    struct RestoreAdvance { bool& flag; ~RestoreAdvance() { flag = false; } } advancing{advancing_};
     const TelemetryScope measure(telemetry_,stepMetric_);
     const FrameTime time{delta, 0.0, elapsed_, steps_};
     stepping_ = true;

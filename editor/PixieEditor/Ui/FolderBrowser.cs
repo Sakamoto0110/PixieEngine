@@ -4,7 +4,7 @@ using Hexa.NET.ImGui;
 namespace PixieEditor.Ui;
 
 // A folder picker drawn with ImGui, so it works on every editor host: the current folder as text that
-// can be typed over, Up, the drives on Windows, and the folders inside, where a click goes in.
+// can be typed over, Up, New folder, the drives on Windows, and the folders inside, where a click goes in.
 // Folders that hold a project are marked. Given a file extension, it also lists the files with it,
 // after the folders, and a click on one chooses it (ChosenFile).
 internal sealed class FolderBrowser
@@ -18,6 +18,9 @@ internal sealed class FolderBrowser
     private (string Path, string Name)[] Files = [];
     private readonly string? Extension;
     private string? Error;
+    private bool CreatingFolder;
+    private string NewFolderName = "";
+    private bool FocusFolderName;
 
     public FolderBrowser(string start, string? extension = null)
     {
@@ -92,9 +95,64 @@ internal sealed class FolderBrowser
         }
     }
 
+    // Creates one child of the current location; an existing entry is never reused.
+    internal bool CreateFolder(string name)
+    {
+        name = name.Trim();
+        if (name.Length == 0 || name is "." or ".." || name.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0 ||
+            OperatingSystem.IsWindows() && name.EndsWith('.'))
+        {
+            Error = "Enter a valid folder name.";
+            return false;
+        }
+
+        try
+        {
+            var folder = Path.Combine(Current, name);
+            if (Path.Exists(folder))
+            {
+                Error = "A file or folder with that name already exists.";
+                return false;
+            }
+            Directory.CreateDirectory(folder);
+            return Go(folder);
+        }
+        catch (Exception e) when (e is IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException)
+        {
+            Error = e.Message;
+            return false;
+        }
+    }
+
     public void Draw(string id, float height)
     {
         ImGui.PushID(id);
+        if (ImGui.Button("New folder"))
+        {
+            CreatingFolder = true;
+            NewFolderName = "";
+            FocusFolderName = true;
+            Error = null;
+        }
+        if (CreatingFolder)
+        {
+            if (FocusFolderName)
+            {
+                ImGui.SetKeyboardFocusHere();
+                FocusFolderName = false;
+            }
+            ImGui.SetNextItemWidth(Math.Max(100, ImGui.GetContentRegionAvail().X - 160));
+            var confirm = ImGui.InputText("##newFolderName", ref NewFolderName, 256, ImGuiInputTextFlags.EnterReturnsTrue);
+            ImGui.SameLine();
+            if ((ImGui.Button("Create folder") || confirm) && CreateFolder(NewFolderName))
+                CreatingFolder = false;
+            ImGui.SameLine();
+            if (ImGui.Button("Cancel"))
+            {
+                CreatingFolder = false;
+                Error = null;
+            }
+        }
         if (ImGui.Button("Up") && Directory.GetParent(Current) is { } parent)
             Go(parent.FullName);
         ImGui.SameLine();

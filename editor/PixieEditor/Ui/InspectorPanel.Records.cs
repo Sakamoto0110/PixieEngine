@@ -31,7 +31,11 @@ internal sealed partial class InspectorPanel
             .Where(f => f.Kind is PixieFieldKind.Text or PixieFieldKind.PointList or PixieFieldKind.RecordList)
             .Select(f => new TextField(f.Field, session.FieldName(itemType, f.Field), session.FieldText(itemType, f.Field, PixieFieldText.Label),
                 session.FieldText(itemType, f.Field, PixieFieldText.Tooltip), "", f.Kind)).ToArray();
-        return RecordSections[key] = new RecordSection(inspector, inspector.CreateImGuiView(), texts);
+        var view = inspector.CreateImGuiView();
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ConfigureInteraction(view);
+#endif
+        return RecordSections[key] = new RecordSection(inspector, view, texts);
     }
 
     private void DrawRecords(int type, TextField field)
@@ -88,8 +92,15 @@ internal sealed partial class InspectorPanel
     {
         ImGui.PushID(field.Field);
         var points = session.GetRecordPoints(Entities[0], type, list, index, field.Field);
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        var (itemType, _) = session.RecordInfo(Entities[0], type, list);
+        var editLocked = DrawCustomEditControls(itemType, field.Field, new RecordAddress(type, list, index));
+#endif
         if (ImGui.TreeNode($"{field.Label} ({points.Length})"))
         {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            ImGui.BeginDisabled(editLocked);
+#endif
             int? removed = null;
             for (var i = 0; i < points.Length; ++i)
             {
@@ -99,7 +110,11 @@ internal sealed partial class InspectorPanel
                 ImGui.SetNextItemWidth(-40);
                 ImGui.InputFloat2("##point", ref value);
                 if (ImGui.IsItemActive()) RecordPoints[key] = value; else RecordPoints.Remove(key);
-                if (ImGui.IsItemDeactivatedAfterEdit())
+                if (ImGui.IsItemDeactivatedAfterEdit()
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            && !editLocked
+#endif
+        )
                 {
                     var changed = points.ToArray();
                     changed[i] = (value.X, value.Y);
@@ -120,6 +135,9 @@ internal sealed partial class InspectorPanel
                 recorder.Close();
                 authoring.SetRecordPoints(Entities[0], type, list, index, field.Field, [.. points, (32, 0)]);
             }
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            ImGui.EndDisabled();
+#endif
             ImGui.TreePop();
         }
         ImGui.PopID();
@@ -129,13 +147,31 @@ internal sealed partial class InspectorPanel
     {
         var key = (type, list, index, field.Field);
         if (!RecordText.TryGetValue(key, out var text)) text = session.GetRecordText(Entities[0], type, list, index, field.Field);
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        var (itemType, _) = session.RecordInfo(Entities[0], type, list);
+        var editLocked = DrawCustomEditControls(itemType, field.Field, new RecordAddress(type, list, index));
+        ImGui.BeginDisabled(editLocked);
+#endif
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ImGui.TextUnformatted(field.Label);
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputText("##record-text", ref text, 4096);
+#else
         ImGui.InputText(field.Label, ref text, 4096);
+#endif
         if (ImGui.IsItemActive()) RecordText[key] = text; else RecordText.Remove(key);
-        if (ImGui.IsItemDeactivatedAfterEdit())
+        if (ImGui.IsItemDeactivatedAfterEdit()
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            && !editLocked
+#endif
+        )
         {
             recorder.Close();
             authoring.SetRecordText(Entities[0], type, list, index, field.Field, text);
         }
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ImGui.EndDisabled();
+#endif
     }
 
     // Scripted edits use the same descriptor-built node as the inspector, including display units.
@@ -188,7 +224,13 @@ internal sealed partial class InspectorPanel
 
     private void ReleaseRecords()
     {
-        foreach (var section in RecordSections.Values) { section.View.Dispose(); section.Inspector.Dispose(); }
+        foreach (var section in RecordSections.Values)
+        {
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+            section.View.EndInteraction(abandon: true);
+#endif
+            section.View.Dispose(); section.Inspector.Dispose();
+        }
         RecordSections.Clear();
         RecordCounts.Clear();
         RecordPoints.Clear();

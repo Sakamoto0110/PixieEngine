@@ -4,9 +4,8 @@ using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
-// The session's controls and numbers: the project and its folder, or the game; a single step while
-// paused, reset, the World's time and size, the cost of a step; and, for a game, the other games built
-// next to this one, each opened in a new editor.
+// Session state, reset, collapsible diagnostics and project details. Playback lives in the viewport.
+// Other games built next to this one can each be opened in a new editor.
 internal sealed class SessionPanel(EngineSession session, string game)
 {
     private string MovementStatus = "";
@@ -17,6 +16,19 @@ internal sealed class SessionPanel(EngineSession session, string game)
     // Set when another game was opened, so the editor closes.
     public bool CloseRequested { get; private set; }
 
+    internal static bool IsProjectModule(string file) => file.Contains("-module.", StringComparison.OrdinalIgnoreCase);
+
+    private static void Wrapped(string text)
+    {
+        ImGui.PushTextWrapPos(0); ImGui.TextUnformatted(text); ImGui.PopTextWrapPos();
+    }
+
+    private static void Row(string label, string value)
+    {
+        ImGui.TableNextRow(); ImGui.TableSetColumnIndex(0); ImGui.TextDisabled(label);
+        ImGui.TableSetColumnIndex(1); Wrapped(value);
+    }
+
     public void Draw()
     {
         if (ImGui.Begin("Session"))
@@ -24,45 +36,53 @@ internal sealed class SessionPanel(EngineSession session, string game)
             var stats = session.Stats;
             var project = session.ProjectFolder;
             var editing = project != null && session.Editing;
-            if (project != null)
-            {
-                ImGui.TextUnformatted($"Project: {session.ProjectName}{(session.Unsaved ? " (not saved)" : "")}");
-                ImGui.TextDisabled(project);
-                var library = Path.GetFileName(GameLibrary.Loaded);
-                ImGui.TextUnformatted(!ProjectBuild.HasCode(project) ? "No code of its own (Code, Add code)."
-                    : library.StartsWith(GameLibrary.SceneGame, StringComparison.Ordinal) ? "Its code is not loaded: opened without it."
-                    : $"Code: {library}");
-                ImGui.TextUnformatted(editing ? "Editing: time stands still." : "Playing.");
-            }
-            else
-            {
-                ImGui.TextUnformatted($"Game: {session.ProjectName}");
-            }
-
-            // Pause and the speed of time are on the toolbar above.
-            ImGui.BeginDisabled(stats.Paused == 0 || editing);
-            if (ImGui.Button("Step"))
-                session.Step();
-            ImGui.EndDisabled();
-
-            ImGui.SameLine();
-            if (ImGui.Button(project != null ? "Rebuild" : "Reset"))
-                session.Reset();
-            if (ImGui.IsItemHovered())
-                ImGui.SetTooltip(project != null
-                    ? "Builds the World again from the scene's entities as they are now."
-                    : "Builds the World again from the game.");
-
+            ImGui.TextDisabled(project != null ? "PROJECT" : "GAME");
+            Wrapped(session.ProjectName);
             ImGui.Separator();
-            ImGui.TextUnformatted($"Steps: {stats.Steps}");
-            ImGui.TextUnformatted($"Time: {stats.Elapsed:F2} s");
-            ImGui.TextUnformatted($"Entities: {stats.Entities}");
-#if PIXIE_DEVELOPMENT
-            if (!Deterministic)
-#endif
+            if (ImGui.BeginTable("##session-state", 2, ImGuiTableFlags.SizingStretchProp))
             {
-                ImGui.TextUnformatted($"Last step: {stats.LastStepMilliseconds:F3} ms");
-                ImGui.TextUnformatted($"Editor: {ImGui.GetIO().Framerate:F0} frames/s");
+                ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 62);
+                ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+                Row("Mode", editing ? "Editing" : stats.Paused != 0 ? "Paused" : "Playing");
+                if (project != null) Row("Scene", session.Unsaved ? "Unsaved changes" : "Saved");
+                Row("Time", $"{stats.Elapsed:F2} s");
+                ImGui.EndTable();
+            }
+            ImGui.Spacing();
+            ImGui.TextDisabled("CODE");
+            var library = Path.GetFileName(GameLibrary.Loaded);
+            if (project != null && !ProjectBuild.HasCode(project))
+            {
+                Wrapped("Built-in scene runtime");
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("Use Code > Add code to add a C++ project.");
+            }
+            else if (project != null && !IsProjectModule(library)) Wrapped("Project code not loaded");
+            else Wrapped(library);
+            if (ImGui.Button(project != null ? "Reset scene" : "Reset game")) session.Reset();
+            if (ImGui.IsItemHovered()) ImGui.SetTooltip("Recreates the World from the current authored data. This does not compile C++ code.");
+
+            if (ImGui.CollapsingHeader("Statistics"))
+            {
+                if (ImGui.BeginTable("##session-statistics", 2, ImGuiTableFlags.SizingStretchProp))
+                {
+                    ImGui.TableSetupColumn("Label", ImGuiTableColumnFlags.WidthFixed, 76);
+                    ImGui.TableSetupColumn("Value", ImGuiTableColumnFlags.WidthStretch);
+                    Row("Entities", stats.Entities.ToString());
+                    Row("Steps", stats.Steps.ToString());
+#if PIXIE_DEVELOPMENT
+                    if (!Deterministic)
+#endif
+                    {
+                        Row("Step cost", $"{stats.LastStepMilliseconds:F3} ms");
+                        Row("Editor", $"{ImGui.GetIO().Framerate:F0} frames/s");
+                    }
+                    ImGui.EndTable();
+                }
+            }
+            if (project != null && ImGui.CollapsingHeader("Project details"))
+            {
+                ImGui.TextDisabled("Folder"); Wrapped(project);
+                ImGui.TextDisabled("Loaded library"); Wrapped(library);
             }
             if (ImGui.CollapsingHeader("Physics debug"))
             {
@@ -105,7 +125,7 @@ internal sealed class SessionPanel(EngineSession session, string game)
             if (MovementStatus.Length > 0)
             {
                 ImGui.Separator();
-                ImGui.TextWrapped("Movement configuration: " + MovementStatus);
+                Wrapped("Movement configuration: " + MovementStatus);
             }
 
             if (project != null)

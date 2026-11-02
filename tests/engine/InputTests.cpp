@@ -72,3 +72,49 @@ TEST(ModalInputCancelsHeldControlsAndDiscardsPendingActions) {
     input.EndUpdate();
     CHECK(!input.WasReleased(Key::A) && !input.WasReleased(MouseButton::Left));
 }
+
+TEST(OrderedInputRetainsIntermediateTransitionsRepeatAndModifiers) {
+    using namespace pixie;
+    Input input;
+    input.SetKey(65, InputAction::Press, InputModifiers::Shift, 30);
+    input.SetMouseButton(0, InputAction::Press, InputModifiers::Control);
+    input.SetKey(65, InputAction::Release, InputModifiers::Alt, 30);
+    input.SetKey(65, InputAction::Press, InputModifiers::None, 30);
+    input.SetKey(65, InputAction::Repeat, InputModifiers::Super, 30);
+    const auto events = input.Events();
+    CHECK(events.size() == 5);
+    CHECK(std::get<KeyEvent>(events[0]).Pressed());
+    CHECK(std::get<KeyEvent>(events[0]).modifiers == InputModifiers::Shift);
+    CHECK(std::get<KeyEvent>(events[0]).scanCode == 30);
+    CHECK(std::get<MouseButtonEvent>(events[1]).Pressed());
+    CHECK(std::get<KeyEvent>(events[2]).Released());
+    CHECK(std::get<KeyEvent>(events[3]).Pressed());
+    CHECK(std::get<KeyEvent>(events[4]).Repeat());
+    CHECK(input.WasPressed(Key::A) && input.WasReleased(Key::A) && input.IsDown(Key::A));
+    input.EndUpdate(); CHECK(input.Events().empty()); CHECK(input.IsDown(Key::A));
+    input.SetKey(65, InputAction::Repeat, InputModifiers::None);
+    CHECK(!input.WasPressed(Key::A)); CHECK(input.Events().size() == 1);
+}
+
+TEST(InputCancellationRetainsOneReleaseUntilTheNextFixedUpdate) {
+    using namespace pixie;
+    Input input; input.SetKey(65, true); input.SetMouseButton(1, true);
+    input.ReleaseAll(); input.ReleaseAll();
+    CHECK(!input.IsDown(Key::A) && input.WasReleased(Key::A) && !input.WasPressed(Key::A));
+    CHECK(input.Events().size() == 2);
+    CHECK(std::get<KeyEvent>(input.Events()[0]).Released());
+    CHECK(std::get<MouseButtonEvent>(input.Events()[1]).Released());
+    input.EndUpdate(); CHECK(input.Events().empty());
+    input.SetKey(65, InputAction::Repeat, InputModifiers::None);
+    CHECK(input.Events().empty());
+}
+
+TEST(FocusCancellationKeepsAReleaseOfAPreviouslyConsumedHeldKeyOnce) {
+    using namespace pixie;
+    Input input; input.SetKey(65, true); input.EndUpdate();
+    input.SetKey(65, InputAction::Release, InputModifiers::None);
+    input.ReleaseAll(); input.ReleaseAll();
+    CHECK(input.WasReleased(Key::A)); CHECK(input.Events().size() == 1);
+    input.EndUpdate(); input.SetKey(65, InputAction::Release, InputModifiers::None);
+    CHECK(input.Events().empty());
+}

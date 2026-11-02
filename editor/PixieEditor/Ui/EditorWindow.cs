@@ -224,9 +224,30 @@ internal sealed class EditorWindow(EditorOptions options)
         var project = session.ProjectFolder != null;
         var firstLayout = FirstLayout;
         var gameName = options.Game is { } game ? Program.GameName(game) : GameLibrary.SceneGame;
+        CodeReopen.State? resumed = null;
+        if (options.ResumeCode != null)
+        {
+            try { resumed = CodeReopen.Restore(session, options.ResumeCode); }
+            catch (Exception error) when (error is EngineException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Text.Json.JsonException)
+            { Status.Show(error.Message, error: true); }
+        }
         var selection = new Selection();
+        if (resumed != null) selection.Set(resumed.Selection.Select(session.Find).OfType<uint>().ToArray());
+        CodeReopen.Request? pendingCode = resumed?.Pending;
         var history = new Editing.History();
         var authoring = new Authoring(session, selection, history);
+        if (pendingCode != null)
+        {
+            try
+            {
+                var attach = CodeReopen.ResolveAttachment(session, pendingCode);
+                authoring.AddComponent(attach.Entities, attach.Type);
+                if (attach.Entities.Any(entity => !session.Has(entity, attach.Type)))
+                    throw new EngineException("The rebuilt component was not added to every target. Inspect the error and rebuild again; the request is retained.");
+                pendingCode = null;
+            }
+            catch (EngineException error) { Status.Show(error.Message, error: true); }
+        }
         var recorder = new Editing.EditRecorder(session, history, () => authoring.Recording);
         var files = new AssetChooser(session.ProjectFolder);
         using var inspector = new InspectorPanel(session, authoring, recorder, files);
@@ -293,19 +314,15 @@ internal sealed class EditorWindow(EditorOptions options)
                     return;
                 }
 
+                if (!session.Editing) { Status.Show("Stop Play before rebuilding project code.", error: true); return; }
                 leaving = Leaving.Reopen;
-                if (session.Unsaved)
-                    askToSave = true;
-                else
-                    confirmed = true;
+                confirmed = true;
             },
             BuildAndReopen = () =>
             {
+                if (!session.Editing) { Status.Show("Stop Play before rebuilding project code.", error: true); return; }
                 leaving = Leaving.Reopen;
-                if (session.Unsaved)
-                    askToSave = true;
-                else
-                    confirmed = true;
+                confirmed = true;
             },
             OtherProject = () =>
             {
@@ -326,6 +343,7 @@ internal sealed class EditorWindow(EditorOptions options)
         var title = "";
         var exitCode = 0;
         var previous = GLFW.GetTime();
+        viewport.DrawControls = toolbar.DrawViewportControls;
         var editsApplied = false;
         var nextCommand = 0;
         var commandResumeAt = 0.0;
@@ -394,6 +412,12 @@ internal sealed class EditorWindow(EditorOptions options)
             controls.Draw();
             entities.Draw();
             inspector.Draw(selection.Items);
+            if (inspector.TakeCreatedCodeComponent() is { } created)
+            {
+                pendingCode = created;
+                leaving = Leaving.Reopen;
+                confirmed = true;
+            }
             viewport.Draw(frameDelta);
 #if PIXIE_DEVELOPMENT
             CaptureFinished = viewport.Capture?.Finished ?? false;
@@ -427,8 +451,14 @@ internal sealed class EditorWindow(EditorOptions options)
             // Code is built by a new editor, once this one has let go of the game's library.
             if (leaving == Leaving.Reopen && confirmed)
             {
-                Relaunch(["--project", session.ProjectFolder!]);
-                GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+                try
+                {
+                    var handoff = CodeReopen.Capture(session, selection.Items, pendingCode);
+                    Relaunch(["--project", session.ProjectFolder!, "--resume-code", handoff, "--mode", viewport.Mode.ToString()]);
+                    GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+                }
+                catch (Exception error) when (error is EngineException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
+                { Status.Show(error.Message, error: true); confirmed = false; }
                 leaving = Leaving.None;
             }
 
@@ -451,7 +481,11 @@ internal sealed class EditorWindow(EditorOptions options)
             }
 
             // An inspector edit is one step, from the first write until no control is held.
-            if (!ImGui.IsAnyItemActive())
+            if (!ImGui.IsAnyItemActive()
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+                && !inspector.IsInteracting
+#endif
+            )
                 recorder.Close();
 
             if (project && options.SaveAfter is { } saveAfter && !savedOnce && now - Start >= saveAfter)
@@ -869,7 +903,7 @@ internal sealed class EditorWindow(EditorOptions options)
         uint left, rest, right, middle, top, bottom;
         ImGuiP.DockBuilderSplitNode(dockspace, ImGuiDir.Left, 0.2f, &left, &rest);
         ImGuiP.DockBuilderSplitNode(rest, ImGuiDir.Right, 0.3f, &right, &middle);
-        ImGuiP.DockBuilderSplitNode(left, ImGuiDir.Up, 0.3f, &top, &bottom);
+        ImGuiP.DockBuilderSplitNode(left, ImGuiDir.Up, 0.38f, &top, &bottom);
         ImGuiP.DockBuilderDockWindow("Session", top);
         ImGuiP.DockBuilderDockWindow("Entities", bottom);
         ImGuiP.DockBuilderDockWindow("Inspector", right);

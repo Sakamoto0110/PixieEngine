@@ -14,3 +14,7 @@ include(${PIXIE_ENGINE_DIR}/cmake/PixieProject.cmake)
 pixie_game(@PIXIE_ID@ SOURCES
     src/@PIXIE_ID@Project.cpp
 )
+
+# BEGIN PIXIE COMPONENT SOURCES (managed)
+pixie_project_components()
+# END PIXIE COMPONENT SOURCES (managed)

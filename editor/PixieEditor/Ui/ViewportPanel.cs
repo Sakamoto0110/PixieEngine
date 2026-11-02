@@ -31,6 +31,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     // Whether a move rounds the dragged entity's position to the grid, and the grid's size.
     public bool Snap { get; set; }
     public double Grid { get; set; } = 16;
+    public Action? DrawControls { get; set; }
 
     private const int LastKey = 348;
     private const int MiddleButton = 2;
@@ -60,7 +61,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     private bool Focused;
     private int Width;
     private int Height;
-    private readonly bool[] ButtonsSent = new bool[3];
+    private readonly bool[] ButtonsSent = new bool[8];
     private readonly bool[] KeysSent = new bool[LastKey + 1];
 
     // A left press in Select mode, in view pixels, until it is released; the entity it was on; and the
@@ -80,6 +81,8 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
 
     public ViewportPanel Started()
     {
+        // Start-screen/build-screen input belongs to the UI, never to the newly opened game.
+        KeyEvents.Pending.Clear(); KeyEvents.Collect = true;
         // The session's cursor starts at (0, 0), inside the view; move it out until the mouse comes in.
         session.Cursor(-1.0, -1.0);
         return this;
@@ -93,6 +96,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
 #if PIXIE_DEVELOPMENT
             ChannelVisible = true;
 #endif
+            DrawControls?.Invoke();
             var size = ImGui.GetContentRegionAvail();
             Scale = ImGui.GetIO().DisplayFramebufferScale;
             var width = Math.Max(1, (int)(size.X * Scale.X));
@@ -213,63 +217,83 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
 
     private bool GoesToGame(int button) => Mode == ViewportMode.Game || button == MiddleButton;
 
+    private uint InputModifiers;
+    private Vector2 LastHostCursor;
+
     private void SendInput()
     {
-        var mouse = MouseInView();
-        var wheel = Hovered ? ImGui.GetIO().MouseWheel : 0f;
-        var captured = ButtonsSent.Any(b => b);
-        // In Select mode the game sees the pointer only to pan and zoom, so boids do not chase it.
-        var pointing = Mode == ViewportMode.Game ? Hovered || captured : captured || wheel != 0f;
-        if (pointing)
+        while (KeyEvents.Pending.TryDequeue(out var raw))
         {
-            session.Cursor(mouse.X, mouse.Y);
-            CursorInside = true;
-        }
-        else if (CursorInside)
-        {
-            // Off the image: a position outside the view, so the game sees no pointer.
-            session.Cursor(-1.0, -1.0);
-            CursorInside = false;
-        }
-
-        for (var button = 0; button < ButtonsSent.Length; button++)
-        {
-            var down = ImGui.IsMouseDown((ImGuiMouseButton)button) && GoesToGame(button);
-            if (down && !ButtonsSent[button] && Hovered && ImGui.IsMouseClicked((ImGuiMouseButton)button))
+            var input = raw;
+            if (input.Kind is 0 or 1) InputModifiers = input.Modifiers;
+            else input.Modifiers = InputModifiers;
+            if (input.Kind == 4)
             {
-                session.MouseButton(button, true);
-                ButtonsSent[button] = true;
-            }
-            else if (!down && ButtonsSent[button])
-            {
-                session.MouseButton(button, false);
-                ButtonsSent[button] = false;
-            }
-        }
-
-        if (wheel != 0f)
-            session.Scroll(0.0, wheel);
-
-        // Keys reach the game while the viewport has focus; the rest of the editor keeps them otherwise.
-        while (KeyEvents.Pending.TryDequeue(out var e))
-        {
-            if (e.Key < 0 || e.Key > LastKey || (e.Down && !Focused) || e.Down == KeysSent[e.Key])
+                session.InputEvent(input);
+                Array.Clear(KeysSent); Array.Clear(ButtonsSent); InputModifiers = 0;
                 continue;
-            session.Key(e.Key, e.Down);
-            KeysSent[e.Key] = e.Down;
-        }
-
-        if (!Focused)
-        {
-            // Focus left with keys held: release them, so the game does not see them stuck.
-            for (var key = 0; key <= LastKey; key++)
+            }
+            if (input.Kind == 0)
             {
-                if (KeysSent[key])
+                if (input.Code < 0 || input.Code > LastKey) continue;
+                if (input.Action == 0 ? !KeysSent[input.Code] : !Focused || (input.Action == 2 && !KeysSent[input.Code])) continue;
+                session.InputEvent(input);
+                KeysSent[input.Code] = input.Action != 0;
+                continue;
+            }
+            var captured = ButtonsSent.Any(value => value);
+            if (input.Kind == 2) LastHostCursor = new Vector2((float)input.X, (float)input.Y);
+            if (input.Kind is 1 or 2)
+            {
+                var mouse = (new Vector2((float)input.X, (float)input.Y) - ImageOrigin) * Scale;
+                if (input.Kind == 1)
                 {
-                    session.Key(key, false);
-                    KeysSent[key] = false;
+                    if (input.Code < 0 || input.Code >= ButtonsSent.Length) continue;
+                    if (input.Action == 0 ? !ButtonsSent[input.Code] : !Hovered || !GoesToGame(input.Code)
+                        || mouse.X < 0 || mouse.Y < 0 || mouse.X >= Width || mouse.Y >= Height) continue;
+                    // A button carries its event-time pointer position even if the cursor moved
+                    // elsewhere before this UI frame. This does not invent a world coordinate.
+                    session.InputEvent(new() { Kind = 2, X = mouse.X, Y = mouse.Y, Modifiers = input.Modifiers });
+                    session.InputEvent(input);
+                    ButtonsSent[input.Code] = input.Action != 0;
+                    CursorInside = true;
+                }
+                else if (captured || (Mode == ViewportMode.Game && Hovered))
+                {
+                    input.X = mouse.X; input.Y = mouse.Y;
+                    session.InputEvent(input); CursorInside = true;
                 }
             }
+            else if (input.Kind == 3 && Hovered)
+            {
+                var mouse = (LastHostCursor - ImageOrigin) * Scale;
+                session.InputEvent(new() { Kind = 2, X = mouse.X, Y = mouse.Y, Modifiers = input.Modifiers });
+                session.InputEvent(input); CursorInside = true;
+            }
+        }
+        if (Mode == ViewportMode.Game && (Hovered || ButtonsSent.Any(value => value)))
+        {
+            var mouse = MouseInView();
+            session.InputEvent(new() { Kind = 2, X = mouse.X, Y = mouse.Y, Modifiers = InputModifiers });
+            CursorInside = true;
+        }
+        for (var button = 0; button < ButtonsSent.Length; ++button)
+            if (ButtonsSent[button] && !GoesToGame(button))
+            {
+                session.InputEvent(new() { Kind = 1, Code = button, Action = 0, Modifiers = InputModifiers });
+                ButtonsSent[button] = false;
+            }
+        if (!Focused)
+            for (var key = 0; key <= LastKey; ++key)
+                if (KeysSent[key])
+                {
+                    session.InputEvent(new() { Kind = 0, Code = key, Action = 0 });
+                    KeysSent[key] = false;
+                }
+        if (CursorInside && !Hovered && !ButtonsSent.Any(value => value))
+        {
+            session.InputEvent(new() { Kind = 2, X = -1, Y = -1, Modifiers = InputModifiers });
+            CursorInside = false;
         }
     }
 

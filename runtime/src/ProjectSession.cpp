@@ -97,6 +97,9 @@ void ProjectSession::Stop() {
 }
 
 void ProjectSession::Build(bool resetCamera) {
+    // Held state can still be polled, but transitions captured for the old World must not be
+    // replayed into a new Behaviour lifetime after Play/Stop/Reset.
+    input_.EndUpdate();
     ++worldRevision_;
     world_.reset();
     world_ = std::make_unique<World>(settings_.seed);

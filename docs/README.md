@@ -40,6 +40,9 @@ owns the authority table: which document owns which kind of fact.
 | [`character-body-coupling.md`](character-body-coupling.md) | D4 motor preparation, bounded body impulses, support carry and unsafe-placement policy |
 | [`collision-movement.md`](collision-movement.md) | Static collision queries, capsule movement, controller ownership and neutral room |
 | [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
+| [`entity-input-and-code-components.md`](entity-input-and-code-components.md) | Generic entity input, C++ component creation, explicit source association and preserving rebuilds |
+| [`proposals/editor-authoring-consolidation.md`](proposals/editor-authoring-consolidation.md) | Proposed editor/C++ consolidation priorities, UX acceptance and coordination with World/Scene work |
+| [`editor-field-interactions.md`](editor-field-interactions.md) | Local opt-in numeric field chains, manual locks, grouped history and lifecycle limits |
 | [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
 | [`lighting-requirements.md`](lighting-requirements.md) | Proposed 2D lights, shadows, emissive surfaces and particles, composition, authoring, budgets and staged acceptance |
 | [`lighting-l0-design.md`](lighting-l0-design.md) | L0 choices for lighting: data model, units, composition order, compatibility and the measured shadow technique; owner review waived on 2026-10-31 |

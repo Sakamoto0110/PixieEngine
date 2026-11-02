@@ -133,6 +133,8 @@ using LegacyFields = std::map<std::string, FieldValue, std::less<>>;
 // entity.
 struct ComponentDescriptor {
     std::string name;
+    // Explicit project-relative user implementation path; empty for engine-owned types.
+    std::string source;
     entt::id_type type = 0;
     std::vector<FieldDescriptor> fields;
     // The version of the type's fields, saved with every instance in a scene; raise it when a field
@@ -446,6 +448,12 @@ public:
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));
+        return *this;
+    }
+
+    // Explicit project-relative user implementation, never inferred from a type name.
+    ComponentBuilder& Source(std::string path) {
+        types_.types_[index_].source = std::move(path);
         return *this;
     }
 

@@ -116,7 +116,7 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
         (PhysicsPreset.Static, "Static obstacle"), (PhysicsPreset.Dynamic, "Dynamic box"),
         (PhysicsPreset.Compound, "Compound box"),
         (PhysicsPreset.Kinematic, "Kinematic platform"), (PhysicsPreset.Sensor, "Sensor region"),
-        (PhysicsPreset.Character, "Character"), (PhysicsPreset.World, "World settings")
+        (PhysicsPreset.Character, "Character motor starter"), (PhysicsPreset.World, "Physics settings")
     ];
 
     public uint? CreateMovementEntity(bool character, (double X, double Y)? at = null) =>
@@ -131,7 +131,7 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
             var world = preset == PhysicsPreset.World;
             var movingBody = preset is PhysicsPreset.Dynamic or PhysicsPreset.Compound or PhysicsPreset.Kinematic;
             string[] required = world ? ["PhysicsSettings2D"]
-                : character ? ["Transform2D", "Shape", "CharacterMotor2D", "KeyboardControl2D"]
+                : character ? ["Transform2D", "Shape", "CharacterMotor2D", "KeyboardControl"]
                 : preset == PhysicsPreset.Compound ? ["Transform2D", "Shape", "CompoundCollider2D", "RigidBody2D"]
                 : movingBody ? ["Transform2D", "Shape", "Collider2D", "RigidBody2D"]
                 : ["Transform2D", "Shape", "Collider2D"];

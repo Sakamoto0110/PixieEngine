@@ -17,10 +17,13 @@ public sealed unsafe class EngineSession : IDisposable
     private nint Handle;
     private readonly Dictionary<string, int> TypeIndices = [];
     private readonly Dictionary<(int Type, string Field), int> FieldIndices = [];
+internal long BindingRevision { get; private set; }
+    internal event Action? BindingsReplacing;
+    internal void PrepareBindingsReplacement() => BindingsReplacing?.Invoke();
 #if PIXIE_DEVELOPMENT
     private byte[]? DevelopmentResponse;
-    internal long DevelopmentGeneration { get; private set; }
-    internal void InvalidateDevelopmentBindings() => ++DevelopmentGeneration;
+    internal long DevelopmentGeneration => BindingRevision;
+    internal void InvalidateDevelopmentBindings() => ++BindingRevision;
     internal string DispatchDevelopment(string request)
     {
         if (Encoding.UTF8.GetByteCount(request) > 65536 || request.Contains('\0'))
@@ -99,17 +102,15 @@ public sealed unsafe class EngineSession : IDisposable
 
     public void Play()
     {
+        PrepareBindingsReplacement();
         Check(PixieCapi.SessionPlay(Handle), "play");
-#if PIXIE_DEVELOPMENT
-        InvalidateDevelopmentBindings();
-#endif
+        ++BindingRevision;
     }
     public void Stop()
     {
+        PrepareBindingsReplacement();
         Check(PixieCapi.SessionStop(Handle), "stop");
-#if PIXIE_DEVELOPMENT
-        InvalidateDevelopmentBindings();
-#endif
+        ++BindingRevision;
     }
     public void Save() => Check(PixieCapi.ProjectSave(Handle), "save the scene");
 
@@ -154,10 +155,9 @@ public sealed unsafe class EngineSession : IDisposable
         var entities = new uint[document.RootElement.GetProperty("entities").GetArrayLength()];
         fixed (uint* list = entities)
         {
+            PrepareBindingsReplacement();
             Check(PixieCapi.EntitiesRestore(Handle, snapshot, newIds ? 1 : 0, list, entities.Length, out var count), "restore entities");
-#if PIXIE_DEVELOPMENT
-            InvalidateDevelopmentBindings();
-#endif
+            ++BindingRevision;
             return entities[..Math.Min(count, entities.Length)];
         }
     }
@@ -167,8 +167,12 @@ public sealed unsafe class EngineSession : IDisposable
         Check(PixieCapi.RecordInfo(Handle, entity, type, list, out var itemType, out var count), "read record info");
         return (itemType, count);
     }
-    public void EditRecord(uint entity, int type, int list, int index, bool remove) =>
+    public void EditRecord(uint entity, int type, int list, int index, bool remove)
+    {
+        PrepareBindingsReplacement();
         Check(PixieCapi.RecordEdit(Handle, entity, type, list, index, remove ? 1 : 0), "edit record list");
+        ++BindingRevision;
+    }
     public PixieValue GetRecord(uint entity, int type, int list, int index, int field)
     {
         Check(PixieCapi.RecordGet(Handle, entity, type, list, index, field, out var value), "read record value");
@@ -201,7 +205,12 @@ public sealed unsafe class EngineSession : IDisposable
     public void SetRecordText(uint entity, int type, int list, int index, int field, string text) =>
         Check(PixieCapi.RecordSetText(Handle, entity, type, list, index, field, text), "write record text");
 
-    public void AddComponent(uint entity, int type) => Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
+    public void AddComponent(uint entity, int type)
+    {
+        PrepareBindingsReplacement();
+        Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
+        ++BindingRevision;
+    }
 
     public string ComponentAdditionError(uint entity, int type)
     {
@@ -211,7 +220,12 @@ public sealed unsafe class EngineSession : IDisposable
             Check(PixieCapi.ComponentAddStatus(Handle, entity, type, data, bytes.Length, out _), "read component admission");
         return Encoding.UTF8.GetString(bytes, 0, bytes.Length - 1);
     }
-    public void RemoveComponent(uint entity, int type) => Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
+    public void RemoveComponent(uint entity, int type)
+    {
+        PrepareBindingsReplacement();
+        Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
+        ++BindingRevision;
+    }
 
     public void Dispose()
     {
@@ -285,16 +299,25 @@ public sealed unsafe class EngineSession : IDisposable
     public void Step() => Check(PixieCapi.SessionStep(Handle), "step");
     public void Reset()
     {
+        PrepareBindingsReplacement();
         Check(PixieCapi.SessionReset(Handle), "reset");
-#if PIXIE_DEVELOPMENT
-        InvalidateDevelopmentBindings();
-#endif
+        ++BindingRevision;
     }
 
     public uint Render()
     {
         Check(PixieCapi.SessionRender(Handle, out var texture), "render");
         return texture;
+    }
+
+    internal void InputEvent(PixieInputEvent input) => Check(PixieCapi.InputEvent(Handle, in input), "send an ordered input event");
+    internal string ComponentSource(int type)
+    {
+        Check(PixieCapi.TypeSource(Handle, type, null, 0, out var length), "measure component source");
+        if (length < 1 || length > 65536) throw new EngineException("Component source metadata exceeds the supported bound.");
+        var bytes = new byte[length];
+        fixed (byte* output = bytes) Check(PixieCapi.TypeSource(Handle, type, output, bytes.Length, out _), "read component source");
+        return Encoding.UTF8.GetString(bytes, 0, length - 1);
     }
 
     public void Cursor(double x, double y) => Check(PixieCapi.InputCursor(Handle, x, y), "send the cursor");
@@ -318,7 +341,13 @@ public sealed unsafe class EngineSession : IDisposable
     public bool IsAlive(uint entity) => PixieCapi.EntityAlive(Handle, entity) != 0;
 
     // Destroys an entity at once; false when it was already gone.
-    public bool Destroy(uint entity) => Found(PixieCapi.EntityDestroy(Handle, entity), "destroy an entity");
+    public bool Destroy(uint entity)
+    {
+        PrepareBindingsReplacement();
+        var destroyed = Found(PixieCapi.EntityDestroy(Handle, entity), "destroy an entity");
+        if (destroyed) ++BindingRevision;
+        return destroyed;
+    }
 
     // The camera: a point in view pixels in world units, and back.
     public (double X, double Y) ViewToWorld(double x, double y)

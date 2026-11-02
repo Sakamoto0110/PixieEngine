@@ -34,9 +34,23 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 19
+#define PIXIE_CAPI_VERSION 20
 
 typedef struct PixieSession PixieSession;
+
+/* Version20: ordered device events. Action0=release,1=press,2=repeat (keys only).
+ * Modifiers use GLFW bits. Cursor/scroll x,y are viewport pixels/scroll offsets.
+ * kind4 cancels captured input, discarding pending presses and releasing held controls. */
+typedef struct PixieInputEvent {
+    int32_t kind; /*0key,1button,2cursor,3scroll,4cancel*/
+    int32_t code;
+    int32_t action;
+    int32_t scan_code;
+    uint32_t modifiers;
+    double x;
+    double y;
+} PixieInputEvent;
+
 
 /* Session-only debug bits: collider outlines, origins, centers of mass, velocities,
  * sensors, awake/asleep markers, and current contact normals. No scene mutation. */
@@ -276,6 +290,7 @@ PIXIE_API PixieResult pixie_session_play(PixieSession* session);
 PIXIE_API PixieResult pixie_session_stop(PixieSession* session);
 
 /* Input, in view pixels with the origin at the top-left; key and button codes are GLFW's. */
+PIXIE_API PixieResult pixie_input_event(PixieSession* session, const PixieInputEvent* event);
 PIXIE_API PixieResult pixie_input_cursor(PixieSession* session, double x, double y);
 PIXIE_API PixieResult pixie_input_mouse_button(PixieSession* session, int32_t button, int32_t down);
 PIXIE_API PixieResult pixie_input_key(PixieSession* session, int32_t key, int32_t down);
@@ -375,6 +390,8 @@ PIXIE_API PixieResult pixie_type_find(PixieSession* session, const char* name, i
 PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char* buffer,
                                       int32_t capacity);
 /* PIXIE_TYPE_* flags of a component type. */
+/* Explicit project-relative user implementation, empty for engine-owned components. */
+PIXIE_API PixieResult pixie_type_source(PixieSession* session, int32_t type, char* buffer, int32_t capacity, int32_t* length);
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */
 PIXIE_API int32_t pixie_entity_has(PixieSession* session, uint32_t entity, int32_t type);

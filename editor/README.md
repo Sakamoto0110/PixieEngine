@@ -18,16 +18,30 @@ as it is. The editor creates no version-control files.
     the folders inside, and a path to type and confirm with Enter), and a name; it makes the folder
     `<location>/<name>`, which must not exist or be empty, and says why before Create can be
     pressed. The project takes the folder's name, and its scene starts with one shape.
+    The picker also offers **New folder**: enter a name and choose **Create folder** (or press
+    Enter) to create and enter a child folder at the current location; **Cancel** leaves it alone.
+    Existing names are refused, and filesystem errors are shown in the picker. The same control
+    is available in the Open project and asset pickers.
   - **Open project** takes a folder that holds a `.pixie` file; project folders are marked in the
     picker, and Open waits until the current folder is one.
 - A project runs on the shared engine's generic scene project, so it opens without a
   compiler. The recent projects and the place of the last one are kept in the user's settings
   (`PixieEditor/settings.json` under the application data folder), never in a project.
+
+The start screen filesystem smoke test creates a temporary folder, checks folder creation and
+name collisions, then creates and opens a project with the selected engine library and a hidden
+OpenGL context:
+
+```powershell
+dotnet run --project tests/editor/start-screen -c Release -- bin/Release/pixie.dll
+```
+
 - **Edit and play.** A project opens in edit mode: time stands still, the time bar and Game wait,
   and the mouse selects. Edits change the World; **Save** (Ctrl + S, or File) writes the scene, and
   the window's title marks unsaved changes with `*`. **Play** builds the World again from the scene
-  and runs it, with the mouse on Game; while playing, the title says so, the toolbar shows
-  "PLAYING - changes are not kept", and the viewport is framed in orange. **Stop** goes back to the
+  and runs it, with the mouse on Game input; while playing, the title and viewport controls say
+  Playing, and the viewport is framed in orange. The status tooltip explains that runtime changes
+  are discarded. **Stop** goes back to the
   scene as it was at Play. Closing the window, or File, New or open project (a new editor on the
   start screen), with unsaved changes asks first: Save, Don't save, or Cancel.
 - **Code.** A project can have C++ code of its own. **Code, Add code** writes `CMakeLists.txt` and
@@ -46,7 +60,7 @@ as it is. The editor creates no version-control files.
   process, so the editor restarts, and the new one waits for the old to exit before building over
   its library. The game's player, `<project>/bin/<config>/<Id>.exe`, plays the project's start
   scene on its own.
-- **Authoring.** Create entity, in the Entities panel, adds an entity named `entity <n>` to the
+- **Authoring.** **+ Create > Basic shape**, in the Entities panel, adds an entity named `entity <n>` to the
   scene, with a transform and a 24-unit circle, and selects it. In the inspector, Add component
   lists the types the selected entities do not all have, and a component's header has a close
   button that removes it from all of them. The inspector's first line is the selected entity's
@@ -101,7 +115,10 @@ as it is. The editor creates no version-control files.
     top is picked first: shapes, then sprites, then paths, then sprites of negative layers.
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
   for a name. A click selects one, Ctrl + click adds or takes out one, and Shift + click selects the
-  range from the last one clicked.
+  range from the last one clicked. **+ Create** groups Basic shape and the existing physics presets;
+  hover a preset to read its purpose. **Character motor starter** still requires project Behaviour
+  code for movement. **Physics settings** appears separately under Settings. Total and selected
+  counts remain visible above the list.
 - **Inspector.** For the selected entities, one section per component that all of them have: a PixieInspector built from the
   engine's field descriptors (`Inspection/InspectorFactory.cs`), with one `AddField` per field (two
   for a point or a vector, four for a rectangle) over a handle of the component, and the label,
@@ -126,16 +143,33 @@ as it is. The editor creates no version-control files.
   per point, typed over and written as one step when the row lets go of the keyboard, a **-** button
   per row that removes the point, and **Add point**, which adds one 32 units right of the last; each
   is one step. When the selected entities' lists differ, the field asks to select one.
-- **Time.** A bar at the top slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
+- **Viewport controls (layout prototype).** Playback and tools occupy separate rows inside the
+  Viewport dock, above its rendered image. The playback row contains Play/Stop, Pause/Resume,
+  Step, time scale and current mode. The tools row contains Select/Game input, collider handles
+  and snapping. Controls wrap at narrow widths; the image and picking origin begin below them.
+  File, Edit and Code remain in the application menu. Existing saved docking layouts are retained.
+  This placement remains subject to owner review under PIXIE-TASK-231.
+- **Time.** The viewport playback row slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
   0.75, 1, 1.25, 1.5, 1.75, and 2 times. The fixed step stays 1/60 s; faster runs more steps per
   frame, so a heavy World (5,000 flocking boids) falls a little behind at 2 times.
 - **Scenario.** Each game's starting values (counts, attractors) live in a scenario component on
   the `scenario` entity; its inspector has a "Rebuild the scene" button that builds the World again
   from the edited values.
-- **Session.** The project and its folder, or the game; a single step while paused, Rebuild (for a
-  project, from the scene's entities as they are) or Reset; the World's time, entity count, and step
-  cost; and, for a game, buttons that open the other games built next to this one in a new editor
+- **Session.** The project or game name, Editing/Playing/Paused mode, scene save state and World's
+  time appear first. Code status distinguishes the built-in runtime from a loaded project module.
+  **Reset scene** resets a project from the scene's current entities; **Reset game** resets a game.
+  Neither action recompiles C++ code. Statistics (entity count, steps, step cost and editor fps)
+  and Project details (folder and library) are collapsible. Physics and Lighting debug remain here,
+  as do buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game or project).
+
+The start screen filesystem smoke test creates a temporary folder, checks folder creation and
+name collisions, then creates and opens a project with the selected engine library and a hidden
+OpenGL context:
+
+```powershell
+dotnet run --project tests/editor/start-screen -c Release -- bin/Release/pixie.dll
+```
 
 The editor's icon, on its executable and its window, is the neko mark of the shared asset store
 (`vdr` alias `neko-purple-light`), copied into `PixieEditor/assets/` with `vdr cp` under its curated
@@ -346,3 +380,18 @@ Scripted verification uses `layername=slot:name`,
 `layer=category|mask:slot:true|false` and
 `shapelayer=zeroBasedShape:category|mask:slot:true|false` through the same authoring
 and checkbox paths. These commands retain raw numeric save compatibility.
+
+## Generic entity input and C++ component authoring
+
+The existing Add component popup can create reusable C++ Behaviour types and
+rebuild/reopen while retaining unsaved authored data and stable selection.
+Declared user-source sections offer Open code in VS Code; engine source is
+never guessed. Open code adds missing CMake Tools provider settings and a local
+configure preset for the project's existing build. Select **Pixie Editor
+(local)** on first use; CMake supplies the compiler, standard, includes and
+defines. Explicit user configuration is preserved and conflicts are reported.
+KeyboardControl/MouseControl are generic per-entity device
+components; KeyboardControl2D remains an explicit legacy adapter. See the
+[contract and workflow](../docs/entity-input-and-code-components.md) for
+enabled-aware queries, ordered callbacks, API20 rebuilds, registry ownership,
+custom-project adoption, recovery and qualification boundaries.

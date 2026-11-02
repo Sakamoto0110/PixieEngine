@@ -45,3 +45,5 @@ update its state, and link the outcome.
 | [`dev-channel.md`](dev-channel.md) | PIXIE-PROPOSAL-013 | promoted | PIXIE-TODO-051 (2026-10-28); local Engine/Inspector MCP channel; save remains disabled pending owner question 2 |
 | [`deterministic-capture.md`](deterministic-capture.md) | PIXIE-PROPOSAL-014 | promoted | PIXIE-TODO-051 (2026-10-28); fixed-step captures and approved snapshot scenarios; sample/tolerance choices remain explicit |
 | [`gpu-particle-simulation.md`](gpu-particle-simulation.md) | PIXIE-PROPOSAL-015 | idea | Requires an owner decision; measure the CPU simulation at high counts first |
+| [`world-and-scene-properties.md`](world-and-scene-properties.md) | PIXIE-PROPOSAL-016 | idea | Distinct scopes and property inheritance; loading/simulation policy and implementation remain undecided |
+| [`editor-authoring-consolidation.md`](editor-authoring-consolidation.md) | PIXIE-PROPOSAL-017 | promoted | PIXIE-TODO-056 (2026-11-02); blocks A-G preserve ordered priorities, scope boundaries and later design/UX gates |

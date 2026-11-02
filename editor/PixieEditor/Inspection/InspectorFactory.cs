@@ -50,8 +50,35 @@ internal static class InspectorFactory
                 inspector.AddBind([.. handles.Skip(1)]);
         }
 
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        ConfigureChains(inspector, session, type);
+#endif
         return inspector;
     }
+
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+    // Only semantically related axes are eligible, never arbitrary numeric fields.
+    private static void ConfigureChains(Inspector inspector, EngineSession session, int type)
+    {
+        for (var field = 0; field < session.FieldCount(type); ++field)
+        {
+            var kind = session.FieldInfo(type, field).Kind;
+            var name = session.FieldName(type, field);
+            if (kind is PixieFieldKind.Point or PixieFieldKind.Vector)
+                Connect([inspector[NodeName(name, "X")], inspector[NodeName(name, "Y")]]);
+            else if (kind == PixieFieldKind.Rect)
+            {
+                Connect([inspector[NodeName(name, "X")], inspector[NodeName(name, "Y")]]);
+                Connect([inspector[NodeName(name, "Width")], inspector[NodeName(name, "Height")]]);
+            }
+        }
+    }
+
+    internal static void Connect(IReadOnlyList<InspectorNode> nodes)
+    {
+        foreach (var node in nodes) node.ChainsWith = nodes.Where(peer => peer != node).ToArray();
+    }
+#endif
 
     // The node names of a field: its own name, or one per axis or side for points, vectors, and rects.
     public static string NodeName(string field, string? part = null) => part == null ? field : field + part;

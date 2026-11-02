@@ -12,13 +12,14 @@ internal sealed class ComponentHandle(EngineSession session, uint entity, int ty
     public EngineSession Session { get; } = session;
     public uint Entity { get; } = entity;
     public int Type { get; } = type;
+    internal RecordAddress? Record { get; } = record;
 
-    public PixieValue Get(int field) => record is { } r
+    public PixieValue Get(int field) => Record is { } r
         ? Session.GetRecord(Entity, r.OwnerType, r.List, r.Index, field) : Session.Get(Entity, Type, field);
 
     public void Set(int field, PixieValue value)
     {
-        if (record is { } r)
+        if (Record is { } r)
         {
             if (recorder != null) recorder.WriteRecord(Entity, r, field, value);
             else Session.SetRecord(Entity, r.OwnerType, r.List, r.Index, field, value);

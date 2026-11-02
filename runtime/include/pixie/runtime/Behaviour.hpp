@@ -24,6 +24,12 @@ public:
     virtual ~Behaviour() = default;
 
     virtual void Start() {}
+    // Delivered in host event order after Start and before Update. The matching enabled
+    // KeyboardControl/MouseControl on Self is required. Input polling is the final tick state.
+    virtual void OnKey(const KeyEvent& /*event*/, const Input& /*input*/) {}
+    virtual void OnMouseButton(const MouseButtonEvent& /*event*/, const Input& /*input*/) {}
+    virtual void OnMouseMove(const MouseMoveEvent& /*event*/, const Input& /*input*/) {}
+    virtual void OnMouseScroll(const MouseScrollEvent& /*event*/, const Input& /*input*/) {}
     virtual void Update(const FrameTime& /*time*/, const Input& /*input*/) {}
     virtual void Stop() {}
 

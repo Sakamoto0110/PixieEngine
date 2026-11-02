@@ -74,6 +74,14 @@ public enum PixieFieldText
 
 // How a tool shows and edits a field (pixie_capi.h, PixieFieldInfo; 72 bytes).
 [StructLayout(LayoutKind.Sequential)]
+internal struct PixieInputEvent
+{
+    public int Kind, Code, Action, ScanCode;
+    public uint Modifiers;
+    public double X, Y;
+}
+
+[StructLayout(LayoutKind.Sequential)]
 public struct PixieFieldInfo
 {
     public PixieFieldKind Kind;
@@ -132,7 +140,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 19;
+    internal const int Version = 20;
 #if PIXIE_DEVELOPMENT
     [LibraryImport(Library, EntryPoint = "pixie_dev_dispatch", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult DevDispatch(nint session, string request, byte* response, int capacity);
@@ -208,6 +216,12 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_session_stats")]
     internal static partial PixieResult SessionStats(nint session, out PixieStats stats);
+
+    [LibraryImport(Library, EntryPoint = "pixie_input_event")]
+    internal static partial PixieResult InputEvent(nint session, in PixieInputEvent input);
+
+    [LibraryImport(Library, EntryPoint = "pixie_type_source")]
+    internal static partial PixieResult TypeSource(nint session, int type, byte* buffer, int capacity, out int length);
 
     [LibraryImport(Library, EntryPoint = "pixie_input_cursor")]
     internal static partial PixieResult InputCursor(nint session, double x, double y);

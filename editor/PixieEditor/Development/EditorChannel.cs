@@ -150,6 +150,7 @@ internal sealed class EditorChannel : IDisposable
                 var structural = method is "world.play" or "world.stop" or "world.reset" or "world.restore" or "world.destroy" or "world.add_component" or "world.remove_component" or "world.record_insert" or "world.record_remove";
                 if (structural)
                 {
+                    Session.PrepareBindingsReplacement();
                     Selection.PreserveThrough(Session, () => output = Session.DispatchDevelopment(command.Request));
                     Session.InvalidateDevelopmentBindings();
                 }

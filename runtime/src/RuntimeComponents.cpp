@@ -1,3 +1,4 @@
+#include "pixie/runtime/InputControl.hpp"
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/AttractorAffector.hpp"
@@ -455,9 +456,12 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&CharacterMotor2D::maxRecoveryDistance>("maxRecoveryDistance").Label("recovery limit").Tooltip("Maximum extra overlap correction before reporting unsafe placement, in world units.").Range(0, 100000).Scrub(0.1)
         .Field<&CharacterMotor2D::category>("category").Label("belongs to").Tooltip("The character's membership layers. Bodies and particle pools whose collision layers exclude these pass through it; at least one is required.").Editor(FieldEditor::LayerMask).References("CollisionLayers2D").Range(1, 2147483647)
         .Field<&CharacterMotor2D::mask>("mask").Label("collides with").Tooltip("Membership layers of the colliders this character collides with and of the bodies it stops; both sides must allow the pair.").Editor(FieldEditor::LayerMask).References("CollisionLayers2D").Range(0, 2147483647);
+    types.Add<KeyboardControl>("KeyboardControl")
+        .Field<&KeyboardControl::enabled>("enabled").Tooltip("Receive generic keyboard callbacks and enabled-aware state queries. Game code decides their meaning.");
+    types.Add<MouseControl>("MouseControl")
+        .Field<&MouseControl::enabled>("enabled").Tooltip("Receive generic mouse callbacks and enabled-aware viewport-pixel state queries. No movement or physics mapping.");
     types.Add<KeyboardControl2D>("KeyboardControl2D")
-        .Field<&KeyboardControl2D::enabled>("enabled")
-        .Tooltip("A/D or arrows move; Space jumps. Remove this component when game code supplies commands.");
+        .Field<&KeyboardControl2D::enabled>("enabled").Tooltip("Legacy WASD/arrows/Space character adapter retained for existing scenes. New game code should use KeyboardControl and supply its own commands.");
 }
 
 } // namespace pixie

@@ -1,0 +1,6 @@
+// Generated registry. Edit component descriptions in their own C++ sources.
+#include "PixieComponents.generated.hpp"
+#include "pixie/runtime/ComponentTypes.hpp"
+namespace pixie::generated {
+void DescribeComponents(ComponentTypes&) {}
+}

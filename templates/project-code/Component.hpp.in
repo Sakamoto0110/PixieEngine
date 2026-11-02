@@ -1,0 +1,16 @@
+#pragma once
+#include "pixie/runtime/Behaviour.hpp"
+namespace pixie { class ComponentTypes; }
+
+// One reusable component type; any number of scene entities may attach it.
+struct @PIXIE_COMPONENT@ final : pixie::Behaviour {
+    bool enabled = true;
+    static void Describe(pixie::ComponentTypes& types);
+    void Start() override;
+    void Update(const pixie::FrameTime& time, const pixie::Input& input) override;
+    void OnKey(const pixie::KeyEvent& event, const pixie::Input& input) override;
+    void OnMouseButton(const pixie::MouseButtonEvent& event, const pixie::Input& input) override;
+    void OnMouseMove(const pixie::MouseMoveEvent& event, const pixie::Input& input) override;
+    void OnMouseScroll(const pixie::MouseScrollEvent& event, const pixie::Input& input) override;
+    void Stop() override;
+};

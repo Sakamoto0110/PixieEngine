@@ -1,0 +1,51 @@
+#include "@PIXIE_COMPONENT@.hpp"
+#include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/InputControl.hpp"
+#include "pixie/runtime/World.hpp"
+
+void @PIXIE_COMPONENT@::Describe(pixie::ComponentTypes& types) {
+    types.Add<@PIXIE_COMPONENT@>("@PIXIE_COMPONENT@")
+        .Source("src/components/@PIXIE_COMPONENT@.cpp")
+        .Field<&@PIXIE_COMPONENT@::enabled>("enabled").Tooltip("Run this component's Update and input code.");
+}
+
+void @PIXIE_COMPONENT@::Start() {
+    // Read Self() and initialize runtime-only data. Never retain component pointers across steps.
+}
+
+void @PIXIE_COMPONENT@::Update(const pixie::FrameTime&, const pixie::Input& input) {
+    if (!enabled) return;
+    // Poll only the devices attached to this entity. Each helper respects its component's enabled.
+    if (const auto* keyboard = Self().TryGet<pixie::KeyboardControl>()) {
+        const bool held = keyboard->IsDown(input, pixie::Key::A);
+        (void)held; // Decide the meaning in this component; there is no built-in action mapping.
+    }
+    if (const auto* mouse = Self().TryGet<pixie::MouseControl>()) {
+        const auto position = mouse->Position(input); // Viewport pixels, not world coordinates.
+        (void)position;
+    }
+}
+
+void @PIXIE_COMPONENT@::OnKey(const pixie::KeyEvent& event, const pixie::Input&) {
+    if (!enabled) return;
+    // Requires an enabled KeyboardControl on Self. event.key/action/modifiers/scanCode preserve
+    // host order; Pressed(), Released(), Repeat() describe this individual transition.
+    // Use GetWorld().Defer for structural changes here; capture needed event data by value.
+    (void)event;
+}
+void @PIXIE_COMPONENT@::OnMouseButton(const pixie::MouseButtonEvent& event, const pixie::Input&) {
+    if (!enabled) return;
+    // Requires enabled MouseControl. event.button/action/modifiers/position are event-time data.
+    (void)event;
+}
+void @PIXIE_COMPONENT@::OnMouseMove(const pixie::MouseMoveEvent& event, const pixie::Input&) {
+    if (!enabled) return;
+    (void)event; // position, delta and modifiers, in viewport pixels.
+}
+void @PIXIE_COMPONENT@::OnMouseScroll(const pixie::MouseScrollEvent& event, const pixie::Input&) {
+    if (!enabled) return;
+    (void)event; // offset, event-time pointer position and modifiers.
+}
+void @PIXIE_COMPONENT@::Stop() {
+    // Runs once if Start ran. Release owned resources; do not mutate a World being torn down.
+}

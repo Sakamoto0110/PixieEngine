@@ -75,6 +75,7 @@ add_executable(runtime-tests
     runtime/TextTests.cpp
     runtime/UserDataTests.cpp
     runtime/WorldTests.cpp
+    runtime/InputControlTests.cpp
     runtime/TelemetryTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)

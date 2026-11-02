@@ -50,15 +50,16 @@ pxPoint CursorInPixels(GLFWwindow* handle, double x, double y) {
 }
 
 void ConnectInput(GLFWwindow* handle, PlayerInput& input) {
+    glfwSetInputMode(handle, GLFW_LOCK_KEY_MODS, GLFW_TRUE);
     glfwSetWindowUserPointer(handle, &input);
-    glfwSetKeyCallback(handle, [](GLFWwindow* window, int key, int, int action, int mods) {
+    glfwSetKeyCallback(handle, [](GLFWwindow* window, int key, int scanCode, int action, int mods) {
         auto& state = InputOf(window);
         const bool wasOpen = state.debug.IsOpen();
         const auto code = static_cast<Key>(key);
         if (!state.debug.KeyEvent(code, action != GLFW_RELEASE, action == GLFW_REPEAT)) {
             // A repeat from a key first pressed in the console must not become a new game press.
             if (action != GLFW_REPEAT || state.game.IsDown(code)) {
-                state.game.SetKey(key, action != GLFW_RELEASE);
+                state.game.SetKey(key, static_cast<InputAction>(action), static_cast<InputModifiers>(mods), scanCode);
             }
         }
         if (wasOpen != state.debug.IsOpen()) {
@@ -74,9 +75,9 @@ void ConnectInput(GLFWwindow* handle, PlayerInput& input) {
     glfwSetCharCallback(handle, [](GLFWwindow* window, unsigned int codepoint) {
         InputOf(window).debug.Character(codepoint);
     });
-    glfwSetMouseButtonCallback(handle, [](GLFWwindow* window, int button, int action, int) {
+    glfwSetMouseButtonCallback(handle, [](GLFWwindow* window, int button, int action, int mods) {
         auto& state = InputOf(window);
-        if (!state.debug.IsOpen()) state.game.SetMouseButton(button, action != GLFW_RELEASE);
+        if (!state.debug.IsOpen()) state.game.SetMouseButton(button, static_cast<InputAction>(action), static_cast<InputModifiers>(mods));
     });
     glfwSetCursorPosCallback(handle, [](GLFWwindow* window, double x, double y) {
         auto& state = InputOf(window);

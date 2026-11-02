@@ -1,5 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
+  <!-- Machine-local adoption settings also apply to normal Visual Studio builds. -->
+  <Import Project="../../.local/PixieEditor.props"
+          Condition="'$(PixieUseLocalConfiguration)' != 'false' And Exists('../../.local/PixieEditor.props')" />
+
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
@@ -10,6 +14,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>PixieEditor</RootNamespace>
     <IsPackable>false</IsPackable>
+    <!-- Explicit local integration only; the published dependency remains the default. -->
+    <DefineConstants Condition="'$(PixieInspectorLocalRoot)' != ''">$(DefineConstants);PIXIE_INSPECTOR_FIELD_INTERACTIONS</DefineConstants>
     <PixieDevelopmentTools Condition="'$(PixieDevelopmentTools)' == ''">true</PixieDevelopmentTools>
     <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true'">$(DefineConstants);PIXIE_DEVELOPMENT</DefineConstants>
     <!-- Whether the development channel may save the scene (editor.do save); -p:PixieChannelSave=false leaves it out. -->
@@ -25,6 +31,7 @@
     <Compile Remove="Development/**/*.cs" />
   </ItemGroup>
   <Target Name="RequireShippingPublish" BeforeTargets="PrepareForPublish;Publish">
+    <Error Condition="'$(PixieInspectorLocalRoot)' != ''" Text="Local Inspector integration cannot be published. Clear PixieInspectorLocalRoot." />
     <Error Condition="'$(PixieDevelopmentTools)' == 'true'" Text="Publish requires -p:PixieDevelopmentTools=false; development operations cannot be published." />
     <Error Condition="'$(NoBuild)' == 'true'" Text="Publishing an existing editor binary is not allowed; build with development tools disabled." />
   </Target>
@@ -37,10 +44,15 @@
   <ItemGroup>
     <!-- The inspector and its Dear ImGui view, which bring the core, PixieLib, and Hexa.NET.ImGui 2.2.9;
          the window and ImGui's GLFW and OpenGL3 backends, at the versions made with that binding. -->
-    <PackageReference Include="PixieInspector.ImGui" Version="0.3.0" />
+    <PackageReference Include="PixieInspector.ImGui" Version="0.3.0" Condition="'$(PixieInspectorLocalRoot)' == ''" />
+    <ProjectReference Include="$(PixieInspectorLocalRoot)/views/PixieInspector.ImGui/PixieInspector.ImGui.csproj" Condition="'$(PixieInspectorLocalRoot)' != ''" />
     <PackageReference Include="Hexa.NET.GLFW" Version="1.0.5" />
     <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.18" />
     <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.18" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(PixieInspectorLocalRoot)' != ''">
+    <Content Include="assets/inspector/*.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

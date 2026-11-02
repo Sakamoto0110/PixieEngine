@@ -1,0 +1,4 @@
+# Generated source registry; user component implementations remain editable.
+target_sources(${PIXIE_COMPONENT_TARGET} PRIVATE
+    "${CMAKE_CURRENT_SOURCE_DIR}/src/PixieComponents.generated.cpp"
+)

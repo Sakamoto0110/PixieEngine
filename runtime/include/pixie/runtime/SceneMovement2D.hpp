@@ -89,6 +89,7 @@ struct CharacterMotor2D {
 };
 
 // Optional input bridge for a playable scene without game code. Omit it when game code supplies commands.
+// Legacy serialized platformer adapter only; new code uses generic InputControl.hpp components.
 struct KeyboardControl2D { bool enabled = true; };
 struct CharacterCommand2D { double horizontal = 0; bool jumpPressed = false; };
 

@@ -7,6 +7,9 @@
 
 #include <array>
 #include <cstdint>
+#include <span>
+#include <variant>
+#include <vector>
 
 namespace pixie {
 
@@ -47,13 +50,45 @@ enum class Key : int {
     LeftShift = 340,
     LeftControl = 341,
     LeftAlt = 342,
+    LeftSuper = 343,
     RightShift = 344,
     RightControl = 345,
     RightAlt = 346,
+    RightSuper = 347,
 };
 
 // Mouse buttons, with GLFW's values.
-enum class MouseButton : int { Left = 0, Right = 1, Middle = 2 };
+enum class MouseButton : int { Left = 0, Right = 1, Middle = 2, Button4 = 3, Button5, Button6, Button7, Button8 };
+
+// Values match GLFW actions/modifier bits; no game actions or coordinate-space inference.
+enum class InputAction : int { Release = 0, Press = 1, Repeat = 2 };
+enum class InputModifiers : std::uint32_t { None = 0, Shift = 1, Control = 2, Alt = 4, Super = 8, CapsLock = 16, NumLock = 32 };
+constexpr InputModifiers operator|(InputModifiers a, InputModifiers b) {
+    return static_cast<InputModifiers>(static_cast<std::uint32_t>(a) | static_cast<std::uint32_t>(b));
+}
+constexpr bool HasModifier(InputModifiers value, InputModifiers flag) {
+    return (static_cast<std::uint32_t>(value) & static_cast<std::uint32_t>(flag)) != 0;
+}
+struct KeyEvent {
+    Key key;
+    InputAction action;
+    InputModifiers modifiers;
+    int scanCode = 0;
+    bool Pressed() const { return action == InputAction::Press; }
+    bool Released() const { return action == InputAction::Release; }
+    bool Repeat() const { return action == InputAction::Repeat; }
+};
+struct MouseButtonEvent {
+    MouseButton button;
+    InputAction action;
+    InputModifiers modifiers;
+    pxPoint position;
+    bool Pressed() const { return action == InputAction::Press; }
+    bool Released() const { return action == InputAction::Release; }
+};
+struct MouseMoveEvent { pxPoint position; pxVec2 delta; InputModifiers modifiers; };
+struct MouseScrollEvent { pxVec2 offset; pxPoint position; InputModifiers modifiers; };
+using InputEvent = std::variant<KeyEvent, MouseButtonEvent, MouseMoveEvent, MouseScrollEvent>;
 
 // The state of the keyboard and the mouse, fed by a host's events and read by an App.
 //
@@ -67,10 +102,19 @@ public:
 
     // Host side: report events as they arrive. Codes outside the known range are ignored.
     PIXIE_PLATFORM_API void SetKey(int code, bool down);
+    PIXIE_PLATFORM_API void SetKey(int code, InputAction action, InputModifiers modifiers, int scanCode = 0);
     PIXIE_PLATFORM_API void SetMouseButton(int button, bool down);
+    PIXIE_PLATFORM_API void SetMouseButton(int button, InputAction action, InputModifiers modifiers);
     // The cursor in framebuffer pixels, origin at the top-left corner, Y down.
     PIXIE_PLATFORM_API void SetCursor(pxPoint position);
+    PIXIE_PLATFORM_API void SetCursor(pxPoint position, InputModifiers modifiers);
     PIXIE_PLATFORM_API void AddScroll(pxVec2 offset);
+    PIXIE_PLATFORM_API void AddScroll(pxVec2 offset, InputModifiers modifiers);
+
+    // Ordered transitions since EndUpdate. Polling queries describe the final accumulated state;
+    // event args preserve each intermediate transition. Hosts never mutate Input during dispatch.
+    std::span<const InputEvent> Events() const { return events_; }
+    InputModifiers Modifiers() const { return modifiers_; }
 
     // Called after each fixed update: forgets the presses, releases, scroll, and movement it saw.
     PIXIE_PLATFORM_API void EndUpdate();
@@ -96,10 +140,13 @@ public:
     pxVec2 Scroll() const { return scroll_; }
 
 private:
-    enum : std::uint8_t { kDown = 1, kPressed = 2, kReleased = 4 };
+    enum : std::uint8_t { kDown = 1, kPressed = 2, kReleased = 4, kCancelled = 8 };
 
     PIXIE_PLATFORM_API static void Set(std::uint8_t& state, bool down);
 
+    PIXIE_PLATFORM_API InputModifiers HeldModifiers() const;
+    std::vector<InputEvent> events_;
+    InputModifiers modifiers_ = InputModifiers::None;
     std::array<std::uint8_t, kKeyCount> keys_{};
     std::array<std::uint8_t, kButtonCount> buttons_{};
     pxPoint cursor_;
