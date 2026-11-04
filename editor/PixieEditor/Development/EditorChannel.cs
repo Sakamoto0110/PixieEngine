@@ -29,11 +29,13 @@ internal sealed class EditorChannel : IDisposable
     public long Frame { get; private set; }
     private static readonly HashSet<string> Gestures = new(StringComparer.Ordinal)
     {
+        "scenecreate", "sceneselect", "scenerename", "sceneremove", "scenemove",
+        "worldpresentation", "scenepresentation", "presentationmigrate",
         "select", "create", "collider", "character", "compound", "addshape", "removeshape", "shape", "layername",
         "layer", "shapelayer", "dynamic", "compoundbox", "kinematic", "sensor", "world", "duplicate", "delete",
         "undo", "redo", "add", "remove", "rename", "addpoint", "removepoint", "move", "colliderhandles", "physicsdebug", "lightingdebug", "lightdrag", "lightlayername", "colliderdrag", "play", "stop",
 #if PIXIE_CHANNEL_SAVE
-        "save",
+        "save", "sceneconvert",
 #endif
     };
 #if PIXIE_CHANNEL_SAVE
@@ -48,16 +50,18 @@ internal sealed class EditorChannel : IDisposable
         Captures = new CaptureDirectory(root);
         Pipe = new EditorPipe(name);
     }
-    private JsonArray Ids() => new(Selection.Items.Select(Session.SceneId).OfType<ulong>()
+    private JsonArray Ids() => Session.Edits.IsBlocked ? new JsonArray() : new(Selection.Items.Select(Session.SceneId).OfType<ulong>()
         .Select(id => (JsonNode?)JsonValue.Create(id.ToString("x16", CultureInfo.InvariantCulture))).ToArray());
     private void Synchronize()
     {
+        if (Session.Edits.IsBlocked) return;
         Selection.Prune(Session);
-        Inspector.SynchronizeChannel(Selection.Items, Session.DevelopmentGeneration);
+        Inspector.SynchronizeChannel(Selection.Items, Session.DevelopmentGeneration, Selection.IsWorld, Selection.Scope);
     }
     private JsonObject Context(JsonObject body)
     {
         body["editor_session"] = SessionId;
+        body["recovery_required"] = Session.Edits.RecoveryRequired;
         body["frame"] = Frame;
         body["command_sequence"] = Sequence;
         body["selection_generation"] = Inspector.ChannelGeneration;
@@ -102,6 +106,12 @@ internal sealed class EditorChannel : IDisposable
         Synchronize();
         if (Pending is { } capture)
         {
+            if (Session.Edits.IsBlocked)
+            {
+                Pending = null;
+                capture.Command.Reply.TrySetResult(capture.Notification ? "" : Error(capture.Id, "Inspector recovery blocks capture.").ToJsonString());
+                return;
+            }
             if (Frame >= capture.ReadyFrame)
             {
                 var prepared = Native("world.prepare_capture");
@@ -135,6 +145,18 @@ internal sealed class EditorChannel : IDisposable
             if (Client != command.Client) { Client = command.Client; Hello = false; }
             ++Sequence;
             if (!Hello && method != "world.hello") throw new InvalidOperationException("world.hello must be the first call.");
+            if (method == "editor.do" && p["command"] is JsonValue recoveryValue &&
+                recoveryValue.TryGetValue<string>(out var recoveryCommand) && recoveryCommand == "recover")
+            {
+                var recovered = Session.Edits.RetryRecovery?.Invoke() ?? !Session.Edits.IsBlocked;
+                Synchronize();
+                var result = Result(id, new JsonObject { ["outcome"] = recovered ? "recovered" : "recovery_pending",
+                    ["world_replayed"] = false, ["recovery_required"] = Session.Edits.RecoveryRequired });
+                Complete(command, notification ? "" : result.ToJsonString(), id, false);
+                return;
+            }
+            if (Session.Edits.IsBlocked && !Editing.SessionEditGate.IsReadOnlyWorldCommand(method, p))
+                Session.Edits.RequireMutation(); // Before possiblyApplied, handlers or capture allocation.
             JsonObject response;
             if (method == "world.capture")
             {
@@ -144,8 +166,7 @@ internal sealed class EditorChannel : IDisposable
             }
             if (method.StartsWith("world.", StringComparison.Ordinal))
             {
-                possiblyApplied = method is not ("world.hello" or "world.stats" or "world.types" or "world.type" or "world.entities" or "world.entity" or
-                    "world.get" or "world.pick" or "world.pick_box" or "world.view_to_world" or "world.world_to_view");
+                possiblyApplied = !Editing.SessionEditGate.IsReadOnlyWorldCommand(method, p);
                 string output = "";
                 var structural = method is "world.play" or "world.stop" or "world.reset" or "world.restore" or "world.destroy" or "world.add_component" or "world.remove_component" or "world.record_insert" or "world.record_remove";
                 if (structural)
@@ -181,11 +202,18 @@ internal sealed class EditorChannel : IDisposable
                 response = Result(id, Inspector.ChannelGet(Text(p, "path"), domain == "live-storage"));
             }
             else if (method == "inspector.report") response = Result(id, Inspector.ChannelReport());
-            else if (method == "editor.selection") response = Result(id, new JsonObject { ["ids"] = Ids(), ["generation"] = Inspector.ChannelGeneration });
+            else if (method == "editor.selection") response = Result(id, new JsonObject { ["ids"] = Ids(), ["scope_id"] = Selection.Scope?.ToString("x16"), ["generation"] = Inspector.ChannelGeneration });
+            else if (method == "editor.scenes") response = Result(id, new JsonObject
+            {
+                ["scopes"] = new JsonArray(Session.SceneScopes().Select(s => (JsonNode?)new JsonObject { ["id"] = s.Id.ToString("x16"), ["name"] = s.Name }).ToArray()),
+                ["selected_scope"] = Selection.Scope?.ToString("x16"), ["format_version"] = Session.SceneFormatVersion
+            });
             else if (method == "editor.history") response = Result(id, HistoryState());
+            else if (method == "editor.presentation") response = Result(id, Session.PresentationSnapshot());
             else if (method == "inspector.set")
             {
                 RequireGeneration(p);
+                Inspector.RequireChannelEntityTarget();
                 if (!p.ContainsKey("value")) throw new ArgumentException("Missing value.");
                 possiblyApplied = true;
                 var receipt = Inspector.ChannelSet(Text(p, "path"), p["value"], Generation(p));
@@ -209,9 +237,10 @@ internal sealed class EditorChannel : IDisposable
                     if (target.Length != 16 || !ulong.TryParse(target, NumberStyles.HexNumber, CultureInfo.InvariantCulture, out var sceneId) || sceneId == 0)
                         throw new ArgumentException("Channel selection requires a16-digit hexadecimal scene ID.");
                 }
+                else if (verb is not ("sceneselect" or "scenecreate" or "scenerename" or "sceneremove" or "sceneconvert" or "worldpresentation" or "scenepresentation" or "presentationmigrate" or "undo" or "redo")) Inspector.RequireChannelEntityTarget();
                 var before = HistoryState();
                 possiblyApplied = true;
-                var diagnostics = Inspector.ChannelGesture(() => RunCommand(gesture)); // The same --do handler, once.
+                var diagnostics = Inspector.ChannelGesture(() => RunCommand(gesture), entityNavigation: verb is "select" or "sceneselect" or "scenecreate" or "scenerename" or "sceneremove" or "sceneconvert" or "worldpresentation" or "scenepresentation" or "presentationmigrate" or "undo" or "redo"); // Same owner-thread handlers.
                 var ran = diagnostics["handler_returned"]?.GetValue<bool>() == true;
                 Synchronize();
                 var receipt = new JsonObject { ["handler_returned"] = ran, ["history_before"] = before, ["history_after"] = HistoryState(),

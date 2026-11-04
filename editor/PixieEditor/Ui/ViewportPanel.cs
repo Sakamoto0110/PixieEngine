@@ -61,6 +61,8 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     private bool Focused;
     private int Width;
     private int Height;
+    private PixieSceneScope[] EnvironmentScopes = [];
+    private long NextEnvironmentScopeRead;
     private readonly bool[] ButtonsSent = new bool[8];
     private readonly bool[] KeysSent = new bool[LastKey + 1];
 
@@ -78,6 +80,8 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
     private bool MenuParticles;
     private bool PressShift;
     private bool Boxing;
+    // PressedOn/Boxing can remain cached after release; only PressedAt denotes a live press.
+    internal bool HasActiveAuthoringGesture => PressedAt != null || Moving != null || ColliderDrag != null || LightDrag != null;
 
     public ViewportPanel Started()
     {
@@ -97,6 +101,7 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
             ChannelVisible = true;
 #endif
             DrawControls?.Invoke();
+            if (session.ProjectFolder != null) { DrawEnvironmentChoice(); DrawCameraChoice(); }
             var size = ImGui.GetContentRegionAvail();
             Scale = ImGui.GetIO().DisplayFramebufferScale;
             var width = Math.Max(1, (int)(size.X * Scale.X));
@@ -174,6 +179,66 @@ internal sealed unsafe partial class ViewportPanel(EngineSession session, Select
 
         ImGui.End();
         ImGui.PopStyleVar();
+    }
+
+    private void DrawCameraChoice()
+    {
+        var choice = session.ViewportCameraSelection;
+        var preview = choice.Kind == 0 ? "Free editor camera" : choice.Kind == 1 ? "Authored camera defaults" : $"Camera {choice.Entity:x16}";
+        ImGui.SetNextItemWidth(Math.Min(260, Math.Max(1, ImGui.GetContentRegionAvail().X)));
+        if (ImGui.BeginCombo("##viewport-camera", preview))
+        {
+            if (ImGui.Selectable("Free editor camera", choice.Kind == 0)) session.SelectViewportCamera(0);
+            if (ImGui.Selectable("World camera default", choice.Kind == 1 && choice.Scene == 0)) session.SelectViewportCamera(1);
+            foreach (var scope in session.SceneScopes())
+                if (ImGui.Selectable($"Scene camera: {scope.Name}##camera-{scope.Id:x16}", choice.Kind == 1 && choice.Scene == scope.Id))
+                    session.SelectViewportCamera(1, scene: scope.Id);
+            foreach (var camera in session.PresentationSnapshot()["cameras"]!.AsArray())
+            {
+                var id = ulong.Parse(camera!["id"]!.GetValue<string>(), System.Globalization.NumberStyles.HexNumber);
+                if (ImGui.Selectable($"{camera["name"]!.GetValue<string>()}##camera-entity-{id:x16}", choice.Kind == 2 && choice.Entity == id))
+                    session.SelectViewportCamera(2, id, choice.Scene);
+            }
+            ImGui.EndCombo();
+        }
+        var diagnostic = session.CameraDiagnostic;
+        if (diagnostic.Length > 0) ImGui.TextWrapped(diagnostic);
+    }
+
+    private void DrawEnvironmentChoice()
+    {
+        var (kind, sceneId) = session.ViewportEnvironmentSelection;
+        var now = System.Environment.TickCount64;
+        if (now >= NextEnvironmentScopeRead)
+        {
+            EnvironmentScopes = session.SceneScopes();
+            NextEnvironmentScopeRead = now + 250;
+        }
+        var scopes = EnvironmentScopes;
+        var selected = scopes.FirstOrDefault(scope => scope.Id == sceneId);
+        var label = kind == PixieEnvironmentSelectionKind.LegacyWorld ? "Legacy World"
+            : selected.Id != 0 ? $"Scene: {selected.Name}"
+            : $"Scene {sceneId:x16} (unavailable)";
+        ImGui.TextDisabled("Environment");
+        ImGui.SameLine();
+        ImGui.SetNextItemWidth(Math.Max(1, Math.Min(260, ImGui.GetContentRegionAvail().X)));
+        if (ImGui.BeginCombo("##viewport-environment", label))
+        {
+            if (ImGui.Selectable("Legacy World", kind == PixieEnvironmentSelectionKind.LegacyWorld))
+                session.SelectViewportEnvironment(PixieEnvironmentSelectionKind.LegacyWorld);
+            foreach (var scope in scopes)
+                if (ImGui.Selectable($"Scene: {scope.Name}##environment-{scope.Id:x16}",
+                        kind == PixieEnvironmentSelectionKind.Scene && sceneId == scope.Id))
+                    session.SelectViewportEnvironment(PixieEnvironmentSelectionKind.Scene, scope.Id);
+            ImGui.EndCombo();
+        }
+        var resolved = session.ViewportEnvironment;
+        if (resolved.Resolution == PixieEnvironmentResolutionKind.RemovedSceneFallback)
+            ImGui.TextWrapped(resolved.Diagnostic);
+        else if (resolved.Resolution == PixieEnvironmentResolutionKind.SceneOverride)
+            ImGui.TextDisabled("Scene Environment override");
+        else if (resolved.Resolution == PixieEnvironmentResolutionKind.SceneInheritedWorld)
+            ImGui.TextDisabled("Scene Environment inherits World lighting");
     }
 
     private uint RenderTexture()

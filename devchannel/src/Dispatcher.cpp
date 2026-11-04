@@ -1,6 +1,7 @@
 #include "pixie/dev/Dispatcher.hpp"
 #include "Session.hpp"
 #include "DevError.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <atomic>
@@ -350,6 +351,8 @@ struct WorldDispatcher::Impl {
         return false;
     }
     Json Restore(const std::string& token) {
+        if (pixie::SceneFormatVersion(view.session.GetWorld()) == 2)
+            Reject("version2 restoration requires the editor candidate coordinator; no entities were changed");
         const auto found = snapshots.find(token);
         if (found == snapshots.end()) Reject("unknown snapshot token for this dispatcher", PIXIE_ERROR_NOT_FOUND);
         auto& snapshot = found->second;

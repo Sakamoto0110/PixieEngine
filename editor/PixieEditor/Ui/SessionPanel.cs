@@ -8,6 +8,8 @@ namespace PixieEditor.Ui;
 // Other games built next to this one can each be opened in a new editor.
 internal sealed class SessionPanel(EngineSession session, string game)
 {
+    // Navigation only. World fields are drawn by the Inspector, independently of viewport choice.
+    public Action? InspectWorld { get; init; }
     private string MovementStatus = "";
     private long NextStatusRead;
 #if PIXIE_DEVELOPMENT
@@ -38,6 +40,7 @@ internal sealed class SessionPanel(EngineSession session, string game)
             var editing = project != null && session.Editing;
             ImGui.TextDisabled(project != null ? "PROJECT" : "GAME");
             Wrapped(session.ProjectName);
+            if (InspectWorld != null && ImGui.Button("World properties")) InspectWorld();
             ImGui.Separator();
             if (ImGui.BeginTable("##session-state", 2, ImGuiTableFlags.SizingStretchProp))
             {

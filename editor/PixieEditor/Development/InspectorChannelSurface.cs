@@ -16,16 +16,32 @@ internal sealed partial class InspectorPanel
     private long ChannelEpoch;
     private Action<Inspector>? ChannelNewInspector;
     public long ChannelGeneration { get; private set; }
-
-    public void SynchronizeChannel(IReadOnlyList<uint> selected, long epoch)
+    private bool ChannelWorldTarget;
+    private ulong? ChannelScopeTarget;
+    internal void RequireChannelEntityTarget()
     {
+        if (ChannelWorldTarget) throw new InvalidOperationException("World and Scene properties are available in the editor UI; the Inspector channel currently supports entity targets only. Select an entity first.");
+    }
+
+    public void SynchronizeChannel(IReadOnlyList<uint> selected, long epoch, bool world = false, ulong? scope = null)
+    {
+        if (world || scope != null)
+        {
+            if (!ChannelWorldTarget || scope != ChannelScopeTarget || epoch != ChannelEpoch) ++ChannelGeneration;
+            ChannelScopeTarget = scope;
+            ChannelWorldTarget = true; ChannelEpoch = epoch;
+            return;
+        }
+        var leftWorld = ChannelWorldTarget;
+        ChannelWorldTarget = false;
+        ChannelScopeTarget = null;
         var types = selected.Count == 0 ? [] : Enumerable.Range(0, session.TypeCount)
             .Where(t => selected.All(id => session.Has(id, t))).ToArray();
-        var rebuilt = BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types);
+        var rebuilt = BoundToWorld || BoundScope != null || BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types);
         if (rebuilt) Rebuild([.. selected], types);
         if (!rebuilt && epoch != ChannelEpoch) ReleaseRecords();
         var instances = Sections.Select(s => s.Inspector).Concat(RecordSections.Values.Select(s => s.Inspector)).ToArray();
-        if (!instances.SequenceEqual(ChannelInstances) || !selected.SequenceEqual(ChannelEntities) || epoch != ChannelEpoch)
+        if (leftWorld || !instances.SequenceEqual(ChannelInstances) || !selected.SequenceEqual(ChannelEntities) || epoch != ChannelEpoch)
         {
             ++ChannelGeneration;
             ChannelInstances = instances;
@@ -101,6 +117,12 @@ internal sealed partial class InspectorPanel
     }
     public JsonObject ChannelTree()
     {
+        if (ChannelWorldTarget) return new JsonObject
+        {
+            ["generation"] = ChannelGeneration, ["target"] = ChannelScopeTarget == null ? "world" : "scene", ["scope_id"] = ChannelScopeTarget?.ToString("x16"), ["rows"] = new JsonArray(),
+            ["custom_rows"] = new JsonArray(), ["record_rows"] = new JsonArray(),
+            ["unsupported_reason"] = "World and Scene properties use the editor UI; this Inspector channel currently supports entity targets only."
+        };
         var rows = new JsonArray();
         var omitted = new JsonArray();
         foreach (var section in Sections)
@@ -147,12 +169,14 @@ internal sealed partial class InspectorPanel
     }
     public JsonObject ChannelGet(string path, bool live = false)
     {
+        RequireChannelEntityTarget();
         if (CustomRow(path) != null) return ObserveCustom(path);
         var (section, node) = FindChannelNode(path);
         return Observe(section.Name, node, live);
     }
     public JsonObject ChannelReport()
     {
+        RequireChannelEntityTarget();
         var reports = new JsonArray();
         foreach (var section in Sections)
             reports.Add(new JsonObject { ["component"] = section.Name, ["creation_error_count"] = section.Inspector.Report.ErrorCount,
@@ -163,8 +187,10 @@ internal sealed partial class InspectorPanel
                     .Take(1024).Select(n => (JsonNode?)Observe(section.Name, n)).ToArray()) });
         return new JsonObject { ["generation"] = ChannelGeneration, ["reports"] = reports };
     }
-    public JsonObject ChannelGesture(Func<bool> handler)
+    public JsonObject ChannelGesture(Func<bool> handler, bool entityNavigation = false)
     {
+        session.Edits.RequireMutation();
+        if (!entityNavigation) RequireChannelEntityTarget();
         var failures = new JsonArray();
         var nodes = new HashSet<InspectorNode>();
         void Failed(object? _, InspectorFailureEventArgs failure) => failures.Add(Failure(failure));
@@ -189,6 +215,8 @@ internal sealed partial class InspectorPanel
     }
     public JsonObject ChannelSet(string path, JsonNode? value, long expectedGeneration)
     {
+        session.Edits.RequireMutation();
+        RequireChannelEntityTarget();
         if (expectedGeneration != ChannelGeneration) throw new InvalidOperationException("Stale Inspector generation; read inspector.tree again.");
         if (CustomRow(path) != null) return SetCustom(path, value);
         if (value is JsonValue nulScalar && nulScalar.TryGetValue<string>(out var nulText) && nulText.Contains('\0')) throw new ArgumentException("Embedded NUL is not allowed.");

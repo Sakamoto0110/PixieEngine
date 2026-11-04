@@ -28,6 +28,12 @@ internal sealed partial class Authoring
         if (after == gesture.Before) return 0;
         if (cancel)
         {
+            if (session.SceneFormatVersion == 2)
+            {
+                if (SceneEditor == null) throw new Native.EngineException("Version2 collider cancellation requires candidate publication.");
+                SceneEditor.ReplaceHistoryFragment(gesture.Before, [gesture.SceneId]);
+                return 0;
+            }
             session.Destroy(gesture.Entity);
             selection.Set(session.Restore(gesture.Before, newIds: false));
         }

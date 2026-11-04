@@ -1,0 +1,12 @@
+<Project>
+  <PropertyGroup>
+    <PixieNativeApiVersion>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../capi/include/pixie_capi.h')), '(?s).*#define PIXIE_CAPI_VERSION ([0-9]+).*', '$1'))</PixieNativeApiVersion>
+  </PropertyGroup>
+  <ItemGroup>
+    <AssemblyMetadata Include="PixieNativeApiVersion" Value="$(PixieNativeApiVersion)" />
+    <Compile Include="$(MSBuildThisFileDirectory)NativeApiVersion.cs" Link="NativeApiVersion.cs" />
+  </ItemGroup>
+  <Target Name="ValidateNativeApiVersion" BeforeTargets="GenerateAssemblyInfo">
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(PixieNativeApiVersion)', '^[0-9]+$'))" Text="The native C API version could not be read from pixie_capi.h." />
+  </Target>
+</Project>

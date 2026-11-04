@@ -11,18 +11,20 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection, 
 {
     // EnTT's 32-bit entity: the low 20 bits are the index, the rest the version.
     private const uint IndexMask = 0xFFFFF;
+    private string NewSceneName = "Scene";
 
     public void Draw()
     {
         if (ImGui.Begin("Entities"))
         {
+            DrawScenes();
             var entities = session.Entities();
             if (ImGui.Button("+ Create")) ImGui.OpenPopup("entity-presets");
             if (ImGui.BeginPopup("entity-presets"))
             {
                 ImGui.TextDisabled("CREATE ENTITY");
                 if (ImGui.MenuItem("Basic shape")) authoring.CreateEntity();
-                if (ImGui.IsItemHovered()) ImGui.SetTooltip("A visible circle with a transform, ready to select and edit.");
+                if (ImGui.IsItemHovered()) ImGui.SetTooltip("A visible circle created directly in World. Choose its Scene membership in the Inspector.");
                 if (session.TypeIndex("Collider2D") >= 0)
                 {
                     ImGui.Separator(); ImGui.TextDisabled("PHYSICS PRESETS");
@@ -62,6 +64,38 @@ internal sealed class EntitiesPanel(EngineSession session, Selection selection, 
         }
 
         ImGui.End();
+    }
+
+    private void DrawScenes()
+    {
+        if (authoring.Scenes is not { } scenes || session.ProjectFolder == null) return;
+        if (!ImGui.CollapsingHeader("Scenes", ImGuiTreeNodeFlags.DefaultOpen)) return;
+        if (ImGui.Selectable("World properties##world", selection.IsWorld)) selection.SetWorld();
+        foreach (var scope in session.SceneScopes())
+            if (ImGui.Selectable($"{scope.Name}##scope-{scope.Id:x16}", selection.Scope == scope.Id)) scenes.Select(scope.Id);
+        var problem = scenes.UnavailableReason;
+        if (problem != null) ImGui.TextWrapped(problem);
+        if (scenes.NeedsConversion)
+        {
+            ImGui.BeginDisabled(problem != null || scenes.HasPending);
+            if (ImGui.Button("Convert to v2...")) ImGui.OpenPopup("Convert scene format");
+            ImGui.EndDisabled();
+            if (ImGui.BeginPopupModal("Convert scene format", ImGuiWindowFlags.AlwaysAutoResize))
+            {
+                ImGui.TextWrapped("Save the current World as v2 to enable Scene authoring? Current unsaved edits will be saved. The original file is preserved as .v1-backup. Undo does not restore the old file format.");
+                if (ImGui.Button("Convert and save")) { scenes.Queue("convert"); ImGui.CloseCurrentPopup(); }
+                ImGui.SameLine();
+                if (ImGui.Button("Cancel")) ImGui.CloseCurrentPopup();
+                ImGui.EndPopup();
+            }
+        }
+        ImGui.BeginDisabled(problem != null || scenes.NeedsConversion || scenes.HasPending);
+        ImGui.SetNextItemWidth(-1);
+        ImGui.InputText("##new-scene-name", ref NewSceneName, 257);
+        if (ImGui.Button("+ Scene")) scenes.Queue("create", name: NewSceneName);
+        ImGui.EndDisabled();
+        if (scenes.HasPending) ImGui.TextDisabled("Waiting for the current gesture to finish...");
+        ImGui.Separator();
     }
 
     private static string Description(PhysicsPreset preset) => preset switch

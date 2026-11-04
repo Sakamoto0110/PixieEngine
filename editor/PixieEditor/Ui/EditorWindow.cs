@@ -46,7 +46,7 @@ internal sealed class EditorWindow(EditorOptions options)
         GLFW.WindowHint(GLFW.GLFW_OPENGL_PROFILE, GLFW.GLFW_OPENGL_CORE_PROFILE);
         GLFW.WindowHint(GLFW.GLFW_OPENGL_FORWARD_COMPAT, GLFW.GLFW_TRUE);
 #if PIXIE_DEVELOPMENT
-        if (options.DevHidden) GLFW.WindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
+        if (options.DevHidden || options.ReopenProbe != null) GLFW.WindowHint(GLFW.GLFW_VISIBLE, GLFW.GLFW_FALSE);
 #endif
 
         var window = GLFW.CreateWindow(1600, 900, "PixieEditor", default(GLFWmonitorPtr), default(GLFWwindowPtr));
@@ -225,14 +225,29 @@ internal sealed class EditorWindow(EditorOptions options)
         var firstLayout = FirstLayout;
         var gameName = options.Game is { } game ? Program.GameName(game) : GameLibrary.SceneGame;
         CodeReopen.State? resumed = null;
+#if PIXIE_DEVELOPMENT
+        string? resumeError = null;
+#endif
         if (options.ResumeCode != null)
         {
             try { resumed = CodeReopen.Restore(session, options.ResumeCode); }
             catch (Exception error) when (error is EngineException or IOException or UnauthorizedAccessException or ArgumentException or NotSupportedException or System.Text.Json.JsonException)
-            { Status.Show(error.Message, error: true); }
+            {
+#if PIXIE_DEVELOPMENT
+                resumeError = error.Message;
+#endif
+                Status.Show(error.Message, error: true);
+            }
         }
         var selection = new Selection();
-        if (resumed != null) selection.Set(resumed.Selection.Select(session.Find).OfType<uint>().ToArray());
+        if (resumed != null) selection.Set(resumed.Selection.Select(session.Find).OfType<uint>().ToArray(),
+            resumed.Anchor is { } anchor ? session.Find(anchor) : null);
+        if (resumed?.World == true) selection.SetWorld();
+        if (resumed?.Scope is { } resumedScope)
+        {
+            if (session.SceneScopes().Any(s => s.Id == resumedScope)) selection.SetScope(resumedScope);
+            else selection.SetWorld();
+        }
         CodeReopen.Request? pendingCode = resumed?.Pending;
         var history = new Editing.History();
         var authoring = new Authoring(session, selection, history);
@@ -253,11 +268,52 @@ internal sealed class EditorWindow(EditorOptions options)
         using var inspector = new InspectorPanel(session, authoring, recorder, files);
         var viewport = new ViewportPanel(session, selection, authoring, files).Started();
         viewport.Recorder = recorder;
+        session.Edits.GestureActive = () => recorder.HasPendingEdits || inspector.HasActiveAuthoringGesture ||
+            viewport.HasActiveAuthoringGesture || ImGui.IsAnyItemActive();
+        var sceneEditor = new Editing.SceneDocumentEditor(session, selection, history, recorder, () => false, () => inspector.Rebind(selection));
+        authoring.SceneEditor = sceneEditor;
+        authoring.Scenes = new Editing.SceneAuthoring(session, selection, history, sceneEditor);
         viewport.Mode = options.Mode ?? (project ? ViewportMode.Select : ViewportMode.Game);
         var entities = new EntitiesPanel(session, selection, authoring);
-        var controls = new SessionPanel(session, gameName);
+        var controls = new SessionPanel(session, gameName) { InspectWorld = selection.SetWorld };
         if (options.Select != null && entities.Find(options.Select) is { } chosen)
             selection.Set(chosen);
+#if PIXIE_DEVELOPMENT
+        if (options.ReopenProbe is { } probe && options.ResumeCode != null)
+        {
+            var folder = session.ProjectFolder!;
+            var full = ProjectCode.CheckedPath(folder, Path.GetRelativePath(folder, Path.GetFullPath(probe)));
+            var expected = ProjectCode.CheckedPath(folder, ".local/editor-reopen").TrimEnd(Path.DirectorySeparatorChar) + Path.DirectorySeparatorChar;
+            if (!full.StartsWith(expected, OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+                throw new EngineException("The reopen qualification probe must stay inside this project's .local/editor-reopen folder.");
+            var snapshot = session.ProjectSnapshot();
+            if (System.Text.Encoding.UTF8.GetByteCount(snapshot) > 1024 * 1024)
+                throw new EngineException("The reopen qualification snapshot exceeds 1 MiB.");
+            var result = System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Restored = resumed != null,
+                Error = resumeError,
+                Version = resumed?.Version ?? 0,
+                Unsaved = session.Unsaved,
+                Snapshot = snapshot,
+                Selection = selection.Items.Select(session.SceneId).OfType<ulong>().ToArray(),
+                Anchor = selection.Anchor is { } anchor ? session.SceneId(anchor) : null,
+                Scope = selection.Scope,
+                WorldTarget = selection.IsWorld,
+                EnvironmentKind = (int)session.ViewportEnvironmentSelection.Kind,
+                EnvironmentSceneId = session.ViewportEnvironmentSelection.SceneId,
+                history.UndoCount,
+                history.RedoCount,
+                ProcessId = Environment.ProcessId,
+                ParentProcessId = options.After
+            });
+            if (result.Length > 2 * 1024 * 1024)
+                throw new EngineException("The reopen qualification result exceeds 2 MiB.");
+            using var resultFile = new FileStream(full, FileMode.CreateNew, FileAccess.Write, FileShare.None);
+            resultFile.Write(result);
+            resultFile.Flush(flushToDisk: true);
+        }
+#endif
 
         if (options.TimeScale is { } scale)
             session.TimeScale = scale;
@@ -267,7 +323,7 @@ internal sealed class EditorWindow(EditorOptions options)
         if (options.QuitAfterSteps is { } captureSteps)
         {
             viewport.Capture = new Development.DeterministicCapture(session, captureSteps);
-            controls = new SessionPanel(session, gameName) { Deterministic = true };
+            controls = new SessionPanel(session, gameName) { Deterministic = true, InspectWorld = selection.SetWorld };
         }
 #endif
 
@@ -290,7 +346,7 @@ internal sealed class EditorWindow(EditorOptions options)
         if (channel != null)
         {
             viewport.AgentRenderFailure = channel.ReportRenderFailure;
-            controls = new SessionPanel(session, gameName) { Deterministic = true };
+            controls = new SessionPanel(session, gameName) { Deterministic = true, InspectWorld = selection.SetWorld };
         }
 #endif
         var askToSave = false;
@@ -348,6 +404,31 @@ internal sealed class EditorWindow(EditorOptions options)
         var nextCommand = 0;
         var commandResumeAt = 0.0;
         var savedOnce = false;
+        void ClosePrompt()
+        {
+            if (askToSave)
+            {
+                ImGui.OpenPopup(UnsavedPopup);
+                askToSave = false;
+            }
+            if (DrawUnsavedPrompt(session) is not { } leave) return;
+            if (leave)
+            {
+                if (leaving == Leaving.OtherProject) OpenStartScreen();
+                confirmed = true;
+                GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
+            }
+            if (leaving != Leaving.Reopen || !leave) leaving = Leaving.None;
+        }
+        void FinishRecoveryFrame(double now)
+        {
+            if (session.Edits.IsBlocked) CandidateRecoveryPanel.Draw(session);
+            ClosePrompt();
+            var recoveryExporting = exporting();
+            if (TimedQuit(now) && !recoveryExporting) confirmed = true;
+            KeyEvents.Pending.Clear();
+            EndFrame(window, now, timed: !recoveryExporting);
+        }
         while (!controls.CloseRequested)
         {
             if (GLFW.WindowShouldClose(window) != 0)
@@ -366,7 +447,18 @@ internal sealed class EditorWindow(EditorOptions options)
             previous = now;
             BeginFrame();
 
+            if (session.Edits.IsBlocked)
+            {
+#if PIXIE_DEVELOPMENT
+                channel?.Drain(); // Read-only World queries and explicit recovery remain available.
+#endif
+                FinishRecoveryFrame(now);
+                continue;
+            }
+
             viewport.CloseColliderGestureBeforeCommands();
+            authoring.Scenes.ProcessPending();
+            if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
             if (inspector.RebuildRequested)
             {
                 inspector.RebuildRequested = false;
@@ -381,8 +473,10 @@ internal sealed class EditorWindow(EditorOptions options)
             {
                 if (io.KeyCtrl && !io.KeyShift && ImGui.IsKeyPressed(ImGuiKey.Z, false))
                     authoring.Undo();
+                if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
                 if (io.KeyCtrl && (ImGui.IsKeyPressed(ImGuiKey.Y, false) || (io.KeyShift && ImGui.IsKeyPressed(ImGuiKey.Z, false))))
                     authoring.Redo();
+                if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
                 if (io.KeyCtrl && ImGui.IsKeyPressed(ImGuiKey.D, false))
                     authoring.Duplicate([.. selection.Items]);
                 if (ImGui.IsKeyPressed(ImGuiKey.Delete, false))
@@ -405,13 +499,15 @@ internal sealed class EditorWindow(EditorOptions options)
             {
                 session.Advance(frameDelta);
                 channel.Drain();
+                if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
             }
 #endif
             toolbar.Draw();
+            if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
             ImGui.DockSpaceOverViewport(dockspace);
             controls.Draw();
             entities.Draw();
-            inspector.Draw(selection.Items);
+            inspector.Draw(selection);
             if (inspector.TakeCreatedCodeComponent() is { } created)
             {
                 pendingCode = created;
@@ -428,33 +524,20 @@ internal sealed class EditorWindow(EditorOptions options)
             if (exportPanel.Failed) exitCode = 3;
 #endif
 
-            if (askToSave)
-            {
-                ImGui.OpenPopup(UnsavedPopup);
-                askToSave = false;
-            }
-
-            if (DrawUnsavedPrompt(session) is { } leave)
-            {
-                if (leave)
-                {
-                    if (leaving == Leaving.OtherProject)
-                        OpenStartScreen();
-                    confirmed = true;
-                    GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
-                }
-
-                if (leaving != Leaving.Reopen || !leave)
-                    leaving = Leaving.None;
-            }
+            ClosePrompt();
 
             // Code is built by a new editor, once this one has let go of the game's library.
             if (leaving == Leaving.Reopen && confirmed)
             {
                 try
                 {
-                    var handoff = CodeReopen.Capture(session, selection.Items, pendingCode);
-                    Relaunch(["--project", session.ProjectFolder!, "--resume-code", handoff, "--mode", viewport.Mode.ToString()]);
+                    var handoff = CodeReopen.Capture(session, selection.Items, pendingCode, selection.Anchor, selection.IsWorld, selection.Scope);
+                    var arguments = new List<string> { "--project", session.ProjectFolder!, "--resume-code", handoff, "--mode", viewport.Mode.ToString() };
+#if PIXIE_DEVELOPMENT
+                    if (options.ReopenProbe is { } childProbe)
+                        arguments.AddRange(["--reopen-probe", childProbe, "--quit-after", "2", "--recent", "off"]);
+#endif
+                    Relaunch([.. arguments]);
                     GLFW.SetWindowShouldClose(window, GLFW.GLFW_TRUE);
                 }
                 catch (Exception error) when (error is EngineException or IOException or UnauthorizedAccessException or System.ComponentModel.Win32Exception)
@@ -476,10 +559,15 @@ internal sealed class EditorWindow(EditorOptions options)
                     && double.TryParse(command[5..], System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var seconds)
                     && double.IsFinite(seconds) && seconds >= 0 && seconds <= 3600)
                     commandResumeAt = now + seconds;
+#if PIXIE_DEVELOPMENT
+                else if (command == "buildreopen" && options.ReopenProbe != null)
+                    toolbar.BuildAndReopen();
+#endif
                 else
                     exitCode = RunCommand(command, session, authoring, selection, entities, viewport, inspector, startExport) ? exitCode : 3;
             }
 
+            if (session.Edits.IsBlocked) { FinishRecoveryFrame(now); continue; }
             // An inspector edit is one step, from the first write until no control is held.
             if (!ImGui.IsAnyItemActive()
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
@@ -506,10 +594,7 @@ internal sealed class EditorWindow(EditorOptions options)
 #if PIXIE_DEVELOPMENT
             if (!exportInProgress && exportPanel.Failed) exitCode = 3;
 #endif
-            var timedQuit = options.QuitAfter > 0 && now - Start >= options.QuitAfter;
-#if PIXIE_DEVELOPMENT
-            if (options.QuitAfterSteps.HasValue) timedQuit = CaptureFinished;
-#endif
+            var timedQuit = TimedQuit(now);
             if (timedQuit && !exportInProgress)
             {
                 var stats = session.Stats;
@@ -556,7 +641,9 @@ internal sealed class EditorWindow(EditorOptions options)
             return null;
 
         ImGui.TextUnformatted($"{session.ProjectName} has changes that are not saved.");
+        if (session.Edits.IsBlocked) ImGui.TextUnformatted("Recover the Inspector before saving, or discard changes to close.");
         ImGui.Spacing();
+        ImGui.BeginDisabled(session.Edits.IsBlocked);
         if (ImGui.Button("Save", new System.Numerics.Vector2(120, 0)))
         {
             Save(session);
@@ -564,6 +651,7 @@ internal sealed class EditorWindow(EditorOptions options)
             if (answer == false)
                 answer = null;
         }
+        ImGui.EndDisabled();
 
         ImGui.SameLine();
         if (ImGui.Button("Don't save", new System.Numerics.Vector2(120, 0)))
@@ -582,6 +670,14 @@ internal sealed class EditorWindow(EditorOptions options)
         ImGuiImplOpenGL3.NewFrame();
         ImGuiImplGLFW.NewFrame();
         ImGui.NewFrame();
+    }
+
+    private bool TimedQuit(double now)
+    {
+#if PIXIE_DEVELOPMENT
+        if (options.QuitAfterSteps.HasValue) return CaptureFinished;
+#endif
+        return options.QuitAfter > 0 && now - Start >= options.QuitAfter;
     }
 
     // Draws the frame; with --quit-after, saves the screenshot and closes once the time is up, except
@@ -603,10 +699,7 @@ internal sealed class EditorWindow(EditorOptions options)
         }
 #endif
 
-        var quitting = timed && options.QuitAfter > 0 && now - Start >= options.QuitAfter;
-#if PIXIE_DEVELOPMENT
-        if (options.QuitAfterSteps.HasValue) quitting = timed && CaptureFinished;
-#endif
+        var quitting = timed && TimedQuit(now);
         if (quitting && options.Screenshot != null)
         {
             int width, height;
@@ -628,6 +721,7 @@ internal sealed class EditorWindow(EditorOptions options)
 #endif
     )
     {
+        session.Edits.RequireMutation();
         var equals = command.IndexOf('=');
         var verb = equals < 0 ? command : command[..equals].TrimEnd('+');
         var adding = equals > 0 && command[equals - 1] == '+';
@@ -636,6 +730,17 @@ internal sealed class EditorWindow(EditorOptions options)
         var ok = true;
         switch (verb)
         {
+            case "scenecreate": case "sceneselect": case "scenerename": case "sceneremove": case "scenemove": case "sceneconvert":
+            case "worldpresentation": case "scenepresentation": case "presentationmigrate":
+                try { ok = authoring.Scenes?.Run(verb, argument) == true; }
+                catch (EngineException error)
+                {
+#if PIXIE_DEVELOPMENT
+                    if (sceneIds) throw; // The channel preserves the structured failure receipt.
+#endif
+                    Status.Show(error.Message, error: true); ok = false;
+                }
+                break;
 #if PIXIE_DEVELOPMENT
             case "export":
                 if (export == null || session.ProjectFolder == null || !session.Editing || session.Unsaved || string.IsNullOrWhiteSpace(argument))
@@ -709,7 +814,7 @@ internal sealed class EditorWindow(EditorOptions options)
                 ok = authoring.CreatePhysicsEntity(preset) != null;
                 break;
             case "duplicate":
-                authoring.Duplicate(chosen);
+                if (!authoring.Duplicate(chosen)) return false;
                 break;
             case "delete":
                 authoring.Delete(chosen);

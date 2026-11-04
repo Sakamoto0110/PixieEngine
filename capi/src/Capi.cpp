@@ -22,6 +22,8 @@
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
+#include "pixie/runtime/RigidBody2D.hpp"
+#include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/ColliderEditing2D.hpp"
 
 #include <algorithm>
@@ -31,11 +33,14 @@
 #include <filesystem>
 #include <format>
 #include <memory>
+#include <limits>
 #include <string>
 #include <string_view>
 #include <vector>
 
 static_assert(sizeof(PixieFieldInfo) == 72, "PixieFieldInfo's layout is part of the C API");
+static_assert(sizeof(PixieSceneEditReceipt) == 24, "PixieSceneEditReceipt's layout is part of the C API");
+static_assert(sizeof(PixieSceneEditToken) == 24, "PixieSceneEditToken's layout is part of the C API");
 static_assert(sizeof(PixieBodyMass2D) == 40, "PixieBodyMass2D's layout is part of the C API");
 static_assert(sizeof(PixieColliderHandles2D) == 72, "PixieColliderHandles2D's layout is part of the C API");
 static_assert(static_cast<int>(pixie::FieldEditor::Arc) == PIXIE_EDITOR_ARC);
@@ -46,8 +51,18 @@ static_assert(static_cast<int>(pixie::FieldKind::Text) == PIXIE_FIELD_TEXT);
 static_assert(static_cast<int>(pixie::FieldKind::PointList) == PIXIE_FIELD_POINT_LIST);
 static_assert(static_cast<int>(pixie::FieldKind::RecordList) == PIXIE_FIELD_RECORD_LIST);
 static_assert(static_cast<int>(pixie::SessionMode::Edit) == PIXIE_MODE_EDIT);
+static_assert(static_cast<int>(pixie::EnvironmentSelectionKind2D::LegacyWorld) == PIXIE_ENVIRONMENT_LEGACY_WORLD);
+static_assert(static_cast<int>(pixie::EnvironmentSelectionKind2D::Scene) == PIXIE_ENVIRONMENT_SCENE);
+static_assert(static_cast<int>(pixie::EnvironmentResolutionKind2D::LegacyWorld) == PIXIE_ENVIRONMENT_RESOLVED_WORLD);
+static_assert(static_cast<int>(pixie::EnvironmentResolutionKind2D::SceneInheritedWorld) == PIXIE_ENVIRONMENT_SCENE_INHERITS_WORLD);
+static_assert(static_cast<int>(pixie::EnvironmentResolutionKind2D::RemovedSceneFallback) == PIXIE_ENVIRONMENT_REMOVED_SCENE_FALLBACK);
+static_assert(static_cast<int>(pixie::LightingState2D::Absent) == PIXIE_ENVIRONMENT_LIGHTING_ABSENT);
+static_assert(static_cast<int>(pixie::LightingState2D::Disabled) == PIXIE_ENVIRONMENT_LIGHTING_DISABLED);
+static_assert(static_cast<int>(pixie::LightingState2D::Configured) == PIXIE_ENVIRONMENT_LIGHTING_CONFIGURED);
 
 namespace {
+
+constexpr std::size_t kMaxProjectSnapshotBytes = 128u * 1024u * 1024u;
 
 #ifdef PIXIE_DEVELOPMENT
 std::shared_ptr<PixieGameModule> loadedModule;
@@ -139,6 +154,16 @@ bool InScene(PixieSession* s, uint32_t entity) {
     return registry.valid(ToEntity(entity)) && registry.all_of<pixie::SceneId>(ToEntity(entity));
 }
 
+std::string ComponentAdditionError(PixieSession* s, uint32_t entity, int32_t type,
+                                   const pixie::ComponentDescriptor& descriptor) {
+    if (s->session.Mode() == pixie::SessionMode::Edit && InScene(s, entity)
+        && pixie::SceneFormatVersion(s->session.GetWorld()) == 2 && !s->session.Types().AllowsV2Import(type))
+        return std::format("version 2 authored components require a declarative contract: {}", descriptor.name);
+    if (s->session.GetWorld().Presentation() && descriptor.name == "LightingSettings2D")
+        return "canonical presentation owns lighting; legacy component addition is refused";
+    return descriptor.AdditionError(s->session.GetWorld(), ToEntity(entity));
+}
+
 // Where the last render drew the entity: between the previous step and this one.
 pixie::Transform2D DrawnTransform(PixieSession* s, entt::entity id, const pixie::Transform2D& transform) {
     const auto* previous = s->session.GetWorld().Registry().try_get<pixie::PreviousTransform2D>(id);
@@ -158,20 +183,34 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
     }
     pixie::SessionSettings settings;
     settings.seed = seed;
+#ifdef PIXIE_DEVELOPMENT
+    const auto moduleLease = loadedModule;
+#endif
     std::unique_ptr<pixie::Project> project;
+    pixie::ProjectSession::ProjectFactory candidateFactory;
+    bool candidateAuthoring = false;
 #ifdef PIXIE_CAPI_FACTORY
     project = pixie::CreateProject();
 #endif
 #ifdef PIXIE_DEVELOPMENT
-    if (loadedModule) {
-        project.reset(loadedModule->create());
+    if (moduleLease) {
+        project.reset(moduleLease->create());
         if (!project) return Fail(PIXIE_ERROR_INTERNAL, "game module factory returned no project");
+        if (moduleLease->candidateContract == 1) {
+            candidateFactory = [moduleLease] { return std::unique_ptr<pixie::Project>(moduleLease->create()); };
+            candidateAuthoring = true;
+        }
     }
 #endif
-    if (!project) project = std::make_unique<pixie::SceneProject>();
-    auto created = std::make_unique<PixieSession>(std::move(project), settings);
+    if (!project) {
+        project = std::make_unique<pixie::SceneProject>();
+#ifndef PIXIE_CAPI_FACTORY
+        candidateAuthoring = true;
+#endif
+    }
+    auto created = std::make_unique<PixieSession>(std::move(project), settings, candidateAuthoring, std::move(candidateFactory));
 #ifdef PIXIE_DEVELOPMENT
-    created->module = loadedModule;
+    created->module = moduleLease;
 #endif
     if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
         return Fail(PIXIE_ERROR_IO, created->session.Error());
@@ -179,7 +218,8 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
     created->surface.Resize(surface.GetFramebufferSize());
     if (!created->session.Start(created->surface.GetFramebufferSize())) {
         created->session.Stop();
-        return Fail(PIXIE_ERROR_GL, "the renderers could not be created");
+        return Fail(created->session.Error().empty() ? PIXIE_ERROR_GL : PIXIE_ERROR_IO,
+                    created->session.Error().empty() ? "the renderers could not be created" : created->session.Error());
     }
     *session = created.release();
     return PIXIE_OK;
@@ -187,12 +227,12 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
 
 // A point in view pixels, in world units.
 pxPoint ToWorld(PixieSession* s, double x, double y) {
-    return s->session.GetCamera().ScreenToWorld(pxPoint(x, y));
+    return s->session.ResolvedCamera().camera.ScreenToWorld(pxPoint(x, y));
 }
 
 // A length in view pixels, in world units.
 double ToWorldLength(PixieSession* s, double pixels) {
-    return pixels / s->session.GetCamera().Zoom();
+    return pixels / s->session.ResolvedCamera().camera.Zoom();
 }
 
 #define PIXIE_REQUIRE_SESSION(s)                                                                   \
@@ -261,6 +301,8 @@ PixieResult pixie_module_load(const char* path) {
         module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
         if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
             return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible; rebuild the project with this engine before opening it");
+        const auto contract = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_candidate_contract"));
+        module->candidateContract = contract ? contract() : 0;
         loadedModule = std::move(module);
         return PIXIE_OK;
     });
@@ -357,6 +399,7 @@ PixieResult pixie_collider_drag_2d(PixieSession* s, uint32_t entity, int32_t sha
         if (s->session.Mode() != pixie::SessionMode::Edit) return Fail(PIXIE_ERROR_ARGUMENT, "collider tools require Edit mode");
         if (!pixie::DescribeColliderHandles2D(s->session.GetWorld(), ToEntity(entity), shape))
             return Fail(PIXIE_ERROR_NOT_FOUND, "collider geometry has no supported handles");
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         if (!pixie::DragCollider2D(s->session.GetWorld(), ToEntity(entity), shape,
                                  static_cast<pixie::ColliderDrag2D>(kind), {x, y}, snap != 0))
             return Fail(PIXIE_ERROR_ARGUMENT, "collider drag rejected; keep finite, nondegenerate geometry within supported dimensions");
@@ -441,6 +484,240 @@ PixieResult pixie_project_save(PixieSession* s) {
 
 int32_t pixie_project_unsaved(PixieSession* s) {
     return s != nullptr && s->session.HasUnsavedChanges() ? 1 : 0;
+}
+
+PixieResult pixie_project_snapshot(PixieSession* s, char* buffer, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (length == nullptr || capacity < 0 || (buffer == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null length or buffer, or negative capacity");
+    }
+    return Guard([&] {
+        if (!s->session.HasProject() || s->session.Mode() != pixie::SessionMode::Edit) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "an open project in Edit mode is required to snapshot its authored scene");
+        }
+        if (const std::string problem = pixie::ValidateV2SceneSnapshot(s->session.GetWorld(), s->session.Types());
+            !problem.empty()) {
+            return Fail(PIXIE_ERROR_ARGUMENT, problem);
+        }
+        const std::string snapshot = pixie::WriteScene(s->session.GetWorld(), s->session.Types());
+        if (snapshot.size() > kMaxProjectSnapshotBytes) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "authored scene snapshot exceeds 128 MiB");
+        }
+        *length = static_cast<int32_t>(snapshot.size());
+        return capacity == 0 ? PIXIE_OK : Copy(snapshot, buffer, capacity);
+    });
+}
+
+PixieResult pixie_project_restore(PixieSession* s, const char* snapshot) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (snapshot == nullptr) return Fail(PIXIE_ERROR_ARGUMENT, "null authored scene snapshot");
+    return Guard([&] {
+        if (!s->session.HasProject() || s->session.Mode() != pixie::SessionMode::Edit) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "an open project in Edit mode is required to restore an authored scene");
+        }
+        std::size_t length = 0;
+        while (length <= kMaxProjectSnapshotBytes && snapshot[length] != '\0') ++length;
+        if (length > kMaxProjectSnapshotBytes) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "authored scene snapshot exceeds 128 MiB");
+        }
+        if (length == 0) return Fail(PIXIE_ERROR_ARGUMENT, "empty authored scene snapshot");
+        return s->session.RestoreAuthoredScene(std::string_view(snapshot, length))
+                   ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, s->session.Error());
+    });
+}
+
+PixieResult pixie_project_revision(PixieSession* s, PixieSceneEditToken* token) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!token) return Fail(PIXIE_ERROR_ARGUMENT, "null project token output");
+    if (s->ownerThread != std::this_thread::get_id()) return Fail(PIXIE_ERROR_ARGUMENT, "project token requires owner thread");
+    *token = {s->session.Identity(), s->session.WorldRevision(), s->session.AuthoredRevision()};
+    return PIXIE_OK;
+}
+
+PixieResult pixie_project_scene_version(PixieSession* s, int32_t* version) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!version || !s->session.HasProject()) return Fail(PIXIE_ERROR_ARGUMENT, "an open project and output are required");
+    if (s->ownerThread != std::this_thread::get_id()) return Fail(PIXIE_ERROR_ARGUMENT, "format query requires owner thread");
+    *version = pixie::SceneFormatVersion(s->session.GetWorld());
+    return PIXIE_OK;
+}
+
+PixieResult pixie_entity_scene_scope(PixieSession* s, uint32_t entity, uint64_t* scope) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!scope) return Fail(PIXIE_ERROR_ARGUMENT, "null membership output");
+    if (s->ownerThread != std::this_thread::get_id()) return Fail(PIXIE_ERROR_ARGUMENT, "membership query requires owner thread");
+    return Guard([&] {
+        auto& world = s->session.GetWorld();
+        const auto found = world.ScopeOf(world.Wrap(static_cast<entt::entity>(entity)));
+        if (!found) return Fail(PIXIE_ERROR_ARGUMENT, "invalid entity for membership query");
+        *scope = found->value;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_project_convert_scene_v2(PixieSession* s, const PixieSceneEditToken* expected) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!expected) return Fail(PIXIE_ERROR_ARGUMENT, "null conversion token");
+    return Guard([&] {
+        uint64_t revision = 0;
+        const auto admitted = pixie_project_edit_status(s, &revision);
+        if (admitted != PIXIE_OK) return admitted;
+        if (expected->session_identity != s->session.Identity() || expected->world_revision != revision ||
+            expected->authored_revision != s->session.AuthoredRevision())
+            return Fail(PIXIE_ERROR_ARGUMENT, "stale conversion token");
+        return s->session.ConvertStartSceneToV2() ? PIXIE_OK : Fail(PIXIE_ERROR_IO, s->session.Error());
+    });
+}
+
+PixieResult pixie_project_edit_status(PixieSession* s, uint64_t* revision) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (revision == nullptr) return Fail(PIXIE_ERROR_ARGUMENT, "null World revision output");
+    if (s->ownerThread != std::this_thread::get_id()) return Fail(PIXIE_ERROR_ARGUMENT, "candidate editing requires the session owner thread");
+    if (!s->candidateAuthoring || !s->session.HasProject() || s->session.Mode() != pixie::SessionMode::Edit) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "candidate editing requires an owned fallback or contracted module project in Edit");
+    }
+    *revision = s->session.WorldRevision();
+    return PIXIE_OK;
+}
+
+PixieResult pixie_project_edit_scene(PixieSession* s, const PixieSceneEditToken* expected,
+                                    const char* snapshot, PixieSceneEditReceipt* receipt) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (snapshot == nullptr || receipt == nullptr || expected == nullptr) return Fail(PIXIE_ERROR_ARGUMENT, "null candidate document or receipt");
+    *receipt = {};
+    return Guard([&] {
+        uint64_t revision = 0;
+        const PixieResult admitted = pixie_project_edit_status(s, &revision);
+        if (admitted != PIXIE_OK) return admitted;
+        if (expected->session_identity != s->session.Identity() || expected->world_revision != revision ||
+            expected->authored_revision != s->session.AuthoredRevision())
+            return Fail(PIXIE_ERROR_ARGUMENT, "stale candidate session, World or authored revision");
+        std::size_t length = 0;
+        while (length <= kMaxProjectSnapshotBytes && snapshot[length] != '\0') ++length;
+        if (length == 0 || length > kMaxProjectSnapshotBytes) return Fail(PIXIE_ERROR_ARGUMENT, "candidate document must be 1..128 MiB");
+        const std::string_view text(snapshot, length);
+        if (const std::string problem = pixie::ValidateSceneEditInput(s->session.GetWorld(), text); !problem.empty()) {
+            return Fail(PIXIE_ERROR_ARGUMENT, problem);
+        }
+        pixie::SceneBuildTimings timings;
+        if (!s->session.RestoreAuthoredScene(text, &timings, true, true)) return Fail(PIXIE_ERROR_ARGUMENT, s->session.Error());
+        // Everything after publication is a trivial write; never format/log/call the host here.
+        *receipt = {s->session.WorldRevision(), timings.preparationMilliseconds, timings.publicationMilliseconds};
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_presentation_snapshot(PixieSession* s, char* buffer, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!length || capacity < 0 || (!buffer && capacity > 0)) return Fail(PIXIE_ERROR_ARGUMENT, "invalid presentation buffer");
+    return Guard([&] {
+        const std::string text = pixie::PresentationSnapshot2D(s->session.GetWorld());
+        if (text.size() > 16 * 1024 * 1024) return Fail(PIXIE_ERROR_ARGUMENT, "presentation catalog exceeds16MiB");
+        *length = static_cast<int32_t>(text.size());
+        return capacity == 0 ? PIXIE_OK : Copy(text, buffer, capacity);
+    });
+}
+PixieResult pixie_viewport_camera_set(PixieSession* s, int32_t kind, uint64_t entity, uint64_t scene) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (kind < 0 || kind > 2 || (kind == 2 ? entity == 0 : entity != 0) || (kind == 0 && scene != 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid viewport camera choice");
+    s->session.SetViewportCamera({static_cast<pixie::CameraSelectionKind2D>(kind), entity, pixie::ScopeId{scene}});
+    return PIXIE_OK;
+}
+PixieResult pixie_viewport_camera_get(PixieSession* s, int32_t* kind, uint64_t* entity, uint64_t* scene) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!kind || !entity || !scene) return Fail(PIXIE_ERROR_ARGUMENT, "null camera choice output");
+    const auto choice = s->session.ViewportCameraSelection();
+    *kind = static_cast<int32_t>(choice.kind); *entity = choice.entity; *scene = choice.scene.value;
+    return PIXIE_OK;
+}
+PixieResult pixie_viewport_camera_resolve(PixieSession* s, double* x, double* y, double* zoom,
+    int32_t* source, char* diagnostic, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!x || !y || !zoom || !source || !length || capacity < 0 || (!diagnostic && capacity > 0))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid camera resolution output");
+    return Guard([&] {
+        const auto result = s->session.ResolvedCamera();
+        *x = result.camera.Center().x; *y = result.camera.Center().y; *zoom = result.camera.Zoom();
+        *source = static_cast<int32_t>(result.kind); *length = static_cast<int32_t>(result.diagnostic.size());
+        return capacity == 0 ? PIXIE_OK : Copy(result.diagnostic, diagnostic, capacity);
+    });
+}
+PixieResult pixie_viewport_free_camera_get(PixieSession* s, double* x, double* y, double* zoom) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!x || !y || !zoom) return Fail(PIXIE_ERROR_ARGUMENT, "null free camera output");
+    const auto& camera = s->session.GetCamera(); *x = camera.Center().x; *y = camera.Center().y; *zoom = camera.Zoom(); return PIXIE_OK;
+}
+PixieResult pixie_viewport_free_camera_set(PixieSession* s, double x, double y, double zoom) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!std::isfinite(x) || !std::isfinite(y) || !std::isfinite(zoom) || zoom < pixie::Camera2D::kMinZoom || zoom > pixie::Camera2D::kMaxZoom)
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid free camera values");
+    s->session.GetCamera().SetCenter({x, y}); s->session.GetCamera().SetZoom(zoom); return PIXIE_OK;
+}
+
+PixieResult pixie_viewport_environment_set(PixieSession* s, int32_t kind, uint64_t scene_id) {
+    PIXIE_REQUIRE_SESSION(s);
+    if ((kind != PIXIE_ENVIRONMENT_LEGACY_WORLD && kind != PIXIE_ENVIRONMENT_SCENE) ||
+        (kind == PIXIE_ENVIRONMENT_LEGACY_WORLD && scene_id != 0) ||
+        (kind == PIXIE_ENVIRONMENT_SCENE && scene_id == 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "select World with ID 0 or a Scene with a nonzero ID");
+    }
+    return Guard([&] {
+        s->session.SetViewportEnvironment({static_cast<pixie::EnvironmentSelectionKind2D>(kind), pixie::ScopeId{scene_id}});
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_viewport_environment_get(PixieSession* s, int32_t* kind, uint64_t* scene_id) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (kind == nullptr || scene_id == nullptr) return Fail(PIXIE_ERROR_ARGUMENT, "null Environment selection output");
+    const auto selection = s->session.ViewportEnvironmentSelection();
+    *kind = static_cast<int32_t>(selection.kind);
+    *scene_id = selection.scene.value;
+    return PIXIE_OK;
+}
+
+PixieResult pixie_viewport_environment_resolve(PixieSession* s, int32_t* resolution,
+                                                int32_t* lighting_state, char* diagnostic,
+                                                int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (resolution == nullptr || lighting_state == nullptr || length == nullptr || capacity < 0 ||
+        (diagnostic == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "null Environment resolution output or negative capacity");
+    }
+    return Guard([&] {
+        const auto resolved = s->session.ViewportEnvironment();
+        if (!resolved) return Fail(PIXIE_ERROR_ARGUMENT, "the session has no World to resolve Environment");
+        *resolution = static_cast<int32_t>(resolved->kind);
+        *lighting_state = static_cast<int32_t>(resolved->lighting.state);
+        *length = static_cast<int32_t>(resolved->diagnostic.size());
+        return capacity == 0 ? PIXIE_OK : Copy(resolved->diagnostic, diagnostic, capacity);
+    });
+}
+
+PixieResult pixie_scene_scope_count(PixieSession* s, int32_t* count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (count == nullptr) return Fail(PIXIE_ERROR_ARGUMENT, "null Scene scope count output");
+    return Guard([&] {
+        *count = static_cast<int32_t>(s->session.GetWorld().Scopes().size());
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_scene_scope_at(PixieSession* s, int32_t index, uint64_t* id,
+                                  char* name, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (index < 0 || id == nullptr || length == nullptr || capacity < 0 || (name == nullptr && capacity > 0)) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid Scene scope index or output");
+    }
+    return Guard([&] {
+        const auto scopes = s->session.GetWorld().Scopes();
+        if (static_cast<std::size_t>(index) >= scopes.size()) return Fail(PIXIE_ERROR_ARGUMENT, "Scene scope index is out of range");
+        const auto& scope = scopes[static_cast<std::size_t>(index)];
+        *id = scope.id.value;
+        *length = static_cast<int32_t>(scope.name.size());
+        return capacity == 0 ? PIXIE_OK : Copy(scope.name, name, capacity);
+    });
 }
 
 int32_t pixie_session_mode(PixieSession* s) {
@@ -528,7 +805,7 @@ PixieResult pixie_session_reset(PixieSession* s) {
     PIXIE_REQUIRE_SESSION(s);
     return Guard([&] {
         s->session.Reset();
-        return PIXIE_OK;
+        return s->session.Error().empty() ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, s->session.Error());
     });
 }
 
@@ -645,6 +922,7 @@ PixieResult pixie_entity_destroy(PixieSession* s, uint32_t entity) {
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         world.Destroy(world.Wrap(ToEntity(entity)));
         return PIXIE_OK;
     });
@@ -666,7 +944,7 @@ PixieResult pixie_world_to_view(PixieSession* s, double worldX, double worldY, d
     if (x == nullptr || y == nullptr) {
         return Fail(PIXIE_ERROR_ARGUMENT, "null output");
     }
-    const pxPoint view = s->session.GetCamera().WorldToScreen(pxPoint(worldX, worldY));
+    const pxPoint view = s->session.ResolvedCamera().camera.WorldToScreen(pxPoint(worldX, worldY));
     *x = view.x;
     *y = view.y;
     return PIXIE_OK;
@@ -733,7 +1011,7 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
                         std::format("entity {} is gone or has no Transform2D and Shape, Sprite, Text, or Path", entity));
         }
         const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
-        const pixie::Camera2D& camera = s->session.GetCamera();
+        const pixie::Camera2D camera = s->session.ResolvedCamera().camera;
         if (shape != nullptr) {
             const pxPoint screen = camera.WorldToScreen(drawn.position);
             *x = screen.x;
@@ -797,7 +1075,7 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
                 }
                 const pxPoint box[] = {low, {high.x, low.y}, high, {low.x, high.y}};
                 for (std::size_t i = 0; i < 4; ++i) {
-                    const auto view = s->session.GetCamera().WorldToScreen(box[i]);
+                    const auto view = s->session.ResolvedCamera().camera.WorldToScreen(box[i]);
                     corners[i * 2] = view.x; corners[i * 2 + 1] = view.y;
                 }
                 return PIXIE_OK;
@@ -813,7 +1091,7 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
                 ? pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()))
                 : pixie::TextCorners(*text, drawn, pixie::TextBlock(*text, s->session.GetFonts()));
         for (std::size_t i = 0; i < world.size(); ++i) {
-            const pxPoint view = s->session.GetCamera().WorldToScreen(world[i]);
+            const pxPoint view = s->session.ResolvedCamera().camera.WorldToScreen(world[i]);
             corners[i * 2] = view.x;
             corners[i * 2 + 1] = view.y;
         }
@@ -837,7 +1115,7 @@ PixieResult pixie_entity_view_path(PixieSession* s, uint32_t entity, double* xy,
         const std::vector<pxPoint> line = pixie::PathLine(*path, DrawnTransform(s, id, *transform));
         const auto n = static_cast<int32_t>(line.size());
         for (int32_t i = 0; i < n && i < capacity; ++i) {
-            const pxPoint view = s->session.GetCamera().WorldToScreen(line[static_cast<std::size_t>(i)]);
+            const pxPoint view = s->session.ResolvedCamera().camera.WorldToScreen(line[static_cast<std::size_t>(i)]);
             xy[i * 2] = view.x;
             xy[i * 2 + 1] = view.y;
         }
@@ -889,6 +1167,7 @@ PixieResult pixie_entity_create(PixieSession* s, const char* name, uint32_t* ent
     }
     return Guard([&] {
         pixie::World& world = s->session.GetWorld();
+        s->session.BeginAuthoredMutation();
         const pixie::Entity created = world.Create(name != nullptr ? std::string_view(name) : std::string_view());
         pixie::AddToScene(created);
         s->session.MarkChanged();
@@ -904,6 +1183,7 @@ PixieResult pixie_entity_set_name(PixieSession* s, uint32_t entity, const char* 
         if (!world.Registry().valid(ToEntity(entity))) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
         }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         const pixie::Entity handle = world.Wrap(ToEntity(entity));
         if (name == nullptr || name[0] == '\0') {
             handle.Remove<pixie::Name>();
@@ -945,6 +1225,20 @@ PixieResult pixie_entity_find(PixieSession* s, uint64_t id, uint32_t* entity) {
     });
 }
 
+PixieResult pixie_entities_validate(PixieSession* s, const char* snapshot, int32_t ids,
+                                   const uint64_t* replacing, int32_t count) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (snapshot == nullptr || count < 0 || (count > 0 && replacing == nullptr) ||
+        (ids != PIXIE_RESTORE_SAME_IDS && ids != PIXIE_RESTORE_NEW_IDS))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid snapshot, replacement list or ID mode");
+    return Guard([&] {
+        const auto report = pixie::ValidateEntities(s->session.GetWorld(), s->session.Types(), snapshot,
+            ids == PIXIE_RESTORE_SAME_IDS ? pixie::SceneIds::Keep : pixie::SceneIds::New,
+            std::span<const uint64_t>(replacing, static_cast<std::size_t>(count)));
+        return report.ok ? PIXIE_OK : Fail(PIXIE_ERROR_ARGUMENT, report.error);
+    });
+}
+
 PixieResult pixie_entities_snapshot(PixieSession* s, const uint32_t* entities, int32_t count, char* buffer,
                                     int32_t capacity, int32_t* length) {
     PIXIE_REQUIRE_SESSION(s);
@@ -973,6 +1267,12 @@ PixieResult pixie_entities_restore(PixieSession* s, const char* snapshot, int32_
         return Fail(PIXIE_ERROR_ARGUMENT, "null snapshot or output, a negative capacity, or an unknown way to restore");
     }
     return Guard([&] {
+        if (pixie::SceneFormatVersion(s->session.GetWorld()) == 2)
+            return Fail(PIXIE_ERROR_ARGUMENT, "version 2 fragments require prepared candidate publication; live restoration is refused");
+        const auto policy = ids == PIXIE_RESTORE_SAME_IDS ? pixie::SceneIds::Keep : pixie::SceneIds::New;
+        if (const auto check = pixie::ValidateEntities(s->session.GetWorld(), s->session.Types(), snapshot, policy); !check.ok)
+            return Fail(PIXIE_ERROR_ARGUMENT, check.error);
+        s->session.BeginAuthoredMutation();
         const pixie::EntitiesReport report =
             pixie::ReadEntities(s->session.GetWorld(), s->session.Types(), snapshot,
                                 ids == PIXIE_RESTORE_SAME_IDS ? pixie::SceneIds::Keep : pixie::SceneIds::New);
@@ -988,6 +1288,35 @@ PixieResult pixie_entities_restore(PixieSession* s, const char* snapshot, int32_
             s->session.MarkChanged();
         }
         return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_project_prepare_fragment(PixieSession* s, const PixieSceneEditToken* expected,
+    const char* snapshot, int32_t ids, const uint64_t* replacing, int32_t replacing_count,
+    double offset_x, double offset_y, char* buffer, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!expected || !snapshot || !length || replacing_count < 0 || (replacing_count && !replacing) ||
+        capacity < 0 || (capacity > 0 && !buffer) ||
+        (ids != PIXIE_RESTORE_SAME_IDS && ids != PIXIE_RESTORE_NEW_IDS))
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid fragment preparation arguments");
+    return Guard([&] {
+        uint64_t revision = 0;
+        const auto admitted = pixie_project_edit_status(s, &revision);
+        if (admitted != PIXIE_OK) return admitted;
+        if (expected->session_identity != s->session.Identity() || expected->world_revision != revision ||
+            expected->authored_revision != s->session.AuthoredRevision())
+            return Fail(PIXIE_ERROR_ARGUMENT, "stale fragment preparation token");
+        std::size_t size = 0;
+        while (size <= kMaxProjectSnapshotBytes && snapshot[size] != '\0') ++size;
+        if (size > kMaxProjectSnapshotBytes) return Fail(PIXIE_ERROR_ARGUMENT, "fragment exceeds128 MiB");
+        const auto proposal = pixie::PrepareSceneFragment(s->session.GetWorld(), s->session.Types(),
+            std::string_view(snapshot, size), ids == PIXIE_RESTORE_SAME_IDS ? pixie::SceneIds::Keep : pixie::SceneIds::New,
+            std::span<const uint64_t>(replacing, static_cast<std::size_t>(replacing_count)), offset_x, offset_y);
+        if (!proposal.ok) return Fail(PIXIE_ERROR_ARGUMENT, proposal.error);
+        if (proposal.text.size() > kMaxProjectSnapshotBytes)
+            return Fail(PIXIE_ERROR_ARGUMENT, "fragment proposal exceeds128 MiB");
+        *length = static_cast<int32_t>(proposal.text.size());
+        return capacity == 0 ? PIXIE_OK : Copy(proposal.text, buffer, capacity);
     });
 }
 
@@ -1057,7 +1386,7 @@ PixieResult pixie_component_add_status(PixieSession* s, uint32_t entity, int32_t
         auto& world = s->session.GetWorld();
         if (!world.Registry().valid(ToEntity(entity)))
             return Fail(PIXIE_ERROR_NOT_FOUND, "entity no longer exists");
-        const auto reason = descriptor->AdditionError(world, ToEntity(entity));
+        const auto reason = ComponentAdditionError(s, entity, type, *descriptor);
         *required = static_cast<int32_t>(reason.size() + 1);
         return capacity == 0 ? PIXIE_OK : Copy(reason, buffer, capacity);
     });
@@ -1073,9 +1402,10 @@ PixieResult pixie_component_add(PixieSession* s, uint32_t entity, int32_t type) 
         auto& world = s->session.GetWorld();
         if (!world.Registry().valid(ToEntity(entity)))
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
-        if (auto reason = descriptor->AdditionError(world, ToEntity(entity)); !reason.empty())
+        if (auto reason = ComponentAdditionError(s, entity, type, *descriptor); !reason.empty())
             return Fail(PIXIE_ERROR_ARGUMENT, std::move(reason));
         if (descriptor->find(world.Registry(), ToEntity(entity))) return PIXIE_OK;
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         if (descriptor->add(s->session.GetWorld(), ToEntity(entity)) == nullptr) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone", entity));
         }
@@ -1099,6 +1429,7 @@ PixieResult pixie_component_remove(PixieSession* s, uint32_t entity, int32_t typ
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         descriptor->remove(s->session.GetWorld(), ToEntity(entity));
         return PIXIE_OK;
     });
@@ -1239,6 +1570,43 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         if (component == nullptr) {
             return result;
         }
+        const auto nativeType = TypeAt(s, type)->type;
+        auto& world = s->session.GetWorld();
+        if (nativeType == entt::type_hash<pixie::CameraComponent2D>::value() &&
+            (!std::isfinite(value->x) || (descriptor->name == "zoom" &&
+             (value->x < pixie::Camera2D::kMinZoom || value->x > pixie::Camera2D::kMaxZoom))))
+            return Fail(PIXIE_ERROR_ARGUMENT, "camera values must be finite and zoom within native limits");
+        const bool physicsSettings = nativeType == entt::type_hash<pixie::PhysicsSettings2D>::value();
+        const bool lightingSettings = nativeType == entt::type_hash<pixie::LightingSettings2D>::value();
+        if (lightingSettings && world.Presentation()) return Fail(PIXIE_ERROR_ARGUMENT, "canonical presentation is the lighting authority");
+        if (physicsSettings || lightingSettings) {
+            const auto count = physicsSettings ? world.Registry().view<const pixie::PhysicsSettings2D>().size()
+                : world.Registry().view<const pixie::LightingSettings2D>().size();
+            if (count != 1) return Fail(PIXIE_ERROR_ARGUMENT, "duplicate World settings authorities; resolve the conflict before editing");
+            if (!std::isfinite(value->x) || !std::isfinite(value->y) ||
+                !std::isfinite(value->z) || !std::isfinite(value->w)) {
+                return Fail(PIXIE_ERROR_ARGUMENT, "World settings require finite field values");
+            }
+            if (descriptor->kind == pixie::FieldKind::Int &&
+                (value->x < std::numeric_limits<int>::min() || value->x > std::numeric_limits<int>::max() ||
+                 std::trunc(value->x) != value->x)) {
+                return Fail(PIXIE_ERROR_ARGUMENT, "World settings require a representable integer value");
+            }
+        }
+        if (physicsSettings) {
+            // Runtime settings have only numeric/vector fields. Admit their prospective value
+            // before touching live storage or changing the backend's units/state.
+            if (descriptor->kind == pixie::FieldKind::Int &&
+                (value->x < 1 || value->x > 32 || std::trunc(value->x) != value->x)) {
+                return Fail(PIXIE_ERROR_ARGUMENT, "PhysicsSettings2D substeps must be an integer from 1 to 32");
+            }
+            auto candidate = *static_cast<pixie::PhysicsSettings2D*>(component);
+            descriptor->write(&candidate, pixie::FieldValue{value->x, value->y, value->z, value->w});
+            if (const auto error = pixie::ScenePhysicsSettingsEditError2D(world, candidate); !error.empty()) {
+                return Fail(PIXIE_ERROR_ARGUMENT, error);
+            }
+        }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         descriptor->write(component, pixie::FieldValue{value->x, value->y, value->z, value->w});
         if (InScene(s, entity)) {
             s->session.MarkChanged();
@@ -1287,6 +1655,7 @@ PixieResult pixie_field_set_text(PixieSession* s, uint32_t entity, int32_t type,
         if (component == nullptr) {
             return result;
         }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         descriptor->writeText(component, text);
         if (InScene(s, entity)) {
             s->session.MarkChanged();
@@ -1344,6 +1713,7 @@ PixieResult pixie_field_set_points(PixieSession* s, uint32_t entity, int32_t typ
         for (int32_t i = 0; i < count; ++i) {
             points.emplace_back(xy[i * 2], xy[i * 2 + 1]);
         }
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         descriptor->writePoints(component, points);
         if (InScene(s, entity)) {
             s->session.MarkChanged();
@@ -1377,6 +1747,7 @@ PixieResult pixie_record_edit(PixieSession* s, uint32_t entity, int32_t type, in
             || (remove && static_cast<std::size_t>(index) == count) || (!remove && count >= 256))
             return Fail(PIXIE_ERROR_ARGUMENT, "record edit index or count is out of range");
         if (access.list->metadata.readOnly) return Fail(PIXIE_ERROR_ARGUMENT, "record list is read-only");
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         if (remove) access.list->eraseRecord(access.owner, static_cast<std::size_t>(index));
         else access.list->insertRecord(access.owner, static_cast<std::size_t>(index));
         RecordChanged(s, entity);
@@ -1408,6 +1779,7 @@ PixieResult pixie_record_set(PixieSession* s, uint32_t entity, int32_t type, int
         if (!access.field->write || access.field->metadata.readOnly || access.list->metadata.readOnly)
             return Fail(PIXIE_ERROR_ARGUMENT, "record field is not writable numeric data");
         if (const auto checked = CheckEnumValue(*access.field, value->x); checked != PIXIE_OK) return checked;
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         access.field->write(access.item, {value->x, value->y, value->z, value->w});
         RecordChanged(s, entity);
         return PIXIE_OK;
@@ -1440,6 +1812,7 @@ PixieResult pixie_record_set_points(PixieSession* s, uint32_t entity, int32_t ty
             return Fail(PIXIE_ERROR_ARGUMENT, "record points are not writable");
         std::vector<pxPoint> points;
         for (int32_t i = 0; i < count; ++i) points.emplace_back(xy[2*i], xy[2*i+1]);
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         access.field->writePoints(access.item, points);
         RecordChanged(s, entity);
         return PIXIE_OK;
@@ -1469,6 +1842,7 @@ PixieResult pixie_record_set_text(PixieSession* s, uint32_t entity, int32_t type
         if (result != PIXIE_OK) return result;
         if (!access.field->writeText || access.field->metadata.readOnly || access.list->metadata.readOnly)
             return Fail(PIXIE_ERROR_ARGUMENT, "record text is not writable");
+        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         access.field->writeText(access.item, text);
         RecordChanged(s, entity);
         return PIXIE_OK;

@@ -34,7 +34,10 @@ extern "C" {
 #endif
 
 /* Raised when a function's meaning or a struct's layout changes. */
-#define PIXIE_CAPI_VERSION 20
+#define PIXIE_CAPI_VERSION 28
+
+/* Small presentation read surface. Returned JSON owns no native handles. Camera
+ * choices: 0 free, 1 Scene/World defaults, 2 explicit entity; IDs are stable. */
 
 typedef struct PixieSession PixieSession;
 
@@ -220,6 +223,14 @@ PIXIE_API PixieResult pixie_collider_drag_2d(PixieSession* session, uint32_t ent
 
 /* PIXIE_CAPI_VERSION of the library. */
 PIXIE_API int32_t pixie_api_version(void);
+PIXIE_API PixieResult pixie_presentation_snapshot(PixieSession* session, char* buffer, int32_t capacity, int32_t* length);
+PIXIE_API PixieResult pixie_viewport_camera_set(PixieSession* session, int32_t kind, uint64_t entity, uint64_t scene);
+PIXIE_API PixieResult pixie_viewport_camera_get(PixieSession* session, int32_t* kind, uint64_t* entity, uint64_t* scene);
+PIXIE_API PixieResult pixie_viewport_camera_resolve(PixieSession* session, double* x, double* y, double* zoom,
+    int32_t* source, char* diagnostic, int32_t capacity, int32_t* length);
+PIXIE_API PixieResult pixie_viewport_free_camera_get(PixieSession* session, double* x, double* y, double* zoom);
+PIXIE_API PixieResult pixie_viewport_free_camera_set(PixieSession* session, double x, double y, double zoom);
+
 PIXIE_API PixieResult pixie_physics_debug_get(PixieSession* session, uint32_t* flags);
 PIXIE_API PixieResult pixie_physics_debug_set(PixieSession* session, uint32_t flags);
 /* PIXIE_LIGHTING_DEBUG_* bits; until set, light bounds show in Edit and nothing in Play. */
@@ -275,11 +286,80 @@ PIXIE_API PixieResult pixie_project_create(const char* folder);
 PIXIE_API PixieResult pixie_session_open_project(int32_t width, int32_t height, const char* folder,
                                                  PixieSession** session);
 /* Writes the scene's entities to the start scene's file; while playing, the ones kept by play. */
+/* A recovered v2 snapshot cannot overwrite an existing v1 scene without explicit backed-up
+ * conversion. Refusal is PIXIE_ERROR_IO and preserves the file and unsaved state. */
 PIXIE_API PixieResult pixie_project_save(PixieSession* session);
 /* 1 when the scene was edited since it was opened or saved, else 0. Creating an entity, adding or
  * removing a component, writing a field of a scene entity, and destroying one, in edit mode, edit
  * it. */
 PIXIE_API int32_t pixie_project_unsaved(PixieSession* session);
+/* Complete authored scene in Edit mode, distinct from entity fragments. The null-buffer query
+ * writes its UTF-8 byte length to `length` without changing the session. A successful restore
+ * replaces the authored World and marks the project unsaved; failure publishes no replacement.
+ * Both operations require an open project and reject snapshots over 128 MiB. */
+PIXIE_API PixieResult pixie_project_snapshot(PixieSession* session, char* buffer, int32_t capacity,
+                                             int32_t* length);
+PIXIE_API PixieResult pixie_project_restore(PixieSession* session, const char* snapshot);
+
+/* Bounded serial authoring on the owner thread for an owned fallback or explicitly contracted module in Edit.
+ * status refuses uncontracted factory/borrowed sessions; revision identifies current World storage.
+ * edit requires that revision and a complete v2 document. Failure publishes no replacement;
+ * success commits irreversibly and returns a receipt without fallible postcommit callbacks.
+ * The host must refuse unfinished gestures before calling, then invalidate bindings on success.
+ * No file is written or converted. Timings are milliseconds; publication includes retired-state teardown.
+ * Module contract1 is cooperative: no callbacks/cleanup may mutate published or external state. */
+typedef struct PixieSceneEditReceipt {
+    uint64_t world_revision;
+    double preparation_ms;
+    double publication_ms;
+} PixieSceneEditReceipt;
+typedef struct PixieSceneEditToken {
+    uint64_t session_identity;
+    uint64_t world_revision;
+    uint64_t authored_revision;
+} PixieSceneEditToken;
+/* Read-only owner-thread token, not editing authority. Content revision is conservative for
+ * supported authored API attempts; arbitrary raw native Registry changes are not tracked. */
+PIXIE_API PixieResult pixie_project_revision(PixieSession* session, PixieSceneEditToken* token);
+PIXIE_API PixieResult pixie_project_edit_status(PixieSession* session, uint64_t* revision);
+PIXIE_API PixieResult pixie_project_edit_scene(PixieSession* session, const PixieSceneEditToken* expected,
+    const char* snapshot, PixieSceneEditReceipt* receipt);
+/* Read-only format/membership. Scope 0 means directly in World; invalid entities fail. */
+PIXIE_API PixieResult pixie_project_scene_version(PixieSession* session, int32_t* version);
+PIXIE_API PixieResult pixie_entity_scene_scope(PixieSession* session, uint32_t entity, uint64_t* scope);
+/* Explicitly saves current authorship and converts the start scene with a .v1-backup.
+ * Same admission/token contract as candidate editing; no World replacement or format undo. */
+PIXIE_API PixieResult pixie_project_convert_scene_v2(PixieSession* session, const PixieSceneEditToken* expected);
+
+/* Presentation-only Environment choice for the session's viewport. A selected Scene ID remains
+ * selected when its scope definition is removed; resolution then reports World fallback. The
+ * current Scene Environment inherits World lighting and does not install or edit settings. */
+typedef enum PixieEnvironmentSelectionKind {
+    PIXIE_ENVIRONMENT_LEGACY_WORLD = 0,
+    PIXIE_ENVIRONMENT_SCENE = 1
+} PixieEnvironmentSelectionKind;
+typedef enum PixieEnvironmentResolutionKind {
+    PIXIE_ENVIRONMENT_RESOLVED_WORLD = 0,
+    PIXIE_ENVIRONMENT_SCENE_INHERITS_WORLD = 1,
+    PIXIE_ENVIRONMENT_REMOVED_SCENE_FALLBACK = 2,
+    PIXIE_ENVIRONMENT_SCENE_OVERRIDE = 3
+} PixieEnvironmentResolutionKind;
+typedef enum PixieEnvironmentLightingState {
+    PIXIE_ENVIRONMENT_LIGHTING_ABSENT = 0,
+    PIXIE_ENVIRONMENT_LIGHTING_DISABLED = 1,
+    PIXIE_ENVIRONMENT_LIGHTING_CONFIGURED = 2
+} PixieEnvironmentLightingState;
+PIXIE_API PixieResult pixie_viewport_environment_set(PixieSession* session, int32_t kind, uint64_t scene_id);
+PIXIE_API PixieResult pixie_viewport_environment_get(PixieSession* session, int32_t* kind, uint64_t* scene_id);
+/* `length` is the diagnostic's UTF-8 byte length, excluding NUL. Capacity 0 measures it; a
+ * positive capacity copies with NUL and reports PIXIE_ERROR_BUFFER when too small. */
+PIXIE_API PixieResult pixie_viewport_environment_resolve(PixieSession* session, int32_t* resolution,
+    int32_t* lighting_state, char* diagnostic, int32_t capacity, int32_t* length);
+/* Ordered logical Scene definitions, including empty scopes. The name uses the same length and
+ * buffer convention as the diagnostic above. These calls never create or edit scopes. */
+PIXIE_API PixieResult pixie_scene_scope_count(PixieSession* session, int32_t* count);
+PIXIE_API PixieResult pixie_scene_scope_at(PixieSession* session, int32_t index, uint64_t* id,
+    char* name, int32_t capacity, int32_t* length);
 
 /* Modes. A session without a project always plays. In edit mode, advance and step run no step;
  * the middle button and the wheel move the camera. Play keeps the scene's entities and builds the
@@ -378,10 +458,20 @@ typedef enum PixieRestore {
     PIXIE_RESTORE_SAME_IDS = 0,
     PIXIE_RESTORE_NEW_IDS = 1
 } PixieRestore;
+/* Read-only structural admission before import/replacement. Replacing IDs are SceneIds,
+ * permitted only with SAME_IDS. Does not invoke component callbacks or promise application atomicity. */
+PIXIE_API PixieResult pixie_entities_validate(PixieSession* session, const char* snapshot, int32_t ids,
+    const uint64_t* replacing, int32_t count);
 PIXIE_API PixieResult pixie_entities_snapshot(PixieSession* session, const uint32_t* entities, int32_t count,
                                               char* buffer, int32_t capacity, int32_t* length);
 PIXIE_API PixieResult pixie_entities_restore(PixieSession* session, const char* snapshot, int32_t ids,
                                              uint32_t* entities, int32_t capacity, int32_t* count);
+/* Prepare a complete candidate document plus ordered persistent IDs, never mutate World.
+ * Empty snapshot deletes replacing IDs. Output JSON: {document:scene,ids:[hex,...]}.
+ * Publication must use pixie_project_edit_scene with the same expected token. */
+PIXIE_API PixieResult pixie_project_prepare_fragment(PixieSession* session, const PixieSceneEditToken* expected,
+    const char* snapshot, int32_t ids, const uint64_t* replacing, int32_t replacing_count,
+    double offset_x, double offset_y, char* buffer, int32_t capacity, int32_t* length);
 
 /* Component types that can be inspected, by index from 0 to pixie_type_count - 1. */
 PIXIE_API int32_t pixie_type_count(PixieSession* session);

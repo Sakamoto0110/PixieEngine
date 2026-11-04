@@ -15,11 +15,24 @@ public sealed class EngineException(string message, PixieResult? result = null, 
 public sealed unsafe class EngineSession : IDisposable
 {
     private nint Handle;
+    internal Editing.SessionEditGate Edits { get; } = new();
+    private byte[]? SnapshotBuffer;
+    private byte[]? FragmentBuffer;
+    internal Func<string, ulong[], bool, uint[]>? RestoreFragmentCandidate { get; set; }
+    internal Func<string, ulong[], uint[]>? RestoreHistoryFragmentCandidate { get; set; }
+    internal Func<string, uint[]>? RestoreHistoryDocumentCandidate { get; set; }
+    private readonly int OwnerThread = Environment.CurrentManagedThreadId;
+    internal int LastSnapshotNativeCalls { get; private set; }
+    internal int SnapshotBufferCapacity => SnapshotBuffer?.Length ?? 0;
     private readonly Dictionary<string, int> TypeIndices = [];
     private readonly Dictionary<(int Type, string Field), int> FieldIndices = [];
-internal long BindingRevision { get; private set; }
+    internal long BindingRevision { get; private set; }
     internal event Action? BindingsReplacing;
-    internal void PrepareBindingsReplacement() => BindingsReplacing?.Invoke();
+    internal void PrepareBindingsReplacement()
+    {
+        Edits.RequireMutation();
+        BindingsReplacing?.Invoke();
+    }
 #if PIXIE_DEVELOPMENT
     private byte[]? DevelopmentResponse;
     internal long DevelopmentGeneration => BindingRevision;
@@ -28,6 +41,12 @@ internal long BindingRevision { get; private set; }
     {
         if (Encoding.UTF8.GetByteCount(request) > 65536 || request.Contains('\0'))
             throw new ArgumentException("Invalid or oversized development request.");
+        if (Edits.IsBlocked)
+        {
+            var input = System.Text.Json.Nodes.JsonNode.Parse(request)!.AsObject();
+            if (!global::PixieEditor.Editing.SessionEditGate.IsReadOnlyWorldCommand(input["method"]?.GetValue<string>() ?? "", input["params"] as System.Text.Json.Nodes.JsonObject))
+                Edits.RequireMutation();
+        }
         DevelopmentResponse ??= new byte[4 * 1024 * 1024];
         fixed (byte* response = DevelopmentResponse)
             Check(PixieCapi.DevDispatch(Handle, request, response, DevelopmentResponse.Length), "dispatch development command");
@@ -81,20 +100,96 @@ internal long BindingRevision { get; private set; }
     public uint PhysicsDebug
     {
         get { Check(PixieCapi.PhysicsDebugGet(Handle, out var flags), "read physics debug options"); return flags; }
-        set => Check(PixieCapi.PhysicsDebugSet(Handle, value), "set physics debug options");
+        set { Edits.RequireMutation(); Check(PixieCapi.PhysicsDebugSet(Handle, value), "set physics debug options"); }
     }
 
     public uint LightingDebug
     {
         get { Check(PixieCapi.LightingDebugGet(Handle, out var flags), "read lighting debug options"); return flags; }
-        set => Check(PixieCapi.LightingDebugSet(Handle, value), "set lighting debug options");
+        set { Edits.RequireMutation(); Check(PixieCapi.LightingDebugSet(Handle, value), "set lighting debug options"); }
+    }
+
+    public (PixieEnvironmentSelectionKind Kind, ulong SceneId) ViewportEnvironmentSelection
+    {
+        get
+        {
+            Check(PixieCapi.ViewportEnvironmentGet(Handle, out var kind, out var sceneId), "read the viewport Environment selection");
+            return (kind, sceneId);
+        }
+    }
+
+    public void SelectViewportEnvironment(PixieEnvironmentSelectionKind kind, ulong sceneId = 0) =>
+        Check(PixieCapi.ViewportEnvironmentSet(Handle, kind, sceneId), "select the viewport Environment");
+
+    public PixieViewportEnvironment ViewportEnvironment
+    {
+        get
+        {
+            Check(PixieCapi.ViewportEnvironmentResolve(Handle, out var resolution, out var lighting, null, 0, out var length),
+                "measure the viewport Environment diagnostic");
+            if (length < 0 || length > 1024 * 1024) throw new EngineException("The viewport Environment diagnostic exceeds 1 MiB.");
+            var buffer = new byte[length + 1];
+            fixed (byte* text = buffer)
+                Check(PixieCapi.ViewportEnvironmentResolve(Handle, out resolution, out lighting, text, buffer.Length, out length),
+                    "resolve the viewport Environment");
+            return new(resolution, lighting, new UTF8Encoding(false, true).GetString(buffer, 0, length));
+        }
+    }
+
+    internal System.Text.Json.Nodes.JsonObject PresentationSnapshot()
+    {
+        Check(PixieCapi.PresentationSnapshot(Handle, null, 0, out var length), "measure presentation");
+        if (length < 0 || length > 16 * 1024 * 1024) throw new EngineException("Presentation catalog exceeds16MiB.");
+        var bytes = new byte[length + 1];
+        fixed (byte* text = bytes) Check(PixieCapi.PresentationSnapshot(Handle, text, bytes.Length, out length), "read presentation");
+        return System.Text.Json.Nodes.JsonNode.Parse(Encoding.UTF8.GetString(bytes, 0, length))!.AsObject();
+    }
+    internal (int Kind, ulong Entity, ulong Scene) ViewportCameraSelection
+    {
+        get { Check(PixieCapi.ViewportCameraGet(Handle, out var kind, out var entity, out var scene), "read camera choice"); return (kind, entity, scene); }
+    }
+    internal void SelectViewportCamera(int kind, ulong entity = 0, ulong scene = 0) =>
+        Check(PixieCapi.ViewportCameraSet(Handle, kind, entity, scene), "select camera");
+    internal (double X, double Y, double Zoom) FreeCamera
+    {
+        get { Check(PixieCapi.FreeCameraGet(Handle, out var x, out var y, out var zoom), "read free camera"); return (x, y, zoom); }
+        set { Check(PixieCapi.FreeCameraSet(Handle, value.X, value.Y, value.Zoom), "restore free camera"); }
+    }
+    internal string CameraDiagnostic
+    {
+        get {
+            Check(PixieCapi.ViewportCameraResolve(Handle, out _, out _, out _, out _, null, 0, out var length), "measure camera diagnostic");
+            if (length < 0 || length > 1024 * 1024) throw new EngineException("Camera diagnostic exceeds1MiB.");
+            var bytes = new byte[length + 1];
+            fixed (byte* text = bytes) Check(PixieCapi.ViewportCameraResolve(Handle, out _, out _, out _, out _, text, bytes.Length, out length), "resolve camera");
+            return Encoding.UTF8.GetString(bytes, 0, length);
+        }
+    }
+
+    public PixieSceneScope[] SceneScopes()
+    {
+        Check(PixieCapi.SceneScopeCount(Handle, out var count), "count Scene scopes");
+        if (count < 0 || count > 1_000_000) throw new EngineException("The Scene scope catalog is too large.");
+        var scopes = new PixieSceneScope[count];
+        for (var index = 0; index < count; ++index)
+        {
+            Check(PixieCapi.SceneScopeAt(Handle, index, out var id, null, 0, out var length), "measure a Scene scope name");
+            if (length < 0 || length > 1024 * 1024) throw new EngineException("A Scene scope name exceeds 1 MiB.");
+            var buffer = new byte[length + 1];
+            fixed (byte* text = buffer)
+                Check(PixieCapi.SceneScopeAt(Handle, index, out id, text, buffer.Length, out length), "read a Scene scope");
+            scopes[index] = new(id, new UTF8Encoding(false, true).GetString(buffer, 0, length));
+        }
+        return scopes;
     }
 
     public PixieColliderHandles2D? ColliderHandles2D(uint entity, int shape) =>
         Found(PixieCapi.ColliderHandles2D(Handle, entity, shape, out var handles), "read collider handles") ? handles : null;
 
-    public void DragCollider2D(uint entity, int shape, int kind, double x, double y, bool snap) =>
+    public void DragCollider2D(uint entity, int shape, int kind, double x, double y, bool snap) {
+        Edits.RequireMutation();
         Check(PixieCapi.ColliderDrag2D(Handle, entity, shape, kind, x, y, snap ? 1 : 0), "drag collider geometry");
+    }
 
     // Native effective properties, never saved or computed again by the editor.
     public PixieBodyMass2D? BodyMass2D(uint entity) =>
@@ -102,26 +197,133 @@ internal long BindingRevision { get; private set; }
 
     public void Play()
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.SessionPlay(Handle), "play");
         ++BindingRevision;
     }
     public void Stop()
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.SessionStop(Handle), "stop");
         ++BindingRevision;
     }
-    public void Save() => Check(PixieCapi.ProjectSave(Handle), "save the scene");
+    public void Save() {
+        Edits.RequireMutation();
+        Check(PixieCapi.ProjectSave(Handle), "save the scene");
+    }
+
+    // The complete authored scene, including World defaults and empty scopes.
+    public string ProjectSnapshot()
+    {
+        if (Environment.CurrentManagedThreadId != OwnerThread) throw new EngineException("Snapshot capture requires the session owner thread.");
+        const int maximum = 128 * 1024 * 1024;
+        SnapshotBuffer ??= new byte[64 * 1024];
+        LastSnapshotNativeCalls = 0;
+        for (var attempt = 0; attempt < 2; ++attempt)
+        {
+            ++LastSnapshotNativeCalls;
+            PixieResult result;
+            int length;
+            fixed (byte* text = SnapshotBuffer)
+                result = PixieCapi.ProjectSnapshot(Handle, text, SnapshotBuffer.Length, out length);
+            if (result is not (PixieResult.Ok or PixieResult.ErrorBuffer)) Check(result, "snapshot the authored scene");
+            if (length < 0 || length > maximum) throw new EngineException("The authored scene snapshot exceeds 128 MiB.");
+            if (result == PixieResult.ErrorBuffer && attempt == 0)
+            {
+                var needed = checked(length + 1);
+                var grown = Math.Max(needed, Math.Min(maximum + 1, SnapshotBuffer.Length * 2));
+                SnapshotBuffer = new byte[grown];
+                continue; // Copy is not trusted; native will serialize fresh data on the retry.
+            }
+            Check(result, "snapshot the authored scene");
+            return new UTF8Encoding(false, true).GetString(SnapshotBuffer, 0, length);
+        }
+        throw new EngineException("The authored scene changed during bounded snapshot capture.");
+    }
+
+    internal PixieSceneEditToken ProjectRevision()
+    {
+        Check(PixieCapi.ProjectRevision(Handle, out var token), "read the project revision");
+        return token;
+    }
+
+    internal ulong CandidateEditRevision()
+    {
+        Check(PixieCapi.ProjectEditStatus(Handle, out var revision), "admit candidate editing");
+        return revision;
+    }
+
+    internal int SceneFormatVersion
+    {
+        get { Check(PixieCapi.ProjectSceneVersion(Handle, out var version), "read scene format"); return version; }
+    }
+    internal ulong EntityScope(uint entity)
+    {
+        Check(PixieCapi.EntitySceneScope(Handle, entity, out var scope), "read entity membership"); return scope;
+    }
+    internal void ConvertSceneV2(PixieSceneEditToken expected)
+    {
+        Edits.RequirePreparation();
+        Check(PixieCapi.ProjectConvertSceneV2(Handle, in expected), "convert and save scene as v2");
+    }
+
+    internal PixieSceneEditReceipt ApplySceneCandidate(string snapshot, ulong expectedRevision)
+    {
+        Edits.RequireMutation();
+        var token = ProjectRevision(); token.WorldRevision = expectedRevision;
+        return ApplySceneCandidateCore(snapshot, token);
+    }
+
+    internal PixieSceneEditReceipt PublishSceneCandidate(string snapshot, PixieSceneEditToken expected)
+    {
+        Edits.RequirePreparation();
+        var receipt = ApplySceneCandidateCore(snapshot, expected);
+        Edits.Published(); // Trivial state write immediately after native success.
+        return receipt;
+    }
+
+    internal PixieSceneEditReceipt ApplySceneCandidate(string snapshot, PixieSceneEditToken expected)
+    {
+        Edits.RequireMutation();
+        return ApplySceneCandidateCore(snapshot, expected);
+    }
+
+    private PixieSceneEditReceipt ApplySceneCandidateCore(string snapshot, PixieSceneEditToken expected)
+    {
+        if (snapshot == null || snapshot.Contains('\0') || Encoding.UTF8.GetByteCount(snapshot) > 128 * 1024 * 1024)
+            throw new EngineException("Candidate documents must be bounded UTF8 text without embedded NUL.");
+        Check(PixieCapi.ProjectEditScene(Handle, in expected, snapshot, out var receipt), "publish scene candidate");
+        ++BindingRevision;
+        return receipt;
+    }
+
+    // Only the startup handoff may replace the World without a live subscriber.
+    public void ProjectRestore(string snapshot)
+    {
+        Edits.RequireMutation();
+        ArgumentNullException.ThrowIfNull(snapshot);
+        if (BindingsReplacing != null)
+            throw new EngineException("The authored scene can only be restored before editor bindings subscribe.");
+        if (Encoding.UTF8.GetByteCount(snapshot) > 128 * 1024 * 1024 || snapshot.Contains('\0'))
+            throw new ArgumentException("Invalid or oversized authored scene snapshot.", nameof(snapshot));
+        Check(PixieCapi.ProjectRestore(Handle, snapshot), "restore the authored scene");
+        ++BindingRevision;
+    }
 
     // A new entity of the scene, named `name`.
     public uint CreateEntity(string name)
     {
+        Edits.RequireMutation();
         Check(PixieCapi.EntityCreate(Handle, name, out var entity), "create an entity");
         return entity;
     }
 
-    public void SetName(uint entity, string name) => Check(PixieCapi.EntitySetName(Handle, entity, name), "rename an entity");
+    public void SetName(uint entity, string name) {
+        Edits.RequireMutation();
+        Check(PixieCapi.EntitySetName(Handle, entity, name), "rename an entity");
+    }
 
     // The entity's scene ID, which survives the World being built again; null for an entity that is
     // gone or not in the scene.
@@ -149,8 +351,21 @@ internal long BindingRevision { get; private set; }
     }
 
     // Adds a snapshot's entities back: with their scene IDs, or as copies with new ones. Returns them.
+    public void ValidateRestore(string snapshot, bool newIds, IReadOnlyList<ulong>? replacing = null)
+    {
+        ArgumentNullException.ThrowIfNull(snapshot);
+        var excluded = replacing?.ToArray() ?? [];
+        fixed (ulong* list = excluded)
+            Check(PixieCapi.EntitiesValidate(Handle, snapshot, newIds ? 1 : 0, list, excluded.Length), "validate entity restoration");
+    }
+
     public uint[] Restore(string snapshot, bool newIds)
     {
+        Edits.RequireMutation();
+        if (SceneFormatVersion == 2)
+            return RestoreFragmentCandidate?.Invoke(snapshot, [], newIds)
+                ?? throw new EngineException("Version2 fragments require the editor candidate coordinator.");
+        ValidateRestore(snapshot, newIds);
         using var document = System.Text.Json.JsonDocument.Parse(snapshot);
         var entities = new uint[document.RootElement.GetProperty("entities").GetArrayLength()];
         fixed (uint* list = entities)
@@ -162,6 +377,33 @@ internal long BindingRevision { get; private set; }
         }
     }
 
+    internal string PrepareFragment(PixieSceneEditToken expected, string snapshot, bool newIds,
+        ulong[] replacing, double offsetX = 0, double offsetY = 0)
+    {
+        Edits.RequirePreparation();
+        if (snapshot.Contains('\0') || Encoding.UTF8.GetByteCount(snapshot) > 128 * 1024 * 1024)
+            throw new EngineException("Invalid or oversized fragment.");
+        FragmentBuffer ??= new byte[64 * 1024];
+        for (var attempt = 0; attempt < 2; ++attempt)
+        {
+            PixieResult result; int length;
+            fixed (ulong* ids = replacing)
+            fixed (byte* text = FragmentBuffer)
+                result = PixieCapi.ProjectPrepareFragment(Handle, in expected, snapshot, newIds ? 1 : 0,
+                    ids, replacing.Length, offsetX, offsetY, text, FragmentBuffer.Length, out length);
+            if (result is not (PixieResult.Ok or PixieResult.ErrorBuffer)) Check(result, "prepare fragment candidate");
+            if (length < 0 || length > 128 * 1024 * 1024) throw new EngineException("Fragment proposal exceeds128 MiB.");
+            if (result == PixieResult.ErrorBuffer && attempt == 0)
+            {
+                FragmentBuffer = new byte[checked(length + 1)];
+                continue;
+            }
+            Check(result, "prepare fragment candidate");
+            return new UTF8Encoding(false, true).GetString(FragmentBuffer, 0, length);
+        }
+        throw new EngineException("Fragment proposal grew during preparation.");
+    }
+
     public (int Type, int Count) RecordInfo(uint entity, int type, int list)
     {
         Check(PixieCapi.RecordInfo(Handle, entity, type, list, out var itemType, out var count), "read record info");
@@ -169,6 +411,7 @@ internal long BindingRevision { get; private set; }
     }
     public void EditRecord(uint entity, int type, int list, int index, bool remove)
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.RecordEdit(Handle, entity, type, list, index, remove ? 1 : 0), "edit record list");
         ++BindingRevision;
@@ -178,8 +421,10 @@ internal long BindingRevision { get; private set; }
         Check(PixieCapi.RecordGet(Handle, entity, type, list, index, field, out var value), "read record value");
         return value;
     }
-    public void SetRecord(uint entity, int type, int list, int index, int field, PixieValue value) =>
+    public void SetRecord(uint entity, int type, int list, int index, int field, PixieValue value) {
+        Edits.RequireMutation();
         Check(PixieCapi.RecordSet(Handle, entity, type, list, index, field, in value), "write record value");
+    }
     public (double X, double Y)[] GetRecordPoints(uint entity, int type, int list, int index, int field)
     {
         Check(PixieCapi.RecordGetPoints(Handle, entity, type, list, index, field, null, 0, out var count), "measure record points");
@@ -190,6 +435,7 @@ internal long BindingRevision { get; private set; }
     }
     public void SetRecordPoints(uint entity, int type, int list, int index, int field, IReadOnlyList<(double X, double Y)> points)
     {
+        Edits.RequireMutation();
         var xy = points.SelectMany(p => new[] {p.X, p.Y}).ToArray();
         fixed (double* data = xy)
             Check(PixieCapi.RecordSetPoints(Handle, entity, type, list, index, field, data, points.Count), "write record points");
@@ -202,11 +448,14 @@ internal long BindingRevision { get; private set; }
             Check(PixieCapi.RecordGetText(Handle, entity, type, list, index, field, data, required, out _), "read record text");
         return Encoding.UTF8.GetString(bytes, 0, required - 1);
     }
-    public void SetRecordText(uint entity, int type, int list, int index, int field, string text) =>
+    public void SetRecordText(uint entity, int type, int list, int index, int field, string text) {
+        Edits.RequireMutation();
         Check(PixieCapi.RecordSetText(Handle, entity, type, list, index, field, text), "write record text");
+    }
 
     public void AddComponent(uint entity, int type)
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.ComponentAdd(Handle, entity, type), $"add {TypeName(type)}");
         ++BindingRevision;
@@ -222,6 +471,7 @@ internal long BindingRevision { get; private set; }
     }
     public void RemoveComponent(uint entity, int type)
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.ComponentRemove(Handle, entity, type), $"remove {TypeName(type)}");
         ++BindingRevision;
@@ -234,6 +484,7 @@ internal long BindingRevision { get; private set; }
 
         PixieCapi.SessionDestroy(Handle);
         Handle = 0;
+        SnapshotBuffer = null;
     }
 
     public string ProjectName => ReadString((b, n) => PixieCapi.ProjectName(Handle, b, n), "read the project name");
@@ -262,13 +513,13 @@ internal long BindingRevision { get; private set; }
     public bool Paused
     {
         get => Stats.Paused != 0;
-        set => Check(PixieCapi.SessionSetPaused(Handle, value ? 1 : 0), "pause or resume");
+        set { Edits.RequireMutation(); Check(PixieCapi.SessionSetPaused(Handle, value ? 1 : 0), "pause or resume"); }
     }
 
     public double TimeScale
     {
         get => Stats.TimeScale;
-        set => Check(PixieCapi.SessionSetTimeScale(Handle, value), "set the time scale");
+        set { Edits.RequireMutation(); Check(PixieCapi.SessionSetTimeScale(Handle, value), "set the time scale"); }
     }
 
     // The component type holds a scenario: values the scene is built from.
@@ -296,9 +547,13 @@ internal long BindingRevision { get; private set; }
 
     public void Resize(int width, int height) => Check(PixieCapi.SessionResize(Handle, width, height), "resize");
     public void Advance(double seconds) => Check(PixieCapi.SessionAdvance(Handle, seconds), "advance");
-    public void Step() => Check(PixieCapi.SessionStep(Handle), "step");
+    public void Step() {
+        Edits.RequireMutation();
+        Check(PixieCapi.SessionStep(Handle), "step");
+    }
     public void Reset()
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         Check(PixieCapi.SessionReset(Handle), "reset");
         ++BindingRevision;
@@ -343,6 +598,7 @@ internal long BindingRevision { get; private set; }
     // Destroys an entity at once; false when it was already gone.
     public bool Destroy(uint entity)
     {
+        Edits.RequireMutation();
         PrepareBindingsReplacement();
         var destroyed = Found(PixieCapi.EntityDestroy(Handle, entity), "destroy an entity");
         if (destroyed) ++BindingRevision;
@@ -385,12 +641,15 @@ internal long BindingRevision { get; private set; }
             : null;
 
     // Removes the particle nearest a point within `radius` pixels; false when none is that close.
-    public bool RemoveParticleAt(double x, double y, double radius) =>
-        Found(PixieCapi.ParticleRemoveAt(Handle, x, y, radius), "remove a particle");
+    public bool RemoveParticleAt(double x, double y, double radius) {
+        Edits.RequireMutation();
+        return Found(PixieCapi.ParticleRemoveAt(Handle, x, y, radius), "remove a particle");
+    }
 
     // Asks the game to create something at a point in view pixels; false when it creates nothing.
     public bool SpawnAt(double x, double y)
     {
+        Edits.RequireMutation();
         Check(PixieCapi.SpawnAt(Handle, x, y, out var created), "spawn");
         return created != 0;
     }
@@ -443,6 +702,7 @@ internal long BindingRevision { get; private set; }
 
     public void Set(uint entity, int type, int field, PixieValue value)
     {
+        Edits.RequireMutation();
         Check(PixieCapi.FieldSet(Handle, entity, type, field, in value), "write a field");
     }
 
@@ -459,8 +719,10 @@ internal long BindingRevision { get; private set; }
         return Encoding.UTF8.GetString(buffer, 0, length);
     }
 
-    public void SetText(uint entity, int type, int field, string text) =>
+    public void SetText(uint entity, int type, int field, string text) {
+        Edits.RequireMutation();
         Check(PixieCapi.FieldSetText(Handle, entity, type, field, text), "write a text field");
+    }
 
     // A list of points, such as a path's.
     public (double X, double Y)[] GetPoints(uint entity, int type, int field)
@@ -477,6 +739,7 @@ internal long BindingRevision { get; private set; }
 
     public void SetPoints(uint entity, int type, int field, IReadOnlyList<(double X, double Y)> points)
     {
+        Edits.RequireMutation();
         var xy = points.SelectMany(p => new[] { p.X, p.Y }).ToArray();
         fixed (double* buffer = xy)
         {

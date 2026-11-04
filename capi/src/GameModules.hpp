@@ -29,5 +29,6 @@ struct PixieGameModule {
     void* Symbol(const char* name) const { return dlsym(handle, name); }
 #endif
     pixie::Project* (*create)() = nullptr;
+    int candidateContract = 0;
 };
 #endif

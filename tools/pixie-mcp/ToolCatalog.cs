@@ -24,12 +24,17 @@ internal static class ToolCatalog
     }).ToArray();
     public static IReadOnlyList<Tool> ForHost(bool editor) => editor ? [.. Tools, .. new[]
     {
-        "inspector.tree", "inspector.get", "inspector.report", "inspector.set", "editor.do", "editor.history", "editor.selection"
+        "inspector.tree", "inspector.get", "inspector.report", "inspector.set", "editor.do", "editor.history", "editor.selection", "editor.scenes", "editor.presentation"
     }.Select(name => new Tool
     {
         Name = name,
         Description = "Editor/Inspector observation or existing gesture. Read inspector.tree first; writes require its generation. " +
             "inspector.set takes {path,value,generation}; editor.do takes {command,generation}. Selection commands use select=<16-digit scene ID>. " +
+            "editor.scenes lists scope IDs. Scene gestures: scenecreate=name, sceneselect=scopeID/world, scenerename=scopeID:name, sceneremove=scopeID, scenemove=scopeID/world. " +
+            "editor.presentation reads native presentation, Scene overrides/gravity and camera catalog. " +
+            "In Edit, worldpresentation=JSON and scenepresentation=scopeID:JSON publish one validated candidate with history. " +
+            "presentationmigrate=confirm explicitly migrates the in-memory legacy lighting authority; retained legacy effects are read-only. " +
+            "sceneconvert=confirm explicitly saves current v1 authorship as v2 with .v1-backup, only when capabilities.save is enabled. " +
             "Default Inspector values are held/view units; inspector.get domain live-storage explicitly reads storage. editor.do save writes the scene when world.hello reports capabilities.save; build/export/import are disabled.",
         InputSchema = JsonSerializer.SerializeToElement(new
         {

@@ -8,26 +8,37 @@ namespace PixieEditor.Native;
 internal static class GameLibrary
 {
     private static string? Path;
+    private static bool ResolverInstalled;
+    private static bool LoadSucceeded;
 
     // The engine's library for a project without code.
     public const string SceneGame = "pixie-scene";
 
-    public static string Loaded => Path ?? throw new InvalidOperationException("No game library is loaded.");
-    public static bool IsLoaded => Path != null;
+    public static string Loaded => LoadSucceeded ? Path! : throw new InvalidOperationException("No game library is loaded.");
+    public static bool IsLoaded => LoadSucceeded;
 
     public static void Use(string path)
     {
-        if (Path != null)
+        if (LoadSucceeded)
             throw new InvalidOperationException("The editor hosts one game per process.");
 
-        Path = System.IO.Path.GetFullPath(path);
-        NativeLibrary.SetDllImportResolver(typeof(GameLibrary).Assembly, Resolve);
+        var requested = System.IO.Path.GetFullPath(path);
+        if (Path != null && !Path.Equals(requested, OperatingSystem.IsWindows()
+                ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal))
+            throw new EngineException("Restart the editor to select another library after a failed load.");
+        Path = requested;
+        if (!ResolverInstalled)
+        {
+            NativeLibrary.SetDllImportResolver(typeof(GameLibrary).Assembly, Resolve);
+            ResolverInstalled = true;
+        }
         var engineName = OperatingSystem.IsWindows() ? "pixie.dll" : "libpixie.so";
         if (!System.IO.Path.GetFileName(Path).Equals(engineName, StringComparison.OrdinalIgnoreCase))
         {
             var result = PixieCapi.ModuleLoad(Path);
             EngineSession.Check(result, "load the development game module");
         }
+        LoadSucceeded = true;
     }
 
     // `game` is a path to a library, or a game's name, looked up as "<name>-module" next to the

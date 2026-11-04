@@ -39,8 +39,8 @@ internal sealed unsafe partial class ViewportPanel
     {
         if (ColliderDrag is not { } gesture) return;
         ColliderDrag = null;
-        authoring.EndColliderDrag(gesture, cancel);
         PressedAt = null;
+        authoring.EndColliderDrag(gesture, cancel);
     }
 
     private bool HandleColliderInput()
