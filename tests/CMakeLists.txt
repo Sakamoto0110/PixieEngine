@@ -3,7 +3,25 @@
 
 include(${PROJECT_SOURCE_DIR}/cmake/PixieTargetDefaults.cmake)
 
+foreach(data_case RANGE 0 12)
+    add_library(data-contract-${data_case} OBJECT EXCLUDE_FROM_ALL capi/DataContractCompile.cpp)
+    target_compile_definitions(data-contract-${data_case} PRIVATE PIXIE_DATA_CASE=${data_case})
+    target_link_libraries(data-contract-${data_case} PRIVATE Pixie::Runtime)
+    pixie_target_defaults(data-contract-${data_case})
+    set_target_properties(data-contract-${data_case} PROPERTIES FOLDER tests)
+endforeach()
+add_test(NAME declarative-data-contract COMMAND ${CMAKE_COMMAND}
+    "-DBUILD_DIR=${CMAKE_BINARY_DIR}" "-DCONFIG=$<CONFIG>"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/capi/RunDataContractCompile.cmake)
+set_tests_properties(declarative-data-contract PROPERTIES RUN_SERIAL TRUE TIMEOUT 300)
+
 if(PIXIE_DEV_CHANNEL)
+    add_library(candidate-authoring-probe-module MODULE capi/CandidateAuthoringProbe.cpp
+        ${PROJECT_SOURCE_DIR}/capi/src/GameModuleEntry.cpp)
+    target_compile_definitions(candidate-authoring-probe-module PRIVATE PIXIE_CANDIDATE_AUTHORING)
+    target_link_libraries(candidate-authoring-probe-module PRIVATE Pixie::Runtime)
+    pixie_target_defaults(candidate-authoring-probe-module)
+    set_target_properties(candidate-authoring-probe-module PROPERTIES FOLDER tests)
     add_library(channel-write-probe-module MODULE editor/channel/NativeWriteProbe.cpp)
     target_link_libraries(channel-write-probe-module PRIVATE Pixie::Runtime)
     pixie_target_defaults(channel-write-probe-module)
@@ -76,6 +94,8 @@ add_executable(runtime-tests
     runtime/UserDataTests.cpp
     runtime/WorldTests.cpp
     runtime/InputControlTests.cpp
+    runtime/LightingEnvironmentTests.cpp
+    runtime/PresentationTests.cpp
     runtime/TelemetryTests.cpp
 )
 set_target_properties(runtime-tests PROPERTIES FOLDER tests)
@@ -86,6 +106,23 @@ target_compile_definitions(runtime-tests PRIVATE
     "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
+
+# Explicit experimental scope-gravity qualification; does not enable a runtime feature.
+add_executable(local-gravity-runtime-probe qualification/local-gravity/runtime.cpp)
+target_link_libraries(local-gravity-runtime-probe PRIVATE Pixie::Runtime)
+target_compile_definitions(local-gravity-runtime-probe PRIVATE
+    "PIXIE_SCOPE_QUALIFICATION_SCENE_ROOT=\"${PROJECT_SOURCE_DIR}/samples\"")
+pixie_target_defaults(local-gravity-runtime-probe)
+set_target_properties(local-gravity-runtime-probe PROPERTIES FOLDER tests)
+add_test(NAME local-gravity-runtime-qualification COMMAND local-gravity-runtime-probe)
+set_tests_properties(local-gravity-runtime-qualification PROPERTIES
+    RUN_SERIAL TRUE TIMEOUT 120 LABELS "physics;experimental")
+add_test(NAME local-gravity-world-base-rejection COMMAND ${CMAKE_COMMAND}
+    "-DPROBE=$<TARGET_FILE:local-gravity-runtime-probe>"
+    "-DOUTPUT=${CMAKE_CURRENT_BINARY_DIR}/local-gravity-world-base-$<CONFIG>.log"
+    -P ${CMAKE_CURRENT_SOURCE_DIR}/qualification/local-gravity/CheckWorldBaseRejection.cmake)
+set_tests_properties(local-gravity-world-base-rejection PROPERTIES
+    RUN_SERIAL TRUE TIMEOUT 120 LABELS "physics;experimental;rejection")
 
 if(PIXIE_DEVELOPMENT)
     add_library(null-game-module MODULE capi/NullModule.c)

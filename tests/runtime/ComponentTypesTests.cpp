@@ -5,8 +5,116 @@
 #include "pixie/runtime/World.hpp"
 
 #include <cstdint>
+#include <limits>
 
 using namespace pixie;
+
+TEST(DeclarativeDataAdmissionAndCandidateSchemaStaySeparateFromLegacyCallbacks) {
+    struct Data { double value; int count; };
+    ComponentTypes first;
+    first.AddData<Data>("Data").Field<&Data::value>("value").Field<&Data::count>("count");
+    ComponentTypes same;
+    same.AddData<Data>("Data").Field<&Data::value>("value").Field<&Data::count>("count");
+    CHECK(first.AllowsV2Import(0));
+    CHECK(first.SameSchema(same));
+    ComponentTypes reordered;
+    reordered.AddData<Data>("Data").Field<&Data::count>("count").Field<&Data::value>("value");
+    CHECK(!first.SameSchema(reordered));
+    ComponentTypes legacy;
+    legacy.Add<Data>("Data").Field<&Data::value>("value").Field<&Data::count>("count");
+    CHECK(!legacy.AllowsV2Import(0));
+    CHECK(!first.SameSchema(legacy));
+    first.Swap(legacy);
+    CHECK(!first.AllowsV2Import(0));
+    CHECK(legacy.AllowsV2Import(0));
+    // Only the catalog binds a C++ type to its actual descriptor index. A public
+    // builder constructor could append Other's callbacks to Data's storage.
+    CHECK((!std::is_constructible_v<ComponentBuilder<Data>, ComponentTypes&, std::size_t>));
+    CHECK((!std::is_constructible_v<DataComponentBuilder<Data>, ComponentTypes&, std::size_t>));
+}
+
+TEST(DeclarativeScalarAdaptersRejectUnrepresentableValuesBeforeWriting) {
+    struct Data { int count; unsigned limit; float ratio; double value; bool flag; };
+    ComponentTypes types;
+    types.AddData<Data>("Data").Field<&Data::count>("count").Field<&Data::limit>("limit")
+        .Field<&Data::ratio>("ratio").Field<&Data::value>("value").Field<&Data::flag>("flag");
+    Data data{7, 9, 1.0f, 3.0, true};
+    const auto& fields = types.All()[0].fields;
+    const auto refuses = [&](std::size_t index, double value) {
+        bool refused = false;
+        try { fields[index].write(&data, FieldValue{value}); }
+        catch (const std::exception&) { refused = true; }
+        CHECK(refused);
+        CHECK(data.count == 7 && data.limit == 9 && data.ratio == 1.0f && data.value == 3.0 && data.flag);
+    };
+    refuses(0, 1e100); refuses(0, 1.5); refuses(1, -1); refuses(1, 4294967296.0);
+    refuses(2, 1e100); refuses(3, std::numeric_limits<double>::infinity());
+    refuses(3, std::numeric_limits<double>::quiet_NaN()); refuses(4, 2);
+    data.value = std::numeric_limits<double>::quiet_NaN();
+    bool refusedRead = false;
+    try { (void)fields[3].read(&data); } catch (const std::exception&) { refusedRead = true; }
+    CHECK(refusedRead);
+}
+
+TEST(DeclarativeRegistrationsRejectAmbiguityBeforeChangingTheCatalog) {
+    struct Data { double value; double other; };
+    struct Other { double value; };
+    ComponentTypes types;
+    DescribeRuntimeComponents(types);
+    auto builder = types.AddData<Data>("Data").Field<&Data::value>("value");
+    const auto size = types.All().size();
+    const auto refuses = [&](auto operation) {
+        bool refused = false;
+        try { operation(); } catch (const std::invalid_argument&) { refused = true; }
+        CHECK(refused);
+        CHECK(types.All().size() == size);
+        CHECK(types.All().back().fields.size() == 1);
+        CHECK(types.AllowsV2Import(static_cast<int>(size - 1)));
+    };
+    refuses([&] { types.AddData<Other>("Data"); });
+    refuses([&] { types.AddData<Data>("Alias"); });
+    refuses([&] { types.Add<Other>("Data"); });
+    refuses([&] { types.Add<Data>("Alias"); });
+    refuses([&] { types.AddData<Other>("Transform2D"); });
+    refuses([&] { types.AddData<Other>(""); });
+    refuses([&] { builder.Field<&Data::other>("value"); });
+    refuses([&] { builder.Field<&Data::value>("alias"); });
+    refuses([&] { builder.Field<&Data::other>("v"); });
+    refuses([&] { builder.Field<&Data::other>(""); });
+    builder.Field<&Data::other>("other");
+    CHECK(types.All().back().fields.size() == 2);
+    ComponentTypes legacy;
+    legacy.Add<Data>("Legacy");
+    for (const auto& name : {"Legacy", "Alias"}) {
+        bool refused = false;
+        try {
+            if (std::string_view(name) == "Legacy") legacy.AddData<Other>(name);
+            else legacy.AddData<Data>(name);
+        } catch (const std::invalid_argument&) { refused = true; }
+        CHECK(refused);
+        CHECK(legacy.All().size() == 1);
+    }
+    legacy.Add<Other>("Legacy"); // Unrelated ordinary Add semantics remain unchanged.
+    CHECK(legacy.All().size() == 2);
+}
+
+TEST(DeclarativeEnumLabelsAreUnambiguous) {
+    enum class Choice : std::uint8_t { First, Second };
+    struct Data { Choice value; };
+    for (const auto& names : {std::vector<std::string>{"Same", "Same"}, std::vector<std::string>{"", "Second"}}) {
+        ComponentTypes types;
+        auto builder = types.AddData<Data>("Data");
+        bool refused = false;
+        try { builder.Field<&Data::value>("value", names); }
+        catch (const std::invalid_argument&) { refused = true; }
+        CHECK(refused);
+        CHECK(types.All()[0].fields.empty());
+    }
+    ComponentTypes valid;
+    valid.AddData<Data>("Data").Field<&Data::value>("value", {"First", "Second"});
+    Data data{Choice::Second};
+    CHECK(valid.All()[0].fields[0].read(&data).x == 1);
+}
 
 TEST(SingletonAdmissionIsGenericAndExistingNondefaultComponentsAreAllowed) {
     struct Unique { double value = 1; };

@@ -1,11 +1,14 @@
 #include "Check.hpp"
 
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/RigidBody2D.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <algorithm>
+#include <limits>
 #include <string>
 #include <stdexcept>
 #include <vector>
@@ -220,4 +223,151 @@ TEST(LegacyVelocityIntegrationPrecedesNativePhysicsAndPostConsumers) {
     world.AddSystem(SystemPhase::PostUpdate, "consumer", [&](World&, const FrameTime&, const Input&) { postSawMoved = entity.Get<Transform2D>().position.x == 1; });
     world.AddSystem(SystemPhase::Physics, "native-observer", [&](World&, const FrameTime&, const Input&) { physicsSawMoved = entity.Get<Transform2D>().position.x == 1; });
     world.Step(1.0/60, {}); CHECK(physicsSawMoved && postSawMoved);
+}
+
+TEST(LogicalScopesKeepStableIdentityAndWorldOnlyMembership) {
+    World world;
+    const ScopeId roomA{11}, roomB{22};
+    CHECK(!world.CreateScope(ScopeId{}, "reserved"));
+    CHECK(world.CreateScope(roomA, "Room A"));
+    CHECK(world.CreateScope(roomB, "Room B"));
+    CHECK(!world.CreateScope(roomA, "duplicate"));
+    Entity corridor = world.Create("corridor");
+    Entity actor = world.Create("actor");
+    CHECK(world.ScopeOf(corridor) == ScopeId{});
+    CHECK(world.SetScope(actor, roomA));
+    CHECK(world.RenameScope(roomA, "Renamed room"));
+    CHECK(world.ScopeOf(actor) == roomA);
+    const auto scopes = world.Scopes();
+    CHECK(scopes.size() == 2);
+    CHECK(scopes[0].id == roomA && scopes[0].name == "Renamed room");
+    CHECK(scopes[1].id == roomB && scopes[1].name == "Room B");
+    CHECK(!world.RemoveScope(roomA));
+    CHECK(world.RemoveScope(roomB));
+    CHECK(!world.SetScope(actor, roomB));
+    CHECK(world.SetScope(actor, ScopeId{}));
+    CHECK(world.RemoveScope(roomA));
+    CHECK(world.ScopeOf(actor) == ScopeId{});
+    CHECK(world.ScopeOf(corridor) == ScopeId{});
+}
+
+TEST(ScopeTransferDuringStepAppliesAfterPhysicsAndPreservesEntityState) {
+    World world;
+    const ScopeId roomA{101}, roomB{202};
+    CHECK(world.CreateScope(roomA, "A") && world.CreateScope(roomB, "B"));
+    Entity actor = world.Create();
+    actor.Add<SceneId>(SceneId{9001});
+    actor.Add<Transform2D>(Transform2D{pxPoint(3.0, 4.0), 0.0});
+    actor.Add<Velocity2D>(Velocity2D{pxVec2(2.0, 0.0), 0.0});
+    CHECK(world.SetScope(actor, roomA));
+    const auto originalId = actor.Id();
+    bool sawOldMembershipInPhysics = false;
+    bool sawOldMembershipInPost = false;
+    bool sawNewMembershipOnNextTick = false;
+    world.AddSystem(SystemPhase::PreUpdate, "transfer", [&](World& w, const FrameTime&, const Input&) {
+        if (w.Steps() == 0) {
+            CHECK(w.SetScope(actor, roomB));
+            CHECK(w.ScopeOf(actor) == roomA);
+            CHECK(!w.RemoveScope(roomA));
+        }
+    });
+    world.AddSystem(SystemPhase::Physics, "scope-probe", [&](World& w, const FrameTime&, const Input&) {
+        if (w.Steps() == 0) sawOldMembershipInPhysics = w.ScopeOf(actor) == roomA;
+        if (w.Steps() == 1) sawNewMembershipOnNextTick = w.ScopeOf(actor) == roomB;
+    });
+    world.AddSystem(SystemPhase::PostUpdate, "scope-probe-post", [&](World& w, const FrameTime&, const Input&) {
+        if (w.Steps() == 0) sawOldMembershipInPost = w.ScopeOf(actor) == roomA;
+    });
+    world.Step(0.5, kNoInput);
+    CHECK(sawOldMembershipInPhysics && sawOldMembershipInPost);
+    CHECK(actor.IsAlive() && actor.Id() == originalId);
+    CHECK(actor.Get<SceneId>().value == 9001);
+    CHECK(world.ScopeOf(actor) == roomB);
+    CHECK(actor.Get<Transform2D>().position == pxPoint(4.0, 4.0));
+    CHECK(actor.Get<Velocity2D>().linear == pxVec2(2.0, 0.0));
+    world.Step(0.5, kNoInput);
+    CHECK(sawNewMembershipOnNextTick);
+    CHECK(world.RemoveScope(roomA));
+    CHECK(!world.RemoveScope(roomB));
+    actor.Destroy();
+    CHECK(world.RemoveScope(roomB));
+    CHECK(!world.ScopeOf(actor).has_value());
+}
+
+TEST(ScopeRejectsForeignEntitiesAndDestroyedDeferredTransfers) {
+    World world, other;
+    const ScopeId room{7};
+    CHECK(world.CreateScope(room, "room"));
+    Entity foreign = other.Create();
+    CHECK(!world.SetScope(foreign, room));
+    CHECK(!world.ScopeOf(foreign).has_value());
+    Entity actor = world.Create();
+    world.AddSystem(SystemPhase::PreUpdate, "destroy-transferee", [&](World& w, const FrameTime&, const Input&) {
+        CHECK(w.SetScope(actor, room));
+        actor.Destroy();
+    });
+    world.Step(0.01, kNoInput);
+    CHECK(!actor.IsAlive());
+    CHECK(world.RemoveScope(room));
+}
+
+TEST(SceneGravityResolutionKeepsInactiveValuesAndExplicitZero) {
+    World world;
+    world.Create().Add<PhysicsSettings2D>().gravity = {0, 100};
+    const ScopeId inherit{1}, multiply{2}, overrideScope{3};
+    CHECK(world.CreateScope(inherit, "inherit"));
+    CHECK(world.CreateScope(multiply, "multiply"));
+    CHECK(world.CreateScope(overrideScope, "override"));
+    const SceneGravity2D authored{SceneGravityMode2D::Multiply, {30, 40}, 0.75};
+    CHECK(world.SetScopeGravity(multiply, authored));
+    CHECK(world.SetScopeGravity(overrideScope, {SceneGravityMode2D::Override, {30, 40}, 0.75}));
+    Entity actor = world.Create();
+    CHECK(world.ResolveGravity(actor) && world.ResolveGravity(actor).value == pxVec2(0, 100));
+    CHECK(world.ResolveGravity(inherit).value == pxVec2(0, 100));
+    CHECK(world.ResolveGravity(multiply).value == pxVec2(0, 75));
+    CHECK(world.ResolveGravity(overrideScope).value == pxVec2(30, 40));
+    CHECK(world.SetScope(actor, multiply));
+    CHECK(world.ResolveGravity(actor).value == pxVec2(0, 75));
+    world.Registry().view<PhysicsSettings2D>().each([](auto, auto& settings) { settings.gravity = {0, 200}; });
+    CHECK(world.ResolveGravity(multiply).value == pxVec2(0, 150));
+    CHECK(world.ResolveGravity(overrideScope).value == pxVec2(30, 40));
+    CHECK(world.SetScopeGravity(multiply, {SceneGravityMode2D::Multiply, {30, 40}, 0}));
+    CHECK(world.ResolveGravity(multiply).value == pxVec2(0, 0));
+    CHECK(world.SetScopeGravity(multiply, {SceneGravityMode2D::Inherit, {30, 40}, 0}));
+    CHECK((world.Scopes()[1].gravity == std::optional<SceneGravity2D>{SceneGravity2D{SceneGravityMode2D::Inherit, {30, 40}, 0}}));
+}
+
+TEST(SceneGravityRejectsInvalidEditsWithoutChangingAuthoredState) {
+    World world;
+    const ScopeId room{9};
+    CHECK(world.CreateScope(room, "room"));
+    const SceneGravity2D original{SceneGravityMode2D::Override, {3, 4}, 0.5};
+    CHECK(world.SetScopeGravity(room, original));
+    const auto unchanged = [&] { CHECK(world.Scopes()[0].gravity == std::optional<SceneGravity2D>{original}); };
+    CHECK(!world.SetScopeGravity(room, {SceneGravityMode2D::Multiply, {3, 4}, -1})); unchanged();
+    CHECK(!world.SetScopeGravity(room, {SceneGravityMode2D::Inherit, {std::numeric_limits<double>::quiet_NaN(), 4}, 1})); unchanged();
+    CHECK(!world.SetScopeGravity(room, {static_cast<SceneGravityMode2D>(99), {3, 4}, 1})); unchanged();
+    CHECK(!world.SetScopeGravity(room, {SceneGravityMode2D::Multiply, {3, 4}, 1e12})); unchanged();
+    CHECK(!world.ResolveGravity(ScopeId{999}));
+    world.Create().Add<PhysicsSettings2D>();
+    world.Create().Add<PhysicsSettings2D>();
+    CHECK(!world.SetScopeGravity(room, {SceneGravityMode2D::Inherit, {}, 1})); unchanged();
+}
+
+TEST(ProspectiveWorldPhysicsSettingsValidateEveryRetainedScopeWithoutMutation) {
+    World world;
+    const ScopeId room{1};
+    CHECK(world.CreateScope(room, "room", SceneGravity2D{SceneGravityMode2D::Multiply, {30, 40}, 1000}));
+    PhysicsSettings2D candidate;
+    CHECK(world.ValidatePhysicsSettings(candidate).empty());
+    candidate.gravity = {0, 1000000};
+    CHECK(!world.ValidatePhysicsSettings(candidate).empty());
+    candidate = {};
+    candidate.unitsPerMeter = 0;
+    CHECK(!world.ValidatePhysicsSettings(candidate).empty());
+    candidate = {};
+    candidate.substeps = 33;
+    CHECK(!world.ValidatePhysicsSettings(candidate).empty());
+    CHECK(world.EntityCount() == 0 && world.Scopes().size() == 1 && world.Steps() == 0);
+    CHECK(world.ResolveGravity(room).value == pxVec2(0, 1100000));
 }

@@ -1,0 +1,16 @@
+kind,case,result,pos1_m,pos60_m,pos600_m,lin1_mps,lin60_mps,lin600_mps,ang1_radps,ang60_radps,ang600_radps,contact_mismatch_steps,event_mismatch_steps,sleep_mismatch_steps,ref_tunnel,exp_tunnel,transfer_tick,change_wake_calls,cross_scope_pair_steps
+body,world-zero,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,effective-zero,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,lateral,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,gravity-scale,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,mass-change,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,gravity-scale-change,PASS,0,0,6.10351562e-05,0,0,1.52587891e-05,0,0,0,0,0,0,0,0,0,0,0
+body,resting-contact,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,ccd,PASS,0,8.80565494e-07,8.80565494e-07,0.0183181763,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,same-gravity-cross-scene-contact,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,596
+body,lateral-ccd,PASS,0,7.81170093e-06,7.81170093e-06,0.0196335805,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,different-collinear-cross-scene-contact,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,582
+body,deferred-runtime-transfer,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,60,1,0
+body,sleep-unchanged,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+body,sleeping-runtime-transfer,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,121,1,0
+body,override-stable-changing-world-base,FAIL,0,0,1.63165822e-06,0,0,7.77941533e-08,0,0,1.2506743e-07,0,0,204,0,0,0,0,0

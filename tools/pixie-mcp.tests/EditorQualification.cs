@@ -41,7 +41,7 @@ internal static class EditorQualification
             var tools = await client.ListToolsAsync();
             Check(tools.Any(t => t.Name == "inspector.set") && tools.Any(t => t.Name == "editor.history") && !tools.Any(t => t.Name == "world.save"), "editor-tools-discovered-without-save-tool");
             var hello = await Good("world.hello");
-            Check(hello["capabilities"]?["inspector"]?.GetValue<bool>() == true && hello["pixie_api_version"]?.GetValue<int>() == 20, "editor-native-api-and-inspector-capability");
+            Check(hello["capabilities"]?["inspector"]?.GetValue<bool>() == true && hello["pixie_api_version"]?.GetValue<int>() == NativeApiVersion.Current, "editor-native-api-and-inspector-capability");
             Check(hello["capabilities"]?["save"]?.GetValue<bool>() == saves, "editor-save-capability-matches-build-" + args[5]);
             var entities = (await Good("world.entities"))["entities"]!.AsArray();
             var first = entities[0]!["id"]!.GetValue<string>();

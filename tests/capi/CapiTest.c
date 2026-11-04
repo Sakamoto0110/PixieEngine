@@ -92,6 +92,13 @@ static struct {
     PixieResult (*session_open_project)(int32_t, int32_t, const char*, PixieSession**);
     PixieResult (*project_save)(PixieSession*);
     int32_t (*project_unsaved)(PixieSession*);
+    PixieResult (*project_snapshot)(PixieSession*, char*, int32_t, int32_t*);
+    PixieResult (*project_restore)(PixieSession*, const char*);
+    PixieResult (*viewport_environment_set)(PixieSession*, int32_t, uint64_t);
+    PixieResult (*viewport_environment_get)(PixieSession*, int32_t*, uint64_t*);
+    PixieResult (*viewport_environment_resolve)(PixieSession*, int32_t*, int32_t*, char*, int32_t, int32_t*);
+    PixieResult (*scene_scope_count)(PixieSession*, int32_t*);
+    PixieResult (*scene_scope_at)(PixieSession*, int32_t, uint64_t*, char*, int32_t, int32_t*);
     int32_t (*session_mode)(PixieSession*);
     PixieResult (*session_play)(PixieSession*);
     PixieResult (*session_stop)(PixieSession*);
@@ -115,6 +122,7 @@ static struct {
     PixieResult (*entity_find)(PixieSession*, uint64_t, uint32_t*);
     PixieResult (*entities_snapshot)(PixieSession*, const uint32_t*, int32_t, char*, int32_t, int32_t*);
     PixieResult (*entities_restore)(PixieSession*, const char*, int32_t, uint32_t*, int32_t, int32_t*);
+    PixieResult (*entities_validate)(PixieSession*, const char*, int32_t, const uint64_t*, int32_t);
     PixieResult (*entity_view_quad)(PixieSession*, uint32_t, double*);
     PixieResult (*field_get_text)(PixieSession*, uint32_t, int32_t, int32_t, char*, int32_t, int32_t*);
     PixieResult (*field_set_text)(PixieSession*, uint32_t, int32_t, int32_t, const char*);
@@ -196,6 +204,13 @@ static int Load(Library library) {
     LOAD(session_open_project, "pixie_session_open_project")
     LOAD(project_save, "pixie_project_save")
     LOAD(project_unsaved, "pixie_project_unsaved")
+    LOAD(project_snapshot, "pixie_project_snapshot")
+    LOAD(project_restore, "pixie_project_restore")
+    LOAD(viewport_environment_set, "pixie_viewport_environment_set")
+    LOAD(viewport_environment_get, "pixie_viewport_environment_get")
+    LOAD(viewport_environment_resolve, "pixie_viewport_environment_resolve")
+    LOAD(scene_scope_count, "pixie_scene_scope_count")
+    LOAD(scene_scope_at, "pixie_scene_scope_at")
     LOAD(session_mode, "pixie_session_mode")
     LOAD(session_play, "pixie_session_play")
     LOAD(session_stop, "pixie_session_stop")
@@ -220,6 +235,7 @@ static int Load(Library library) {
     LOAD(entity_find, "pixie_entity_find")
     LOAD(entities_snapshot, "pixie_entities_snapshot")
     LOAD(entities_restore, "pixie_entities_restore")
+    LOAD(entities_validate, "pixie_entities_validate")
     LOAD(entity_view_quad, "pixie_entity_view_quad")
     LOAD(field_get_text, "pixie_field_get_text")
     LOAD(field_set_text, "pixie_field_set_text")
@@ -281,6 +297,16 @@ static char* Snapshot(PixieSession* s, const uint32_t* entities, int32_t count) 
     int32_t again = 0;
     CHECK(text != NULL && api.entities_snapshot(s, entities, count, text, length + 1, &again) == PIXIE_OK &&
           again == length);
+    return text;
+}
+
+/* A complete authored scene, allocated; the caller frees it. */
+static char* ProjectSnapshot(PixieSession* s) {
+    int32_t length = 0;
+    CHECK(api.project_snapshot(s, NULL, 0, &length) == PIXIE_OK && length > 0);
+    char* text = (char*)malloc((size_t)length + 1);
+    int32_t again = 0;
+    CHECK(text != NULL && api.project_snapshot(s, text, length + 1, &again) == PIXIE_OK && again == length);
     return text;
 }
 
@@ -1093,6 +1119,73 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 1);
     FindEntity(s, "shape");
 
+    /* A viewport choice is independent of entity selection and does not author the Scene. Missing
+     * definitions retain the selected ID while rendering falls back to World. */
+    char* originalScene = ProjectSnapshot(s);
+    int32_t choice = -1, resolution = -1, lighting = -1, environmentLength = -1;
+    uint64_t scopeId = 0;
+    char diagnostic[128];
+    CHECK(api.viewport_environment_get(s, &choice, &scopeId) == PIXIE_OK &&
+          choice == PIXIE_ENVIRONMENT_LEGACY_WORLD && scopeId == 0);
+    CHECK(api.viewport_environment_set(s, PIXIE_ENVIRONMENT_SCENE, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.viewport_environment_set(s, PIXIE_ENVIRONMENT_LEGACY_WORLD, 0xaa) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.viewport_environment_set(s, PIXIE_ENVIRONMENT_SCENE, 0xaa) == PIXIE_OK && api.project_unsaved(s) == 0);
+    char* unchangedScene = ProjectSnapshot(s);
+    CHECK(strcmp(originalScene, unchangedScene) == 0);
+    free(unchangedScene);
+    CHECK(api.project_restore(s, "{\"format\":\"pixie-scene\",\"version\":2,\"seed\":1,\"sceneScopes\":[{\"id\":\"aa\",\"name\":\"Empty room\"}],\"entities\":[]}") == PIXIE_OK);
+    {
+        const char* fragment = "{\"format\":\"pixie-entities\",\"version\":2,\"sceneScopes\":[],\"entities\":[{\"id\":\"a\",\"components\":{\"Transform2D\":{\"position\":[1,2]}}}]}";
+        uint32_t restored = 0;
+        int32_t restoredCount = -1;
+        CHECK(api.entities_restore(s, fragment, PIXIE_RESTORE_SAME_IDS, &restored, 1, &restoredCount) == PIXIE_ERROR_ARGUMENT);
+        CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 0);
+    }
+    CHECK(api.project_save(s) == PIXIE_ERROR_IO);
+    CHECK(api.last_error(diagnostic, (int32_t)sizeof diagnostic) > 0 && strstr(diagnostic, "explicit") != NULL);
+    CHECK(api.project_unsaved(s) == 1);
+    CHECK(api.scene_scope_count(s, &count) == PIXIE_OK && count == 1);
+    CHECK(api.scene_scope_at(s, 0, &scopeId, NULL, 0, &environmentLength) == PIXIE_OK && scopeId == 0xaa && environmentLength == 10);
+    CHECK(api.scene_scope_at(s, 0, &scopeId, name, (int32_t)sizeof name, &environmentLength) == PIXIE_OK && strcmp(name, "Empty room") == 0);
+    CHECK(api.scene_scope_at(s, 1, &scopeId, name, (int32_t)sizeof name, &environmentLength) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.viewport_environment_set(s, PIXIE_ENVIRONMENT_SCENE, 0xaa) == PIXIE_OK);
+    CHECK(api.viewport_environment_resolve(s, &resolution, &lighting, NULL, 0, &environmentLength) == PIXIE_OK &&
+          resolution == PIXIE_ENVIRONMENT_SCENE_INHERITS_WORLD && lighting == PIXIE_ENVIRONMENT_LIGHTING_ABSENT && environmentLength == 0);
+    CHECK(api.project_restore(s, "{\"format\":\"pixie-scene\",\"version\":2,\"seed\":1,\"sceneScopes\":[],\"entities\":[]}") == PIXIE_OK);
+    CHECK(api.scene_scope_count(s, &count) == PIXIE_OK && count == 0);
+    CHECK(api.viewport_environment_get(s, &choice, &scopeId) == PIXIE_OK && choice == PIXIE_ENVIRONMENT_SCENE && scopeId == 0xaa);
+    CHECK(api.viewport_environment_resolve(s, &resolution, &lighting, diagnostic, (int32_t)sizeof diagnostic, &environmentLength) == PIXIE_OK &&
+          resolution == PIXIE_ENVIRONMENT_REMOVED_SCENE_FALLBACK && environmentLength > 0 && strstr(diagnostic, "using World") != NULL);
+    CHECK(api.project_restore(s, originalScene) == PIXIE_OK);
+    CHECK(api.viewport_environment_get(s, &choice, &scopeId) == PIXIE_OK && choice == PIXIE_ENVIRONMENT_SCENE && scopeId == 0xaa);
+    CHECK(api.viewport_environment_set(s, PIXIE_ENVIRONMENT_LEGACY_WORLD, 0) == PIXIE_OK);
+    CHECK(api.viewport_environment_resolve(s, &resolution, &lighting, NULL, 0, &environmentLength) == PIXIE_OK &&
+          resolution == PIXIE_ENVIRONMENT_RESOLVED_WORLD);
+    CHECK(api.project_restore(s, "{\"format\":\"pixie-scene\",\"version\":1,\"seed\":1,\"entities\":["
+          "{\"id\":\"10\",\"name\":\"integer authority\",\"components\":{\"LightingSettings2D\":{}}}]}") == PIXIE_OK);
+    int32_t integerSettings = -1;
+    CHECK(api.type_find(s, "LightingSettings2D", &integerSettings) == PIXIE_OK);
+    const PixieValue unrepresentable = {1e100, 0, 0, 0};
+    CHECK(api.field_set(s, FindEntity(s, "integer authority"), integerSettings,
+          FindField(s, integerSettings, "maxParticleLights"), &unrepresentable) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_restore(s, "{\"format\":\"pixie-scene\",\"version\":1,\"seed\":1,\"entities\":["
+          "{\"id\":\"10\",\"name\":\"legacy authority\",\"components\":{\"PhysicsSettings2D\":{},\"LightingSettings2D\":{}}},"
+          "{\"id\":\"11\",\"components\":{\"PhysicsSettings2D\":{},\"LightingSettings2D\":{}}}]}") == PIXIE_OK);
+    const uint32_t legacyAuthority = FindEntity(s, "legacy authority");
+    int32_t physicsAuthority = -1, lightingAuthority = -1;
+    CHECK(api.type_find(s, "PhysicsSettings2D", &physicsAuthority) == PIXIE_OK);
+    CHECK(api.type_find(s, "LightingSettings2D", &lightingAuthority) == PIXIE_OK);
+    char* ambiguousBefore = ProjectSnapshot(s);
+    const PixieValue refusedSetting = {0.5, 0, 0, 0};
+    CHECK(api.field_set(s, legacyAuthority, physicsAuthority, FindField(s, physicsAuthority, "unitsPerMeter"), &refusedSetting) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_set(s, legacyAuthority, lightingAuthority, FindField(s, lightingAuthority, "ambientIntensity"), &refusedSetting) == PIXIE_ERROR_ARGUMENT);
+    char* ambiguousAfter = ProjectSnapshot(s);
+    CHECK(strcmp(ambiguousBefore, ambiguousAfter) == 0 && api.project_unsaved(s) == 1);
+    free(ambiguousBefore); free(ambiguousAfter);
+    CHECK(api.project_restore(s, originalScene) == PIXIE_OK);
+    free(originalScene);
+    CHECK(api.entities(s, NULL, 0, &count) == PIXIE_OK && count == 1);
+
     /* Edit mode runs no step, and the new project's shape is drawn. */
     PixieStats stats;
     CHECK(api.session_advance(s, 0.2) == PIXIE_OK && api.session_step(s) == PIXIE_OK);
@@ -1116,6 +1209,37 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     PixieValue read;
     CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
     CHECK(api.component_add(s, mover, shape) == PIXIE_OK && api.component_remove(s, mover, shape) == PIXIE_OK);
+
+    /* The project snapshot carries the complete authored document and rejects a failed replacement
+     * without changing the published World. A successful replacement keeps the scene ID. */
+    int32_t sceneLength = 0;
+    char shortScene[8];
+    CHECK(api.project_snapshot(s, NULL, 0, NULL) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_snapshot(s, shortScene, -1, &sceneLength) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_snapshot(s, shortScene, (int32_t)sizeof shortScene, &sceneLength) == PIXIE_ERROR_BUFFER &&
+          sceneLength > (int32_t)sizeof shortScene);
+    char* authored = ProjectSnapshot(s);
+    uint64_t moverId = 0;
+    CHECK(api.entity_scene_id(s, mover, &moverId) == PIXIE_OK);
+    char* importProbe = Snapshot(s, &mover, 1);
+    CHECK(api.entities_validate(s, importProbe, PIXIE_RESTORE_SAME_IDS, &moverId, 1) == PIXIE_OK);
+    CHECK(api.entities_validate(s, importProbe, PIXIE_RESTORE_SAME_IDS, NULL, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entities_validate(s, importProbe, PIXIE_RESTORE_NEW_IDS, NULL, 0) == PIXIE_OK);
+    CHECK(api.entities_validate(s, importProbe, PIXIE_RESTORE_NEW_IDS, &moverId, 1) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entities_validate(s, NULL, PIXIE_RESTORE_NEW_IDS, NULL, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entities_validate(s, importProbe, 99, NULL, 0) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entities_validate(s, importProbe, PIXIE_RESTORE_SAME_IDS, NULL, 1) == PIXIE_ERROR_ARGUMENT);
+    free(importProbe);
+    CHECK(api.project_restore(s, NULL) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_restore(s, "") == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_restore(s, "{broken") == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.entity_find(s, moverId, &mover) == PIXIE_OK && api.project_unsaved(s) == 1);
+    CHECK(api.project_restore(s, authored) == PIXIE_OK && api.project_unsaved(s) == 1);
+    CHECK(api.entity_find(s, moverId, &mover) == PIXIE_OK);
+    char* restoredScene = ProjectSnapshot(s);
+    CHECK(strcmp(authored, restoredScene) == 0);
+    free(restoredScene);
+    free(authored);
 
     /* A copy of a spawner and the system it feeds: the copied spawner feeds the copied system. A copy
      * of the spawner alone feeds the system it fed. The copies are removed again. */
@@ -1150,6 +1274,8 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
 
     /* Play: built again from the scene, and stepping. Edits in play mark nothing. */
     CHECK(api.session_play(s) == PIXIE_OK && api.session_mode(s) == PIXIE_MODE_PLAY);
+    CHECK(api.project_snapshot(s, NULL, 0, &count) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.project_restore(s, "{}") == PIXIE_ERROR_ARGUMENT);
     CHECK(api.session_advance(s, 0.2) == PIXIE_OK && api.session_advance(s, 0.2) == PIXIE_OK);
     CHECK(api.session_stats(s, &stats) == PIXIE_OK && stats.steps == 24);
     mover = FindEntity(s, "mover");
@@ -1619,6 +1745,9 @@ static void ExerciseBodies(const char* folder) {
     CHECK(api.entity_create(s, "world physics", &config) == PIXIE_OK);
     CHECK(api.component_add(s, config, settings) == PIXIE_OK);
     const PixieValue gravity = {0, 600, 0, 0}, spin = {1, 0, 0, 0};
+    const PixieValue invalidScale = {0, 0, 0, 0}, invalidSubsteps = {33, 0, 0, 0};
+    CHECK(api.field_set(s, config, settings, FindField(s, settings, "unitsPerMeter"), &invalidScale) == PIXIE_ERROR_ARGUMENT);
+    CHECK(api.field_set(s, config, settings, FindField(s, settings, "substeps"), &invalidSubsteps) == PIXIE_ERROR_ARGUMENT);
     CHECK(api.field_set(s, config, settings, FindField(s, settings, "gravity"), &gravity) == PIXIE_OK);
     CHECK(api.field_set(s, box, body, FindField(s, body, "initialAngularVelocity"), &spin) == PIXIE_OK);
     CHECK(api.entity_create(s, "overlap sensor", &sensor) == PIXIE_OK);
@@ -1631,6 +1760,11 @@ static void ExerciseBodies(const char* folder) {
     CHECK(api.session_play(s) == PIXIE_OK);
     box = FindEntity(s, "body fixture");
     for (int i = 0; i < 30; ++i) CHECK(api.session_step(s) == PIXIE_OK);
+    config = FindEntity(s, "world physics");
+    const PixieValue changedScale = {64, 0, 0, 0};
+    CHECK(api.field_set(s, config, settings, FindField(s, settings, "unitsPerMeter"), &changedScale) == PIXIE_ERROR_ARGUMENT);
+    PixieValue unchangedScale;
+    CHECK(api.field_get(s, config, settings, FindField(s, settings, "unitsPerMeter"), &unchangedScale) == PIXIE_OK && unchangedScale.x == 32);
     PixieBodyMass2D playingMass;
     CHECK(api.body_mass_2d(s, box, &playingMass) == PIXIE_OK && playingMass.mass > 0);
     CHECK(api.collider_drag_2d(s, box, -1, 0, 40, 36, 0) == PIXIE_ERROR_ARGUMENT);

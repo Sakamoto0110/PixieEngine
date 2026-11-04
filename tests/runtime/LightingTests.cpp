@@ -8,9 +8,12 @@
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/LightingEnvironment2D.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
+#include "pixie/runtime/ProjectFile.hpp"
+#include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/ScreenCanvas.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Sprite.hpp"
@@ -21,30 +24,53 @@
 #include <GLFW/glfw3.h>
 
 #include <algorithm>
+#include <chrono>
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
+#include <iterator>
 #include <map>
 #include <string>
 #include <memory>
 #include <numbers>
+#include <stdexcept>
 #include <vector>
 
 namespace {
 
 constexpr int kSide = 128;
 
+struct SessionCustomComponent { int value = 0; };
+
 class TestProject : public pixie::Project {
 public:
     pxColorRgba background{255, 255, 255};
     bool screenRect = false;
+    bool failBuild = false;
+    bool failDraw = false;
+    pixie::World* retainedWorld = nullptr;
+    int builds = 0;
+    int captures = 0;
 
     std::string_view Name() const override { return "lighting-tests"; }
     pxColorRgba Background() const override { return background; }
-    void Build(pixie::World& /*world*/, pixie::Camera2D& /*camera*/) override {}
+    void Describe(pixie::ComponentTypes& types) const override {
+        types.Add<SessionCustomComponent>("SessionCustomComponent").Field<&SessionCustomComponent::value>("value");
+    }
+    void Build(pixie::World& world, pixie::Camera2D& camera) override {
+        ++builds;
+        if (failBuild) {
+            world.Create("failed candidate effect");
+            if (retainedWorld) retainedWorld->Create("retained World effect");
+            camera.SetCenter(pxPoint(777.0, 888.0));
+            throw std::runtime_error("intentional candidate build failure");
+        }
+    }
+    void Capture(pixie::World&) override { ++captures; }
     void DrawScreen(pixie::World& /*world*/, pixie::ScreenCanvas& screen) override {
+        if (failDraw) throw std::runtime_error("intentional viewport draw failure");
         if (screenRect) {
             screen.Rect(pxPoint(8.0, 8.0), pxVec2(16.0, 16.0), pxColorRgba(255, 255, 255));
         }
@@ -141,6 +167,305 @@ void AddSomeContent(Lab& lab) {
 
 } // namespace
 
+TEST(ProjectSessionKeepsPublishedWorldWhenV2CandidateFails) {
+    const auto folder = std::filesystem::temp_directory_path() /
+        ("pixie-session-candidate-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto created = pixie::CreateProjectFolder(folder);
+    CHECK(created.ok);
+    if (!created.ok) return;
+    {
+        std::ofstream out(created.StartScenePath(), std::ios::binary);
+        out << R"({"format":"pixie-scene","version":2,"seed":43,"sceneScopes":[],"entities":[{"id":"a"}]})";
+    }
+    {
+        Lab lab;
+        CHECK(lab.session->OpenProject(folder));
+        pixie::World* published = &lab.World();
+        const auto revision = lab.session->WorldRevision();
+        const auto camera = lab.session->GetCamera();
+        const auto mode = lab.session->Mode();
+        const int builds = lab.project->builds;
+        const auto rejectedFolder = folder / "rejected";
+        const auto rejected = pixie::CreateProjectFolder(rejectedFolder);
+        CHECK(rejected.ok);
+        if (rejected.ok) {
+            std::ofstream out(rejected.StartScenePath(), std::ios::binary);
+            out << R"({"format":"pixie-scene","version":2,"seed":99,"sceneScopes":[],
+                "entities":[{"id":"b","components":{"SessionCustomComponent":{}}}]})";
+            out.close();
+            CHECK(!lab.session->OpenProject(rejectedFolder));
+            CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+            CHECK(lab.session->Mode() == mode && lab.project->builds == builds);
+        }
+        const auto entity = lab.World().Wrap(*lab.World().Registry().view<pixie::SceneId>().begin());
+        entity.Add<SessionCustomComponent>();
+        CHECK(!lab.session->Play());
+        CHECK(lab.session->Error().find("SessionCustomComponent") != std::string::npos);
+        CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+        CHECK(lab.session->GetCamera().Center() == camera.Center() && lab.session->Mode() == mode);
+        CHECK(lab.project->builds == builds && entity.IsAlive());
+        lab.session->Reset();
+        CHECK(lab.session->Error().find("SessionCustomComponent") != std::string::npos);
+        CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+        CHECK(lab.project->builds == builds && entity.IsAlive());
+    }
+    std::filesystem::remove_all(folder);
+}
+
+TEST(ProjectSessionEnvironmentSelectionBelongsToOpenedProject) {
+    const auto root = std::filesystem::temp_directory_path() /
+        ("pixie-environment-projects-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto first = pixie::CreateProjectFolder(root / "first");
+    const auto second = pixie::CreateProjectFolder(root / "second");
+    CHECK(first.ok && second.ok);
+    if (!first.ok || !second.ok) return;
+    for (const auto& path : {first.StartScenePath(), second.StartScenePath()}) {
+        std::ofstream out(path, std::ios::binary);
+        out << R"({"format":"pixie-scene","version":2,"seed":43,
+            "sceneScopes":[{"id":"aa","name":"Room"}],"entities":[]})";
+    }
+    {
+        Lab lab;
+        CHECK(lab.session->OpenProject(root / "first"));
+        const pixie::EnvironmentSelection2D selection{pixie::EnvironmentSelectionKind2D::Scene, pixie::ScopeId{0xaa}};
+        lab.session->SetViewportEnvironment(selection);
+        CHECK(lab.session->OpenProject(root / "first" / "."));
+        CHECK(lab.session->ViewportEnvironmentSelection() == selection);
+        lab.project->failBuild = true;
+        CHECK(!lab.session->OpenProject(root / "second"));
+        CHECK(lab.session->ViewportEnvironmentSelection() == selection);
+        lab.project->failBuild = false;
+        CHECK(lab.session->OpenProject(root / "second"));
+        CHECK(lab.session->ViewportEnvironmentSelection() == pixie::EnvironmentSelection2D{});
+    }
+    std::filesystem::remove_all(root);
+}
+
+TEST(ProjectSessionKeepsPublishedWorldWhenCandidateBuildThrows) {
+    Lab lab;
+    pixie::World* published = &lab.World();
+    const auto revision = lab.session->WorldRevision();
+    const auto camera = lab.session->GetCamera();
+    const auto count = lab.World().EntityCount();
+    lab.project->failBuild = true;
+    lab.session->Reset();
+    CHECK(lab.session->Error().find("intentional candidate build failure") != std::string::npos);
+    CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+    CHECK(lab.session->GetCamera().Center() == camera.Center());
+    CHECK(lab.World().EntityCount() == count);
+    // Candidate isolation does not revoke pointers retained by arbitrary Project code.
+    lab.project->retainedWorld = published;
+    lab.session->Reset();
+    CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+    CHECK(lab.World().EntityCount() == count + 1);
+    CHECK(lab.session->GetCamera().Center() == camera.Center());
+    lab.project->retainedWorld = nullptr;
+}
+
+TEST(ProjectSessionFailedStartCanRetryWithoutPublishing) {
+    auto project = std::make_unique<TestProject>();
+    TestProject* control = project.get();
+    pixie::ProjectSession session(std::move(project), {});
+    const auto camera = session.GetCamera();
+    control->failBuild = true;
+    CHECK(!session.Start({kSide, kSide}));
+    CHECK(session.WorldRevision() == 0 && session.GetCamera().Viewport().width == camera.Viewport().width);
+    CHECK(session.Error().find("intentional candidate build failure") != std::string::npos);
+    control->failBuild = false;
+    CHECK(session.Start({kSide, kSide}));
+    CHECK(session.WorldRevision() == 1);
+    session.Stop();
+}
+
+TEST(ProjectSessionFailedStopPlayingRetainsPlayWorld) {
+    const auto folder = std::filesystem::temp_directory_path() /
+        ("pixie-session-stop-candidate-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto created = pixie::CreateProjectFolder(folder);
+    CHECK(created.ok);
+    if (!created.ok) return;
+    {
+        std::ofstream out(created.StartScenePath(), std::ios::binary);
+        out << R"({"format":"pixie-scene","version":2,"seed":43,"sceneScopes":[],"entities":[{"id":"a"}]})";
+    }
+    {
+        Lab lab;
+        CHECK(lab.session->OpenProject(folder));
+        CHECK(lab.session->Play());
+        pixie::World* published = &lab.World();
+        const auto revision = lab.session->WorldRevision();
+        const auto camera = lab.session->GetCamera();
+        lab.project->failBuild = true;
+        CHECK(!lab.session->StopPlaying());
+        CHECK(lab.session->Mode() == pixie::SessionMode::Play);
+        CHECK(&lab.World() == published && lab.session->WorldRevision() == revision);
+        CHECK(lab.session->GetCamera().Center() == camera.Center());
+        lab.project->failBuild = false;
+        CHECK(lab.session->StopPlaying());
+        CHECK(lab.session->Mode() == pixie::SessionMode::Edit);
+    }
+    std::filesystem::remove_all(folder);
+}
+
+TEST(ProjectSessionRestoresCompleteV2AuthoredSceneThroughCandidate) {
+    const auto folder = std::filesystem::temp_directory_path() /
+        ("pixie-session-restore-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto created = pixie::CreateProjectFolder(folder);
+    CHECK(created.ok);
+    if (!created.ok) return;
+    auto diskBytes = [&] {
+        std::ifstream in(created.StartScenePath(), std::ios::binary);
+        return std::string(std::istreambuf_iterator<char>(in), std::istreambuf_iterator<char>());
+    };
+    const std::string legacyBytes = diskBytes();
+    {
+        Lab lab;
+        CHECK(lab.session->OpenProject(folder));
+        pixie::World* original = &lab.World();
+        const auto revision = lab.session->WorldRevision();
+        const int captures = lab.project->captures;
+        lab.session->GetCamera().SetCenter(pxPoint(5.0, 6.0));
+        const std::string snapshot = R"({"format":"pixie-scene","version":2,"seed":99,
+            "sceneScopes":[{"id":"aa","name":"Empty","futureScope":{"keep":true}}],
+            "futureRoot":{"keep":true},
+            "entities":[{"id":"a","components":{"Transform2D":{"position":[3,4]},
+                "FutureType":{"value":7}}}]})";
+        CHECK(lab.session->RestoreAuthoredScene(snapshot));
+        CHECK(&lab.World() != original && lab.session->WorldRevision() == revision + 1);
+        CHECK(lab.session->Mode() == pixie::SessionMode::Edit && lab.session->HasUnsavedChanges());
+        CHECK(lab.project->captures == captures);
+        CHECK(lab.session->GetCamera().Center() == pxPoint(5.0, 6.0));
+        CHECK(lab.World().GetRandom().Seed() == 99 && lab.World().EntityCount() == 1);
+        lab.World().GetRandom().NextU64();
+        auto continuedRandom = lab.World().GetRandom();
+        CHECK(lab.session->RestoreAuthoredScene(snapshot, nullptr, false, true));
+        CHECK(lab.World().GetRandom().NextU64() == continuedRandom.NextU64());
+        auto changedSeed = snapshot;
+        const std::string seedToken = "\"seed\":99";
+        changedSeed.replace(changedSeed.find(seedToken), seedToken.size(), "\"seed\":123");
+        CHECK(lab.session->RestoreAuthoredScene(changedSeed, nullptr, false, true));
+        CHECK(lab.World().GetRandom().Seed() == 123);
+        pixie::Random reseeded(123);
+        CHECK(lab.World().GetRandom().NextU64() == reseeded.NextU64());
+        CHECK(lab.session->RestoreAuthoredScene(snapshot, nullptr, false, true));
+        CHECK(lab.World().Scopes().size() == 1 && lab.World().Scopes()[0].id == pixie::ScopeId{0xaa});
+        CHECK(lab.World().ResolveGravity(pixie::ScopeId{0xaa}).value == pxVec2(0, 1100));
+        const auto found = lab.World().Registry().view<const pixie::SceneId>();
+        CHECK(found.begin() != found.end());
+        if (found.begin() != found.end()) {
+            CHECK(found.get<const pixie::SceneId>(*found.begin()).value == 0xa);
+            CHECK(lab.World().ScopeOf(lab.World().Wrap(*found.begin())) == pixie::ScopeId{});
+        }
+        const std::string saved = pixie::WriteScene(lab.World(), lab.session->Types());
+        CHECK(saved.find("\"futureRoot\"") != std::string::npos);
+        CHECK(saved.find("\"futureScope\"") != std::string::npos);
+        CHECK(saved.find("\"FutureType\"") != std::string::npos);
+        CHECK(saved.find("\"value\": 7") != std::string::npos);
+
+        pixie::World* published = &lab.World();
+        const auto publishedRevision = lab.session->WorldRevision();
+        const std::string before = pixie::WriteScene(lab.World(), lab.session->Types());
+        CHECK(!lab.session->Save());
+        CHECK(lab.session->Error().find("explicit") != std::string::npos);
+        CHECK(diskBytes() == legacyBytes && lab.session->HasUnsavedChanges());
+        CHECK(&lab.World() == published && lab.session->WorldRevision() == publishedRevision);
+        CHECK(pixie::WriteScene(lab.World(), lab.session->Types()) == before);
+        CHECK(!std::filesystem::exists(created.StartScenePath().string() + ".v1-backup"));
+        const std::string rejected = R"({"format":"pixie-scene","version":2,"seed":1,
+            "sceneScopes":[],"entities":[{"id":"b","components":{"SessionCustomComponent":{}}}]})";
+        CHECK(!lab.session->RestoreAuthoredScene(rejected));
+        CHECK(lab.session->Error().find("SessionCustomComponent") != std::string::npos);
+        CHECK(&lab.World() == published && lab.session->WorldRevision() == publishedRevision);
+        CHECK(lab.session->GetCamera().Center() == pxPoint(5.0, 6.0));
+        CHECK(lab.session->Mode() == pixie::SessionMode::Edit && lab.session->HasUnsavedChanges());
+        CHECK(lab.project->captures == captures);
+        CHECK(pixie::WriteScene(lab.World(), lab.session->Types()) == before);
+
+        CHECK(lab.session->Play());
+        pixie::World* playWorld = &lab.World();
+        const auto playRevision = lab.session->WorldRevision();
+        CHECK(!lab.session->Save() && diskBytes() == legacyBytes);
+        CHECK(&lab.World() == playWorld && lab.session->WorldRevision() == playRevision);
+        CHECK(lab.session->HasUnsavedChanges() && lab.session->Mode() == pixie::SessionMode::Play);
+        CHECK(!lab.session->RestoreAuthoredScene(snapshot));
+        CHECK(&lab.World() == playWorld && lab.session->Mode() == pixie::SessionMode::Play);
+        CHECK(lab.session->StopPlaying());
+        CHECK(lab.World().Scopes().size() == 1);
+        CHECK(pixie::WriteScene(lab.World(), lab.session->Types()) == before);
+
+        // A pre-existing v2 scene is writable. Inspect the current disk envelope, not the
+        // restored sceneText_: a later external replacement with v1 must close this path again.
+        CHECK(pixie::SaveTextFile(snapshot, created.StartScenePath()).ok);
+        CHECK(lab.session->OpenProject(folder));
+        CHECK(lab.session->RestoreAuthoredScene(snapshot));
+        CHECK(lab.session->Save() && !lab.session->HasUnsavedChanges());
+        CHECK(diskBytes().find("\"version\": 2") != std::string::npos);
+        CHECK(lab.session->RestoreAuthoredScene(snapshot));
+        CHECK(pixie::SaveTextFile(legacyBytes, created.StartScenePath()).ok);
+        CHECK(!lab.session->Save() && lab.session->HasUnsavedChanges());
+        CHECK(diskBytes() == legacyBytes);
+    }
+    std::filesystem::remove_all(folder);
+}
+
+TEST(TwoViewportContextsShareWorldWithoutLeakingCameraEnvironmentOrViewSettings) {
+    Lab lab({0, 0, 0});
+    auto firstShape = lab.Quad({0, 0}, 12, {255, 255, 255});
+    auto secondShape = lab.Quad({200, 0}, 12, {255, 255, 255});
+    auto firstCamera = lab.Add({0, 0}); firstCamera.Add<pixie::SceneId>(pixie::SceneId{1001}); firstCamera.Add<pixie::CameraComponent2D>();
+    auto secondCamera = lab.Add({200, 0}); secondCamera.Add<pixie::SceneId>(pixie::SceneId{1002}); secondCamera.Add<pixie::CameraComponent2D>().zoom = 2;
+    pixie::WorldPresentation2D root; root.lighting = pixie::LightingState2D::Configured;
+    CHECK(lab.World().SetPresentation(root));
+    CHECK(lab.World().CreateScope(pixie::ScopeId{1}, "red"));
+    CHECK(lab.World().CreateScope(pixie::ScopeId{2}, "green"));
+    pixie::SceneEnvironment2D red; red.overrideWorld = true; red.value.ambient = {255, 0, 0};
+    pixie::SceneEnvironment2D green; green.overrideWorld = true; green.value.ambient = {0, 255, 0};
+    CHECK(lab.World().SetScopeEnvironment(pixie::ScopeId{1}, red));
+    CHECK(lab.World().SetScopeEnvironment(pixie::ScopeId{2}, green));
+    const pixie::CameraSelection2D a{pixie::CameraSelectionKind2D::Entity, 1001, {}};
+    const pixie::CameraSelection2D b{pixie::CameraSelectionKind2D::Entity, 1002, {}};
+    const auto primaryCamera = lab.session->ViewportCameraSelection();
+    const auto primaryEnvironment = lab.session->ViewportEnvironmentSelection();
+    const auto center = lab.session->GetCamera().Center();
+    pixie::RenderTarget first, second;
+    glViewport(3, 4, 117, 119);
+    const auto textureA = lab.session->RenderViewportToTarget(first, {kSide, kSide}, a,
+        {pixie::EnvironmentSelectionKind2D::Scene, pixie::ScopeId{1}}, 1);
+    pixie::ViewLighting2D dim; dim.exposure = 0.5;
+    const auto textureB = lab.session->RenderViewportToTarget(second, {96, 64}, b,
+        {pixie::EnvironmentSelectionKind2D::Scene, pixie::ScopeId{2}}, 1, dim);
+    CHECK(textureA != 0 && textureB != 0 && textureA != textureB);
+    std::vector<std::uint8_t> pixelsA(static_cast<std::size_t>(kSide) * kSide * 4), pixelsB(96 * 64 * 4);
+    glGetTextureImage(textureA, 0, GL_RGBA, GL_UNSIGNED_BYTE, static_cast<GLsizei>(pixelsA.size()), pixelsA.data());
+    glGetTextureImage(textureB, 0, GL_RGBA, GL_UNSIGNED_BYTE, static_cast<GLsizei>(pixelsB.size()), pixelsB.data());
+    CHECK(Channel(pixelsA, 64, 64, 0) > 200 && Channel(pixelsA, 64, 64, 1) < 4);
+    CHECK(pixelsB[(32 * 96 + 48) * 4 + 1] > 100 && pixelsB[(32 * 96 + 48) * 4] < 4);
+    CHECK(lab.session->PickViewport(a, {kSide, kSide}, {64, 64}).Id() == firstShape.Id());
+    CHECK(lab.session->PickViewport(b, {96, 64}, {48, 32}).Id() == secondShape.Id());
+    CHECK(lab.session->ViewportCameraSelection() == primaryCamera);
+    CHECK(lab.session->ViewportEnvironmentSelection() == primaryEnvironment);
+    CHECK(lab.session->GetCamera().Center() == center && lab.session->GetCamera().Zoom() == 1);
+    CHECK(lab.World().Presentation()->view.exposure == 1);
+    GLint viewport[4]{}; glGetIntegerv(GL_VIEWPORT, viewport);
+    CHECK(viewport[0] == 3 && viewport[1] == 4 && viewport[2] == 117 && viewport[3] == 119);
+    first.Bind();
+    GLint previousFramebuffer = 0; glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &previousFramebuffer);
+    GLint previousViewport[4]{}; glGetIntegerv(GL_VIEWPORT, previousViewport);
+    lab.project->failDraw = true;
+    bool refused = false;
+    try { lab.session->RenderViewportToTarget(second, {96, 64}, b,
+        {pixie::EnvironmentSelectionKind2D::Scene, pixie::ScopeId{2}}, 1, dim); }
+    catch (const std::runtime_error&) { refused = true; }
+    lab.project->failDraw = false;
+    GLint framebuffer = 0; glGetIntegerv(GL_DRAW_FRAMEBUFFER_BINDING, &framebuffer);
+    glGetIntegerv(GL_VIEWPORT, viewport);
+    CHECK(refused && framebuffer == previousFramebuffer);
+    for (int i = 0; i < 4; ++i) CHECK(viewport[i] == previousViewport[i]);
+    CHECK(lab.session->ViewportCameraSelection() == primaryCamera && lab.session->ViewportEnvironmentSelection() == primaryEnvironment);
+    CHECK(lab.session->GetCamera().Viewport().width == kSide && lab.session->GetCamera().Viewport().height == kSide);
+    CHECK(lab.World().Presentation()->view.exposure == 1);
+    pixie::RenderTarget::BindDefault(); first.Destroy(); second.Destroy();
+}
+
 // LIT-002: lighting settings at their defaults, with no lights, leave the unlit image unchanged, byte
 // for byte; and lowering the ambient does change it, so the comparison can fail.
 TEST(NeutralSettingsLeaveTheImageUnchanged) {
@@ -161,6 +486,59 @@ TEST(NeutralSettingsLeaveTheImageUnchanged) {
         settings.ambientIntensity = 0.5;
     }
     CHECK(lab.Render() != unlit);
+}
+
+TEST(DisabledLightingDrawsTheUnlitImageAndKeepsItsSettings) {
+    Lab lab(pxColorRgba(30, 60, 90));
+    AddSomeContent(lab);
+    const auto unlit = lab.Render();
+    auto settings = Dark();
+    settings.fog = true;
+    settings.bloom = true;
+    settings.enabled = false;
+    lab.Settings(settings);
+    CHECK(lab.Render() == unlit);
+    auto* authored = pixie::EditLegacyLightingSettings2D(lab.World());
+    CHECK(authored != nullptr);
+    if (authored == nullptr) return;
+    authored->enabled = true;
+    CHECK(lab.Render() != unlit);
+    CHECK(authored->fog && authored->bloom);
+}
+
+TEST(ViewportEnvironmentChoicePreservesCameraAndLegacyImage) {
+    Lab lab(pxColorRgba(30, 60, 90));
+    AddSomeContent(lab);
+    lab.Settings(Dark());
+    const auto original = lab.Render();
+    const auto center = lab.session->GetCamera().Center();
+    const double zoom = lab.session->GetCamera().Zoom();
+    const pixie::ScopeId room{81};
+    CHECK(lab.World().CreateScope(room, "room"));
+    const pixie::EnvironmentSelection2D selection{pixie::EnvironmentSelectionKind2D::Scene, room};
+    lab.session->SetViewportEnvironment(selection);
+    CHECK(lab.session->ViewportEnvironmentSelection() == selection);
+    CHECK(lab.session->ViewportEnvironment()->kind == pixie::EnvironmentResolutionKind2D::SceneInheritedWorld);
+    CHECK(lab.Render() == original);
+    CHECK(lab.session->GetCamera().Center() == center && lab.session->GetCamera().Zoom() == zoom);
+
+    // Entity membership does not drive the viewport choice; editor selection is not a runtime input.
+    const pixie::ScopeId otherRoom{82};
+    CHECK(lab.World().CreateScope(otherRoom, "other room"));
+    auto entity = lab.World().Create();
+    CHECK(lab.World().SetScope(entity, otherRoom));
+    CHECK(lab.session->ViewportEnvironmentSelection() == selection);
+    CHECK(lab.Render() == original);
+
+    CHECK(lab.World().RemoveScope(room));
+    const auto fallback = lab.session->ViewportEnvironment();
+    CHECK(fallback && fallback->kind == pixie::EnvironmentResolutionKind2D::RemovedSceneFallback);
+    if (fallback) CHECK(!fallback->diagnostic.empty());
+    CHECK(lab.Render() == original);
+    CHECK(lab.session->ViewportEnvironmentSelection() == selection);
+    CHECK(lab.World().CreateScope(room, "restored room"));
+    CHECK(lab.session->ViewportEnvironment()->kind == pixie::EnvironmentResolutionKind2D::SceneInheritedWorld);
+    CHECK(lab.Render() == original);
 }
 
 // LIT-002: lights do nothing in a scene without LightingSettings2D.

@@ -194,3 +194,86 @@ TEST(InvalidMotorGravityScaleIsDiagnosedAndRecovers) {
     CHECK(SceneMovementErrors2D(world).empty());
     CHECK(CharacterMotion2D(world, actor.Id()) != nullptr && CharacterMotion2D(world, actor.Id())->velocity.y == 0);
 }
+
+TEST(SceneMotorGravityMatchesNativeGlobalReferenceAtOneSixtyAndSixHundredSteps) {
+    for (const auto mode : {SceneGravityMode2D::Inherit, SceneGravityMode2D::Multiply, SceneGravityMode2D::Override}) {
+        World reference, scoped;
+        const double expected = mode == SceneGravityMode2D::Inherit ? 600 : mode == SceneGravityMode2D::Multiply ? 300 : 0;
+        auto referenceSettings = reference.Create(); referenceSettings.Add<PhysicsSettings2D>().gravity = {0, expected};
+        scoped.Create().Add<PhysicsSettings2D>().gravity = {0, 600};
+        SceneGravity2D gravity; gravity.mode = mode; gravity.value = {0, 0}; gravity.multiplier = 0.5;
+        const ScopeId room{0x123};
+        CHECK(scoped.CreateScope(room, "Motor room", gravity));
+        auto a = reference.Create(); a.Add<Transform2D>(); a.Add<CharacterMotor2D>().gravityScale = 0.5;
+        auto b = scoped.Create(); b.Add<Transform2D>(); b.Add<CharacterMotor2D>().gravityScale = 0.5;
+        CHECK(scoped.SetScope(b, room));
+        InstallSceneMovement2D(reference); InstallSceneMovement2D(scoped);
+        for (int tick = 1; tick <= 600; ++tick) {
+            reference.Step(1.0 / 60, {}); scoped.Step(1.0 / 60, {});
+            if (tick != 1 && tick != 60 && tick != 600) continue;
+            CHECK(SceneMovementErrors2D(scoped).empty());
+            const auto* native = CharacterMotion2D(reference, a.Id());
+            const auto* local = CharacterMotion2D(scoped, b.Id());
+            CHECK(native != nullptr && local != nullptr);
+            if (native && local) {
+                CHECK(native->position == local->position);
+                CHECK(native->velocity == local->velocity);
+            }
+        }
+    }
+}
+
+TEST(LateralSceneMotorDiagnosticDoesNotDisruptValidMotorOrGlobalBodyAndCanRecover) {
+    World world;
+    world.Create().Add<PhysicsSettings2D>().gravity = {0, 600};
+    SceneGravity2D gravity; gravity.mode = SceneGravityMode2D::Override; gravity.value = {90, 0};
+    const ScopeId room{0x123};
+    CHECK(world.CreateScope(room, "Lateral", gravity));
+    auto invalid = world.Create(); invalid.Add<Transform2D>(); invalid.Add<CharacterMotor2D>();
+    CHECK(world.SetScope(invalid, room));
+    auto valid = world.Create(); valid.Add<Transform2D>().position = {100, 0}; valid.Add<CharacterMotor2D>();
+    auto body = world.Create(); body.Add<Transform2D>().position = {200, 0};
+    body.Add<Collider2D>(); body.Add<RigidBody2D>();
+    CHECK(world.SetScope(body, room));
+    InstallSceneMovement2D(world);
+    world.Step(1.0 / 60, {});
+    const auto errors = SceneMovementErrors2D(world);
+    CHECK(errors.size() == 1 && errors[0].find("resolved") != std::string::npos);
+    CHECK(CharacterMotion2D(world, invalid.Id()) == nullptr);
+    CHECK(CharacterMotion2D(world, valid.Id()) != nullptr);
+    CHECK(SceneBody2D(world, body.Id()).value != 0);
+    if (auto* physics = ScenePhysicsWorld2D(world)) {
+        const auto motion = physics->BodyMotion(SceneBody2D(world, body.Id()));
+        CHECK(motion.velocity.x == 0 && motion.velocity.y > 9.9 && motion.velocity.y < 10.1);
+    }
+    gravity.value = {0, 0};
+    CHECK(world.SetScopeGravity(room, gravity));
+    world.Step(1.0 / 60, {});
+    CHECK(SceneMovementErrors2D(world).empty());
+    const auto* recovered = CharacterMotion2D(world, invalid.Id());
+    CHECK(recovered != nullptr && recovered->velocity == pxVec2(0, 0));
+}
+
+TEST(SceneMotorTransferChangesGravityNextTickWithoutReplacingEntityOrPose) {
+    World world;
+    world.Create().Add<PhysicsSettings2D>().gravity = {0, 600};
+    SceneGravity2D gravity; gravity.mode = SceneGravityMode2D::Override; gravity.value = {0, 0};
+    const ScopeId room{0x321};
+    CHECK(world.CreateScope(room, "Zero", gravity));
+    auto actor = world.Create(); actor.Add<Transform2D>(); actor.Add<CharacterMotor2D>();
+    const auto identity = actor.Id();
+    InstallSceneMovement2D(world);
+    bool oldMembership = false;
+    world.AddSystem(SystemPhase::Physics, "qualification.transfer.motor", [&](World& current, const FrameTime&, const Input&) {
+        if (current.Steps() != 59) return;
+        const auto before = actor.Get<Transform2D>().position;
+        CHECK(current.SetScope(actor, room));
+        oldMembership = current.ScopeOf(actor) == ScopeId{};
+        CHECK(actor.Id() == identity && actor.Get<Transform2D>().position == before);
+    });
+    for (int tick = 1; tick <= 60; ++tick) world.Step(1.0 / 60, {});
+    CHECK(oldMembership && world.ScopeOf(actor) == room);
+    const auto velocity = CharacterMotion2D(world, identity)->velocity;
+    world.Step(1.0 / 60, {});
+    CHECK(actor.Id() == identity && CharacterMotion2D(world, identity)->velocity == velocity);
+}

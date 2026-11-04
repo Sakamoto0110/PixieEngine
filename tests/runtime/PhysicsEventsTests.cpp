@@ -310,3 +310,59 @@ TEST(SceneSensorRoundTripsWithoutSavingActivePairs) {
     InstallSceneMovement2D(loaded); loaded.Step(1.0 / 60, {});
     CHECK(ScenePhysicsEvents2D(loaded).size() == 1);
 }
+
+TEST(SceneScopeTransferPreservesActivePhysicalContact) {
+    World world;
+    const ScopeId roomA{101}, roomB{202};
+    CHECK(world.CreateScope(roomA, "A") && world.CreateScope(roomB, "B"));
+
+    Entity floor = SceneShape(world);
+    floor.Get<Transform2D>().position = {0, 40};
+    floor.Get<Collider2D>().halfSize = {100, 10};
+    Entity actor = SceneShape(world);
+    actor.Get<Collider2D>().halfSize = {16, 16};
+    actor.Add<RigidBody2D>();
+    CHECK(world.SetScope(actor, roomA));
+    CHECK(world.ScopeOf(floor) == ScopeId{});
+
+    InstallSceneMovement2D(world);
+    int begins = 0;
+    for (int i = 0; i < 60; ++i) {
+        world.Step(1.0 / 60, {});
+        for (const auto& event : ScenePhysicsEvents2D(world)) {
+            if (event.event.pair == PhysicsPairKind2D::Contact &&
+                event.event.kind == PhysicsEventKind2D::Begin) ++begins;
+        }
+    }
+    auto* physics = ScenePhysicsWorld2D(world);
+    CHECK(physics != nullptr);
+    if (!physics) return;
+    const auto body = SceneBody2D(world, actor.Id());
+    CHECK(physics->ContainsBody(body));
+    const auto colliders = physics->BodyColliders(body);
+    CHECK(colliders.size() == 1);
+    CHECK(begins == 1 && physics->Stats().contactPairs == 1);
+    CHECK(!physics->BodyContacts(body).empty());
+    CHECK(ScenePhysicsEvents2D(world).empty());
+
+    bool oldScopeDuringPhysics = false;
+    world.AddSystem(SystemPhase::Physics, "scope-contact-transfer", [&](World& w, const FrameTime&, const Input&) {
+        if (w.Steps() != 60) return;
+        CHECK(w.SetScope(actor, roomB));
+        oldScopeDuringPhysics = w.ScopeOf(actor) == roomA;
+    });
+    world.Step(1.0 / 60, {});
+    CHECK(oldScopeDuringPhysics && world.ScopeOf(actor) == roomB);
+    CHECK(SceneBody2D(world, actor.Id()) == body);
+    CHECK(physics->ContainsBody(body));
+    CHECK(physics->BodyColliders(body) == colliders);
+    CHECK(physics->Stats().contactPairs == 1);
+    CHECK(!physics->BodyContacts(body).empty());
+    CHECK(ScenePhysicsEvents2D(world).empty());
+
+    world.Step(1.0 / 60, {});
+    CHECK(SceneBody2D(world, actor.Id()) == body);
+    CHECK(physics->Stats().contactPairs == 1);
+    CHECK(!physics->BodyContacts(body).empty());
+    CHECK(ScenePhysicsEvents2D(world).empty());
+}

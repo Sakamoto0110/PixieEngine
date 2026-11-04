@@ -24,6 +24,25 @@ internal static class Program
         Passed.Add(name);
         Console.WriteLine("PASS " + name);
     }
+    private sealed class FailingHistoryStep : IStep
+    {
+        public string Name => "history failure probe";
+        public bool RejectUndo { get; set; }
+        public bool RejectRedo { get; set; }
+        public int Value { get; private set; } = 1;
+        public uint[] Undo(EngineSession _)
+        {
+            if (RejectUndo) throw new InvalidOperationException("undo refused");
+            Value = 0;
+            return [];
+        }
+        public uint[] Redo(EngineSession _)
+        {
+            if (RejectRedo) throw new InvalidOperationException("redo refused");
+            Value = 1;
+            return [];
+        }
+    }
     private static object Section(InspectorPanel panel, string name) =>
         ((IEnumerable)typeof(InspectorPanel).GetField("Sections", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(panel)!)
         .Cast<object>().Single(s => (string)s.GetType().GetProperty("Name")!.GetValue(s)! == name);
@@ -78,6 +97,30 @@ internal static class Program
             session.Save();
             var selection = new Selection(); selection.Set(new[] { first, second });
             var history = new History(); var authoring = new Authoring(session, selection, history);
+            var failureHistory = new History();
+            var failureStep = new FailingHistoryStep { RejectUndo = true };
+            failureHistory.Record(failureStep);
+            var undoRefused = false;
+            try { failureHistory.Undo(session); }
+            catch (InvalidOperationException) { undoRefused = true; }
+            Check(undoRefused && failureStep.Value == 1 && failureHistory.UndoCount == 1 &&
+                failureHistory.RedoCount == 0 && failureHistory.UndoName == failureStep.Name,
+                "failed-undo-keeps-step-and-state-for-retry");
+            failureStep.RejectUndo = false;
+            failureHistory.Undo(session);
+            Check(failureStep.Value == 0 && failureHistory.UndoCount == 0 && failureHistory.RedoCount == 1,
+                "successful-undo-moves-step-after-application");
+            failureStep.RejectRedo = true;
+            var redoRefused = false;
+            try { failureHistory.Redo(session); }
+            catch (InvalidOperationException) { redoRefused = true; }
+            Check(redoRefused && failureStep.Value == 0 && failureHistory.UndoCount == 0 &&
+                failureHistory.RedoCount == 1 && failureHistory.RedoName == failureStep.Name,
+                "failed-redo-keeps-step-and-state-for-retry");
+            failureStep.RejectRedo = false;
+            failureHistory.Redo(session);
+            Check(failureStep.Value == 1 && failureHistory.UndoCount == 1 && failureHistory.RedoCount == 0,
+                "successful-redo-moves-step-after-application");
             var recorder = new EditRecorder(session, history, () => authoring.Recording);
             using var panel = new InspectorPanel(session, authoring, recorder, new AssetChooser(folder));
             void Sync() { selection.Set(new[] { session.Find(firstId)!.Value, session.Find(secondId)!.Value }); panel.SynchronizeChannel(selection.Items, session.DevelopmentGeneration); }
