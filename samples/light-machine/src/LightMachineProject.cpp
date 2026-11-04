@@ -2,6 +2,8 @@
 #include "pixie/core/Log.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
+#include "pixie/runtime/LightingEnvironment2D.hpp"
+#include "pixie/runtime/LightingDrawing.hpp"
 #include "pixie/runtime/Name.hpp"
 #include "pixie/runtime/ParticleSpawner.hpp"
 #include "pixie/runtime/Scene.hpp"
@@ -22,11 +24,6 @@ namespace {
 PowerSwitch2D* Switch(World& world) {
     auto view = world.Registry().view<PowerSwitch2D>();
     return view.begin() == view.end() ? nullptr : &view.get<PowerSwitch2D>(*view.begin());
-}
-
-LightingSettings2D* Lighting(World& world) {
-    auto view = world.Registry().view<LightingSettings2D>();
-    return view.begin() == view.end() ? nullptr : &view.get<LightingSettings2D>(*view.begin());
 }
 
 // A small room for a World built without the scene: the scenario, a dark ambient, one lamp that
@@ -72,7 +69,7 @@ void LightMachineProject::Describe(ComponentTypes& types) const {
 }
 
 void LightMachineProject::Build(World& world, Camera2D& /*camera*/) {
-    if (world.Registry().view<LightingSettings2D>().empty()) BuildRoom(world);
+    if (!world.Presentation() && ReadEnvironmentLighting2D(world).state == LightingState2D::Absent) BuildRoom(world);
     Telemetry& telemetry = world.GetTelemetry();
     powered_ = telemetry.RegisterGauge("machine.powered");
     lampIntensity_ = telemetry.RegisterGauge("machine.lamp_intensity");
@@ -89,7 +86,14 @@ void LightMachineProject::BeforeStep(World& world, Camera2D& /*camera*/, const I
         }
     }
     if (input.WasPressed(Key::F)) {
-        if (LightingSettings2D* lighting = Lighting(world)) {
+        if (world.Presentation()) {
+            auto presentation = *world.Presentation();
+            const bool on = !presentation.view.bloom;
+            presentation.legacyEffects.ambientOcclusion = on;
+            presentation.environment.fog = on;
+            presentation.view.bloom = on;
+            world.SetPresentation(presentation);
+        } else if (LightingSettings2D* lighting = EditLegacyLightingSettings2D(world)) {
             const bool on = !lighting->bloom;
             lighting->ambientOcclusion = on;
             lighting->fog = on;
@@ -125,7 +129,7 @@ void LightMachineProject::DrawScreen(World& world, ScreenCanvas& screen) {
     const TextStyle title{"fonts/inter-regular.ttf", 15, {235, 240, 250}};
     const TextStyle line{title.font, 12, {205, 215, 230}};
     const PowerSwitch2D* power = Switch(world);
-    const LightingSettings2D* lighting = Lighting(world);
+    const auto presentation = ReadPresentation2D(world);
     screen.Rect({8, 8}, {420, 112}, {20, 25, 38, 235});
     screen.Text("A/D move  Space jump  P power  F effects", {14, 12}, line);
     if (power != nullptr) {
@@ -138,8 +142,8 @@ void LightMachineProject::DrawScreen(World& world, ScreenCanvas& screen) {
         screen.Text(std::format("{}: {:.2f}", name.value, emission.intensity), {14, y}, line);
         y += 16;
     }
-    if (lighting != nullptr) {
-        screen.Text(std::format("effects: {}", lighting->bloom ? "ambient occlusion, fog, bloom" : "off"), {220, 56}, line);
+    if (presentation.lighting != LightingState2D::Absent) {
+        screen.Text(std::format("effects: {}", presentation.view.bloom ? "ambient occlusion, fog, bloom" : "off"), {220, 56}, line);
     }
 }
 
