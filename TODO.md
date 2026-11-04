@@ -134,3 +134,4 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-049` | published Inspector 0.3.0 adoption in the editor | 2026-10-27 | [Completion](docs/archive/todo-049-inspector-030-adoption-2026-10-27.md) |
 | `PIXIE-TODO-051` | shared native engine, manifest game export, local MCP and approved deterministic capture | 2026-11-01 | [Completion](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md) |
 | `PIXIE-TODO-052` | 2D lighting: lights, shadows, emission, particle light, authoring, budgets and optional effects | 2026-10-31 | [Completion](docs/archive/todo-052-2d-lighting-2026-10-31.md) |
+| `PIXIE-TODO-057` | World/Scene scopes, transactional authoring, presentation/cameras and qualified gravity fallback | 2026-11-04 | [Completion](docs/archive/todo-057-world-scene-reconciliation-2026-11-04.md) |

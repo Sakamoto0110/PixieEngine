@@ -108,7 +108,7 @@ inside this editor block. Its completion does not accept Luna's implementation.
 **Entry/exit:** use a frozen backend contract/candidate once available; do not make
 local authoring or camera corrections wait for it. Record independent backend acceptance.
 
-- `PIXIE-TASK-229` — **Status:** open — Agree and qualify a minimal editor/backend handoff and demonstration scene against the separately accepted World/Scene contract, preserving the distinct backend acceptance decision.
+- `PIXIE-TASK-229` — **Status:** done — Qualified the minimal handoff against native/editor ABI28, scene envelope v2, presentation schema1 and cooperative module contract1. The real C++ parent/child editor rebuild passed14 checks in Debug and Release, preserving dirty custom data, empty scopes/membership, World/view/Renderer and Scene Environment/gravity/camera values while retaining the saved file. Runtime/CAPI references and editor README own the contract; ProcessReopenTests.cs is the reproducible demonstration. This completes interface integration only; it does not accept the separate historical backend experiment or close the other TODO056 blocks.
 
 ### Block D — Field inventory and meaningful Inspector (P1.1; proposal 6.1)
 
