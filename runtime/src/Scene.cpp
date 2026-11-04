@@ -1,7 +1,11 @@
 #include "pixie/runtime/Scene.hpp"
+#include "SceneSave.hpp"
+#include "PresentationJson.hpp"
 
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/World.hpp"
 
 #include <nlohmann/json.hpp>
@@ -12,9 +16,12 @@
 #include <cmath>
 #include <format>
 #include <fstream>
+#include <optional>
 #include <random>
+#include <set>
 #include <span>
 #include <sstream>
+#include <stdexcept>
 #include <unordered_map>
 #include <unordered_set>
 
@@ -27,9 +34,11 @@ struct SceneExtras {
     std::string json;
 };
 
-// The same for the document's own keys, kept in the registry's context.
+// Root and scope extras, plus the version that an ordinary save must retain.
 struct SceneDocumentExtras {
     std::string json;
+    int version = 1;
+    std::unordered_map<std::uint64_t, std::string> scopes;
 };
 
 // The World's scene entities by scene ID, kept in the registry's context: built the first time a
@@ -478,7 +487,8 @@ std::string Finish(const Json& document) {
 
 // Parses a document of `format` (a scene or a fragment, named by `what`), checks its version and its
 // list of entities, and returns it; on failure, sets `error`.
-Json ParseDocument(std::string_view text, std::string_view format, std::string_view what, std::string& error) {
+Json ParseDocument(std::string_view text, std::string_view format, std::string_view what, std::string& error,
+                   int maxVersion = kSceneVersion) {
     Json document;
     try {
         document = Json::parse(text.begin(), text.end());
@@ -494,9 +504,9 @@ Json ParseDocument(std::string_view text, std::string_view format, std::string_v
         error = std::format("the {} has no version", what);
     } else if (const auto version = document["version"].get<std::int64_t>(); version < 1) {
         error = std::format("the {}'s version, {}, is not valid", what, version);
-    } else if (version > kSceneVersion) {
+    } else if (version > maxVersion) {
         error = std::format("the {} was written by a newer engine (version {}; this one reads up to {})", what,
-                            version, kSceneVersion);
+                            version, maxVersion);
     } else if (!document.contains("entities") || !document["entities"].is_array()) {
         error = std::format("the {} has no list of entities", what);
     }
@@ -599,6 +609,426 @@ std::string CheckEntities(const Json& list, const std::unordered_map<std::uint64
     }
     return {};
 }
+
+// Reject registered project types before even installing the scene index or drawing new IDs.
+// Unregistered component names remain opaque scene data and still round-trip.
+std::string V2AdmissionError(const std::set<std::string>& unsupported) {
+    if (unsupported.empty()) return {};
+    std::string error = "version 2 import requires a declarative contract for registered components: ";
+    for (const std::string& name : unsupported) {
+        if (error.back() != ' ') error += ", ";
+        error += name;
+    }
+    return error;
+}
+
+std::string CheckV2ComponentAdmission(const Json& list, const ComponentTypes& types) {
+    std::set<std::string> unsupported;
+    for (const Json& entity : list) {
+        if (!entity.is_object() || !entity.contains("components") || !entity["components"].is_object()) continue;
+        for (auto component = entity["components"].begin(); component != entity["components"].end(); ++component) {
+            const int index = types.IndexOf(component.key());
+            if (index >= 0 && !types.AllowsV2Import(index)) unsupported.insert(component.key());
+        }
+    }
+    if (auto problem = V2AdmissionError(unsupported); !problem.empty()) return problem;
+    for (const auto& entity : list) {
+        if (!entity.is_object() || !entity.contains("components") || !entity["components"].is_object() || !entity["components"].contains("Camera2D")) continue;
+        const auto& camera = entity["components"]["Camera2D"];
+        if (!camera.is_object()) return "invalid Camera2D component";
+        if (camera.contains("zoom") && (!camera["zoom"].is_number() || !std::isfinite(camera["zoom"].get<double>()) ||
+            camera["zoom"].get<double>() < 0.0001 || camera["zoom"].get<double>() > 10000)) return "invalid authored camera zoom";
+        if (camera.contains("enabled") && !camera["enabled"].is_boolean()) return "invalid authored camera enabled flag";
+    }
+    return {};
+}
+
+std::string CheckV2WorldAdmission(const World& world, const ComponentTypes& types) {
+    std::set<std::string> unsupported;
+    const entt::registry& registry = world.Registry();
+    if (world.Presentation() && !registry.view<const LightingSettings2D>().empty())
+        return "canonical presentation conflicts with legacy LightingSettings2D";
+    for (const entt::entity entity : registry.view<SceneId>()) {
+        for (std::size_t index = 0; index < types.All().size(); ++index) {
+            if (types.AllowsV2Import(static_cast<int>(index))) continue;
+            const ComponentDescriptor& type = types.All()[index];
+            const auto* storage = registry.storage(type.type);
+            if (storage != nullptr && storage->contains(entity)) unsupported.insert(type.name);
+        }
+    }
+    return V2AdmissionError(unsupported);
+}
+
+// Legacy whole-scene reads retain their behavior. New fragment mutations must not add to, or
+// operate through, an ambiguous settings authority.
+std::string CheckFragmentSettings(const World& world, const Json& entities,
+                                 const std::unordered_set<entt::entity>& excluded = {}) {
+    if (world.Presentation()) {
+        for (const auto& entity : entities) {
+            if (entity.contains("components") && entity["components"].contains("LightingSettings2D"))
+                return "legacy lighting conflicts with canonical presentation";
+        }
+    }
+    const auto count = [&](std::string_view name, auto view) {
+        std::size_t found = 0;
+        for (const auto id : view) { if (!excluded.contains(id)) ++found; }
+        for (const Json& entity : entities) {
+            if (entity.contains("components") && entity["components"].contains(std::string(name)) &&
+                entity["components"][std::string(name)].is_object()) {
+                ++found;
+            }
+        }
+        return found;
+    };
+    const entt::registry& registry = world.Registry();
+    if (count("PhysicsSettings2D", registry.view<const PhysicsSettings2D>()) > 1) {
+        return "a fragment would leave duplicate PhysicsSettings2D authorities";
+    }
+    if (count("LightingSettings2D", registry.view<const LightingSettings2D>()) > 1) {
+        return "a fragment would leave duplicate LightingSettings2D authorities";
+    }
+    return {};
+}
+
+// Resolve the complete v2 catalog and every membership before touching the live World.
+std::string ParseScopeGravity(const Json& entry, std::optional<SceneGravity2D>& gravity) {
+    if (!entry.contains("gravity")) return {};
+    const Json& saved = entry["gravity"];
+    if (!saved.is_object() || !saved.contains("mode") || !saved["mode"].is_string()) {
+        return "scene gravity requires an object and a mode";
+    }
+    SceneGravity2D parsed;
+    const std::string mode = saved["mode"].get<std::string>();
+    if (mode == "inherit") parsed.mode = SceneGravityMode2D::Inherit;
+    else if (mode == "multiply") parsed.mode = SceneGravityMode2D::Multiply;
+    else if (mode == "override") parsed.mode = SceneGravityMode2D::Override;
+    else return "unknown scene gravity mode";
+    if (saved.contains("value")) {
+        const Json& value = saved["value"];
+        if (!value.is_array() || value.size() != 2 || !value[0].is_number() || !value[1].is_number()) {
+            return "scene gravity value must be a two-number vector";
+        }
+        parsed.value = {value[0].get<double>(), value[1].get<double>()};
+    }
+    if (saved.contains("multiplier")) {
+        if (!saved["multiplier"].is_number()) return "scene gravity multiplier must be a number";
+        parsed.multiplier = saved["multiplier"].get<double>();
+    }
+    if (!std::isfinite(parsed.value.x) || !std::isfinite(parsed.value.y) ||
+        !std::isfinite(parsed.multiplier) || parsed.multiplier < 0) return "invalid scene gravity values";
+    gravity = parsed;
+    return {};
+}
+
+// Check gravity against the settings the import would produce, before changing the live World.
+std::string CheckIncomingGravity(const Json& document, const World& world,
+                                 const std::vector<SceneScope>& incoming, bool fragment,
+                                 const std::unordered_set<entt::entity>& excluded = {}) {
+    PhysicsSettings2D settings;
+    for (auto [id, authored] : world.Registry().view<const PhysicsSettings2D>().each()) {
+        if (excluded.contains(id)) continue;
+        settings = authored;
+    }
+    for (const Json& entity : document["entities"]) {
+        if (!entity.is_object() || !entity.contains("components") || !entity["components"].is_object() ||
+            !entity["components"].contains("PhysicsSettings2D")) continue;
+        const Json& component = entity["components"]["PhysicsSettings2D"];
+        if (!component.is_object()) return "invalid PhysicsSettings2D definition";
+        if (component.contains("gravity")) {
+            const Json& gravity = component["gravity"];
+            if (!gravity.is_array() || gravity.size() != 2 || !gravity[0].is_number() || !gravity[1].is_number())
+                return "invalid PhysicsSettings2D gravity";
+            settings.gravity = {gravity[0].get<double>(), gravity[1].get<double>()};
+        }
+        if (component.contains("unitsPerMeter")) {
+            if (!component["unitsPerMeter"].is_number()) return "invalid PhysicsSettings2D unitsPerMeter";
+            settings.unitsPerMeter = component["unitsPerMeter"].get<double>();
+        }
+        if (component.contains("substeps")) {
+            if (!component["substeps"].is_number_integer()) return "invalid PhysicsSettings2D substeps";
+            settings.substeps = component["substeps"].get<int>();
+        }
+    }
+    if (!std::isfinite(settings.gravity.x) || !std::isfinite(settings.gravity.y) ||
+        !std::isfinite(settings.unitsPerMeter) || settings.unitsPerMeter < 0.001 ||
+        settings.unitsPerMeter > 1000000 || settings.substeps < 1 || settings.substeps > 32 ||
+        std::abs(settings.gravity.x) > 1000000 * settings.unitsPerMeter ||
+        std::abs(settings.gravity.y) > 1000000 * settings.unitsPerMeter) {
+        return "invalid PhysicsSettings2D gravity, scale or substep count";
+    }
+    const auto check = [&](const SceneScope& scope) -> std::string {
+        if (!scope.gravity) return {};
+        const auto& gravity = *scope.gravity;
+        const double limit = 1000000 * settings.unitsPerMeter;
+        if (std::abs(gravity.value.x) > limit || std::abs(gravity.value.y) > limit)
+            return "scene gravity override exceeds the physical coordinate limit";
+        if (gravity.mode == SceneGravityMode2D::Multiply) {
+            const pxVec2 resolved = settings.gravity * gravity.multiplier;
+            if (!std::isfinite(resolved.x) || !std::isfinite(resolved.y) ||
+                std::abs(resolved.x) > limit || std::abs(resolved.y) > limit)
+                return "scene gravity multiplication exceeds the physical coordinate limit";
+        }
+        return {};
+    };
+    if (fragment) {
+        for (const SceneScope& scope : world.Scopes()) {
+            if (std::string error = check(scope); !error.empty()) return error;
+        }
+    }
+    for (const SceneScope& scope : incoming) {
+        if (std::string error = check(scope); !error.empty()) return error;
+    }
+    return {};
+}
+
+void WriteScopeGravity(Json& entry, const SceneScope& scope) {
+    if (!scope.gravity) { entry.erase("gravity"); return; }
+    Json saved = entry.contains("gravity") && entry["gravity"].is_object()
+        ? entry["gravity"] : Json::object();
+    const SceneGravity2D& gravity = *scope.gravity;
+    switch (gravity.mode) {
+    case SceneGravityMode2D::Inherit: saved["mode"] = "inherit"; break;
+    case SceneGravityMode2D::Multiply: saved["mode"] = "multiply"; break;
+    case SceneGravityMode2D::Override: saved["mode"] = "override"; break;
+    }
+    saved["value"] = Json::array({gravity.value.x, gravity.value.y});
+    saved["multiplier"] = gravity.multiplier;
+    entry["gravity"] = std::move(saved);
+}
+
+std::string CheckScopes(const Json& document, const World& world, std::vector<SceneScope>& scopes,
+                        std::vector<ScopeId>& memberships,
+                        std::unordered_map<std::uint64_t, std::string>& keptScopes) {
+    if (!document.contains("sceneScopes") || !document["sceneScopes"].is_array()) {
+        return "the version 2 scene has no sceneScopes array";
+    }
+    std::unordered_set<std::uint64_t> known;
+    for (const SceneScope& existing : world.Scopes()) known.insert(existing.id.value);
+    const Json& catalog = document["sceneScopes"];
+    for (std::size_t i = 0; i < catalog.size(); ++i) {
+        const Json& entry = catalog[i];
+        std::uint64_t id = 0;
+        if (!entry.is_object() || !entry.contains("id") || !ParseHexId(entry["id"], id)) {
+            return std::format("scene scope {} has no valid id", i);
+        }
+        if (!entry.contains("name") || !entry["name"].is_string()) {
+            return std::format("scene scope {} has no valid name", HexId(id));
+        }
+        if (!known.insert(id).second) {
+            return std::format("scene scope id {} is used twice or already exists", HexId(id));
+        }
+        std::optional<SceneGravity2D> gravity;
+        if (std::string error = ParseScopeGravity(entry, gravity); !error.empty()) {
+            return std::format("scene scope {}: {}", HexId(id), error);
+        }
+        SceneScope scope{ScopeId{id}, entry["name"].get<std::string>(), gravity};
+        try { detail::ReadScopePresentation(entry, scope); } catch (const std::exception& error) { return error.what(); }
+        scopes.push_back(std::move(scope));
+        keptScopes.emplace(id, entry.dump());
+    }
+    const Json& entities = document["entities"];
+    memberships.reserve(entities.size());
+    for (std::size_t i = 0; i < entities.size(); ++i) {
+        const Json& entry = entities[i];
+        ScopeId membership;
+        if (entry.contains("sceneScope") && !entry["sceneScope"].is_null()) {
+            if (!ParseHexId(entry["sceneScope"], membership.value) ||
+                std::none_of(scopes.begin(), scopes.end(), [&](const SceneScope& scope) {
+                    return scope.id == membership;
+                })) {
+                return std::format("entity {} refers to an invalid or unknown scene scope", i);
+            }
+        }
+        memberships.push_back(membership);
+    }
+    return {};
+}
+
+Json ScopeDefinition(const SceneScope& scope, const detail::SceneDocumentExtras* kept) {
+    Json entry = kept != nullptr && kept->scopes.contains(scope.id.value)
+        ? ParseKept(kept->scopes.at(scope.id.value)) : Json::object();
+    entry["id"] = HexId(scope.id.value);
+    entry["name"] = scope.name;
+    WriteScopeGravity(entry, scope);
+    detail::WriteScopePresentation(scope, entry);
+    return entry;
+}
+
+std::string CheckFragmentScopes(const Json& document, const World& world,
+                                std::vector<SceneScope>& toAdd, std::vector<ScopeId>& memberships,
+                                std::unordered_map<std::uint64_t, std::string>& keptScopes) {
+    if (!document.contains("sceneScopes") || !document["sceneScopes"].is_array()) {
+        return "the version 2 fragment has no sceneScopes array";
+    }
+    std::unordered_map<std::uint64_t, SceneScope> existing;
+    for (const SceneScope& scope : world.Scopes()) existing.emplace(scope.id.value, scope);
+    const auto* kept = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    std::unordered_set<std::uint64_t> listedScopes;
+    for (const Json& entry : document["sceneScopes"]) {
+        std::uint64_t id = 0;
+        if (!entry.is_object() || !entry.contains("id") || !ParseHexId(entry["id"], id) ||
+            !entry.contains("name") || !entry["name"].is_string()) {
+            return "the fragment has an invalid scene scope definition";
+        }
+        if (!listedScopes.insert(id).second) return std::format("scene scope {} is listed twice", HexId(id));
+        std::optional<SceneGravity2D> gravity;
+        if (std::string error = ParseScopeGravity(entry, gravity); !error.empty()) {
+            return std::format("scene scope {}: {}", HexId(id), error);
+        }
+        Json normalized = entry;
+        normalized["id"] = HexId(id);
+        SceneScope incoming{ScopeId{id}, entry["name"].get<std::string>(), gravity};
+        try { detail::ReadScopePresentation(entry, incoming); } catch (const std::exception& error) { return error.what(); }
+        WriteScopeGravity(normalized, incoming);
+        detail::WriteScopePresentation(incoming, normalized);
+        if (const auto found = existing.find(id); found != existing.end()) {
+            if (nlohmann::json::parse(ScopeDefinition(found->second, kept).dump()) !=
+                nlohmann::json::parse(normalized.dump())) {
+                return std::format("scene scope {} conflicts with an existing definition", HexId(id));
+            }
+        } else {
+            toAdd.push_back(incoming);
+            keptScopes.emplace(id, normalized.dump());
+        }
+    }
+    std::unordered_set<std::uint64_t> referencedScopes;
+    for (const Json& entity : document["entities"]) {
+        ScopeId membership;
+        if (entity.contains("sceneScope") && !entity["sceneScope"].is_null()) {
+            if (!ParseHexId(entity["sceneScope"], membership.value) ||
+                !listedScopes.contains(membership.value)) {
+                return "an entity refers to an invalid or missing scene scope definition";
+            }
+            referencedScopes.insert(membership.value);
+        }
+        memberships.push_back(membership);
+    }
+    if (referencedScopes.size() != listedScopes.size()) {
+        return "the fragment includes an unreferenced scene scope definition";
+    }
+    return {};
+}
+
+struct PreparedEntities {
+    Json document;
+    std::vector<std::uint64_t> listed;
+    std::vector<SceneScope> scopesToAdd;
+    std::vector<ScopeId> memberships;
+    std::unordered_map<std::uint64_t, std::string> keptScopes;
+};
+
+// Pure preparation: no SceneIndex installation, ID generation, component callbacks or writes.
+std::string PrepareEntities(const World& world, const ComponentTypes& types, std::string_view text,
+                            SceneIds mode, std::span<const std::uint64_t> replacing, PreparedEntities& prepared) {
+    if (world.IsStepping()) return "entities cannot be read during a step";
+    if (mode != SceneIds::Keep && mode != SceneIds::New) return "unknown entity ID mode";
+    std::string error;
+    prepared.document = ParseDocument(text, kEntitiesFormat, "set of entities", error);
+    if (!error.empty()) return error;
+    const Json& document = prepared.document;
+    const Json& list = document["entities"];
+    const int version = document["version"].get<int>();
+    if (version == 2) {
+        if (std::string problem = CheckV2ComponentAdmission(list, types); !problem.empty()) return problem;
+    }
+    std::unordered_set<std::uint64_t> replacingIds;
+    for (const auto id : replacing) {
+        if (mode != SceneIds::Keep || id == 0 || !replacingIds.insert(id).second)
+            return "replacement IDs must be nonzero, unique and used with Keep IDs";
+    }
+    std::unordered_map<std::uint64_t, entt::entity> remaining;
+    std::unordered_set<entt::entity> excluded;
+    const auto* index = world.Registry().ctx().find<detail::SceneIndex>();
+    const auto* currentIds = &remaining;
+    if (replacing.empty() && index != nullptr && !index->stale) {
+        currentIds = &index->entities;
+    } else {
+        for (auto [entity, id] : world.Registry().view<const SceneId>().each()) {
+            if (replacingIds.contains(id.value)) excluded.insert(entity);
+            else remaining.emplace(id.value, entity);
+        }
+    }
+    if (std::string problem = CheckEntities(list, *currentIds, mode == SceneIds::Keep, prepared.listed); !problem.empty())
+        return problem;
+    if (std::string problem = CheckFragmentSettings(world, list, excluded); !problem.empty()) return problem;
+    const auto* destination = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    if (version == 1 && destination != nullptr && destination->version == 2) {
+        for (const Json& entity : list) {
+            if (entity.contains("sceneScope")) return "version 1 fragment sceneScope data conflicts with version 2 membership";
+        }
+    }
+    if (version == 2) {
+        if (destination == nullptr || destination->version != 2) return "a version 2 fragment requires a version 2 World";
+        if (std::string problem = CheckFragmentScopes(document, world, prepared.scopesToAdd,
+                prepared.memberships, prepared.keptScopes); !problem.empty()) return problem;
+        if (std::string problem = CheckIncomingGravity(document, world, prepared.scopesToAdd, true, excluded);
+            !problem.empty()) return problem;
+    }
+    return {};
+}
+
+// Rolls back newly added entities and the captured catalog, membership, RNG and document metadata
+// if a v2 callback throws. It cannot restore pre-existing component storage or entities changed by
+// a callback, nor effects outside this World. This is not a general callback transaction.
+class SceneMutationSnapshot {
+public:
+    explicit SceneMutationSnapshot(World& world) : world_(world), random_(world.GetRandom()) {
+        entt::registry& registry = world_.Registry();
+        for (const entt::entity id : registry.view<entt::entity>()) {
+            entities_.insert(id);
+            memberships_.emplace(id, world_.ScopeOf(world_.Wrap(id)).value_or(ScopeId{}));
+        }
+        scopes_ = world_.Scopes();
+        presentation_ = world_.Presentation();
+        if (const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>()) document_ = *kept;
+    }
+
+    bool Restore() noexcept {
+        bool complete = true;
+        try {
+            entt::registry& registry = world_.Registry();
+            std::vector<entt::entity> added;
+            for (const entt::entity id : registry.view<entt::entity>()) {
+                if (!entities_.contains(id)) added.push_back(id);
+            }
+            for (const entt::entity id : added) {
+                if (registry.valid(id)) world_.Destroy(world_.Wrap(id));
+            }
+            for (const entt::entity id : entities_) {
+                if (!registry.valid(id)) { complete = false; continue; }
+                world_.SetScope(world_.Wrap(id), ScopeId{});
+            }
+            for (const SceneScope& scope : world_.Scopes()) {
+                if (!world_.RemoveScope(scope.id)) complete = false;
+            }
+            world_.SetPresentation(presentation_);
+            for (const SceneScope& scope : scopes_) {
+                if (!world_.CreateScope(scope.id, scope.name, scope.gravity) ||
+                    !world_.SetScopeEnvironment(scope.id, scope.environment) || !world_.SetScopeCamera(scope.id, scope.camera)) complete = false;
+            }
+            for (const auto& [id, scope] : memberships_) {
+                if (scope.value != 0 && registry.valid(id) && !world_.SetScope(world_.Wrap(id), scope)) {
+                    complete = false;
+                }
+            }
+            if (document_) registry.ctx().insert_or_assign(*document_);
+            else registry.ctx().erase<detail::SceneDocumentExtras>();
+        } catch (...) {
+            complete = false;
+        }
+        world_.GetRandom() = random_;
+        return complete;
+    }
+
+private:
+    World& world_;
+    Random random_;
+    std::unordered_set<entt::entity> entities_;
+    std::unordered_map<entt::entity, ScopeId> memberships_;
+    std::vector<SceneScope> scopes_;
+    std::optional<WorldPresentation2D> presentation_;
+    std::optional<detail::SceneDocumentExtras> document_;
+};
 
 // Offers the numeric fields of `typeName` that `kept` holds to the type's upgrade, then removes from
 // `kept` those it consumed, so a converted value is not also written back as an unknown field.
@@ -751,16 +1181,39 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
 
 } // namespace
 
-std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings) {
+static std::string WriteSceneVersion(World& world, const ComponentTypes& types,
+                                     std::vector<std::string>* warnings, int version) {
     entt::registry& registry = world.Registry();
+    const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>();
+    const std::vector<SceneScope> scopes = world.Scopes();
+    if (version == 1 && (world.Presentation() || !scopes.empty())) {
+        throw std::runtime_error("scene scopes require an explicit version 2 conversion");
+    }
+    // A v2 document must remain importable under this registry. Check storage
+    // before invoking any component getter or constructing the output document.
+    if (version == 2) {
+        if (std::string problem = CheckV2WorldAdmission(world, types); !problem.empty()) {
+            throw std::runtime_error(problem);
+        }
+    }
     Json document = Json::object();
     document["format"] = std::string(kSceneFormat);
-    document["version"] = kSceneVersion;
+    document["version"] = version;
     document["seed"] = world.GetRandom().Seed();
-    if (const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>()) {
+    if (kept != nullptr) {
         Json extras = ParseKept(kept->json);
         extras.erase("entities");
+        if (version == 2) extras.erase("sceneScopes");
         Merge(document, extras);
+    }
+
+    if (version == 2) {
+        if (world.Presentation()) document["presentation"] = detail::WritePresentation(*world.Presentation(), document.value("presentation", Json::object()));
+        Json catalog = Json::array();
+        for (const SceneScope& scope : scopes) {
+            catalog.push_back(ScopeDefinition(scope, kept));
+        }
+        document["sceneScopes"] = std::move(catalog);
     }
 
     // EnTT lists live entities newest first; the scene lists them oldest first.
@@ -774,10 +1227,45 @@ std::string WriteScene(World& world, const ComponentTypes& types, std::vector<st
 
     Json entities = Json::array();
     for (const entt::entity id : members) {
-        entities.push_back(WriteEntity(registry, types, id, warnings));
+        Json entry = WriteEntity(registry, types, id, warnings);
+        if (version == 2) {
+            const ScopeId membership = world.ScopeOf(world.Wrap(id)).value_or(ScopeId{});
+            if (membership.value == 0) entry.erase("sceneScope");
+            else entry["sceneScope"] = HexId(membership.value);
+        }
+        entities.push_back(std::move(entry));
     }
     document["entities"] = std::move(entities);
     return Finish(document);
+}
+
+std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings) {
+    const auto* kept = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    return WriteSceneVersion(world, types, warnings, kept != nullptr ? kept->version : 1);
+}
+
+std::string ValidateV2SceneSnapshot(const World& world, const ComponentTypes& types) {
+    const auto* kept = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    if (kept == nullptr || kept->version != 2) return {};
+    if (auto problem = CheckV2WorldAdmission(world, types); !problem.empty()) return problem;
+    return CheckFragmentSettings(world, Json::array());
+}
+
+std::string ValidateSceneEditInput(const World& world, std::string_view text) {
+    if (world.IsStepping()) return "candidate edits require a World between steps";
+    if (std::string problem = CheckFragmentSettings(world, Json::array()); !problem.empty()) return problem;
+    std::string error;
+    const Json document = ParseDocument(text, kSceneFormat, "scene", error);
+    if (!error.empty()) return error;
+    if (document["version"].get<int>() != 2) return "candidate edits require an explicit version 2 document";
+    return {};
+}
+
+std::string SceneImportAdmissionError(const ComponentTypes& types, std::string_view text) {
+    std::string error;
+    const Json document = ParseDocument(text, kSceneFormat, "scene", error);
+    if (!error.empty()) return error;
+    return document["version"].get<int>() == 2 ? CheckV2ComponentAdmission(document["entities"], types) : std::string{};
 }
 
 SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_view text) {
@@ -790,6 +1278,12 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
         return Failed(std::move(error));
     }
     const Json& list = document["entities"];
+    const int version = document["version"].get<int>();
+    if (version == 2) {
+        if (std::string problem = CheckV2ComponentAdmission(list, types); !problem.empty()) {
+            return Failed(std::move(problem));
+        }
+    }
 
     // Every ID is checked before anything is added, so a bad file leaves the World as it was.
     entt::registry& registry = world.Registry();
@@ -799,25 +1293,78 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
         return Failed(std::move(problem));
     }
 
-    SceneReport report;
-    if (document.contains("seed") && document["seed"].is_number_unsigned()) {
-        world.GetRandom().Reseed(document["seed"].get<std::uint64_t>());
-    } else {
-        report.warnings.push_back("the scene has no valid seed; the World keeps its own");
-    }
-    AddEntities(world, types, list, listed, listed, ids, report);
-
-    Json keptDocument = Json::object();
-    for (auto it = document.begin(); it != document.end(); ++it) {
-        const std::string& key = it.key();
-        if (key != "format" && key != "version" && key != "seed" && key != "entities") {
-            keptDocument[key] = it.value();
+    std::vector<SceneScope> scopes;
+    std::vector<ScopeId> memberships;
+    std::unordered_map<std::uint64_t, std::string> keptScopes;
+    if (version == 2) {
+        if (std::string problem = CheckFragmentSettings(world, list); !problem.empty()) {
+            return Failed(std::move(problem));
+        }
+        if (std::string problem = CheckScopes(document, world, scopes, memberships, keptScopes); !problem.empty()) {
+            return Failed(std::move(problem));
+        }
+        if (std::string problem = CheckIncomingGravity(document, world, scopes, false); !problem.empty()) {
+            return Failed(std::move(problem));
         }
     }
-    if (keptDocument.empty()) {
-        registry.ctx().erase<detail::SceneDocumentExtras>();
+
+    std::optional<WorldPresentation2D> presentation;
+    if (version == 2 && document.contains("presentation")) {
+        try { presentation = detail::ReadPresentation(document["presentation"]); }
+        catch (const std::exception& failure) { return Failed(failure.what()); }
+        if (world.Presentation() || !registry.view<const LightingSettings2D>().empty())
+            return Failed("presentation settings require one canonical authority in an empty destination");
+        for (const auto& entry : list) {
+            if (entry.contains("components") && entry["components"].contains("LightingSettings2D"))
+                return Failed("canonical presentation conflicts with legacy LightingSettings2D");
+        }
+    }
+    SceneReport report;
+    const auto apply = [&] {
+        if (document.contains("seed") && document["seed"].is_number_unsigned()) {
+            world.GetRandom().Reseed(document["seed"].get<std::uint64_t>());
+        } else {
+            report.warnings.push_back("the scene has no valid seed; the World keeps its own");
+        }
+        for (const SceneScope& scope : scopes) {
+            if (!world.CreateScope(scope.id, scope.name)) {
+                throw std::runtime_error("could not create validated scene scope");
+            }
+        }
+        const std::vector<Entity> created = AddEntities(world, types, list, listed, listed, ids, report);
+        if (presentation && !world.SetPresentation(presentation)) throw std::runtime_error("could not apply canonical presentation");
+        for (const SceneScope& scope : scopes) {
+            if (!world.SetScopeEnvironment(scope.id, scope.environment) || !world.SetScopeCamera(scope.id, scope.camera)) throw std::runtime_error("could not apply Scene presentation");
+            if (scope.gravity && !world.SetScopeGravity(scope.id, *scope.gravity)) {
+                throw std::runtime_error("could not apply validated scene gravity");
+            }
+        }
+        for (std::size_t i = 0; i < memberships.size(); ++i) {
+            if (memberships[i].value != 0) world.SetScope(created[i], memberships[i]);
+        }
+        Json keptDocument = Json::object();
+        for (auto it = document.begin(); it != document.end(); ++it) {
+            const std::string& key = it.key();
+            if (key != "format" && key != "version" && key != "seed" && key != "entities" &&
+                (version != 2 || key != "sceneScopes")) {
+                keptDocument[key] = it.value();
+            }
+        }
+        registry.ctx().insert_or_assign(detail::SceneDocumentExtras{keptDocument.dump(), version, std::move(keptScopes)});
+    };
+    if (version == 1) {
+        apply();
     } else {
-        registry.ctx().insert_or_assign(detail::SceneDocumentExtras{keptDocument.dump()});
+        SceneMutationSnapshot before(world);
+        try { apply(); }
+        catch (const std::exception& failure) {
+            const std::string reason = failure.what();
+            return Failed(std::format("version 2 scene application failed: {}{}", reason,
+                                      before.Restore() ? "" : "; rollback failed"));
+        } catch (...) {
+            return Failed(std::format("version 2 scene application failed: unknown exception{}",
+                                      before.Restore() ? "" : "; rollback failed"));
+        }
     }
     return report;
 }
@@ -830,9 +1377,26 @@ std::string WriteEntities(World& world, const ComponentTypes& types, std::span<c
 std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
                           std::string_view meta, std::vector<std::string>* warnings) {
     entt::registry& registry = world.Registry();
+    const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>();
+    const int version = kept != nullptr ? kept->version : 1;
+    if (version == 2) {
+        std::set<std::string> unsupported;
+        for (const Entity entity : entities) {
+            if (!registry.valid(entity.Id()) || !registry.all_of<SceneId>(entity.Id())) continue;
+            for (std::size_t index = 0; index < types.All().size(); ++index) {
+                if (types.AllowsV2Import(static_cast<int>(index))) continue;
+                const ComponentDescriptor& type = types.All()[index];
+                const auto* storage = registry.storage(type.type);
+                if (storage != nullptr && storage->contains(entity.Id())) unsupported.insert(type.name);
+            }
+        }
+        if (std::string problem = V2AdmissionError(unsupported); !problem.empty()) {
+            throw std::runtime_error(problem);
+        }
+    }
     Json document = Json::object();
     document["format"] = std::string(kEntitiesFormat);
-    document["version"] = kSceneVersion;
+    document["version"] = version;
     if (!meta.empty()) {
         Json parsed = Json::parse(meta.begin(), meta.end(), nullptr, false);
         if (parsed.is_object()) {
@@ -843,6 +1407,7 @@ std::string WriteEntities(World& world, const ComponentTypes& types, std::span<c
     }
     Json list = Json::array();
     std::unordered_set<entt::entity> written;
+    std::unordered_set<std::uint64_t> referencedScopes;
     for (const Entity entity : entities) {
         if (!registry.valid(entity.Id()) || !registry.all_of<SceneId>(entity.Id())) {
             if (warnings != nullptr) {
@@ -851,11 +1416,117 @@ std::string WriteEntities(World& world, const ComponentTypes& types, std::span<c
             continue;
         }
         if (written.insert(entity.Id()).second) {
-            list.push_back(WriteEntity(registry, types, entity.Id(), warnings));
+            Json entry = WriteEntity(registry, types, entity.Id(), warnings);
+            if (version == 2) {
+                const ScopeId membership = world.ScopeOf(entity).value_or(ScopeId{});
+                if (membership.value == 0) entry.erase("sceneScope");
+                else {
+                    entry["sceneScope"] = HexId(membership.value);
+                    referencedScopes.insert(membership.value);
+                }
+            }
+            list.push_back(std::move(entry));
         }
+    }
+    if (version == 2) {
+        Json catalog = Json::array();
+        for (const SceneScope& scope : world.Scopes()) {
+            if (referencedScopes.contains(scope.id.value)) catalog.push_back(ScopeDefinition(scope, kept));
+        }
+        document["sceneScopes"] = std::move(catalog);
     }
     document["entities"] = std::move(list);
     return Finish(document);
+}
+
+SceneReport ValidateEntities(const World& world, const ComponentTypes& types, std::string_view text,
+                            SceneIds ids, std::span<const std::uint64_t> replacing) {
+    PreparedEntities prepared;
+    if (std::string error = PrepareEntities(world, types, text, ids, replacing, prepared); !error.empty())
+        return Failed(std::move(error));
+    return {};
+}
+
+SceneFragmentPlan PrepareSceneFragment(World& world, const ComponentTypes& types, std::string_view fragment,
+    SceneIds ids, std::span<const std::uint64_t> replacing, double offsetX, double offsetY) {
+    SceneFragmentPlan plan;
+    const auto fail = [&](std::string error) { plan.ok = false; plan.error = std::move(error); return plan; };
+    if (world.IsStepping() || SceneFormatVersion(world) != 2)
+        return fail("fragment candidates require a version 2 World between steps");
+    if (!std::isfinite(offsetX) || !std::isfinite(offsetY)) return fail("fragment offset must be finite");
+    std::unordered_set<std::uint64_t> removed;
+    for (const auto id : replacing) {
+        if (ids != SceneIds::Keep || id == 0 || !removed.insert(id).second)
+            return fail("replacement IDs must be nonzero, unique and used with Keep IDs");
+    }
+    if (!fragment.empty()) {
+        const auto admitted = ValidateEntities(world, types, fragment, ids, replacing);
+        if (!admitted.ok) return fail(admitted.error);
+        std::string error;
+        const auto incoming = ParseDocument(fragment, kEntitiesFormat, "set of entities", error);
+        if (!error.empty()) return fail(error);
+        if (const auto problem = CheckV2ComponentAdmission(incoming["entities"], types); !problem.empty())
+            return fail(problem); // A v1 fragment never bypasses v2 custom-type admission.
+    } else if (ids != SceneIds::Keep) return fail("deletion requires Keep IDs");
+    if (const auto error = ValidateV2SceneSnapshot(world, types); !error.empty()) return fail(error);
+
+    // Keep the original document as the merge base. Serializing the entire scratch
+    // World after replacement would lose outside references to retired native handles.
+    Json document = Json::parse(WriteScene(world, types));
+    std::unordered_map<std::uint64_t, std::size_t> originalOrder;
+    for (const auto& entity : document["entities"]) {
+        std::uint64_t id = 0;
+        if (ParseHexId(entity["id"], id)) originalOrder.emplace(id, originalOrder.size());
+    }
+    World scratch;
+    const auto read = ReadScene(scratch, types, document.dump());
+    if (!read.ok) return fail(read.error);
+    std::vector<Entity> retired;
+    for (const auto [entity, id] : scratch.Registry().view<const SceneId>().each())
+        if (removed.contains(id.value)) retired.push_back(scratch.Wrap(entity));
+    for (const auto entity : retired) entity.Destroy();
+    auto& entities = document["entities"];
+    std::erase_if(entities.get_ref<Json::array_t&>(), [&](const Json& entity) {
+        std::uint64_t id = 0; return ParseHexId(entity["id"], id) && removed.contains(id);
+    });
+    Json assigned = Json::array();
+    if (!fragment.empty()) {
+        const auto imported = ReadEntities(scratch, types, fragment, ids);
+        if (!imported.ok) return fail(imported.error);
+        Json normalized = Json::parse(WriteEntities(scratch, types, imported.entities));
+        for (Json& entity : normalized["entities"]) {
+            assigned.push_back(entity["id"]);
+            if (entity.contains("components") && entity["components"].contains("Transform2D")) {
+                auto& transform = entity["components"]["Transform2D"];
+                if (transform.contains("position")) {
+                    auto& position = transform["position"];
+                    const double x = position[0].get<double>() + offsetX;
+                    const double y = position[1].get<double>() + offsetY;
+                    if (!std::isfinite(x) || !std::isfinite(y)) return fail("fragment offset overflow");
+                    position = Json::array({x, y});
+                }
+            }
+            entities.push_back(std::move(entity));
+        }
+        if (normalized.contains("sceneScopes")) {
+            for (const Json& scope : normalized["sceneScopes"]) {
+                const bool found = std::any_of(document["sceneScopes"].begin(), document["sceneScopes"].end(),
+                    [&](const Json& current) { return current["id"] == scope["id"]; });
+                if (!found) document["sceneScopes"].push_back(scope);
+            }
+        }
+    }
+    const auto rank = [&](const Json& entity) {
+        std::uint64_t id = 0;
+        if (ParseHexId(entity["id"], id)) {
+            const auto found = originalOrder.find(id);
+            if (found != originalOrder.end()) return found->second;
+        }
+        return originalOrder.size();
+    };
+    std::stable_sort(entities.begin(), entities.end(), [&](const Json& a, const Json& b) { return rank(a) < rank(b); });
+    plan.text = Json{{"document", std::move(document)}, {"ids", std::move(assigned)}}.dump();
+    return plan;
 }
 
 EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds sceneIds) {
@@ -865,31 +1536,66 @@ EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::stri
         report.error = std::move(error);
         return report;
     };
-    if (world.IsStepping()) {
-        return fail("entities cannot be read during a step");
-    }
-    std::string error;
-    const Json document = ParseDocument(text, kEntitiesFormat, "set of entities", error);
-    if (!error.empty()) {
+    PreparedEntities prepared;
+    if (std::string error = PrepareEntities(world, types, text, sceneIds, {}, prepared); !error.empty()) {
         return fail(std::move(error));
     }
+    const Json& document = prepared.document;
     const Json& list = document["entities"];
-    const std::unordered_map<std::uint64_t, entt::entity>& ids = SceneEntities(world.Registry());
-    std::vector<std::uint64_t> listed;
-    if (std::string problem = CheckEntities(list, ids, sceneIds == SceneIds::Keep, listed); !problem.empty()) {
-        return fail(std::move(problem));
-    }
+    const int version = document["version"].get<int>();
+    const auto& listed = prepared.listed;
+    const auto& scopesToAdd = prepared.scopesToAdd;
+    const auto& memberships = prepared.memberships;
+    const auto& keptScopes = prepared.keptScopes;
+    const auto& ids = SceneEntities(world.Registry());
 
     std::vector<std::uint64_t> assigned = listed;
     if (sceneIds == SceneIds::New) {
+        std::unordered_set<std::uint64_t> newIds;
         for (std::uint64_t& id : assigned) {
             do {
                 id = NewSceneId();
-            } while (ids.contains(id));
+            } while (ids.contains(id) || !newIds.insert(id).second);
         }
     }
-    report.entities = AddEntities(world, types, list, listed, assigned, ids, report);
-    report.meta = MetaText(document, report.warnings);
+    const auto apply = [&] {
+        for (const SceneScope& scope : scopesToAdd) {
+            if (!world.CreateScope(scope.id, scope.name)) {
+                throw std::runtime_error("could not create validated fragment scope");
+            }
+        }
+        report.entities = AddEntities(world, types, list, listed, assigned, ids, report);
+        for (const SceneScope& scope : scopesToAdd) {
+            if (!world.SetScopeEnvironment(scope.id, scope.environment) || !world.SetScopeCamera(scope.id, scope.camera)) throw std::runtime_error("could not apply imported Scene presentation");
+            if (scope.gravity && !world.SetScopeGravity(scope.id, *scope.gravity)) {
+                throw std::runtime_error("could not apply validated fragment gravity");
+            }
+        }
+        for (std::size_t i = 0; i < memberships.size(); ++i) {
+            if (memberships[i].value != 0) world.SetScope(report.entities[i], memberships[i]);
+        }
+        if (version == 2) {
+            auto* kept = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+            kept->scopes.insert(keptScopes.begin(), keptScopes.end());
+        }
+        report.meta = MetaText(document, report.warnings);
+    };
+    if (version == 1) {
+        apply();
+    } else {
+        SceneMutationSnapshot before(world);
+        try { apply(); }
+        catch (const std::exception& failure) {
+            const std::string reason = failure.what();
+            report.entities.clear();
+            return fail(std::format("version 2 fragment application failed: {}{}", reason,
+                                    before.Restore() ? "" : "; rollback failed"));
+        } catch (...) {
+            report.entities.clear();
+            return fail(std::format("version 2 fragment application failed: unknown exception{}",
+                                    before.Restore() ? "" : "; rollback failed"));
+        }
+    }
     return report;
 }
 
@@ -901,6 +1607,23 @@ FragmentMeta ReadFragmentMeta(std::string_view text) {
         found.ok = false;
         found.error = std::move(error);
         return found;
+    }
+    if (document["version"] == 2) {
+        World empty;
+        std::vector<SceneScope> scopes;
+        std::vector<ScopeId> memberships;
+        std::unordered_map<std::uint64_t, std::string> keptScopes;
+        if (std::string problem = CheckFragmentScopes(document, empty, scopes, memberships, keptScopes);
+            !problem.empty()) {
+            found.ok = false;
+            found.error = std::move(problem);
+            return found;
+        }
+        if (std::string problem = CheckIncomingGravity(document, empty, scopes, true); !problem.empty()) {
+            found.ok = false;
+            found.error = std::move(problem);
+            return found;
+        }
     }
     found.meta = MetaText(document, found.warnings);
     found.entityCount = document["entities"].size();
@@ -934,9 +1657,176 @@ SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& pat
     return report;
 }
 
+SceneReport detail::SaveSceneText(std::string_view text, const std::filesystem::path& path) {
+    std::string error;
+    const Json candidate = ParseDocument(text, kSceneFormat, "scene", error);
+    if (!error.empty()) return Failed(std::move(error));
+    if (candidate["version"] == 2) {
+        std::error_code fileError;
+        const bool exists = std::filesystem::exists(path, fileError);
+        if (fileError) return Failed(std::format("could not inspect {}: {}", PathText(path), fileError.message()));
+        if (exists) {
+            std::ifstream in(path, std::ios::binary);
+            if (!in) return Failed(std::format("could not open {}", PathText(path)));
+            std::ostringstream source;
+            source << in.rdbuf();
+            if (in.bad()) return Failed(std::format("could not read {}", PathText(path)));
+            const Json previous = ParseDocument(source.str(), kSceneFormat, "saved scene", error);
+            if (!error.empty()) return Failed(std::move(error));
+            if (previous["version"] == 1) {
+                return Failed("saving a version 2 snapshot over a version 1 scene requires explicit "
+                              "ConvertSceneFileV1ToV2 conversion with a recoverable backup");
+            }
+        }
+    }
+    return SaveTextFile(text, path);
+}
+
 SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path) {
     std::vector<std::string> warnings;
-    SceneReport report = SaveTextFile(WriteScene(world, types, &warnings), path);
+    std::string text;
+    try {
+        text = WriteScene(world, types, &warnings);
+    } catch (const std::runtime_error& error) {
+        return Failed(error.what());
+    }
+    SceneReport report = detail::SaveSceneText(text, path);
+    report.warnings = std::move(warnings);
+    return report;
+}
+
+SceneReport ConvertSceneFileV1ToV2(World& world, const ComponentTypes& types,
+                                    const std::filesystem::path& path) {
+    return ConvertSceneFileV1ToV2(world, types, path, nullptr);
+}
+
+int SceneFormatVersion(const World& world) {
+    const auto* extras = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    return extras != nullptr ? extras->version : 1;
+}
+
+SceneReport ConvertSceneFileV1ToV2(World& world, const ComponentTypes& types,
+                                    const std::filesystem::path& path, std::string* converted) {
+    if (world.IsStepping()) return Failed("a scene cannot be converted during a step");
+    auto* extras = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    if (extras == nullptr || extras->version != 1) {
+        return Failed("the authored World must have loaded a version 1 scene before conversion");
+    }
+    std::ifstream in(path, std::ios::binary);
+    if (!in) return Failed(std::format("could not open {}", PathText(path)));
+    std::ostringstream sourceStream;
+    sourceStream << in.rdbuf();
+    if (in.bad()) return Failed(std::format("could not read {}", PathText(path)));
+    in.close();
+    const std::string source = sourceStream.str();
+    std::string error;
+    const Json original = ParseDocument(source, kSceneFormat, "scene", error, 1);
+    if (!error.empty()) return Failed(std::move(error));
+    if (original["version"] != 1) return Failed("conversion requires a version 1 source file");
+    if (std::string problem = CheckV2ComponentAdmission(original["entities"], types); !problem.empty()) {
+        return Failed(std::format("the version 2 candidate is invalid: {}", problem));
+    }
+    if (std::string problem = CheckV2WorldAdmission(world, types); !problem.empty()) {
+        return Failed(std::format("the version 2 candidate is invalid: {}", problem));
+    }
+    if (original.contains("sceneScopes") || ParseKept(extras->json).contains("sceneScopes")) {
+        return Failed("version 1 sceneScopes data conflicts with the version 2 catalog");
+    }
+    if (original.contains("presentation") || ParseKept(extras->json).contains("presentation")) {
+        return Failed("version 1 opaque presentation data conflicts with the version 2 authority; resolve it explicitly before conversion");
+    }
+    for (const Json& entity : original["entities"]) {
+        if (entity.is_object() && entity.contains("sceneScope")) {
+            return Failed("version 1 entity sceneScope data conflicts with version 2 membership");
+        }
+    }
+    entt::registry& registry = world.Registry();
+    for (const entt::entity id : registry.view<SceneId>()) {
+        if (const auto* kept = registry.try_get<detail::SceneExtras>(id)) {
+            const Json data = ParseKept(kept->json);
+            if (data.contains("entity") && data["entity"].is_object() &&
+                data["entity"].contains("sceneScope")) {
+                return Failed("authored version 1 entity sceneScope data conflicts with version 2 membership");
+            }
+        }
+    }
+    World sourceCheck;
+    if (const SceneReport checked = ReadScene(sourceCheck, types, source); !checked.ok) {
+        return Failed(std::format("the version 1 source is invalid: {}", checked.error));
+    }
+
+    std::vector<std::string> warnings;
+    std::string candidate = WriteSceneVersion(world, types, &warnings, 2);
+    World candidateCheck;
+    if (const SceneReport checked = ReadScene(candidateCheck, types, candidate); !checked.ok) {
+        return Failed(std::format("the version 2 candidate is invalid: {}", checked.error));
+    }
+    if (nlohmann::json::parse(WriteScene(candidateCheck, types)) != nlohmann::json::parse(candidate)) {
+        return Failed("the version 2 candidate does not round-trip without changing authored data");
+    }
+
+    std::filesystem::path staging = path;
+    staging += ".converting";
+    std::filesystem::path backup = path;
+    backup += ".v1-backup";
+    std::error_code fileError;
+    if (std::filesystem::exists(staging, fileError) || fileError) {
+        return Failed(std::format("conversion staging path is unavailable: {}", PathText(staging)));
+    }
+    if (std::filesystem::exists(backup, fileError) || fileError) {
+        return Failed(std::format("version 1 backup path is unavailable: {}", PathText(backup)));
+    }
+    {
+        std::ofstream out(staging, std::ios::binary | std::ios::trunc);
+        out.write(candidate.data(), static_cast<std::streamsize>(candidate.size()));
+        out.close();
+        if (!out) {
+            std::filesystem::remove(staging, fileError);
+            return Failed(std::format("could not write conversion staging file {}", PathText(staging)));
+        }
+    }
+    // Refuse a source changed while the candidate was being prepared.
+    std::ifstream current(path, std::ios::binary);
+    std::ostringstream currentStream;
+    currentStream << current.rdbuf();
+    const bool sourceChanged = !current || currentStream.str() != source;
+    current.close();
+    if (sourceChanged) {
+        std::filesystem::remove(staging, fileError);
+        return Failed("the source scene changed during conversion");
+    }
+    if (!std::filesystem::copy_file(path, backup, std::filesystem::copy_options::none, fileError)) {
+        std::filesystem::remove(staging, fileError);
+        return Failed(std::format("could not preserve the version 1 backup at {}", PathText(backup)));
+    }
+    std::ifstream backupCheck(backup, std::ios::binary);
+    std::ostringstream backupStream;
+    backupStream << backupCheck.rdbuf();
+    const bool backupMatches = backupCheck && backupStream.str() == source;
+    backupCheck.close();
+    if (!backupMatches) {
+        std::filesystem::remove(staging, fileError);
+        return Failed("the version 1 backup differs from the validated source; the original file remains intact");
+    }
+    std::ifstream finalCheck(path, std::ios::binary);
+    std::ostringstream finalStream;
+    finalStream << finalCheck.rdbuf();
+    const bool sourceStillMatches = finalCheck && finalStream.str() == source;
+    finalCheck.close();
+    if (!sourceStillMatches) {
+        std::filesystem::remove(staging, fileError);
+        return Failed("the source scene changed before replacement; the version 1 backup remains intact");
+    }
+    std::filesystem::rename(staging, path, fileError);
+    if (fileError) {
+        std::error_code ignored;
+        std::filesystem::remove(staging, ignored);
+        return Failed(std::format("could not replace {}: {}; the version 1 backup remains at {}",
+                                  PathText(path), fileError.message(), PathText(backup)));
+    }
+    extras->version = 2;
+    if (converted != nullptr) converted->swap(candidate);
+    SceneReport report;
     report.warnings = std::move(warnings);
     return report;
 }

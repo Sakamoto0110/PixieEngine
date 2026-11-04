@@ -9,11 +9,15 @@
 #include "pixie/runtime/InputControl.hpp"
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"
+#include "pixie/runtime/Presentation2D.hpp"
+#include <pixie/math/pxVec.hpp>
 
 #include <entt/entity/registry.hpp>
 
 #include <cstdint>
 #include <functional>
+#include <map>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -21,6 +25,7 @@
 #include <vector>
 
 namespace pixie {
+struct PhysicsSettings2D;
 
 // When an engine system runs within a step. Behaviours run between the two.
 enum class SystemPhase {
@@ -33,6 +38,40 @@ enum class SystemPhase {
 
 // A system: a function over the whole World, run once per step in its phase.
 using System = std::function<void(World& world, const FrameTime& time, const Input& input)>;
+
+// A logical Scene scope identity, separate from an entity's persisted SceneId.
+// Zero denotes direct World membership and cannot identify a Scene scope.
+struct ScopeId {
+    std::uint64_t value = 0;
+    friend bool operator==(ScopeId, ScopeId) = default;
+    friend bool operator<(ScopeId a, ScopeId b) { return a.value < b.value; }
+};
+
+enum class SceneGravityMode2D { Inherit, Multiply, Override };
+
+// Both inactive values remain authored when the mode changes.
+struct SceneGravity2D {
+    SceneGravityMode2D mode = SceneGravityMode2D::Inherit;
+    pxVec2 value{0, 0};
+    double multiplier = 1;
+    bool operator==(const SceneGravity2D&) const = default;
+};
+
+struct SceneScope {
+    ScopeId id;
+    std::string name;
+    std::optional<SceneGravity2D> gravity;
+    std::optional<SceneEnvironment2D> environment;
+    std::uint64_t camera = 0;
+};
+
+struct GravityResolution2D {
+    pxVec2 value{0, 0};
+    ScopeId scope;
+    SceneGravityMode2D mode = SceneGravityMode2D::Inherit;
+    std::string error;
+    explicit operator bool() const { return error.empty(); }
+};
 
 // The live simulation: entities and their components, stored contiguously per component type by
 // EnTT, with Behaviours for per-entity logic and systems for the shared work. A World owns its time
@@ -57,6 +96,33 @@ public:
     // Runs `action` at the end of the current step, or now when no step is running. Creating
     // entities and adding or removing components during a step goes through here.
     PIXIE_RUNTIME_API void Defer(std::function<void(World&)> action);
+
+    // In-memory logical scopes. Catalog edits are accepted only between steps. IDs are supplied
+    // by the caller and never consume the simulation RNG. Names may change without changing IDs.
+    PIXIE_RUNTIME_API bool CreateScope(ScopeId id, std::string_view name = {},
+                                       std::optional<SceneGravity2D> gravity = std::nullopt);
+    PIXIE_RUNTIME_API bool RenameScope(ScopeId id, std::string_view name);
+    PIXIE_RUNTIME_API std::string ValidateScopeGravity(const SceneGravity2D& gravity) const;
+    // Pure prospective check for World physics values and every retained scope override.
+    PIXIE_RUNTIME_API std::string ValidatePhysicsSettings(const PhysicsSettings2D& settings) const;
+    PIXIE_RUNTIME_API bool SetScopeGravity(ScopeId id, SceneGravity2D gravity);
+    PIXIE_RUNTIME_API bool SetScopeEnvironment(ScopeId id, std::optional<SceneEnvironment2D> value);
+    PIXIE_RUNTIME_API bool SetScopeCamera(ScopeId id, std::uint64_t entityId);
+    const std::optional<WorldPresentation2D>& Presentation() const { return presentation_; }
+    PIXIE_RUNTIME_API bool SetPresentation(std::optional<WorldPresentation2D> value);
+    PIXIE_RUNTIME_API GravityResolution2D ResolveGravity(ScopeId id) const;
+    PIXIE_RUNTIME_API GravityResolution2D ResolveGravity(Entity entity) const;
+    // Resolve a consumer's effective runtime base through the same Scene policy.
+    // For example, particles inherit the already-selected live backend gravity.
+    // The one-argument overloads continue to report authored World defaults.
+    PIXIE_RUNTIME_API GravityResolution2D ResolveGravity(Entity entity, pxVec2 effectiveWorldGravity) const;
+    // Refuses an occupied scope. Reassign its entities to another scope or World first.
+    PIXIE_RUNTIME_API bool RemoveScope(ScopeId id);
+    PIXIE_RUNTIME_API std::vector<SceneScope> Scopes() const;
+    // Zero means World-only. A transfer requested in a step becomes visible after that step,
+    // before the next tick. Invalid entities and unknown target scopes are rejected.
+    PIXIE_RUNTIME_API bool SetScope(Entity entity, ScopeId id);
+    PIXIE_RUNTIME_API std::optional<ScopeId> ScopeOf(Entity entity) const;
 
     // Adds a system to a phase, after the ones already there. `name` labels it for tools.
     PIXIE_RUNTIME_API void AddSystem(SystemPhase phase, std::string name, System system);
@@ -95,6 +161,8 @@ public:
 private:
     friend class Entity;
 
+    GravityResolution2D ResolveGravityWithSettings(ScopeId id, const PhysicsSettings2D& settings) const;
+
     struct SystemEntry {
         std::string name;
         System run;
@@ -127,7 +195,10 @@ private:
     std::vector<BehaviourClass> behaviours_;
     std::vector<entt::entity> pendingDestroy_;
     std::vector<std::function<void(World&)>> deferred_;
+    std::map<ScopeId, SceneScope> scopes_;
+    std::map<entt::entity, ScopeId> membership_;
     Random random_;
+    std::optional<WorldPresentation2D> presentation_;
     std::uint64_t steps_ = 0;
     double elapsed_ = 0.0;
     bool stepping_ = false;

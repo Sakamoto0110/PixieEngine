@@ -26,6 +26,8 @@ add_library(pixie_runtime OBJECT
     src/Scene.cpp
     src/SceneProject.cpp
     src/ScreenCanvas.cpp
+    src/ViewportCamera2D.cpp
+    src/Presentation2D.cpp
     src/LightingDrawing.cpp
     src/ShapeDrawing.cpp
     src/SpriteDrawing.cpp

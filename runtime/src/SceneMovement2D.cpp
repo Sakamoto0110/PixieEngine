@@ -13,7 +13,7 @@
 
 namespace pixie {
 namespace {
-// The controller settings of a motor under the World's (downward or zero) gravity.
+// The controller settings of a motor under its resolved downward or zero gravity.
 constexpr CharacterSettings2D MotorSettings(const CharacterMotor2D& motor, double worldGravity) {
     CharacterSettings2D settings;
     settings.radius = motor.radius;
@@ -475,11 +475,13 @@ void SyncSceneMovement2D(World& world) {
                 throw std::invalid_argument("RigidBody2D and CharacterMotor2D cannot own the same entity");
             if (registry.all_of<CompoundCollider2D>(id)) throw std::invalid_argument("CharacterMotor2D owns its capsule; remove CompoundCollider2D");
             state.collision->ValidateMoverCapsule(motor.radius, motor.halfSegment);
-            if (state.settings.gravity.x != 0 || state.settings.gravity.y < 0)
-                throw std::invalid_argument("upright CharacterMotor2D requires downward or zero world gravity");
+            const auto gravity = world.ResolveGravity(world.Wrap(id));
+            if (!gravity) throw std::invalid_argument(gravity.error);
+            if (gravity.value.x != 0 || gravity.value.y < 0)
+                throw std::invalid_argument("upright CharacterMotor2D requires downward or zero resolved gravity");
             if (!std::isfinite(motor.gravityScale) || motor.gravityScale < 0)
                 throw std::invalid_argument("CharacterMotor2D gravity scale must be finite and zero or more");
-            const auto motorSettings = MotorSettings(motor, state.settings.gravity.y);
+            const auto motorSettings = MotorSettings(motor, gravity.value.y);
             const auto* transform = registry.try_get<Transform2D>(id);
             if (!transform) throw std::invalid_argument("CharacterMotor2D requires Transform2D");
             ValidateTransform(*transform);
@@ -556,6 +558,15 @@ std::vector<std::string> SceneMovementErrors2D(World& world) {
     errors.insert(errors.end(), layers.errors.begin(), layers.errors.end());
     return errors;
 }
+std::string ScenePhysicsSettingsEditError2D(const World& world, const PhysicsSettings2D& settings) {
+    if (std::string error = world.ValidatePhysicsSettings(settings); !error.empty()) return error;
+    const auto* state = world.Registry().ctx().find<MovementState>();
+    if (state && state->hasStepped && settings.unitsPerMeter != state->settings.unitsPerMeter) {
+        return "changing unitsPerMeter requires stopping Play and resetting";
+    }
+    return {};
+}
+
 const CollisionWorld2D* SceneCollisionWorld2D(World& world) { return State(world).validSettings ? State(world).collision.get() : nullptr; }
 BodyHandle2D SceneBody2D(World& world, entt::entity entity) {
     const auto& bodies = State(world).bodies;

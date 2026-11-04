@@ -17,6 +17,13 @@
 #include "pixie/runtime/SceneMovement2D.hpp"
 
 namespace pixie {
+struct RuntimeComponentRegistration {
+    static void Admit(ComponentTypes& types, std::size_t first) {
+        for (std::size_t index = first; index < types.types_.size(); ++index) {
+            types.runtimeV2Import_[index] = true;
+        }
+    }
+};
 namespace {
 
 // Version 1 saved the motor's own downward acceleration as `gravity`. Version 2 takes the World's
@@ -40,6 +47,7 @@ std::string NeedsParticleSystem(const World& world, entt::entity entity) {
 } // namespace
 
 void DescribeRuntimeComponents(ComponentTypes& types) {
+    const std::size_t firstRuntimeType = types.All().size();
     types.Add<Transform2D>("Transform2D")
         .Field<&Transform2D::position>("position")
         .Tooltip("Where the entity is, in world units; Y points down.")
@@ -53,6 +61,11 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Tooltip("Multiplies the shape's size on each axis.")
         .Range(0.0, 100.0, 0.01)
         .Scrub(0.01);
+    types.Add<CameraComponent2D>("Camera2D")
+        .Field<&CameraComponent2D::zoom>("zoom").Range(0.0001, 10000).Scrub(0.01)
+        .Tooltip("Projection zoom of this authored camera. Invalid values use the next viewport camera fallback.")
+        .Field<&CameraComponent2D::enabled>("enabled")
+        .Tooltip("Whether this authored camera can be selected by a viewport or default camera reference.");
     types.Add<Velocity2D>("Velocity2D")
         .Field<&Velocity2D::linear>("linear")
         .Tooltip("How fast the entity moves, in world units per second. The World adds it to the position "
@@ -341,7 +354,9 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&PhysicsSettings2D::unitsPerMeter>("unitsPerMeter").Label("units per meter").Tooltip("World units per physical meter. Change only while editing; default 32.").Range(0.001, 1000000)
         .Field<&PhysicsSettings2D::substeps>("substeps").Tooltip("Solver subdivisions per fixed World step, from 1 to 32.").Range(1, 32);
     types.Add<LightingSettings2D>("LightingSettings2D")
+        .Version(2)
         .Singleton()
+        .Field<&LightingSettings2D::enabled>("enabled").Tooltip("Turn the lighting pass on or off without discarding its authored settings.")
         .Field<&LightingSettings2D::ambient>("ambient").Tooltip("Light every receiver gets, whatever its layers. White at intensity 1 with exposure 1 looks as the scene does unlit; lower it for darkness.")
         .Field<&LightingSettings2D::ambientIntensity>("ambientIntensity").Label("ambient intensity").Tooltip("Linear multiplier of the ambient color.").Range(0, 100).Scrub(0.01)
         .Field<&LightingSettings2D::exposure>("exposure").Tooltip("Linear multiplier of all light, before tone mapping.").Range(0, 100).Scrub(0.01)
@@ -462,6 +477,7 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&MouseControl::enabled>("enabled").Tooltip("Receive generic mouse callbacks and enabled-aware viewport-pixel state queries. No movement or physics mapping.");
     types.Add<KeyboardControl2D>("KeyboardControl2D")
         .Field<&KeyboardControl2D::enabled>("enabled").Tooltip("Legacy WASD/arrows/Space character adapter retained for existing scenes. New game code should use KeyboardControl and supply its own commands.");
+    RuntimeComponentRegistration::Admit(types, firstRuntimeType);
 }
 
 } // namespace pixie

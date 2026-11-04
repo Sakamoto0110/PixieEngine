@@ -15,16 +15,19 @@
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Fonts.hpp"
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/LightingEnvironment2D.hpp"
 #include "pixie/runtime/Project.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/World.hpp"
+#include "pixie/runtime/ViewportCamera2D.hpp"
 #include "pixie/runtime/PhysicsDebug2D.hpp"
 
 #include <chrono>
 #include <cstdint>
 #include <filesystem>
+#include <functional>
 #include <memory>
 #include <optional>
 #include <string>
@@ -43,6 +46,11 @@ struct SessionSettings {
 // is edited. A session without a project always plays.
 enum class SessionMode { Play, Edit };
 
+struct SceneBuildTimings {
+    double preparationMilliseconds = 0;
+    double publicationMilliseconds = 0; // Includes destruction of the replaced World.
+};
+
 // One running Project: its World, camera, renderers, input, and time. It is the engine's loop for a
 // host that drives it, such as an editor: the host feeds input events, calls Advance with the wall
 // time of each frame, and draws with Render or RenderToTarget. ProjectApp drives the same session
@@ -56,7 +64,11 @@ enum class SessionMode { Play, Edit };
 // Start and every later call need the GL context current; Stop releases the GL objects.
 class ProjectSession {
 public:
-    PIXIE_RUNTIME_API ProjectSession(std::unique_ptr<Project> project, SessionSettings settings);
+    // Opted-in development modules supply a pinned factory. Each Build stages a matching
+    // fresh Project/types/World. Callbacks must not mutate external or published state.
+    using ProjectFactory = std::function<std::unique_ptr<Project>()>;
+    PIXIE_RUNTIME_API ProjectSession(std::unique_ptr<Project> project, SessionSettings settings,
+                                    ProjectFactory candidateFactory = {});
     PIXIE_RUNTIME_API ~ProjectSession();
     ProjectSession(const ProjectSession&) = delete;
     ProjectSession& operator=(const ProjectSession&) = delete;
@@ -78,8 +90,16 @@ public:
 
     // Throws the World away and builds it again, with the same seed, after the project has captured
     // what it starts from (Project::Capture). With a project open, it is built from the scene's
-    // entities as they are now.
+    // entities as they are now. A contracted candidate factory reconstructs a fresh
+    // Project and skips Capture on the published instance.
     PIXIE_RUNTIME_API void Reset();
+
+    // Builds an Edit candidate and publishes it only on success. Failure does not replace the
+    // session-owned World or advance its revision. Project callbacks can still mutate retained
+    // World references or external state; those effects are not rolled back. See Error.
+    PIXIE_RUNTIME_API bool RestoreAuthoredScene(std::string_view snapshot);
+    PIXIE_RUNTIME_API bool RestoreAuthoredScene(std::string_view snapshot, SceneBuildTimings* timings, bool validateMovement = false,
+                                               bool preserveRandom = false);
 
     SessionMode Mode() const { return mode_; }
     // From Edit to Play; needs a project.
@@ -88,7 +108,11 @@ public:
     PIXIE_RUNTIME_API bool StopPlaying();
 
     // Writes the scene's entities to the start scene's file; in Play, the ones Play kept.
+    // A recovered v2 snapshot cannot replace a v1 file without explicit backed-up conversion.
     PIXIE_RUNTIME_API bool Save();
+    // Explicitly saves current Edit authorship as v2 with an original-file .v1-backup.
+    // Does not replace World storage or add a format-undo entry.
+    PIXIE_RUNTIME_API bool ConvertStartSceneToV2();
     // Whether the scene was edited since it was opened or saved.
     bool HasUnsavedChanges() const { return unsaved_; }
     // Notes that the scene was edited; ignored outside Edit.
@@ -116,6 +140,15 @@ public:
     std::uint32_t LightingDebug() const {
         return lightingDebugExplicit_ ? lightingDebug_ : mode_ == SessionMode::Edit ? kLightingDebugLights2D : 0u;
     }
+    // Presentation-only choice for this session's current viewport. It never
+    // changes the session camera or follows the editor's entity selection.
+    void SetViewportEnvironment(EnvironmentSelection2D selection) {
+        if (environmentSelection_ != selection) environmentFallbackReported_ = false;
+        environmentSelection_ = selection;
+    }
+    EnvironmentSelection2D ViewportEnvironmentSelection() const { return environmentSelection_; }
+    // Re-resolves against the current World; no pointer survives Play/Stop/Reset.
+    PIXIE_RUNTIME_API std::optional<ViewportEnvironment2D> ViewportEnvironment() const;
 
     // How fast simulated time runs against wall time in Advance: 0.5 is half speed. The fixed step
     // stays the same; a faster scale runs more steps per frame. Clamped to [kMinTimeScale,
@@ -145,9 +178,23 @@ public:
     // Changes whenever World storage is discarded/rebuilt; invalidates host caches/tokens
     // even when an allocator reuses the same address and entity handle numbers.
     std::uint64_t WorldRevision() const { return worldRevision_; }
+    std::uint64_t Identity() const { return identity_; }
+    std::uint64_t AuthoredRevision() const { return authoredRevision_; }
+    // Conservative invalidation before an admitted authored mutation can invoke callbacks.
+    // A rejected application/no-op may advance it; raw Registry writes are outside this contract.
+    PIXIE_RUNTIME_API void BeginAuthoredMutation();
     // Optional view, including before Start and after Stop. Reacquire after rebuilding the World.
     Telemetry* GetTelemetry() { return world_ ? &world_->GetTelemetry() : nullptr; }
-    Camera2D& GetCamera() { return camera_; }
+    Camera2D& GetCamera() { return camera_; } // Existing free/session camera, independent of authored choice.
+    void SetViewportCamera(CameraSelection2D value) { cameraSelection_ = value; }
+    CameraSelection2D ViewportCameraSelection() const { return cameraSelection_; }
+    ViewportCamera2D ResolvedCamera() const { return ResolveViewportCamera2D(*world_, camera_, cameraSelection_); }
+    PIXIE_RUNTIME_API unsigned RenderViewportToTarget(RenderTarget& target, FramebufferSize size,
+        CameraSelection2D camera, EnvironmentSelection2D environment, double alpha,
+        std::optional<ViewLighting2D> view = std::nullopt);
+    PIXIE_RUNTIME_API ViewportCamera2D ResolveCameraForViewport(CameraSelection2D camera, FramebufferSize size) const;
+    PIXIE_RUNTIME_API Entity PickViewport(CameraSelection2D camera, FramebufferSize size, pxPoint point, double tolerance = 0);
+
     Project& GetProject() { return *project_; }
     const ComponentTypes& Types() const { return types_; }
     // The images of the World's sprites, resolved against the project folder (the working
@@ -160,16 +207,23 @@ public:
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
 
 private:
-    PIXIE_RUNTIME_API void Build(bool resetCamera);
+    PIXIE_RUNTIME_API bool Build(bool resetCamera, std::string_view sceneText, SceneBuildTimings* timings = nullptr,
+                                 bool validateMovement = false);
     // A lit frame's receiver or emission pass: the sprites, texts and shapes again, in that pass.
-    void DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass);
+    void DrawLightingPass(double alpha, const TextSources& texts, const pxRect& view, LightingPass pass, const Camera2D& camera);
 
+    const std::uint64_t identity_;
+    std::uint64_t authoredRevision_ = 0;
+    // May retain module code: destroyed after World, descriptors and Project.
+    ProjectFactory candidateFactory_;
     std::unique_ptr<Project> project_;
     SessionSettings settings_;
     ComponentTypes types_;
     std::unique_ptr<World> world_;
     std::uint64_t worldRevision_ = 0;
     Camera2D camera_;
+    CameraSelection2D cameraSelection_;
+    std::optional<ViewLighting2D> viewOverride_;
     Input input_;
     FixedStepper stepper_;
     ShapeRenderer shapes_;
@@ -194,6 +248,8 @@ private:
     LightingMetrics lightingMetrics_;
     std::uint32_t lightingDebug_ = 0;
     bool lightingDebugExplicit_ = false;
+    EnvironmentSelection2D environmentSelection_;
+    bool environmentFallbackReported_ = false;
     RenderTarget target_;
     bool started_ = false;
     bool paused_ = false;

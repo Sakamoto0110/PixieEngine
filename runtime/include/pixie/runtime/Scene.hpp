@@ -25,9 +25,10 @@ struct SceneId {
     std::uint64_t value = 0;
 };
 
-// The scene file's format name and the newest version this engine reads and writes.
+// The scene file's format name and the newest version this engine can read and write.
+// A normal write retains the version of a loaded scene; new Worlds begin with version 1.
 inline constexpr std::string_view kSceneFormat = "pixie-scene";
-inline constexpr int kSceneVersion = 1;
+inline constexpr int kSceneVersion = 2;
 // The format name of a set of entities written apart from their scene (WriteEntities), with the
 // scene's version.
 inline constexpr std::string_view kEntitiesFormat = "pixie-entities";
@@ -66,6 +67,17 @@ struct SceneReport {
 // is written back as it was read. Warnings go to `warnings` when given.
 PIXIE_RUNTIME_API std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings = nullptr);
 
+// Read-only admission check before writing a v2 World snapshot. Reports registered component
+// types that cannot enter v2 and conflicting settings authorities, without invoking descriptor
+// callbacks. A v1 World returns empty so legacy duplicate reads remain available.
+// Other serialization failures remain the responsibility of WriteScene.
+PIXIE_RUNTIME_API std::string ValidateV2SceneSnapshot(const World& world, const ComponentTypes& types);
+// New candidate edits require a v2 envelope and an unambiguous existing settings authority.
+// ReadScene still performs complete input admission on the isolated candidate.
+PIXIE_RUNTIME_API std::string ValidateSceneEditInput(const World& world, std::string_view text);
+// Pure admission before candidate factory/Describe/World construction. v1 retains its behavior.
+PIXIE_RUNTIME_API std::string SceneImportAdmissionError(const ComponentTypes& types, std::string_view text);
+
 // Adds a scene document's entities to `world` and reseeds the World's Random with the scene's seed.
 // Nothing is added when the document cannot be read, or when one of its IDs is repeated or already
 // in the World. Not during a step.
@@ -75,8 +87,9 @@ PIXIE_RUNTIME_API SceneReport ReadScene(World& world, const ComponentTypes& type
 // the file, so a failed write leaves the old one.
 PIXIE_RUNTIME_API SceneReport SaveTextFile(std::string_view text, const std::filesystem::path& path);
 
-// Some of the World's scene entities, written apart from their scene: a document of the scene's form,
-// with format kEntitiesFormat and only the entities' list, in the order given. An Entity field holds
+// Some of the World's scene entities, written apart from their scene: a document with format
+// kEntitiesFormat and the entities' list in the order given. A v2 fragment also carries the
+// definitions of the scopes referenced by those entities. An Entity field holds
 // its target's scene ID, inside the set or not. An entity that is gone or not in the scene is left
 // out, with a warning. For snapshots a tool takes to bring entities back, or to copy them.
 PIXIE_RUNTIME_API std::string WriteEntities(World& world, const ComponentTypes& types, std::span<const Entity> entities,
@@ -104,10 +117,26 @@ struct EntitiesReport : SceneReport {
 };
 
 // Adds a set of entities written by WriteEntities to the World. Nothing is added when the document
-// cannot be read, or, with SceneIds::Keep, when one of its IDs is already in the World. Unknown
+// cannot be read, or, with SceneIds::Keep, when one of its IDs is already in the World. A v2
+// fragment requires a v2 World and rejects conflicting scope definitions before mutation. Unknown
 // components and fields are kept as a scene keeps them. Its cost is the document's, not the World's
 // size: the World keeps its scene entities by ID from the first read on. Not during a step.
 PIXIE_RUNTIME_API EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::string_view text, SceneIds ids);
+
+// Structural preflight only: no World mutation, ID generation or component callbacks.
+// Replacement IDs logically exclude their current owners (Keep mode only). A passing
+// result does not guarantee that later constructors, writers or external hooks succeed.
+PIXIE_RUNTIME_API SceneReport ValidateEntities(const World& world, const ComponentTypes& types,
+    std::string_view text, SceneIds ids, std::span<const std::uint64_t> replacing = {});
+
+// Prepare a complete v2 candidate document without touching the published World.
+// The JSON result contains `document` and ordered hexadecimal `ids`. Empty fragment
+// text means deletion of replacing IDs. Only qualified declarative types are used
+// in an unbuilt scratch World; the caller must publish through its project factory.
+struct SceneFragmentPlan : SceneReport { std::string text; };
+PIXIE_RUNTIME_API SceneFragmentPlan PrepareSceneFragment(World& world, const ComponentTypes& types,
+    std::string_view fragment, SceneIds ids, std::span<const std::uint64_t> replacing = {},
+    double offsetX = 0, double offsetY = 0);
 
 // What ReadFragmentMeta found: a set of entities' meta object, as compact JSON text (empty when it
 // has none), and how many entities the set holds.
@@ -121,8 +150,19 @@ struct FragmentMeta : SceneReport {
 // the document is not a set of entities this engine reads.
 PIXIE_RUNTIME_API FragmentMeta ReadFragmentMeta(std::string_view text);
 
-// WriteScene to a file, through SaveTextFile.
+// Writes the World's scene through SaveTextFile. A v2 document cannot replace an existing v1
+// file: use explicit ConvertSceneFileV1ToV2 first. The destination envelope is inspected without
+// component callbacks; this is not a concurrent-writer compare-and-swap guarantee.
 PIXIE_RUNTIME_API SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);
+// Explicitly converts an existing v1 scene file from the current authored World. Validates a staged
+// v2 document, preserves the original at `<file>.v1-backup`, then replaces the file. Never called by
+// ordinary open, play, rebuild or save. A failed conversion leaves the World and original file intact.
+PIXIE_RUNTIME_API SceneReport ConvertSceneFileV1ToV2(World& world, const ComponentTypes& types,
+                                                     const std::filesystem::path& path);
+// Successful conversion also hands the committed text to a session without allocating after replacement.
+PIXIE_RUNTIME_API SceneReport ConvertSceneFileV1ToV2(World& world, const ComponentTypes& types,
+                                                    const std::filesystem::path& path, std::string* converted);
+PIXIE_RUNTIME_API int SceneFormatVersion(const World& world);
 // ReadScene from a file.
 PIXIE_RUNTIME_API SceneReport LoadSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);
 

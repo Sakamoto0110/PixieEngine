@@ -1,6 +1,7 @@
 #include "pixie/runtime/LightingDrawing.hpp"
 
 #include "pixie/core/Image.hpp"
+#include "pixie/runtime/LightingEnvironment2D.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -49,6 +50,41 @@ bool Reaches(const LightInstance& light, const pxRect& view) {
 const LightingSettings2D* FindLightingSettings(World& world) {
     const auto settings = world.Registry().view<const LightingSettings2D>();
     return settings.begin() == settings.end() ? nullptr : &settings.get<const LightingSettings2D>(*settings.begin());
+}
+
+LightingEnvironment2DView ReadEnvironmentLighting2D(const World& world) {
+    const auto source = ReadPresentation2D(world);
+    return {source.lighting, source.lighting == LightingState2D::Absent
+        ? std::nullopt : std::optional<EnvironmentLighting2D>(source.environment)};
+}
+
+ViewportEnvironment2D ResolveViewportEnvironment2D(const World& world, EnvironmentSelection2D selection) {
+    ViewportEnvironment2D result;
+    result.lighting = ReadEnvironmentLighting2D(world);
+    if (selection.kind == EnvironmentSelectionKind2D::LegacyWorld) return result;
+    for (const SceneScope& scope : world.Scopes()) {
+        if (scope.id == selection.scene) {
+            result.kind = scope.environment && scope.environment->overrideWorld
+                ? EnvironmentResolutionKind2D::SceneOverride : EnvironmentResolutionKind2D::SceneInheritedWorld;
+            if (scope.environment && scope.environment->overrideWorld && result.lighting.environment)
+                result.lighting.environment = scope.environment->value;
+            return result;
+        }
+    }
+    result.kind = EnvironmentResolutionKind2D::RemovedSceneFallback;
+    result.diagnostic = "selected Scene Environment is unavailable; using World Environment";
+    return result;
+}
+
+const LightingSettings2D* FindActiveLightingSettings(World& world) {
+    const LightingSettings2D* selected = FindLightingSettings(world);
+    return selected != nullptr && selected->enabled ? selected : nullptr;
+}
+
+LightingSettings2D* EditLegacyLightingSettings2D(World& world) {
+    if (world.Presentation()) return nullptr;
+    const auto settings = world.Registry().view<LightingSettings2D>();
+    return settings.size() == 1 ? &settings.get<LightingSettings2D>(*settings.begin()) : nullptr;
 }
 
 LightingParameters MakeLightingParameters(const LightingSettings2D& settings) {

@@ -12,10 +12,12 @@
 #include <pixie/pxRect.hpp>
 
 #include <concepts>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
 #include <map>
+#include <limits>
 #include <span>
 #include <stdexcept>
 #include <string>
@@ -69,6 +71,7 @@ enum class ScrubAxis : std::uint8_t { Horizontal, Vertical };
 // How a tool shows and edits a field: the vocabulary of PixieInspector's node options. Range, step,
 // and scrub are in the displayed unit, the one a person reads and types.
 struct FieldMetadata {
+    bool operator==(const FieldMetadata&) const = default;
     // Shown instead of the name when not empty.
     std::string label;
     std::string tooltip;
@@ -103,6 +106,7 @@ struct FieldMetadata {
 // tool should show it. A Text field is read and written as text, a PointList field as points, the
 // others as a FieldValue; the other pairs of functions are null.
 struct FieldDescriptor {
+    bool operator==(const FieldDescriptor&) const = default;
     std::string name;
     FieldKind kind = FieldKind::Double;
     std::vector<std::string> enumNames;
@@ -132,6 +136,7 @@ using LegacyFields = std::map<std::string, FieldValue, std::less<>>;
 // One reflected component type: its name, its fields, and how to find, add, and remove it on an
 // entity.
 struct ComponentDescriptor {
+    bool operator==(const ComponentDescriptor&) const = default;
     std::string name;
     // Explicit project-relative user implementation path; empty for engine-owned types.
     std::string source;
@@ -175,6 +180,8 @@ struct ComponentDescriptor {
 
 template<typename T>
 class ComponentBuilder;
+template<typename T>
+class DataComponentBuilder;
 
 // The component types a tool can see and edit: a list of descriptors, filled in code, one builder
 // call per field, with the field's metadata chained after it. It is the single source of what a field
@@ -184,16 +191,48 @@ class ComponentTypes {
 public:
     template<typename T>
     ComponentBuilder<T> Add(std::string name);
+    // Restricted v2 contract: trivial standard-layout data and direct scalar members.
+    // No Behaviour, user constructor/destructor, upgrade, list or entity-reference callbacks.
+    template<typename T>
+    DataComponentBuilder<T> AddData(std::string name);
 
     const std::vector<ComponentDescriptor>& All() const { return types_; }
+    bool SameSchema(const ComponentTypes& other) const {
+        return types_ == other.types_ && runtimeV2Import_ == other.runtimeV2Import_
+            && dataV2Import_ == other.dataV2Import_;
+    }
+    void Swap(ComponentTypes& other) noexcept {
+        types_.swap(other.types_);
+        runtimeV2Import_.swap(other.runtimeV2Import_);
+        dataV2Import_.swap(other.dataV2Import_);
+    }
     // The index of the type named `name` in All(), or -1.
     int IndexOf(std::string_view name) const;
+    // Engine-audited descriptors or the restricted AddData contract. Ordinary project
+    // Add registrations retain v1 behavior and cannot opt arbitrary callbacks into v2.
+    bool AllowsV2Import(int index) const {
+        if (index < 0 || static_cast<std::size_t>(index) >= runtimeV2Import_.size()) return false;
+        const auto i = static_cast<std::size_t>(index);
+        if (runtimeV2Import_[i]) return true;
+        const auto& type = types_[i];
+        if (!dataV2Import_[i] || type.upgrade || type.additionError || type.singleton || type.valueType) return false;
+        for (const auto& field : type.fields) {
+            if (field.kind != FieldKind::Bool && field.kind != FieldKind::Int && field.kind != FieldKind::Float
+                && field.kind != FieldKind::Double && field.kind != FieldKind::Enum) return false;
+        }
+        return true;
+    }
 
 private:
     template<typename T>
     friend class ComponentBuilder;
+    template<typename T>
+    friend class DataComponentBuilder;
+    friend struct RuntimeComponentRegistration;
 
     std::vector<ComponentDescriptor> types_;
+    std::vector<bool> runtimeV2Import_;
+    std::vector<bool> dataV2Import_;
 };
 
 // --- Implementation ------------------------------------------------------------------------------
@@ -303,6 +342,34 @@ void Write(void* component, const FieldValue& value) {
     FromValue(static_cast<Class*>(component)->*Member, value);
 }
 
+template<typename Value>
+void ValidateDataScalar(double value) {
+    if constexpr (std::is_enum_v<Value>) {
+        ValidateDataScalar<std::underlying_type_t<Value>>(value);
+    } else {
+        if (!std::isfinite(value)) throw std::invalid_argument("declarative scalar must be finite");
+        if (value < static_cast<double>(std::numeric_limits<Value>::lowest()) ||
+            value > static_cast<double>(std::numeric_limits<Value>::max()))
+            throw std::out_of_range("declarative scalar is outside its native range");
+        if constexpr (std::is_integral_v<Value>) {
+            if (std::trunc(value) != value) throw std::invalid_argument("declarative integer requires a whole value");
+        }
+    }
+}
+
+template<auto Member>
+FieldValue ReadData(const void* component) {
+    const auto value = Read<Member>(component);
+    ValidateDataScalar<typename MemberTraits<decltype(Member)>::Type>(value.x);
+    return value;
+}
+
+template<auto Member>
+void WriteData(void* component, const FieldValue& value) {
+    ValidateDataScalar<typename MemberTraits<decltype(Member)>::Type>(value.x);
+    Write<Member>(component, value);
+}
+
 // A value one level into a member, such as a style struct's color.
 template<auto Outer, auto Inner>
 FieldValue ReadNested(const void* component) {
@@ -373,8 +440,10 @@ void RemoveFrom(World& world, entt::entity entity) {
 // Adds the fields of one component type to its ComponentTypes.
 template<typename T>
 class ComponentBuilder {
-public:
+    friend class ComponentTypes;
+    template<typename> friend class DataComponentBuilder;
     ComponentBuilder(ComponentTypes& types, std::size_t index) : types_(types), index_(index) {}
+public:
 
     // Field<&T::member>("name"); enumNames name an enum's values 0, 1, ...
     template<auto Member>
@@ -589,6 +658,10 @@ private:
 template<typename T>
 ComponentBuilder<T> ComponentTypes::Add(std::string name) {
     static_assert(!std::is_empty_v<T>, "an empty (tag) type has no instances to reflect");
+    for (std::size_t i = 0; i < types_.size(); ++i) {
+        if (dataV2Import_[i] && (types_[i].name == name || types_[i].type == entt::type_hash<T>::value()))
+            throw std::invalid_argument("declarative component name/type is already registered: " + name);
+    }
     ComponentDescriptor descriptor;
     descriptor.name = std::move(name);
     descriptor.type = entt::type_hash<T>::value();
@@ -598,7 +671,64 @@ ComponentBuilder<T> ComponentTypes::Add(std::string name) {
     }
     descriptor.remove = &detail::RemoveFrom<T>;
     types_.push_back(std::move(descriptor));
+    runtimeV2Import_.push_back(false);
+    dataV2Import_.push_back(false);
     return ComponentBuilder<T>(*this, types_.size() - 1);
+}
+
+template<typename T>
+class DataComponentBuilder {
+    friend class ComponentTypes;
+    DataComponentBuilder(ComponentTypes& types, std::size_t index) : types_(types), index_(index), builder_(types, index) {}
+public:
+    template<auto Member>
+    DataComponentBuilder& Field(std::string name, std::vector<std::string> enumNames = {}) {
+        using Traits = detail::MemberTraits<decltype(Member)>;
+        using Value = typename Traits::Type;
+        static_assert(std::is_same_v<typename Traits::Class, T>);
+        static_assert((std::is_arithmetic_v<Value> || std::is_enum_v<Value>) && !std::is_same_v<Value, entt::entity>,
+                      "declarative fields are direct scalar values, excluding entity references");
+        static_assert((std::is_floating_point_v<Value> && sizeof(Value) <= sizeof(double)) || sizeof(Value) <= 4,
+                      "declarative integers/enums are limited to 32 bits");
+        if (name.empty() || name == "v") throw std::invalid_argument("declarative field name is empty or reserved");
+        if constexpr (std::is_enum_v<Value>) {
+            for (std::size_t i = 0; i < enumNames.size(); ++i) {
+                if (enumNames[i].empty()) throw std::invalid_argument("declarative enum label is empty");
+                for (std::size_t j = 0; j < i; ++j) {
+                    if (enumNames[j] == enumNames[i]) throw std::invalid_argument("declarative enum label is duplicated");
+                }
+            }
+        }
+        for (const auto& field : types_.types_[index_].fields) {
+            if (field.name == name || field.read == &detail::ReadData<Member> || field.write == &detail::WriteData<Member>)
+                throw std::invalid_argument("declarative field name/member is already registered: " + name);
+        }
+        builder_.template Field<Member>(std::move(name), std::move(enumNames));
+        auto& field = types_.types_[index_].fields.back();
+        field.read = &detail::ReadData<Member>;
+        field.write = &detail::WriteData<Member>;
+        return *this;
+    }
+    DataComponentBuilder& Source(std::string path) { builder_.Source(std::move(path)); return *this; }
+private:
+    ComponentTypes& types_;
+    std::size_t index_;
+    ComponentBuilder<T> builder_;
+};
+
+template<typename T>
+DataComponentBuilder<T> ComponentTypes::AddData(std::string name) {
+    static_assert(std::is_trivial_v<T> && std::is_trivially_default_constructible_v<T>
+                  && std::is_standard_layout_v<T> && !std::is_union_v<T>,
+                  "declarative components require trivial standard-layout data");
+    if (name.empty()) throw std::invalid_argument("declarative component name is empty");
+    for (const auto& type : types_) {
+        if (type.name == name || type.type == entt::type_hash<T>::value())
+            throw std::invalid_argument("declarative component name/type is already registered: " + name);
+    }
+    Add<T>(std::move(name));
+    dataV2Import_.back() = true;
+    return DataComponentBuilder<T>(*this, types_.size() - 1);
 }
 
 inline int ComponentTypes::IndexOf(std::string_view name) const {
