@@ -1,0 +1,322 @@
+{
+  "schema": "pixie-separation-060-export-contract/1",
+  "revision": 1,
+  "status": "scoped B3 implementation clearance; parser/producer results do not pass G3 or complete task246/K02",
+  "unit": "whole K02, B3/B5",
+  "inputs": {
+    "C1": "docs/proposals/engine-sdk-editor-separation-contract.json SHA2563ef9ed79645a23d423d4ca262d68b70da63416ec957a665e81d4fb7d162dbd31",
+    "C2": "docs/proposals/engine-sdk-editor-separation-package-selection-contract.json SHA256ef0c265f144f5cd44cde2da1c0378daea633743b47cfca61d6da923e75afc7db",
+    "product_choices": "D01-D07/D10/D11 accepted; D08/B7, D09, D12/D14 do not block this technical draft"
+  },
+  "pairing": {
+    "profile": "public shipping/Release",
+    "tool_runtime": "Build/link pixie-export against the shipping Release profile. Its private executable-side pixie.dll/GLFW/CRT closure is byte-identical to the declared shipping profile dependencies. This is SDK authoring-tool payload, never game payload.",
+    "preflight": "OS runtime imports load before main; immediately query actual C1 runtime identity/capabilities before invoking C++ runtime descriptors/project APIs. Require selected sdkId/sdkBuildId/nativeMatchFields and actual bits4 from shipping/Release. Validate tool executable and dependency hashes against selected tools.exporter metadata. No claim of pre-OS-load execution isolation.",
+    "descriptor_identity": "Built-in descriptors are read from that exact paired shipping runtime; descriptor schema1 is bound to the same sdkBuildId/runtime SHA256. Do not load custom game modules in the exporter; project-specific assets remain explicit ASSETS inputs.",
+    "mixed_identity": "A tool from SDK A invoked with SDK B refuses before C++ descriptor/project calls, even if filenames/API28/product versions match. An authoring/local-development runtime substituted beside the tool fails identity/profile/capability/hash preflight.",
+    "tool_version": "Own compile-time tool version/provenance reported separately from actual selected runtime productVersion. Never populate engine_version from the tool version. D12 publication/version triggers remain independent."
+  },
+  "cli": {
+    "forms": [
+      "pixie-export --sdk <root> [--work <owned-directory>] <project> <output>",
+      "pixie-export --sdk <root> --identity",
+      "pixie-export --sdk <root> --verify <manifest.json> <output>",
+      "pixie-export --sdk <root> --from-manifest <manifest.json> <output>"
+    ],
+    "selection": "--sdk is mandatory for this tool; Editor supplies its once-resolved selection without requiring the human to use CLI/env. No tool-side ancestor/env/PATH SDK selector. Shipping/Release is fixed; arbitrary --sdk-profile cannot export private/authoring binaries.",
+    "work": "Explicit --work or an SDK/build/manifest/role-specific project-local export cache; preserve existing caches/output. No producer build/bin directory, embedded producer root, compiler path or generator cache default.",
+    "code": "Use selected installed B2 game/player support to build only user game code for shipping/Release. Selected toolchain discovery/requirements are explicit consumer build inputs, not producer compile definitions. This action waits for actual B2 installed support, without blocking no-code export or validator preparation.",
+    "no_code": "Use the selected shipping profile's supplied generic player and runtime inventory directly; no CMake/compiler invocation. Preserve the authored project/scenes/assets as bytes.",
+    "identity_result": "Machine-readable JSON: toolVersion, sdkId, sdkBuildId, runtimeIdentity, descriptorSchema1, buildProductSchema2, exportManifestSchema2 and actual executable/runtime hashes. It reports actual admitted artifacts, not file-presence capability guesses.",
+    "exit_codes": {
+      "success": 0,
+      "validation_or_build_failure": 1,
+      "usage": 2
+    }
+  },
+  "sdk_tools_exporter": {
+    "location": "sdk.json tools.exporter",
+    "shape": {
+      "schemaVersion": 1,
+      "path": "SDK-root-relative tools/export/Release/pixie-export.exe",
+      "sha256": "actual executable digest, also in C2 root files inventory",
+      "toolVersion": "declared tool product version",
+      "sdkId": "selected common C1 identity",
+      "sdkBuildId": "exact paired shipping/Release build identity",
+      "profile": "shipping",
+      "configuration": "Release",
+      "runtime": {
+        "path": "SDK-root-relative executable-side pixie.dll",
+        "sha256": "must equal shipping profile runtime hash"
+      },
+      "descriptorSchema": 1,
+      "buildProductSchema": 2,
+      "exportManifestSchema": 2,
+      "dependencies": [
+        {
+          "path": "SDK-root-relative explicit executable-side native/CRT file",
+          "sha256": "actual digest",
+          "kind": "native or crt"
+        }
+      ]
+    },
+    "composition": "B3 supplies actual immutable tool/closure handoff; B1/B0 compose it and regenerate C2 inventory/profile references. No exporter entry before a real paired artifact exists. Exact SDK manifest/archive hashes change and invalidate only evidence that consumed those hashes; native identity is not recursively recomputed from postbuild tool output hashes.",
+    "tool_sources": "Relevant B3 sources/build configuration are included in the final canonical producer provenance per B0/K01 rules before final SDK identity freeze. Intermediate native package evidence must not be relabeled as a final exact tool-inclusive candidate."
+  },
+  "build_product_v2": {
+    "format": "pixie-product",
+    "version": 2,
+    "configuration": "Release",
+    "development": false,
+    "dev_channel": false,
+    "sdkId": "selected SDK id",
+    "sdkBuildId": "shipping/Release id",
+    "runtimeIdentity": "flat full typed C1 identity projection",
+    "runtime": {
+      "sdkPath": "root-relative selected shipping pixie.dll",
+      "sha256": "profile runtime digest"
+    },
+    "player": {
+      "source": "local absolute built game executable, or selected SDK generic player for no-code",
+      "destination": "one portable exe basename"
+    },
+    "dependencies": [
+      {
+        "sdkPath": "selected SDK-root-relative file",
+        "sha256": "exact inventory digest",
+        "role": "library or runtime"
+      },
+      {
+        "source": "explicit local game-owned binary dependency",
+        "destination": "portable DLL basename",
+        "role": "library"
+      }
+    ],
+    "assets": [
+      "portable project-relative paths, existing ASSETS policy"
+    ],
+    "rules": "Each dependency has exactly one sdkPath or source; no ambient search. Built-player/dependency hashes are computed after build during planning, not before output exists in file(GENERATE). SDK references already have immutable inventory hashes. All input source locations are working build metadata, never game runtime discovery paths. No pixie_shared/glfw producer-target-name assumption in installed helper.",
+    "ownership": "B3 owns cmake/PixieExportProduct.cmake schema emission; B2 consumes/shares this helper through the selected SDK. B0/K01 record interface/identity changes before final packaging."
+  },
+  "export_manifest_v2": {
+    "format": "pixie-export",
+    "version": 2,
+    "development": false,
+    "dev_channel": false,
+    "engine_version": "actual selected shipping runtime productVersion",
+    "sdkId": "actual selected SDK id",
+    "sdkBuildId": "actual shipping build id",
+    "runtimeIdentity": "canonical typed C1 identity",
+    "exporter": {
+      "toolVersion": "actual tool version",
+      "sha256": "actual selected tool digest"
+    },
+    "descriptor": {
+      "schemaVersion": 1,
+      "sdkBuildId": "same selected shipping build",
+      "runtimeSha256": "selected runtime digest"
+    },
+    "project": "portable project filename, not producer/root discovery path",
+    "player": "one portable executable basename",
+    "files": [
+      {
+        "source": "local absolute plan input, required for replay only",
+        "destination": "portable relative output",
+        "role": "player/library/runtime/project/scene/asset",
+        "sha256": "actual planned bytes"
+      }
+    ],
+    "rules": "The working plan stays in export work/evidence storage and is never copied into the game. Verify checks destinations/hashes/roles/native imports without opening source paths. From-manifest verifies every source/hash/identity before copying. Game launch requires neither SDK/tool nor producer project. Preserve strict empty-output, path/collision/reparse checks and refusal preimages.",
+    "legacy": "Reject build-product/export-manifest version1 with an actionable fresh-export instruction; never silently relabel missing SDK provenance. This does not convert or reject authored scene envelope v1: scene v1 bytes retain their existing explicit backed-up migration policy."
+  },
+  "native_closure": {
+    "sources": "Explicit product dependencies plus selected C2 profile inventory and tool dependency metadata; no non-OS PATH/System32/producer/player-adjacent fallback.",
+    "algorithm": "Index declared native inputs case-insensitively by destination basename; reject conflicting sources/hashes, missing files or mismatched SDK references. Recursively inspect normal/delay imports and forwarded dependencies with existing PE reader. Resolve non-OS imports only from the declared index and include the entire selected app-local Release CRT bundle, including satellite DLLs.",
+    "OS_policy": "Retain the existing explicit Windows library allowlist and API-set rule; installed third-party presence in System32 does not make a dependency an OS component.",
+    "module_markers": [
+      "pixie_game_api_version",
+      "pixie_game_create",
+      "pixie_game_candidate_contract",
+      "pixie_game_sdk_identity"
+    ],
+    "other_forbidden": "Keep existing pixie_module_load, pixie_dev_dispatch, channel implementation symbols/markers and forbidden file roles/names. Identity-only module marker import/export must fail even when old factory symbols are absent.",
+    "allowed_runtime_queries": [
+      "pixie_sdk_identity",
+      "pixie_capabilities"
+    ],
+    "product_roles": "Game policy rejects module loader/SDK/import libs/headers/tools. SDK/Editor validation has its own accepted payload policy; do not apply game exclusions to legitimate authoring module/support inputs."
+  },
+  "authored_assets": {
+    "preservation": "Copy whole project/scene files verbatim and verify their hashes. Retain complete v2 World/Scene ids and empty scopes, seed, presentation, inactive/opaque data; retain v1 format and backed-up explicit conversion. No physics/gravity or scene normalization changes.",
+    "discovery": "Selected paired runtime built-in asset descriptors plus portable explicit ASSETS inputs for custom/opaque/code-opened assets. Do not infer custom asset declarations from arbitrary unknown JSON strings or load development modules. Verify sprite/font/built-in asset closure against representative complete authored v2 and unchanged v1 fixtures.",
+    "limits": "No scene streaming/remapping, arbitrary custom-type admission, unapproved local-body gravity activation or broader renderer/runtime source changes."
+  },
+  "exact_requested_writes": {
+    "modify": [
+      "tools/export/CMakeLists.txt",
+      "tools/export/main.cpp",
+      "tools/export/Export.hpp",
+      "tools/export/Export.cpp",
+      "cmake/PixieExportProduct.cmake",
+      "tests/export/qualify_export.py"
+    ],
+    "add": [
+      "tools/export/Sdk.hpp",
+      "tools/export/Sdk.cpp",
+      "tools/export/Product.hpp",
+      "tools/export/Product.cpp"
+    ],
+    "no_new_allocation": "All ten operations already exist in K02's sealed broader r2 plan. No B5 export UI/source integration yet; no K01/B0/B6 paths taken.",
+    "root_delta_B0": "Allow the native export target to be built with shipping/Release and local channel disabled. Current root CMake unconditionally forbids PIXIE_BUILD_TOOLS with PIXIE_DEVELOPMENT=OFF even though its only native tool is pixie-export. B0 owns the smallest specific guard/option amendment; shipping-game build still sets tools OFF and validator rejects tools in game payloads."
+  },
+  "focused_validation": {
+    "producer": [
+      "CLI parsing/required selected SDK and paired identity preflight",
+      "v2 product/manifest strict schema and explicit legacy refusal",
+      "nonadjacent declared dependency success plus absent/collision/forwarder negatives",
+      "identity-only module marker import/export negative and allowed runtime query control",
+      "selected runtime engine_version distinct from tool version",
+      "complete v2/v1 byte preservation and explicit custom assets"
+    ],
+    "artifact": "G3 requires actual code/no-code runtime-only exports and selected closure launches with unavailable producer sources under K03's method. Parser fixtures/build success do not pass G3.",
+    "ordering": "B3 producer schema/validators can progress once B0 clears these exact interfaces/paths, without waiting for D08/B7. Actual paired-tool/no-code export needs K01 shipping SDK; code build integration needs B2 installed support. B5 export integration waits for the frozen CLI and actual tool handoff.",
+    "status": "PLANNED_NOT_RUN"
+  },
+  "contractId": "B0-E1",
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 exact B3 source/interface clearance under accepted D01-D07/D10-D11",
+  "sealedInputSha256": {
+    "manifest": "ec5961dc9360086a9da0db8cd10f80e8610b048c136d00cb56fbb64ac41a9227",
+    "technicalDraft": "1a1e0cad8824cc5c5ab2538c84d8bcf9bba97b5b6f7cdb9b7a836cb5678cb9e7"
+  },
+  "allocation": {
+    "clearanceId": "G0-K02-EXPORT-E1",
+    "repository": "PixieEngine",
+    "unit": "K02",
+    "block": "B3",
+    "operations": [
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/CMakeLists.txt",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "replace embedded producer paths with declared SDK/tool identity inputs",
+        "preimage_sha256": "55a5fa4dd660d8c23b6ec6c56bbf1d1cc11b98d9e9a3efc2e44b2c7bd59c8920",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/main.cpp",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "versioned SDK-aware CLI and machine-readable identity",
+        "preimage_sha256": "7236787e18979ff971e530b4107d3649c9a2da53b9333336f4100c47b30513e8",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Export.hpp",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "frozen CLI options and plan/assemble interfaces",
+        "preimage_sha256": "905c8e8c4a48bbd69e2b96da5ac6c4141e8a6564e70ffcfd2ab1421edf43124c",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Export.cpp",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "installed game build, selected identity, exact dependencies and authored closure",
+        "preimage_sha256": "c53b89c97f2a04b9bb7db9879b81c945a406df7683d30b7ed797942252ff17b9",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "cmake/PixieExportProduct.cmake",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "selected profile/build/runtime and dependency metadata schema",
+        "preimage_sha256": "12aa068cc8a57b12d8162db2ec7c3956b8a95d7598246f307606b1313c2d0f9c",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tests/export/qualify_export.py",
+        "owner": "K02/B3",
+        "operation": "modify",
+        "status": "provisional; conditional purposes do not authorize optional branches",
+        "purpose": "paired runtime provenance, nonadjacent imports and full v2/v1 focused cases",
+        "preimage_sha256": "014f1eee7cb3d0df6619d49f9088facee95dac55023e27474079e5b05b13be90",
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Sdk.hpp",
+        "owner": "K02/B3",
+        "operation": "add",
+        "status": "provisional; requires exact B0 reservation",
+        "purpose": "selected SDK/tool/runtime identities, explicit dependency inventory declarations",
+        "preimage_sha256": null,
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Sdk.cpp",
+        "owner": "K02/B3",
+        "operation": "add",
+        "status": "provisional; requires exact B0 reservation",
+        "purpose": "selected SDK pairing and metadata validation implementation",
+        "preimage_sha256": null,
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Product.hpp",
+        "owner": "K02/B3",
+        "operation": "add",
+        "status": "provisional; requires exact B0 reservation",
+        "purpose": "separate build-product/game-export schema declarations",
+        "preimage_sha256": null,
+        "later_move_intent": false,
+        "destination": null
+      },
+      {
+        "repository": "PixieEngine",
+        "path": "tools/export/Product.cpp",
+        "owner": "K02/B3",
+        "operation": "add",
+        "status": "provisional; requires exact B0 reservation",
+        "purpose": "schema validation, shipping closure and provenance implementation",
+        "preimage_sha256": null,
+        "later_move_intent": false,
+        "destination": null
+      }
+    ],
+    "outputRoot": ".local/separation-060/K02/",
+    "B0RootTransaction": {
+      "path": "CMakeLists.txt",
+      "operation": "allow only the native SDK export tool target with shipping profile; keep game payload tools OFF and strict positive game inventory",
+      "preimageSha256": "d33a3a8e8761c9e978603cdb71bd10480fb892dd728bf7df46425e1e36f79eee"
+    }
+  },
+  "executionReadiness": {
+    "immediate": "CLI, selected identity/manifest parsing, schema/refusal, PE marker and declared dependency/asset validator implementation and focused fixtures within the ten exact paths",
+    "actualInputs": "actual paired tool/no-code launch needs immutable selected shipping SDK/runtime; code export needs B2 installed support; source-unavailable G3 needs K03's qualifying environment. Missing actual inputs block their dependent tests, not independent implementation.",
+    "rootBoundary": "B0 alone changes the existing PIXIE_BUILD_TOOLS guard; only tools/export is registered. No general private-tool admission to public shipping games. Source producer intermediates must not be mislabeled as accepted installed export products.",
+    "helperWiring": "Use the same selected C2 manifest/profile/config/runtime inventory and public targets in installed helpers. Any minimal producer metadata/property bridge is a routine K01/B0-owned delta; do not invent source fallback or take peer files. It does not hold independent B3 CLI/schema/validator work."
+  },
+  "immutableBase": "C1/C2 and prior receipts remain unchanged; changes in tool/manifest output bytes invalidate only actual dependent evidence. No full SDK/Editor/release acceptance or source extraction follows."
+}

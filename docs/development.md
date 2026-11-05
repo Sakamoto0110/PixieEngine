@@ -92,6 +92,60 @@ dotnet build editor/PixieEditor.slnx -c Release
 It compiles with warnings as errors. Its output stays under `editor/`; see
 [`editor/README.md`](../editor/README.md).
 
+## Installed SDK and local rehearsal
+
+Start with the supplied SDK root containing `sdk.json`. Select a declared
+profile and configuration, and record the expected SDK ID, build ID and
+catalog/profile hashes from the producer receipt. Match the native toolchain,
+architecture, CPU features and CRT declared by the selected profile. Run the
+verifier shipped with the SDK before configuring a consumer.
+
+```powershell
+$sdk = 'C:\qualification\SDK'
+python -B "$sdk\tools\sdk\verify_sdk.py" "$sdk"
+```
+
+Use `--complete` when the supplied artifact is a complete distribution. The
+verifier checks the package inventory and profile metadata. The
+[installed consumer fixture](../tests/sdk-consumers/CMakeLists.txt) separately
+configures against the explicit SDK root, profile, build configuration and
+identity pins. Give it a fresh build directory and the matching toolchain.
+Package mode resolves the SDK's CMake package without an Engine source build.
+
+The [focused consumer runner](../tests/separation/g1.py) takes a reviewed
+execution input with the pinned SDK, fixture and tools. From the Engine
+repository root, run it with a fresh output directory.
+
+```powershell
+python -B tests/separation/g1.py --inputs "C:\qualification\g1-inputs.json" --out "C:\qualification\g1-run"
+```
+
+Read `results.json` and the configure, build and test receipts. Exit code 3
+can accompany a focused pass or a blocked result. G1 acceptance separately
+requires unavailable producer sources or an accepted access-verification
+method. A separate work folder under the same account leaves that requirement
+open when producer files are still readable.
+
+### Manual local SDK rehearsal
+
+Use the [SDK rehearsal command](../scripts/release/rehearse_sdk.py) on Windows
+with the supplied `pixie-manual-sdk-rehearsal/1` input. It names a public SDK
+with its paired exporter, the SDK catalog hash, and SHA-256 pins for the
+producer composition, exporter seal and exporter entry. Keep the SDK, input
+and receipts in their declared locations. Choose a new output directory on
+a local fixed drive with an existing parent, separate from those inputs.
+
+```powershell
+python scripts/release/rehearse_sdk.py --inputs "C:\qualification\sdk-rehearsal-inputs.json" --out "C:\qualification\sdk-rehearsal"
+```
+
+The command writes a local SDK ZIP, a relocated SDK, logs and
+`artifact-receipt.json`. It verifies the archived payloads and queries the
+paired exporter from the relocated tree. Keep the archive and receipt
+together. This is a manual Engine SDK rehearsal. Editor release rehearsal,
+source-unavailable qualification, G6 acceptance and publication have
+separate evidence or authorization.
+
 ## Checks before a commit
 
 - **Build:** Debug and Release build with 0 warnings and 0 errors.
@@ -113,9 +167,9 @@ It compiles with warnings as errors. Its output stays under `editor/`; see
   commit (see the [policy](governance/documentation-policy.md#tests-and-evidence)).
 - **Development channel:** a change to `devchannel/`, `engine/platform/src/LocalCommandChannel.cpp`,
   `editor/PixieEditor/Development/`, `tools/pixie-mcp*` or `tests/editor/channel/` also passes
-  `py tests/mcp/qualify_mcp.py --config Debug` and `--config Release` (see the
-  [editor's README](../editor/README.md#local-development-mcp-channel)). It is not a CTest test:
-  it builds the managed bridge and editor, and its cold code project builds the engine again.
+  the [explicit-input MCP qualification](../editor/README.md#local-development-mcp-channel)
+  for each affected SDK configuration. The driver verifies and runs declared
+  artifacts and fixtures outside CTest.
 - **Documentation:** `python scripts/check_docs.py` reports no problem, and
   the policy's [self-review](governance/documentation-policy.md#self-review)
   passes for what the script does not check. The script checks relative links

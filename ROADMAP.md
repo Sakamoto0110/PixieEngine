@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-28
+**Direction decision date:** 2026-11-04
 
 ## Purpose
 
@@ -70,6 +70,12 @@ fields/presets and editor composition. World/Scene backend work keeps its separa
 contract and acceptance; later diagnostics/resources do not block the core loop.
 [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation)
 owns that front's accepted scope and ordered blocks, rather than this summary.
+
+The 2026-11-04 owner decision promotes SDK/runtime/Editor separation.
+[PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery)
+owns its contract preparation, conditional blocks, implementation gates and
+artifact qualification. It preserves completed World/Scene behavior and the
+other authoring fronts; promotion does not dispatch every block.
 
 [TODO.md](TODO.md#current-promoted-work) owns the current execution queue,
 scope and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
@@ -160,6 +166,18 @@ qualification; this does not approve reference images or enable channel save.
 Execution, the EnTT-first gate and qualification are
 owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
+On 2026-11-04 the owner promoted
+[PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md): an
+independently consumable Engine SDK, qualified authoring/shipping runtime
+delivery and an independently owned Editor consuming that SDK. The single
+native runtime remains the baseline; Inspector and Lib retain independent
+ownership and release identities. New local projects may live outside Engine,
+but installed consumers must not depend on sibling folders or producer sources.
+Product documentation must remain coherent under the available repository rules;
+future VAW installation/rebind is a separate, nonblocking follow-up. Product,
+compatibility and packaging choices retain the gates in
+[PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
+
 ## Active guardrails
 
 - **2D first.** Accepted 2026-10-09.
@@ -235,7 +253,14 @@ owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11
 
 ## Freezes
 
-None.
+### D09 GLFW distribution
+
+The [accepted D09 policy](TASKLIST.md#d09--accepted-glfw-distribution-policy)
+selects the same GLFW binary for the Windows x64 Editor and SDK packages.
+Implementation and qualification are frozen until the owner explicitly
+authorizes resumption. Preserve the decision and the current GLFW binaries
+and provider behavior during Editor extraction. The extraction can proceed
+under its own approval while this freeze remains active.
 
 ## Explicit non-goals
 

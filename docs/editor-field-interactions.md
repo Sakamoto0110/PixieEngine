@@ -22,8 +22,9 @@
 
 This is the bounded implementation of `PIXIE-TODO-054` in [TODO.md](../TODO.md).
 It does not authorize the wider, gated Inspector overhaul in `PIXIE-TODO-053`.
-The implementation requires the explicit local source mode below. The normal
-editor still consumes the published `PixieInspector.ImGui` 0.3.0 package.
+Field interactions use the explicit local source or selected package mode
+below. The ordinary Editor control still uses published
+`PixieInspector.ImGui` 0.3.0 with field interactions disabled.
 
 ## Editing behavior
 
@@ -116,12 +117,20 @@ dotnet build editor/PixieEditor/PixieEditor.csproj -c Debug `
   --artifacts-path .local/validation/field-interactions/build
 ```
 
-This swaps the package reference for a project reference and defines
-`PIXIE_INSPECTOR_FIELD_INTERACTIONS`. Omitting the property restores the
-published dependency and excludes the adoption code. Do not reuse one artifacts
-directory between local-source and default-package builds. Publish explicitly
-refuses this local source mode, including with development tools disabled.
-There is no new package version, release, or native scene format.
+This selects the Inspector project reference and defines
+`PIXIE_INSPECTOR_FIELD_INTERACTIONS`. With both Inspector selectors unset,
+the Editor uses the published 0.3.0 control. Keep local-source outputs
+separate from package outputs. Publish refuses the local source mode,
+including with development tools disabled.
+
+## Selected package mode
+
+Select the exact D08 core and ImGui pair with
+`-p:PixieInspectorPackageVersion=0.3.0-pixie021.3` and clear
+`PixieInspectorLocalRoot`. Use the supplied locked offline feed and dependency
+locks. The selected pair enables the same interaction feature and assets
+through package references. The field fixture requires one of the two feature
+selectors.
 
 ## Qualification
 
@@ -134,19 +143,42 @@ custom layer mask has paired enabled/locked mouse-input checks. Its fixed
 disables persisted ImGui settings. It also captures a real framebuffer for
 owner visual review.
 
+Use the Windows x64 `PixieEditor.FieldInteractionTests.exe` from the matching
+fixture build in a desktop session with OpenGL 4.5. Restore the fixture and
+Editor with the supplied lock files, offline feed and the same Inspector
+selector. Use separate build, restore cache and output roots for the local
+and package rows. Build with `PixieUseLocalConfiguration=false`,
+`PixieDevelopmentTools=true` and `PixieNativeMetadataMode=Installed`.
+Set `PixieNativeApiHeader` to the header from the supplied SDK.
+
+Set `$fieldFixture` to the built fixture executable, `$privateSdk` to the
+admitted private Debug SDK root, and `$privateCatalogSha256` to its expected
+catalog SHA-256. Use an owned project root and a result JSON path with an
+existing parent. For the native throwing-peer case, supply the absolute path
+and expected SHA-256 of the matching private Debug WriteProbe module.
+
 ```powershell
-dotnet run --project tests/editor/field-interactions -c Debug `
-  -p:PixieInspectorLocalRoot=$inspectorRoot `
-  --artifacts-path .local/validation/field-interactions/test-build -- `
-  bin/Debug/channel-write-probe-module.dll `
-  .local/validation/field-interactions/native-debug `
-  .local/validation/field-interactions/debug-results.json
+& $fieldFixture --installed-sdk $privateSdk local-development Debug $privateCatalogSha256 `
+  $ownedProjectRoot $ownedResultJson `
+  --module $absoluteWriteProbePath --module-sha256 $writeProbeSha256
 ```
 
-Repeat with Release and its matching native module. Passing `pixie.dll` instead
-skips the test-only throwing peer case; it does not prove native refusal. The
-probe module belongs to the existing development-channel tests. Inspector's
-own core and ImGui suites qualify its generic propagation and input routing;
-their evidence remains separate from Engine integration evidence. Maximum
-compound-list selection performance and owner readability acceptance are not
-implied by the functional fixtures.
+Omit the two module options for a runtime-only run. For the public runtime
+case, use the Release fixture, the selected public SDK root, `authoring Release`,
+and its expected catalog hash. Use the installed SDK form for all three cases
+so the runtime and any module are admitted against the explicit selection.
+
+| Fixture input | `privateChannelExecuted` | `writeProbeExecuted` |
+| --- | --- | --- |
+| Public authoring Release runtime | false | false |
+| Private local-development Debug runtime | true | false |
+| Private local-development Debug with matching WriteProbe | true | true |
+
+The channel flag records execution of the private channel assertions. The
+probe flag records execution of the native throwing-peer and Undo assertions.
+The probe belongs to the existing development-channel tests. Inspector's
+own core and ImGui suites qualify its generic propagation and input routing.
+Package-mode fixture results identify the locked Inspector dependency graph
+and selected installed runtime. Source isolation requires a separate
+producer-access check. Owner visual review and maximum compound-list
+selection performance retain their own evidence.
