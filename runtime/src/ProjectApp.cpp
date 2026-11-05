@@ -1,4 +1,5 @@
 #include "pixie/runtime/ProjectApp.hpp"
+#include "pixie/runtime/PlayerExit.hpp"
 
 #include "pixie/core/Log.hpp"
 
@@ -6,6 +7,12 @@
 #include <format>
 
 namespace pixie {
+
+namespace { struct PlayerExitRequest {}; }
+void RequestPlayerExit(World& world) {
+    if (!world.Registry().ctx().contains<PlayerExitRequest>()) world.Registry().ctx().emplace<PlayerExitRequest>();
+}
+bool PlayerExitRequested(World& world) { return world.Registry().ctx().contains<PlayerExitRequest>(); }
 
 bool ProjectApp::Start(Window& window) {
     window_ = &window;
@@ -24,6 +31,7 @@ bool ProjectApp::Start(Window& window) {
 void ProjectApp::Update(const FrameTime& time, const Input& input) {
     session_.Resize(window_->GetFramebufferSize());
     session_.Update(time.delta, input);
+    if (PlayerExitRequested(session_.GetWorld())) window_->Close();
 
     const double milliseconds = session_.LastStepMilliseconds();
     totalMilliseconds_ += milliseconds;
