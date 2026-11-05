@@ -1,0 +1,865 @@
+{
+  "schemaVersion": 1,
+  "inventoryKind": "pixie-editor-extraction-proposal/1",
+  "proposalId": "PIXIE-PROPOSAL-022",
+  "snapshotDate": "2026-11-05",
+  "sourceRoot": ".",
+  "destinationRoot": "../PixieEditor",
+  "executionStatus": "proposed-only; no transfer or removal executed",
+  "sourceStateNote": "Filesystem bytes observed; working-tree/index status must be revalidated before execution.",
+  "counts": {
+    "applicationObserved": 64,
+    "testFilesObserved": 22,
+    "toEditor": 92,
+    "withinEngine": 2,
+    "total": 94
+  },
+  "entries": [
+    {
+      "entryId": "EXTRACT-001",
+      "source": "editor/PixieEditor/assets/inspector/chain.png",
+      "destination": "PixieEditor/assets/inspector/chain.png",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 426175,
+      "sha256": "80094c5bf20fd296fb4cb86c0c2645f7c2b33c0d588cba2a30e1c9108f44e79b"
+    },
+    {
+      "entryId": "EXTRACT-002",
+      "source": "editor/PixieEditor/assets/inspector/lock.png",
+      "destination": "PixieEditor/assets/inspector/lock.png",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 217793,
+      "sha256": "11e0a501f04738d33309d6e4c08aa6ec0441ad144e0920b18860d5839c1849c1"
+    },
+    {
+      "entryId": "EXTRACT-003",
+      "source": "editor/PixieEditor/assets/neko-purple-light.ico",
+      "destination": "PixieEditor/assets/neko-purple-light.ico",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 118441,
+      "sha256": "375461422cf914a28ee84b9d74147e835f1b23a2fccb06c6f47b3cdf007367e5"
+    },
+    {
+      "entryId": "EXTRACT-004",
+      "source": "editor/PixieEditor/Development/CaptureDirectory.cs",
+      "destination": "PixieEditor/Development/CaptureDirectory.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1971,
+      "sha256": "86dad5c626715a9c2a14894e74ee7cbc5b43aec93c9dd930dcde83bdc01e0c95"
+    },
+    {
+      "entryId": "EXTRACT-005",
+      "source": "editor/PixieEditor/Development/ChannelTestAccess.cs",
+      "destination": "PixieEditor/Development/ChannelTestAccess.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 274,
+      "sha256": "41a5434d76c22daf3400e5a46720762ec8461c467e6fa311e04bd70971e356a1"
+    },
+    {
+      "entryId": "EXTRACT-006",
+      "source": "editor/PixieEditor/Development/DeterministicCapture.cs",
+      "destination": "PixieEditor/Development/DeterministicCapture.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 789,
+      "sha256": "9d9cc48fe0824c1bcb07b03fc7c32893a4700e3aba372a7088550f8c54f9fed1"
+    },
+    {
+      "entryId": "EXTRACT-007",
+      "source": "editor/PixieEditor/Development/EditorChannel.cs",
+      "destination": "PixieEditor/Development/EditorChannel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 19713,
+      "sha256": "08a94141f01d169f15c939189f4db5db4bb2e572ac0c0cfe28fad8e7a37ac327"
+    },
+    {
+      "entryId": "EXTRACT-008",
+      "source": "editor/PixieEditor/Development/EditorPipe.cs",
+      "destination": "PixieEditor/Development/EditorPipe.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 6345,
+      "sha256": "cb0658b51de44dbff8756958993d9fcc7eb4e988f89cff9ccf820ea35d6ee8cf"
+    },
+    {
+      "entryId": "EXTRACT-009",
+      "source": "editor/PixieEditor/Development/ExportPanel.cs",
+      "destination": "PixieEditor/Development/ExportPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2465,
+      "sha256": "cce3055301ade2f1d390b714c782416daaafd4212441f0e397a290d1c8aace05"
+    },
+    {
+      "entryId": "EXTRACT-010",
+      "source": "editor/PixieEditor/Development/InspectorChannelCustomRows.cs",
+      "destination": "PixieEditor/Development/InspectorChannelCustomRows.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 6693,
+      "sha256": "752ca3c11aa3194c19cc34c7f3af548c1eb7c0cdc318cde279198ace1c04e5f6"
+    },
+    {
+      "entryId": "EXTRACT-011",
+      "source": "editor/PixieEditor/Development/InspectorChannelSurface.cs",
+      "destination": "PixieEditor/Development/InspectorChannelSurface.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 19001,
+      "sha256": "48b04f9f62fa6698fb3ce31d44694a463a70c410e42f71d5b176d155e2de5ef9"
+    },
+    {
+      "entryId": "EXTRACT-012",
+      "source": "editor/PixieEditor/Development/ProjectExportJob.cs",
+      "destination": "PixieEditor/Development/ProjectExportJob.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3860,
+      "sha256": "2668b1c5398ceab9ac9195aae466492d33280b284d029a0a716b552e74cb9bae"
+    },
+    {
+      "entryId": "EXTRACT-013",
+      "source": "editor/PixieEditor/Editing/GroupStep.cs",
+      "destination": "PixieEditor/Editing/GroupStep.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1394,
+      "sha256": "abf0554c851b3bba13748cf1e4615d7b4affe7cb48418fb9596ba97a8bfa4693"
+    },
+    {
+      "entryId": "EXTRACT-014",
+      "source": "editor/PixieEditor/Editing/History.cs",
+      "destination": "PixieEditor/Editing/History.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 12567,
+      "sha256": "f3a86397e20397ffd0fcae7ef3e0b91b231f6f72996a66a4d7dee1b1065eaad1"
+    },
+    {
+      "entryId": "EXTRACT-015",
+      "source": "editor/PixieEditor/Editing/ProjectAssets.cs",
+      "destination": "PixieEditor/Editing/ProjectAssets.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 5273,
+      "sha256": "2d7f8bfe7fef45449c349ced96e3acd6db90ad2b5b6b7b63498def6bdbab8864"
+    },
+    {
+      "entryId": "EXTRACT-016",
+      "source": "editor/PixieEditor/Editing/SceneAuthoring.cs",
+      "destination": "PixieEditor/Editing/SceneAuthoring.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 14386,
+      "sha256": "a5da6cc587265d665ef91a3b5098e5b7fd8e9b2d8248fbc03c8d84c108dc9680"
+    },
+    {
+      "entryId": "EXTRACT-017",
+      "source": "editor/PixieEditor/Editing/SceneDocumentEditor.cs",
+      "destination": "PixieEditor/Editing/SceneDocumentEditor.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 15050,
+      "sha256": "e7ef39e5f037407798d83ea49d73fb8b2cb9bfcc6a45f7556ad984721f4cbd30"
+    },
+    {
+      "entryId": "EXTRACT-018",
+      "source": "editor/PixieEditor/Editing/SessionEditGate.cs",
+      "destination": "PixieEditor/Editing/SessionEditGate.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2723,
+      "sha256": "8c9609d541510bb8cabda9834392208184c26ae232f821b2345ac01c72421153"
+    },
+    {
+      "entryId": "EXTRACT-019",
+      "source": "editor/PixieEditor/EditorSettings.cs",
+      "destination": "PixieEditor/EditorSettings.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3267,
+      "sha256": "eaef70d5bb6673f9276a20dc83d1aec7a2bcd2118a2bfaf2939e813c9fe3727d"
+    },
+    {
+      "entryId": "EXTRACT-020",
+      "source": "editor/PixieEditor/Inspection/ComponentHandle.cs",
+      "destination": "PixieEditor/Inspection/ComponentHandle.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1772,
+      "sha256": "a01970b854544fc42980dba392789da83dc5d2a9db075579e0c115e982a9b281"
+    },
+    {
+      "entryId": "EXTRACT-021",
+      "source": "editor/PixieEditor/Inspection/InspectorFactory.cs",
+      "destination": "PixieEditor/Inspection/InspectorFactory.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 13126,
+      "sha256": "78835ba758a9720a21b9820364fa29a1dcee27a722ea9d841d20bebae7bc41e3"
+    },
+    {
+      "entryId": "EXTRACT-022",
+      "source": "editor/PixieEditor/Native/CodeEditor.cs",
+      "destination": "PixieEditor/Native/CodeEditor.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3153,
+      "sha256": "daa071718bb092ca6965944846cf87325516596b120dd49b19f561c1a8b04a83"
+    },
+    {
+      "entryId": "EXTRACT-023",
+      "source": "editor/PixieEditor/Native/CodeReopen.cs",
+      "destination": "PixieEditor/Native/CodeReopen.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 9181,
+      "sha256": "cffc00abf1c95e7156a1ced5990e3e8d987b4100f30c836832583fc18d684c73"
+    },
+    {
+      "entryId": "EXTRACT-024",
+      "source": "editor/PixieEditor/Native/CodeWorkspace.cs",
+      "destination": "PixieEditor/Native/CodeWorkspace.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 17083,
+      "sha256": "a3e1252f5bdc0a8b3b0ca5418815a4c1b8228298f3784eb22825debc87949cc1"
+    },
+    {
+      "entryId": "EXTRACT-025",
+      "source": "editor/PixieEditor/Native/EditorLaunch.cs",
+      "destination": "PixieEditor/Native/EditorLaunch.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2628,
+      "sha256": "226a2e64b20c20ace80e74473d71fe2e56f7458cbf96516dc0f3947f507bb388"
+    },
+    {
+      "entryId": "EXTRACT-026",
+      "source": "editor/PixieEditor/Native/EngineSdk.cs",
+      "destination": "PixieEditor/Native/EngineSdk.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 23039,
+      "sha256": "2e59152f1c88aa35dc2183d79cc49938241441c3d0438e7af35811a7b6b44191"
+    },
+    {
+      "entryId": "EXTRACT-027",
+      "source": "editor/PixieEditor/Native/EngineSession.cs",
+      "destination": "PixieEditor/Native/EngineSession.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 38405,
+      "sha256": "af755303b78e31d8e74b45b3fbce314bdeff812cec6a5a10c538b168abe734c6"
+    },
+    {
+      "entryId": "EXTRACT-028",
+      "source": "editor/PixieEditor/Native/GameLibrary.cs",
+      "destination": "PixieEditor/Native/GameLibrary.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 5657,
+      "sha256": "85d4cc264c1027225a184ed94b6c15b239efd045237d2912eb1c9bf66ee82676"
+    },
+    {
+      "entryId": "EXTRACT-029",
+      "source": "editor/PixieEditor/Native/ProjectBuild.cs",
+      "destination": "PixieEditor/Native/ProjectBuild.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 17952,
+      "sha256": "a319d91a959e12ea09c5654441d3c02fd1c94f4d9596ce1c5b89433fb98eb30f"
+    },
+    {
+      "entryId": "EXTRACT-030",
+      "source": "editor/PixieEditor/Native/ProjectCode.cs",
+      "destination": "PixieEditor/Native/ProjectCode.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 20188,
+      "sha256": "004665d130d6374d47cbfaa63408b9c2d20357626a8eb57f9e59a387cd9ed056"
+    },
+    {
+      "entryId": "EXTRACT-031",
+      "source": "editor/PixieEditor/Native/SdkRequirements.cs",
+      "destination": "PixieEditor/Native/SdkRequirements.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 4842,
+      "sha256": "695421abcfc44277efa1429e43facab65338e23f2c83f30d051e62e34617944f"
+    },
+    {
+      "entryId": "EXTRACT-032",
+      "source": "editor/PixieEditor/PixieEditor.csproj",
+      "destination": "PixieEditor/PixieEditor.csproj",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 5595,
+      "sha256": "080bf974945944eba5675e02bf4914e37eff99ab3ff75bc3931ec4718435e273"
+    },
+    {
+      "entryId": "EXTRACT-033",
+      "source": "editor/PixieEditor/Program.cs",
+      "destination": "PixieEditor/Program.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 13053,
+      "sha256": "23cb9091d6353e8b0c4ea2369c1c8bd53db09d33f2ae575683224f412707209f"
+    },
+    {
+      "entryId": "EXTRACT-034",
+      "source": "editor/PixieEditor/Ui/AssetChooser.cs",
+      "destination": "PixieEditor/Ui/AssetChooser.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2591,
+      "sha256": "65dcade3c2f0d7e31df25be1bb00f144185d7da6e9bba208dcc9df7bbb2b80a5"
+    },
+    {
+      "entryId": "EXTRACT-035",
+      "source": "editor/PixieEditor/Ui/Authoring.Colliders.cs",
+      "destination": "PixieEditor/Ui/Authoring.Colliders.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1944,
+      "sha256": "e5f95eca3dbc01e15cec6c86ecba12e94629d78b30c718e3d2fa8d0eff76c0dd"
+    },
+    {
+      "entryId": "EXTRACT-036",
+      "source": "editor/PixieEditor/Ui/Authoring.cs",
+      "destination": "PixieEditor/Ui/Authoring.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 31399,
+      "sha256": "348a8fa5fbe464801db7a3d6540dc38c1c1b443234413d5fd7b78154c54d7b96"
+    },
+    {
+      "entryId": "EXTRACT-037",
+      "source": "editor/PixieEditor/Ui/BuildScreen.cs",
+      "destination": "PixieEditor/Ui/BuildScreen.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3979,
+      "sha256": "e89aba8fdf299b89f50455d6609a24d7f37cbbd3b4c4064e82553bfccc2d3bea"
+    },
+    {
+      "entryId": "EXTRACT-038",
+      "source": "editor/PixieEditor/Ui/CandidateRecoveryPanel.cs",
+      "destination": "PixieEditor/Ui/CandidateRecoveryPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1639,
+      "sha256": "f4c2c4ab033ca171d23adff98f0a3c3de87dc8889d277557c8da97c54b70443a"
+    },
+    {
+      "entryId": "EXTRACT-039",
+      "source": "editor/PixieEditor/Ui/DropEvents.cs",
+      "destination": "PixieEditor/Ui/DropEvents.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 810,
+      "sha256": "95800ca39fbec9bb3cc51174847089c2c913bf7f859c0d56f5babc2f71ccfc58"
+    },
+    {
+      "entryId": "EXTRACT-040",
+      "source": "editor/PixieEditor/Ui/EditorWindow.cs",
+      "destination": "PixieEditor/Ui/EditorWindow.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 51044,
+      "sha256": "8dfaded5f1cc003b7e1782a085e4513fcfdf2087d066d361744de23a6f99f050"
+    },
+    {
+      "entryId": "EXTRACT-041",
+      "source": "editor/PixieEditor/Ui/EntitiesPanel.cs",
+      "destination": "PixieEditor/Ui/EntitiesPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 6646,
+      "sha256": "81ff2559a4f7d85f5f499800ae5e4002066e7c6fb824a4f0bb779b99778aca54"
+    },
+    {
+      "entryId": "EXTRACT-042",
+      "source": "editor/PixieEditor/Ui/FolderBrowser.cs",
+      "destination": "PixieEditor/Ui/FolderBrowser.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 7509,
+      "sha256": "329be85412d8cbcf1240e243b28d346ba2874dc6ddc1263a38af00415a948dee"
+    },
+    {
+      "entryId": "EXTRACT-043",
+      "source": "editor/PixieEditor/Ui/Gl.cs",
+      "destination": "PixieEditor/Ui/Gl.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1268,
+      "sha256": "0da235309f59b39ea7991d0bbf9b62206cbdd6921e7b0c969a56270965124b74"
+    },
+    {
+      "entryId": "EXTRACT-044",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 23858,
+      "sha256": "1567cdc3cb570a0a8a5e58ab38a95e0bc80509c9a69d9d73c3dbead48af9eb17"
+    },
+    {
+      "entryId": "EXTRACT-045",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Interactions.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Interactions.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 5173,
+      "sha256": "245469ad8f0f6324c65d03f64d7d9832d3c272471a679acf79ae747e242ece13"
+    },
+    {
+      "entryId": "EXTRACT-046",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Layers.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Layers.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 9590,
+      "sha256": "68668e9f8f5dd422f1aa3cbb3cc9a2e9ef58418a58181fd7cff805f3cff1ae4a"
+    },
+    {
+      "entryId": "EXTRACT-047",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Physics.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Physics.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1523,
+      "sha256": "e7b8d639fc6540aee5b3243110fd93978cdba4c0de57679a474746fb77e54660"
+    },
+    {
+      "entryId": "EXTRACT-048",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Presentation.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Presentation.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 9522,
+      "sha256": "327675634a967acf34ac48b9cff6adeb0e0bb5910e48d9145db64faf43682769"
+    },
+    {
+      "entryId": "EXTRACT-049",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Records.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Records.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 10564,
+      "sha256": "4717c9546bae258718ccabab7eda508ae060cddfa1ec52a8a98b5f563cc77281"
+    },
+    {
+      "entryId": "EXTRACT-050",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.Scene.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.Scene.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3846,
+      "sha256": "763e3fb43a5bf177c209606ca8f7d6c6886446b762b5d229a11108dc7dcdf28f"
+    },
+    {
+      "entryId": "EXTRACT-051",
+      "source": "editor/PixieEditor/Ui/InspectorPanel.World.cs",
+      "destination": "PixieEditor/Ui/InspectorPanel.World.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 5139,
+      "sha256": "ad7cfeae5c30c628f579dcac012a52f008111026588fb6798eb6a7a795985be9"
+    },
+    {
+      "entryId": "EXTRACT-052",
+      "source": "editor/PixieEditor/Ui/KeyEvents.cs",
+      "destination": "PixieEditor/Ui/KeyEvents.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2155,
+      "sha256": "47a8710e7901af43fb40502f6f63a8a52e9c1a148f04e5785837c374e2405683"
+    },
+    {
+      "entryId": "EXTRACT-053",
+      "source": "editor/PixieEditor/Ui/LayerScheme.cs",
+      "destination": "PixieEditor/Ui/LayerScheme.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 1015,
+      "sha256": "a951531c6539311c787e4509bf724893d362f0bac15943001cc55b05180f691f"
+    },
+    {
+      "entryId": "EXTRACT-054",
+      "source": "editor/PixieEditor/Ui/Screenshot.cs",
+      "destination": "PixieEditor/Ui/Screenshot.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2891,
+      "sha256": "ced637c7d85e10a2b9986c408c5f0675665d14fa0b73814ce68a575373d1a4c9"
+    },
+    {
+      "entryId": "EXTRACT-055",
+      "source": "editor/PixieEditor/Ui/Selection.cs",
+      "destination": "PixieEditor/Ui/Selection.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2980,
+      "sha256": "edca0f03044aef27dbbb2c4a2a10c77a9f63e17a6122756e032f593ee599633b"
+    },
+    {
+      "entryId": "EXTRACT-056",
+      "source": "editor/PixieEditor/Ui/SessionPanel.cs",
+      "destination": "PixieEditor/Ui/SessionPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 7563,
+      "sha256": "ae6c268eb45a7baf81c3bfc1774e2e75130f21325f38e12ad9f883d2ba90eaa9"
+    },
+    {
+      "entryId": "EXTRACT-057",
+      "source": "editor/PixieEditor/Ui/StartScreen.cs",
+      "destination": "PixieEditor/Ui/StartScreen.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 11924,
+      "sha256": "41a4c4f99de7fc6c2097a724d15830e3d43628e73b380959079bce8ffb4b8f21"
+    },
+    {
+      "entryId": "EXTRACT-058",
+      "source": "editor/PixieEditor/Ui/Status.cs",
+      "destination": "PixieEditor/Ui/Status.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 738,
+      "sha256": "6eaee8a24f00dc9608c51591717d2b24c765f92cca32a91bf3c597665ce7a2cf"
+    },
+    {
+      "entryId": "EXTRACT-059",
+      "source": "editor/PixieEditor/Ui/Toolbar.cs",
+      "destination": "PixieEditor/Ui/Toolbar.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 11154,
+      "sha256": "d5db26159862038fb95382e8f62b2286c113cdd9eee62336223d5d06ea2d0db7"
+    },
+    {
+      "entryId": "EXTRACT-060",
+      "source": "editor/PixieEditor/Ui/ViewportPanel.Colliders.cs",
+      "destination": "PixieEditor/Ui/ViewportPanel.Colliders.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 4743,
+      "sha256": "e47e117b9a547ffc28b1a6cc6c7ca7536d412719d6bf47172bd96bf8bc76343c"
+    },
+    {
+      "entryId": "EXTRACT-061",
+      "source": "editor/PixieEditor/Ui/ViewportPanel.cs",
+      "destination": "PixieEditor/Ui/ViewportPanel.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 26716,
+      "sha256": "7392b6d998cac854db95b2ce842d99b269d51a2e84abd980f7ee98bb5fb5f261"
+    },
+    {
+      "entryId": "EXTRACT-062",
+      "source": "editor/PixieEditor/Ui/ViewportPanel.Lights.cs",
+      "destination": "PixieEditor/Ui/ViewportPanel.Lights.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 9379,
+      "sha256": "268c04a64f3273a4a3e520eb8a0457e314109904099ac1decd0e1fd7f3d99680"
+    },
+    {
+      "entryId": "EXTRACT-063",
+      "source": "editor/PixieEditor/Ui/WindowIcon.cs",
+      "destination": "PixieEditor/Ui/WindowIcon.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3226,
+      "sha256": "ee2adf30442d5618a3a54528d0d3b388b58f9088d3a1655ef6a1ba10a7e34bf6"
+    },
+    {
+      "entryId": "EXTRACT-064",
+      "source": "editor/PixieEditor.slnx",
+      "destination": "PixieEditor.slnx",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 75,
+      "sha256": "c96e86038ea6b916bcf2060a7bc17aeb234eef2a5640bbcc9974bcee5907f41e"
+    },
+    {
+      "entryId": "EXTRACT-065",
+      "source": "editor/README.md",
+      "destination": "README.md",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 41562,
+      "sha256": "d01867924120ad34b0d4f29bdc04247d100b36df2d5b1bc7aeacdb1833e640bc"
+    },
+    {
+      "entryId": "EXTRACT-066",
+      "source": "tests/editor/channel/PipeQualification.cs",
+      "destination": "tests/channel/PipeQualification.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3159,
+      "sha256": "86cff6ae475f334895d706f383e92c078514d8318404bf18d1322dbf28eb642b"
+    },
+    {
+      "entryId": "EXTRACT-067",
+      "source": "tests/editor/channel/PixieEditor.ChannelTests.csproj",
+      "destination": "tests/channel/PixieEditor.ChannelTests.csproj",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 605,
+      "sha256": "1c3bce7bf69e7a7d191647af0fdc7355cecb7b3e3c8df5a100caa687a5b5d2e0"
+    },
+    {
+      "entryId": "EXTRACT-068",
+      "source": "tests/editor/channel/Program.cs",
+      "destination": "tests/channel/Program.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 31558,
+      "sha256": "2b9a93e3330dbd946b6fa63836ffa722c533a8a7f5246f70290b6521596a38ea"
+    },
+    {
+      "entryId": "EXTRACT-069",
+      "source": "tests/editor/code-components/CodeWorkspaceTests.cs",
+      "destination": "tests/code-components/CodeWorkspaceTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 7187,
+      "sha256": "0d3a928762cf26420e693253456a58679743a7074b1b44ea367e8971de2bcc4e"
+    },
+    {
+      "entryId": "EXTRACT-070",
+      "source": "tests/editor/code-components/EditorUi.cs",
+      "destination": "tests/code-components/EditorUi.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 6707,
+      "sha256": "6825117278cf639a384ce2219e43ed7c6921445f11ca86029abca1f69b2cf1b4"
+    },
+    {
+      "entryId": "EXTRACT-071",
+      "source": "tests/editor/code-components/EnvironmentViewportTests.cs",
+      "destination": "tests/code-components/EnvironmentViewportTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 23570,
+      "sha256": "80d3cc1617cc408d111956bbab04919c5dcf17e6fd184ed282e5485f923e0cb6"
+    },
+    {
+      "entryId": "EXTRACT-072",
+      "source": "tests/editor/code-components/ModuleLoadRetryTests.cs",
+      "destination": "tests/code-components/ModuleLoadRetryTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2302,
+      "sha256": "31fcbd77e0ce7af12c8315564abe203d5ebd1112217173d62d9876a8a0f44e0b"
+    },
+    {
+      "entryId": "EXTRACT-073",
+      "source": "tests/editor/code-components/ModuleSceneTests.cs",
+      "destination": "tests/code-components/ModuleSceneTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 13597,
+      "sha256": "3f74cf67d80f57439b602326c2281c8793f44e81210c27b70e188bd7258a503f"
+    },
+    {
+      "entryId": "EXTRACT-074",
+      "source": "tests/editor/code-components/PixieEditor.CodeTests.csproj",
+      "destination": "tests/code-components/PixieEditor.CodeTests.csproj",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 720,
+      "sha256": "e7f2c06f7f26aa9c8fc5bba7660c9df6592b5d2c2891ed61239e5f6f64760a92"
+    },
+    {
+      "entryId": "EXTRACT-075",
+      "source": "tests/editor/code-components/PresentationTests.cs",
+      "destination": "tests/code-components/PresentationTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 13997,
+      "sha256": "0ac0b1290b4192c3f099029a8f7dd2599162223a906ab3fabee213d9adf3dd0d"
+    },
+    {
+      "entryId": "EXTRACT-076",
+      "source": "tests/editor/code-components/PresentationVisualTests.cs",
+      "destination": "tests/code-components/PresentationVisualTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 19533,
+      "sha256": "e51d64b641c1c08fa6b67a3c45194490417cbebf7bc13eff96ca767c2e9b94fb"
+    },
+    {
+      "entryId": "EXTRACT-077",
+      "source": "tests/editor/code-components/ProcessReopenTests.cs",
+      "destination": "tests/code-components/ProcessReopenTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 11347,
+      "sha256": "e087710709e679e477cedca628f619d3b15069029cad99ef4cc183c4cb5a131d"
+    },
+    {
+      "entryId": "EXTRACT-078",
+      "source": "tests/editor/code-components/Program.cs",
+      "destination": "tests/code-components/Program.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 32034,
+      "sha256": "7f4096193044403f891a283a09a12d4dbc3260080a05d74715864031c9a8ddb6"
+    },
+    {
+      "entryId": "EXTRACT-079",
+      "source": "tests/editor/code-components/SceneAuthoringTests.cs",
+      "destination": "tests/code-components/SceneAuthoringTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 28650,
+      "sha256": "75a0bdfc0147db236ad3444835fbe29858c4eaebfd3aaff0fd9f5798ae223dcf"
+    },
+    {
+      "entryId": "EXTRACT-080",
+      "source": "tests/editor/code-components/SceneCandidateTests.cs",
+      "destination": "tests/code-components/SceneCandidateTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 31261,
+      "sha256": "6e1984d42c89ca8e1f6cb74afdd23a8d569faf10255bef0538911b386d4877d2"
+    },
+    {
+      "entryId": "EXTRACT-081",
+      "source": "tests/editor/code-components/SdkSelectionTests.cs",
+      "destination": "tests/code-components/SdkSelectionTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 50069,
+      "sha256": "a9b4d065fbdf32bd6e38f9ad5692064b75fea3bacde24037db212386f6f8fbd9"
+    },
+    {
+      "entryId": "EXTRACT-082",
+      "source": "tests/editor/code-components/VisualLayoutTests.cs",
+      "destination": "tests/code-components/VisualLayoutTests.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 9317,
+      "sha256": "e36b4050095921bc763c52355274f8e1b1992566e999f5415a8e0781b85aa10f"
+    },
+    {
+      "entryId": "EXTRACT-083",
+      "source": "tests/editor/field-interactions/PixieEditor.FieldInteractionTests.csproj",
+      "destination": "tests/field-interactions/PixieEditor.FieldInteractionTests.csproj",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 899,
+      "sha256": "414af55be30f750a8c02f4441db9785279f93721a81415f77b1ae0801a751cdd"
+    },
+    {
+      "entryId": "EXTRACT-084",
+      "source": "tests/editor/field-interactions/Program.cs",
+      "destination": "tests/field-interactions/Program.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 25828,
+      "sha256": "acfaadf5bbce5766467acd23c4e944d25a9695177f7c7a7f70bd59f7b0e77888"
+    },
+    {
+      "entryId": "EXTRACT-085",
+      "source": "tests/editor/start-screen/PixieEditor.StartScreenTests.csproj",
+      "destination": "tests/start-screen/PixieEditor.StartScreenTests.csproj",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 698,
+      "sha256": "296e27e309060e0961c617bf74680f79fcaa8c466118c6d063a6bb5c06e200df"
+    },
+    {
+      "entryId": "EXTRACT-086",
+      "source": "tests/editor/start-screen/Program.cs",
+      "destination": "tests/start-screen/Program.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3230,
+      "sha256": "5c29584f7f5b43bb25d0046aaefe03b145ce2efc1f7ac26a68fa64501e48786a"
+    },
+    {
+      "entryId": "EXTRACT-087",
+      "source": "tests/export/qualify_editor_publish.py",
+      "destination": "tests/publish/qualify_editor_publish.py",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 4090,
+      "sha256": "e855edaed23c2530bad1b31106c2b10ca164ad04aa4719fdb4e467478710783b"
+    },
+    {
+      "entryId": "EXTRACT-088",
+      "source": "tests/export/InspectEditorPublishIl.cs",
+      "destination": "tests/publish/InspectEditorPublishIl.cs",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 3057,
+      "sha256": "87f76e2071184681602817b59c48405e95873ac90e663beb25a1ef0fc9c8cb10"
+    },
+    {
+      "entryId": "EXTRACT-089",
+      "source": "tests/export/packages.lock.json",
+      "destination": "tests/publish/packages.lock.json",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 66,
+      "sha256": "a4364d81a6de2707d66fbced18fbbc926c882ab96e1d1aebbb17e871285b9d75"
+    },
+    {
+      "entryId": "EXTRACT-090",
+      "source": "tests/capture/qualify_editor_capture.py",
+      "destination": "tests/capture/qualify_editor_capture.py",
+      "destinationOwner": "Editor",
+      "operation": "transfer",
+      "bytes": 2430,
+      "sha256": "2f071c76f16a27e7dae77365c1ef2899ee01ea0981199f8df78816f884f9bb9f"
+    },
+    {
+      "entryId": "EXTRACT-091",
+      "source": "docs/editor-field-interactions.md",
+      "destination": "docs/editor-field-interactions.md",
+      "destinationOwner": "Editor",
+      "operation": "guide-content-transfer",
+      "bytes": 9661,
+      "sha256": "afdaa2a759ae9306f7e5392bdbcc09411b9a76e5fbc4a6b96eae4fefcb3ae8cc"
+    },
+    {
+      "entryId": "EXTRACT-092",
+      "source": "docs/editor-movement.md",
+      "destination": "docs/editor-movement.md",
+      "destinationOwner": "Editor",
+      "operation": "guide-content-transfer",
+      "bytes": 15895,
+      "sha256": "36b099530cac836480ded0a5089b31b3800259ccf1472df02ae3ace0d8769c19"
+    },
+    {
+      "entryId": "EXTRACT-093",
+      "source": "editor/PixieEditor/Native/PixieCapi.cs",
+      "destination": "capi/bindings/dotnet/PixieCapi.cs",
+      "destinationOwner": "Engine",
+      "operation": "engine-relocation",
+      "bytes": 24755,
+      "sha256": "9ec2f49ba76ba11b229a0602bbd79a2725b69814fb1981a64f2770d39524ec8c"
+    },
+    {
+      "entryId": "EXTRACT-094",
+      "source": "tests/editor/channel/NativeWriteProbe.cpp",
+      "destination": "tests/devchannel/NativeWriteProbe.cpp",
+      "destinationOwner": "Engine",
+      "operation": "engine-relocation",
+      "bytes": 1516,
+      "sha256": "2c2e0d799ff04acfafe45fa673f7cbd91f973175bdaaafb6c6c0eb28aed82c19"
+    }
+  ]
+}
