@@ -36,6 +36,14 @@ extern "C" {
 /* Raised when a function's meaning or a struct's layout changes. */
 #define PIXIE_CAPI_VERSION 28
 
+/* SDK identity is independent of C API layouts and cooperative module contract1. */
+#define PIXIE_SDK_IDENTITY_SCHEMA 1
+#define PIXIE_MODULE_IDENTITY_CONTRACT 1
+#define PIXIE_SDK_IDENTITY_MAX_LENGTH 65535
+#define PIXIE_CAPABILITY_MODULE_LOADING UINT64_C(1)
+#define PIXIE_CAPABILITY_NATIVE_AUTOMATION UINT64_C(2)
+#define PIXIE_CAPABILITY_CANDIDATE_AUTHORING UINT64_C(4)
+
 /* Small presentation read surface. Returned JSON owns no native handles. Camera
  * choices: 0 free, 1 Scene/World defaults, 2 explicit entity; IDs are stable. */
 
@@ -223,6 +231,13 @@ PIXIE_API PixieResult pixie_collider_drag_2d(PixieSession* session, uint32_t ent
 
 /* PIXIE_CAPI_VERSION of the library. */
 PIXIE_API int32_t pixie_api_version(void);
+/* Immutable UTF-8 SDK/actual C++ tuple JSON; no session or GL context required.
+ * Returns full byte length excluding NUL, at most PIXIE_SDK_IDENTITY_MAX_LENGTH.
+ * Capacity0 measures without writing (buffer may be null). Positive capacity requires
+ * a buffer and NUL-terminates even truncated output. Invalid arguments/oversize return
+ * -1 and set pixie_last_error. Native facilities do not grant module/type admission. */
+PIXIE_API int32_t pixie_sdk_identity(char* buffer, int32_t capacity);
+PIXIE_API uint64_t pixie_capabilities(void);
 PIXIE_API PixieResult pixie_presentation_snapshot(PixieSession* session, char* buffer, int32_t capacity, int32_t* length);
 PIXIE_API PixieResult pixie_viewport_camera_set(PixieSession* session, int32_t kind, uint64_t entity, uint64_t scene);
 PIXIE_API PixieResult pixie_viewport_camera_get(PixieSession* session, int32_t* kind, uint64_t* entity, uint64_t* scene);

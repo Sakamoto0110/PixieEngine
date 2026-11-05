@@ -1,0 +1,15 @@
+# Install-time finalization runs only on this explicitly staged SDK unit, never source.
+if(NOT CMAKE_INSTALL_CONFIG_NAME MATCHES "^(Debug|Release)$" OR
+   ("@PIXIE_SDK_PROFILE@" STREQUAL "shipping" AND NOT CMAKE_INSTALL_CONFIG_NAME STREQUAL "Release"))
+    message(FATAL_ERROR "The requested SDK install configuration is not an admitted tuple")
+endif()
+set(unit "$ENV{DESTDIR}${CMAKE_INSTALL_PREFIX}")
+if(unit STREQUAL "@sdk_root@" OR unit STREQUAL "@CMAKE_CURRENT_BINARY_DIR@")
+    message(FATAL_ERROR "SDK installation cannot target the source/build directory")
+endif()
+execute_process(COMMAND "@Python3_EXECUTABLE@" "@sdk_root@/scripts/sdk/assemble_sdk.py" finalize-unit
+    --root "${unit}" --identity "@sdk_output@/identity-${CMAKE_INSTALL_CONFIG_NAME}.json"
+    RESULT_VARIABLE result OUTPUT_VARIABLE output ERROR_VARIABLE error)
+if(NOT result EQUAL 0)
+    message(FATAL_ERROR "SDK unit finalization refused (${result}): ${output}\n${error}")
+endif()

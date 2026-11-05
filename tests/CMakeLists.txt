@@ -124,16 +124,45 @@ add_test(NAME local-gravity-world-base-rejection COMMAND ${CMAKE_COMMAND}
 set_tests_properties(local-gravity-world-base-rejection PROPERTIES
     RUN_SERIAL TRUE TIMEOUT 120 LABELS "physics;experimental;rejection")
 
+# B0-C1: context-free native identity checks and pre-factory module refusal.
+add_executable(sdk-identity-test capi/SdkIdentity.c)
+target_link_libraries(sdk-identity-test PRIVATE Pixie::Shared)
+set_target_properties(sdk-identity-test PROPERTIES FOLDER tests)
+if(MSVC)
+    target_compile_options(sdk-identity-test PRIVATE /W4 /WX)
+endif()
+
 if(PIXIE_DEVELOPMENT)
     add_library(null-game-module MODULE capi/NullModule.c)
-    target_include_directories(null-game-module PRIVATE ${PROJECT_SOURCE_DIR}/capi/include)
+    target_include_directories(null-game-module PRIVATE ${PROJECT_SOURCE_DIR}/capi/include
+        "${PIXIE_SDK_GENERATED_INCLUDE_DIR}")
     add_executable(module-lifetime capi/ModuleLifetime.c)
     target_link_libraries(module-lifetime PRIVATE Pixie::Shared glfw)
     if(MSVC)
         target_compile_options(null-game-module PRIVATE /W4 /WX)
         target_compile_options(module-lifetime PRIVATE /W4 /WX)
     endif()
+    set(pixie_identity_case_names missing-identity wrong-api wrong-sdk wrong-config wrong-profile)
+    set(pixie_identity_modules "")
+    foreach(pixie_identity_case RANGE 0 4)
+        list(GET pixie_identity_case_names ${pixie_identity_case} pixie_identity_case_name)
+        set(pixie_identity_target sdk-negative-${pixie_identity_case_name})
+        add_library(${pixie_identity_target} MODULE capi/IncompatibleModule.c)
+        target_include_directories(${pixie_identity_target} PRIVATE ${PROJECT_SOURCE_DIR}/capi/include
+            "${PIXIE_SDK_GENERATED_INCLUDE_DIR}")
+        target_compile_definitions(${pixie_identity_target} PRIVATE PIXIE_IDENTITY_CASE=${pixie_identity_case})
+        set_target_properties(${pixie_identity_target} PROPERTIES FOLDER tests)
+        if(MSVC)
+            target_compile_options(${pixie_identity_target} PRIVATE /W4 /WX)
+        endif()
+        list(APPEND pixie_identity_modules $<TARGET_FILE:${pixie_identity_target}>)
+    endforeach()
+    add_test(NAME sdk-identity COMMAND sdk-identity-test ${pixie_identity_modules}
+        $<TARGET_FILE:null-game-module>)
+else()
+    add_test(NAME sdk-identity COMMAND sdk-identity-test)
 endif()
+set_tests_properties(sdk-identity PROPERTIES TIMEOUT 30 LABELS sdk)
 
 
 
@@ -207,15 +236,19 @@ add_test(NAME project-code
                  "-DGRAPHICS_RUNTIME=${PIXIE_TEST_GRAPHICS_RUNTIME}"
                  -DCAPI_TEST=$<TARGET_FILE:capi-test> -P ${CMAKE_CURRENT_SOURCE_DIR}/project-code/ProjectCodeTest.cmake)
 
+add_test(NAME project-code-preserving-generation
+    COMMAND "${CMAKE_COMMAND}"
+        "-DENGINE=${PROJECT_SOURCE_DIR}"
+        "-DWORK=${CMAKE_CURRENT_BINARY_DIR}/project-code-preserving-generation/$<CONFIG>"
+        -P "${CMAKE_CURRENT_SOURCE_DIR}/project-code/PreservingGeneration.cmake")
+set_tests_properties(project-code-preserving-generation PROPERTIES TIMEOUT 120 LABELS "project-code;source")
+
 if(WIN32 AND TARGET pixie-export)
     find_package(Python3 REQUIRED COMPONENTS Interpreter)
-    set(export_graphics_args)
-    if(PIXIE_TEST_GRAPHICS_RUNTIME)
-        list(APPEND export_graphics_args --graphics-runtime "${PIXIE_TEST_GRAPHICS_RUNTIME}")
-    endif()
-    add_test(NAME game-export COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/export/qualify_export.py"
-        --exporter $<TARGET_FILE:pixie-export> --engine "${PROJECT_SOURCE_DIR}"
-        --work "${CMAKE_CURRENT_BINARY_DIR}/export" --cmake "${CMAKE_COMMAND}" --generator "${CMAKE_GENERATOR}"
-        ${export_graphics_args})
-    set_tests_properties(game-export PROPERTIES RUN_SERIAL TRUE TIMEOUT 600 LABELS export)
+    # Installed export tests receive an explicit paired SDK outside the producer build.
+    add_test(NAME export-producer-refusals
+        COMMAND Python3::Interpreter "${CMAKE_CURRENT_SOURCE_DIR}/export/qualify_export.py"
+            --producer-refusals --exporter $<TARGET_FILE:pixie-export>
+            --work "${CMAKE_CURRENT_BINARY_DIR}/export-producer/$<CONFIG>")
+    set_tests_properties(export-producer-refusals PROPERTIES TIMEOUT 300 LABELS "export;producer")
 endif()

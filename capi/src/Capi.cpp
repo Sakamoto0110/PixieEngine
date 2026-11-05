@@ -6,6 +6,7 @@
 #include "pixie_capi.h"
 #include "GameModules.hpp"
 #include "Session.hpp"
+#include "SdkIdentity.hpp"
 
 #include "pixie/render/gl/GlLoader.hpp"
 #include "pixie/platform/HostSurface.hpp"
@@ -284,6 +285,24 @@ int32_t pixie_api_version(void) {
     return PIXIE_CAPI_VERSION;
 }
 
+int32_t pixie_sdk_identity(char* buffer, int32_t capacity) {
+    const auto identity = pixie::sdk::RuntimeIdentity();
+    if (capacity < 0 || (!buffer && capacity > 0) || identity.size() > PIXIE_SDK_IDENTITY_MAX_LENGTH) {
+        Fail(PIXIE_ERROR_ARGUMENT, "invalid SDK identity buffer/capacity or oversized runtime identity");
+        return -1;
+    }
+    if (buffer && capacity > 0) {
+        const auto length = std::min(identity.size(), static_cast<std::size_t>(capacity - 1));
+        std::memcpy(buffer, identity.data(), length);
+        buffer[length] = '\0';
+    }
+    return static_cast<int32_t>(identity.size());
+}
+
+uint64_t pixie_capabilities(void) {
+    return pixie::sdk::Capabilities();
+}
+
 #ifdef PIXIE_DEVELOPMENT
 PixieResult pixie_module_load(const char* path) {
     return Guard([&]() -> PixieResult {
@@ -301,6 +320,13 @@ PixieResult pixie_module_load(const char* path) {
         module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
         if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
             return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible; rebuild the project with this engine before opening it");
+        // OS loading may already execute image initializers. No Project callback is
+        // invoked before this independent C-only SDK/C++ tuple admission succeeds.
+        const auto identity = reinterpret_cast<const char* (*)()>(module->Symbol("pixie_game_sdk_identity"));
+        if (!identity) return Fail(PIXIE_ERROR_ARGUMENT, "game module has no SDK identity; rebuild with the selected SDK");
+        std::string identityDiagnostic;
+        if (!pixie::sdk::Compatible(identity(), identityDiagnostic))
+            return Fail(PIXIE_ERROR_ARGUMENT, std::move(identityDiagnostic));
         const auto contract = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_candidate_contract"));
         module->candidateContract = contract ? contract() : 0;
         loadedModule = std::move(module);

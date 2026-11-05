@@ -1,0 +1,24 @@
+{
+  "schemaVersion": 1,
+  "hashPolicy": "utf8-lf",
+  "families": {
+    "legacy-v0": {"registrySchema": 0, "templates": ["legacy/CMakeLists.txt.in", "legacy/Project.hpp.in", "legacy/Project.cpp.in"]},
+    "registered-v1": {"registrySchema": 1, "templates": ["CMakeLists.txt.in", "Project.hpp.in", "Project.cpp.in", "Components.hpp.in", "Components.cpp.in", "Components.cmake.in", "Component.hpp.in", "Component.cpp.in"]},
+    "sdk-v1": {"registrySchema": 1, "templates": ["sdk/CMakeLists.txt.in", "Project.hpp.in", "Project.cpp.in", "Components.hpp.in", "Components.cpp.in", "Components.cmake.in", "Component.hpp.in", "Component.cpp.in"]},
+    "custom-v1": {"registrySchema": 1, "templates": ["Components.hpp.in", "Components.cpp.in", "Components.cmake.in", "Component.hpp.in", "Component.cpp.in"]}
+  },
+  "sha256": {
+    "CMakeLists.txt.in": "0491ad75d211ba65ba9168a9db037b6259b9a5c67a7004a0c3624507ec7a0981",
+    "Project.hpp.in": "8d35fb2580e1a7f688eec01150994f6bd3e7858315ee0c086892f0858d304663",
+    "Project.cpp.in": "13adf4b7cea5e0f035b1e8bc3f3f5ee3b5e8d00c6776f5455717bb56f04c53c2",
+    "Components.hpp.in": "a68e26b9d6e2eae5a60a2c72ec533121f97b44213df8bfa5ae8a4e4285e180c1",
+    "Components.cpp.in": "e6d3a3835242e18bc8f5a308c8804ad8f6ab17aa4a66b8296b76b7f89ae6decc",
+    "Components.cmake.in": "89dde83cff8e30994e4e1523610226e62e1f7c943ddbcac3e286aeca61f9a3e5",
+    "Component.hpp.in": "75b36dcb960b19f5e16555c701250621ea7bfa17403878b23b9649ee27e7eda2",
+    "Component.cpp.in": "5e460d6c230202b4ba3dfd677ca6542e9236c835a3588485d7534fd9eeb2f4ce",
+    "legacy/CMakeLists.txt.in": "1515e63185007f209d3b7e8b7b5be4d3f7957779ad941e7806f2a8c5b6f04cdd",
+    "legacy/Project.hpp.in": "8d35fb2580e1a7f688eec01150994f6bd3e7858315ee0c086892f0858d304663",
+    "legacy/Project.cpp.in": "762a9313d3432a6d2c0cfe16928263c157bb296fb5c8257e96f335fb69d04c67",
+    "sdk/CMakeLists.txt.in": "94f9eb3f62a59eabe5e5a00eb3d3074bfca5200785959199879016dedf93f9c8"
+  }
+}

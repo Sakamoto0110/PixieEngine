@@ -1,0 +1,19 @@
+cmake_minimum_required(VERSION 3.25)
+
+# The confirmed selection is supplied by the host/build invocation. No install path
+# belongs in this project; package failure never selects an Engine source checkout.
+if(NOT IS_ABSOLUTE "${PIXIE_SDK_ROOT}" OR NOT EXISTS "${PIXIE_SDK_ROOT}/sdk.json")
+    message(FATAL_ERROR "Select an installed PIXIE_SDK_ROOT before configuring this project.")
+endif()
+project(@PIXIE_ID@ LANGUAGES C CXX)
+set(PIXIE_ENGINE_MODE PACKAGE)
+include("${PIXIE_SDK_ROOT}/cmake/PixieProject.cmake")
+
+pixie_game(@PIXIE_ID@
+    @PIXIE_GENERATED_CANDIDATE_OPTION@
+    SOURCES src/@PIXIE_ID@Project.cpp
+)
+
+# BEGIN PIXIE COMPONENT SOURCES (managed)
+pixie_project_components()
+# END PIXIE COMPONENT SOURCES (managed)

@@ -1,6 +1,7 @@
 #include "Export.hpp"
 #include "PeImage.hpp"
 #include "Process.hpp"
+#include "Product.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include <nlohmann/json.hpp>
@@ -29,19 +30,36 @@ std::string Lower(std::string value) {
     for (auto& c : value) c = static_cast<char>(std::tolower(static_cast<unsigned char>(c)));
     return value;
 }
+// Keep the full manifest digest in project-local caches without relying on the
+// host's Windows long-path policy. These paths are for I/O; plans and logs keep
+// the original absolute paths.
+fs::path FileAccessPath(const fs::path& path) {
+#ifdef _WIN32
+    auto absolute = fs::absolute(path).lexically_normal().make_preferred();
+    const auto& name = absolute.native();
+    if (name.size() < MAX_PATH - 12 || name.starts_with(L"\\\\?\\")) return absolute;
+    if (name.starts_with(L"\\\\")) return fs::path(L"\\\\?\\UNC\\" + name.substr(2));
+    return fs::path(L"\\\\?\\" + name);
+#else
+    return path;
+#endif
+}
 Json Read(const fs::path& path) {
+    return ReadMetadata(FileAccessPath(path));
+}
+Json ReadScene(const fs::path& path) {
     std::ifstream input(path);
     if (!input) throw std::runtime_error("cannot read " + Utf8(path));
     return Json::parse(input);
 }
 void Write(const fs::path& path, const Json& value) {
-    std::ofstream output(path);
+    std::ofstream output(FileAccessPath(path));
     output << value.dump(2) << '\n';
     if (!output) throw std::runtime_error("cannot write export manifest");
 }
 bool Reparse(const fs::path& path) {
 #ifdef _WIN32
-    const auto attributes = GetFileAttributesW(path.c_str());
+    const auto attributes = GetFileAttributesW(FileAccessPath(path).c_str());
     return attributes != INVALID_FILE_ATTRIBUTES && (attributes & FILE_ATTRIBUTE_REPARSE_POINT) != 0;
 #else
     return fs::is_symlink(fs::symlink_status(path));
@@ -74,6 +92,7 @@ void Binary(const fs::path& path) {
     const auto forbidden = [](const std::string& symbol) {
         return symbol == "pixie_module_load" || symbol == "pixie_dev_dispatch" ||
             symbol == "pixie_game_create" || symbol == "pixie_game_api_version" ||
+            symbol == "pixie_game_candidate_contract" || symbol == "pixie_game_sdk_identity" ||
             symbol.find("LocalCommandChannel@pixie@@") != std::string::npos ||
             symbol.find("WorldDispatcher@dev@pixie@@") != std::string::npos ||
             symbol.find("PlayerChannel@dev@pixie@@") != std::string::npos;
@@ -84,7 +103,7 @@ void Binary(const fs::path& path) {
 }
 bool IsBinary(const std::string& role) { return role == "player" || role == "library" || role == "runtime"; }
 void CheckManifest(const Json& manifest) {
-    if (manifest.at("format") != "pixie-export" || manifest.at("version") != 1 ||
+    if (manifest.at("format") != "pixie-export" || manifest.at("version") != 2 ||
         manifest.at("development") != false || manifest.at("dev_channel") != false)
         throw std::runtime_error("export requires a development-free shipping manifest");
     std::set<std::string> destinations;
@@ -142,11 +161,206 @@ void Closure(const Json& manifest, const fs::path& output, bool sourcePaths) {
     }
 }
 
+#ifdef _WIN32
+std::optional<std::wstring> Environment(const wchar_t* variable) {
+    SetLastError(ERROR_SUCCESS);
+    const auto length = GetEnvironmentVariableW(variable, nullptr, 0);
+    if (length == 0) {
+        if (GetLastError() == ERROR_ENVVAR_NOT_FOUND) return std::nullopt;
+        return std::wstring{};
+    }
+    std::wstring value(length, L'\0');
+    const auto actual = GetEnvironmentVariableW(variable, value.data(), length);
+    if (actual >= length) throw std::runtime_error("consumer tool environment changed during discovery");
+    value.resize(actual);
+    return value;
+}
+#endif
+
+fs::path ConsumerCMake() {
+#ifdef _WIN32
+    if (const auto selected = Environment(L"PIXIE_EXPORT_CMAKE")) {
+        const fs::path path(*selected);
+        if (!path.is_absolute() || Lower(Utf8(path.filename())) != "cmake.exe" || !fs::is_regular_file(FileAccessPath(path)))
+            throw std::runtime_error("PIXIE_EXPORT_CMAKE must be the absolute path to the consumer's cmake.exe");
+        return fs::canonical(path);
+    }
+    const auto search = Environment(L"PATH").value_or(L"");
+    for (std::size_t first = 0; first < search.size();) {
+        const auto last = search.find(L';', first);
+        auto value = search.substr(first, last == std::wstring::npos ? last : last - first);
+        if (value.size() >= 2 && value.front() == L'"' && value.back() == L'"') value = value.substr(1, value.size() - 2);
+        const fs::path directory(value);
+        if (directory.is_absolute()) {
+            const auto candidate = directory / "cmake.exe";
+            if (fs::is_regular_file(FileAccessPath(candidate))) return fs::canonical(candidate);
+        }
+        if (last == std::wstring::npos) break;
+        first = last + 1;
+    }
+#endif
+    throw std::runtime_error("code export needs the consumer's CMake and matching SDK toolchain; install cmake.exe on PATH or supply PIXIE_EXPORT_CMAKE");
+}
+
+void RequireCodeSupport(const ExportSdk& sdk) {
+    if (!sdk.Catalog().contains("features") || !sdk.Catalog().at("features").value("projectGeneration", false))
+        throw std::runtime_error("code export requires the selected SDK's installed shipping game-build support; source-checkout fallback is forbidden");
+    for (const auto* path : {"cmake/PixieProject.cmake", "cmake/PixieGame.cmake", "cmake/PixieTargetDefaults.cmake",
+                            "cmake/PixieExportProduct.cmake", "support/player/PlayerMain.cpp", "support/player/SceneGame.cpp",
+                            "lib/cmake/PixieEngine/PixieEngineConfig.cmake"})
+        (void)sdk.ResolveDeclared(path);
+}
+
+struct CodeBuild {
+    fs::path cmake, build, bin, owner;
+    Json identity;
+};
+
+void ValidateCodeCache(const CodeBuild& code) {
+    NoReparse(code.owner);
+    NoReparse(code.bin);
+    if (fs::exists(FileAccessPath(code.owner))) {
+        if (Read(code.owner) != code.identity) throw std::runtime_error("this export build cache belongs to another project, SDK, role or CMake; choose a new --work directory");
+    } else if ((fs::exists(FileAccessPath(code.build)) &&
+                (!fs::is_directory(FileAccessPath(code.build)) || !fs::is_empty(FileAccessPath(code.build)))) ||
+               fs::exists(FileAccessPath(code.bin))) {
+        throw std::runtime_error("refusing to reuse an unowned export build cache or binary directory; choose a new --work directory");
+    }
+}
+
+CodeBuild PrepareCodeBuild(const ExportSdk& sdk, const fs::path& project, const fs::path& work) {
+    RequireCodeSupport(sdk);
+    NoReparse(project / "CMakeLists.txt");
+    const auto cmake = ConsumerCMake();
+    const auto build = work / "build";
+    const auto bin = work / "bin";
+    const auto owner = build / "pixie-export-owner.json";
+    const Json requested{{"schemaVersion", 1}, {"project", Utf8(project)}, {"sdkRoot", Utf8(sdk.Root())},
+        {"manifestSha256", sdk.ManifestDigest()}, {"sdkBuildId", sdk.Identity().at("sdkBuildId")},
+        {"role", "shipping-export"}, {"configuration", "Release"}, {"cmakePath", Utf8(cmake)}, {"cmakeSha256", Digest(cmake)}};
+    CodeBuild code{cmake, build, bin, owner, requested};
+    ValidateCodeCache(code);
+    return code;
+}
+
+// One exporter can mutate a work root at a time, including its build, binaries
+// and manifest. A concurrent caller may retry or choose a different --work.
+class WorkLease {
+public:
+    explicit WorkLease(const fs::path& work) : path_(work / ".pixie-export.lock") {
+        NoReparse(path_);
+        fs::create_directories(FileAccessPath(work));
+#ifdef _WIN32
+        const auto handle = CreateFileW(FileAccessPath(path_).c_str(), GENERIC_READ | GENERIC_WRITE, 0, nullptr,
+                                       OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT, nullptr);
+        if (handle == INVALID_HANDLE_VALUE) {
+            const auto error = GetLastError();
+            if (error == ERROR_SHARING_VIOLATION || error == ERROR_LOCK_VIOLATION)
+                throw std::runtime_error("another export owns this work directory; retry or choose a different --work directory");
+            throw std::runtime_error("could not open export work lock (Windows error " + std::to_string(error) + ")");
+        }
+        BY_HANDLE_FILE_INFORMATION info{};
+        if (!GetFileInformationByHandle(handle, &info) || (info.dwFileAttributes & (FILE_ATTRIBUTE_REPARSE_POINT | FILE_ATTRIBUTE_DIRECTORY))) {
+            CloseHandle(handle);
+            throw std::runtime_error("export work lock is not a regular, unlinked file");
+        }
+        handle_ = handle;
+#else
+        if (!fs::create_directory(path_))
+            throw std::runtime_error("another export owns this work directory; retry or choose a different --work directory");
+#endif
+    }
+    WorkLease(const WorkLease&) = delete;
+    WorkLease& operator=(const WorkLease&) = delete;
+    ~WorkLease() {
+#ifdef _WIN32
+        CloseHandle(handle_);
+#else
+        std::error_code ignored;
+        fs::remove(path_, ignored);
+#endif
+    }
+private:
+    fs::path path_;
+#ifdef _WIN32
+    HANDLE handle_ = INVALID_HANDLE_VALUE;
+#endif
+};
+
+void ArchiveProductDeclarations(const fs::path& build) {
+    const auto existing = build / "pixie-export";
+    NoReparse(existing);
+    if (!fs::exists(FileAccessPath(existing))) return;
+    if (!fs::is_directory(FileAccessPath(existing))) throw std::runtime_error("the owned export product path is not a directory");
+    const auto history = build / "previous-export-products";
+    NoReparse(history);
+    fs::create_directories(FileAccessPath(history));
+    for (std::size_t index = 1;; ++index) {
+        const auto destination = history / ("attempt-" + std::to_string(index));
+        NoReparse(destination);
+        if (fs::exists(FileAccessPath(destination))) continue;
+        fs::rename(FileAccessPath(existing), FileAccessPath(destination));
+        return;
+    }
+}
+
+Json BuildCodeProduct(const ExportSdk& sdk, const fs::path& project, const CodeBuild& code) {
+    const auto& [cmake, build, bin, owner, requested] = code;
+    ValidateCodeCache(code);
+    if (!fs::exists(FileAccessPath(owner))) {
+        fs::create_directories(FileAccessPath(build));
+        Write(owner, requested);
+    }
+    // Only declarations produced by this configure may select a target. Keep
+    // prior declarations for diagnosis without letting a removed one survive.
+    ArchiveProductDeclarations(build);
+
+    std::cout << "Configuring the selected SDK's shipping/Release consumer project\n" << std::flush;
+    if (RunProcess(cmake, {"-S", Utf8(project), "-B", Utf8(build), "-DPIXIE_ENGINE_MODE=PACKAGE", "-DPIXIE_ENGINE_DIR=",
+            "-DPIXIE_PROJECT_BUILD_ROLE=shipping-export", "-DPIXIE_SDK_ROOT=" + Utf8(sdk.Root()), "-DPIXIE_SDK_PROFILE=shipping",
+            "-DPIXIE_PROJECT_ADOPT_SDK=OFF", "-DPIXIE_OUTPUT_ROOT=" + Utf8(bin), "-DPIXIE_DEVELOPMENT=OFF", "-DPIXIE_DEV_CHANNEL=OFF",
+            "-DPixieEngine_DIR=" + Utf8(sdk.Root() / "lib/cmake/PixieEngine"), "-DCMAKE_BUILD_TYPE=Release",
+            "-DCMAKE_CONFIGURATION_TYPES=Release", "-DCMAKE_SYSTEM_VERSION=" + sdk.Identity().at("windowsSdkVersion").get<std::string>()}) != 0)
+        throw std::runtime_error("could not configure the installed shipping export; check the selected SDK toolchain and build log");
+
+    const auto products = build / "pixie-export" / "Release";
+    NoReparse(products);
+    if (!fs::is_directory(FileAccessPath(products))) throw std::runtime_error("configured project did not declare an installed shipping export product");
+    std::vector<fs::path> declarations;
+    for (const auto& item : fs::directory_iterator(FileAccessPath(products))) {
+        const auto path = products / item.path().filename();
+        NoReparse(path);
+        if (item.is_regular_file() && path.extension() == ".json") declarations.push_back(path);
+    }
+    if (declarations.size() != 1) throw std::runtime_error("code export requires exactly one declared shipping product; use a clean cache or explicit project wiring");
+    const auto productPath = declarations.front();
+    const auto target = Utf8(productPath.stem());
+    if (target.empty() || target.front() == '-' || !std::all_of(target.begin(), target.end(), [](unsigned char c) {
+        return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z') || (c >= '0' && c <= '9') || c == '_' || c == '.' || c == '-' || c == '+';
+    })) throw std::runtime_error("shipping product does not name a valid consumer build target");
+    const auto readProduct = [&] {
+        NoReparse(productPath);
+        auto product = Read(productPath);
+        CheckProductIdentity(sdk, product);
+        const auto player = FromUtf8(product.at("player").at("source").get<std::string>());
+        if (!player.is_absolute() || player.parent_path().lexically_normal() != (bin / "Release").lexically_normal() ||
+            Utf8(player.filename()) != product.at("player").at("destination").get<std::string>())
+            throw std::runtime_error("shipping player must be the declared executable in this export's owned Release binary directory");
+        NoReparse(player);
+        return product;
+    };
+    (void)readProduct();
+    std::cout << "Building installed shipping target: " << target << '\n' << std::flush;
+    if (RunProcess(cmake, {"--build", Utf8(build), "--config", "Release", "--target", target}) != 0)
+        throw std::runtime_error("could not build the declared shipping game target; see the consumer build log");
+    std::cout << "Build product: " << Utf8(productPath) << '\n';
+    return readProduct();
+}
+
 class Plan {
 public:
-    explicit Plan(fs::path project) : project_(fs::canonical(project)) {
-        manifest = {{"format", "pixie-export"}, {"version", 1}, {"engine_version", PIXIE_PRODUCT_VERSION},
-            {"development", false}, {"dev_channel", false}, {"project", Utf8(project_)}, {"files", Json::array()}};
+    Plan(fs::path project, const ExportSdk& sdk) : project_(fs::canonical(project)) {
+        manifest = ExportProvenance(sdk);
     }
     void Add(const fs::path& source, const std::string& destination, const std::string& role) {
         Relative(destination);
@@ -167,30 +381,16 @@ public:
     void Asset(const std::string& path, const std::string& role = "asset") {
         Add(project_ / Relative(path), path, role);
     }
-    void Binaries(const Json& product) {
-        if (product.at("development") != false || product.at("dev_channel") != false || product.at("configuration") != "Release")
-            throw std::runtime_error("product was not built as a shipping Release");
-        const auto player = FromUtf8(product.at("player").get<std::string>());
-        const auto destination = Utf8(player.filename());
-        manifest["player"] = destination;
-        Add(player, destination, "player");
-        std::vector<fs::path> queue{player};
-        for (const auto& file : product.at("libraries")) {
-            const auto path = FromUtf8(file.get<std::string>());
-            Add(path, Utf8(path.filename()), "library"); queue.push_back(path);
+    void Binaries(const ExportSdk& sdk, const Json& product) {
+        const auto binaries = ProductBinaries(sdk, product);
+        for (const auto& binary : binaries) {
+            Add(binary.source, binary.destination, binary.role);
+            if (binary.role == "player") manifest["player"] = binary.destination;
         }
-        // Include the compiler's release CRT bundle, including dynamically used satellite DLLs.
-        for (const auto& file : product.at("runtime")) {
-            const auto path = FromUtf8(file.get<std::string>());
-            Add(path, Utf8(path.filename()), "runtime"); queue.push_back(path);
-        }
-        for (std::size_t i = 0; i < queue.size(); ++i) {
-            for (const auto& name : InspectPe(queue[i]).libraries) {
-                if (sources_.contains(Lower(name)) || IsWindowsLibrary(name)) continue;
-                const auto dependency = player.parent_path() / FromUtf8(name);
-                Add(dependency, name, "library"); queue.push_back(dependency);
-            }
-        }
+        for (const auto& binary : binaries)
+            for (const auto& name : InspectPe(binary.source).libraries)
+                if (!sources_.contains(Lower(name)) && !IsWindowsLibrary(name))
+                    throw std::runtime_error("missing explicitly declared native dependency: " + name);
     }
     void Scenes(const pixie::OpenedProject& project) {
         pixie::ComponentTypes types;
@@ -207,7 +407,7 @@ public:
         for (const auto& scene : scenes) {
             NoReparse(scene);
             Asset(Utf8(scene.lexically_relative(project_)), "scene");
-            const auto data = Read(scene);
+            const auto data = ReadScene(scene);
             for (const auto& entity : data.at("entities")) {
                 for (const auto& [name, component] : entity.at("components").items()) {
                     const auto type = types.IndexOf(name);
@@ -229,8 +429,9 @@ private:
 };
 }
 
-void VerifyExport(const fs::path& manifestPath, const fs::path& output) {
+void VerifyExport(const ExportSdk& sdk, const fs::path& manifestPath, const fs::path& output) {
     const auto manifest = Read(manifestPath);
+    CheckExportIdentity(sdk, manifest);
     CheckManifest(manifest);
     NoReparse(output);
     std::map<std::string, std::string> files;
@@ -257,8 +458,9 @@ void VerifyExport(const fs::path& manifestPath, const fs::path& output) {
     std::cout << "Verified shipping manifest, binary exclusions and dependency closure: " << Utf8(output) << '\n';
 }
 
-void CopyManifest(const fs::path& manifestPath, const fs::path& output) {
+void CopyManifest(const ExportSdk& sdk, const fs::path& manifestPath, const fs::path& output) {
     const auto manifest = Read(manifestPath);
+    CheckExportIdentity(sdk, manifest);
     CheckManifest(manifest);
     NoReparse(output);
     if (fs::exists(output) && (!fs::is_directory(output) || !fs::is_empty(output)))
@@ -276,11 +478,12 @@ void CopyManifest(const fs::path& manifestPath, const fs::path& output) {
         fs::create_directories(destination.parent_path());
         fs::copy_file(FromUtf8(item.at("source").get<std::string>()), destination);
     }
-    VerifyExport(manifestPath, output);
+    VerifyExport(sdk, manifestPath, output);
 }
 
-void ExportProject(const fs::path& folder, const fs::path& output) {
+void ExportProject(const ExportSdk& sdk, const fs::path& folder, const fs::path& output, const std::optional<fs::path>& requestedWork) {
     NoReparse(folder);
+    const bool hasRequirement = sdk.CheckRequirement(fs::canonical(folder));
     const auto project = pixie::OpenProjectFolder(fs::canonical(folder));
     if (!project.ok) throw std::runtime_error(project.error);
     NoReparse(output);
@@ -289,38 +492,37 @@ void ExportProject(const fs::path& folder, const fs::path& output) {
         throw std::runtime_error("export output cannot replace the project or its ancestors");
     NoReparse(destination);
     if (fs::exists(destination) && !fs::is_empty(destination)) throw std::runtime_error("export destination is not empty");
-    const auto work = project.folder / "build" / "pixie-export";
+    // The manifest digest already binds both SDK and shipping build identities.
+    // Stacking two full digests exhausted ordinary Windows paths for the default cache.
+    const auto work = requestedWork ? fs::absolute(*requestedWork) : project.folder / ".local" / "pixie-export" /
+        "shipping" / sdk.ManifestDigest();
     NoReparse(work);
     const bool code = fs::is_regular_file(project.folder / "CMakeLists.txt");
-    const auto source = code ? project.folder : FromUtf8(PIXIE_EXPORT_ENGINE_ROOT);
-    const auto cmake = FromUtf8(PIXIE_EXPORT_CMAKE);
-    std::vector<std::string> configure{"-S", Utf8(source), "-B", Utf8(work), "-G", PIXIE_EXPORT_GENERATOR,
-            "-DPIXIE_ENGINE_DIR=" + std::string(PIXIE_EXPORT_ENGINE_ROOT),
-            "-DPIXIE_OUTPUT_ROOT=" + Utf8(work / "bin"), "-DPIXIE_DEVELOPMENT=OFF", "-DPIXIE_DEV_CHANNEL=OFF",
-            "-DPIXIE_BUILD_SAMPLES=OFF", "-DPIXIE_ENGINE_BUILD_TESTS=OFF", "-DPIXIE_BUILD_TOOLS=OFF"};
-    if (std::string(PIXIE_EXPORT_GENERATOR).starts_with("Visual Studio")) {
-        configure.push_back("-A"); configure.push_back("x64");
-    } else configure.push_back("-DCMAKE_MAKE_PROGRAM=" + std::string(PIXIE_EXPORT_MAKE_PROGRAM));
-    if (RunProcess(cmake, configure) != 0 ||
-        RunProcess(cmake, {"--build", Utf8(work), "--config", "Release", "--parallel", "4"}) != 0)
-        throw std::runtime_error("shipping build failed; output was not exported");
-    const auto products = work / "pixie-export" / "Release";
-    std::vector<fs::path> manifests;
-    for (const auto& entry : fs::directory_iterator(products)) if (entry.path().extension() == ".json") manifests.push_back(entry.path());
-    if (manifests.size() != 1) throw std::runtime_error("export expects exactly one game product in the project");
-    const auto product = Read(manifests.front());
+    if (code && !hasRequirement) throw std::runtime_error("code export needs a compatible portable authoring SDK requirement; record it explicitly in the Editor");
+    const auto codeBuild = code ? std::optional{PrepareCodeBuild(sdk, project.folder, work)} : std::nullopt;
+    const WorkLease lease(work);
+    const auto product = codeBuild ? BuildCodeProduct(sdk, project.folder, *codeBuild) : sdk.NoCodeProduct();
+    if (!code) {
+        const auto productPath = work / "pixie-export" / "Release" / "no-code.json";
+        NoReparse(productPath);
+        fs::create_directories(FileAccessPath(productPath.parent_path()));
+        Write(productPath, product);
+    }
     NoReparse(project.folder);
     const auto currentProject = pixie::OpenProjectFolder(project.folder);
     if (!currentProject.ok) throw std::runtime_error(currentProject.error);
-    Plan plan(project.folder);
-    plan.Binaries(product);
+    Plan plan(project.folder, sdk);
+    plan.manifest["project"] = Utf8(currentProject.path.filename());
+    plan.Binaries(sdk, product);
     plan.Asset(Utf8(currentProject.path.filename()), "project");
     plan.Scenes(currentProject);
     for (const auto& asset : product.at("assets")) plan.Asset(asset.get<std::string>());
     const auto manifest = work / "export-manifest.json";
+    NoReparse(manifest);
+    fs::create_directories(FileAccessPath(work));
     CheckManifest(plan.manifest);
     Write(manifest, plan.manifest);
-    CopyManifest(manifest, destination);
+    CopyManifest(sdk, manifest, destination);
     std::cout << "Export manifest: " << Utf8(manifest) << '\n';
 }
 }
