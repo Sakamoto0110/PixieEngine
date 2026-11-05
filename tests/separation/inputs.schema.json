@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "pixie-separation-qualification-inputs/1",
+  "title": "Explicit separation qualification inputs (structural envelope)",
+  "description": "Only selected requirements are resolved. This schema grants no product-gate pass or executable release policy.",
+  "type": "object",
+  "required": ["schema", "interfaceRevision", "draft", "runId", "phase", "gates", "contract", "artifacts", "tools", "receipts", "outputs"],
+  "properties": {
+    "schema": {"const": "pixie-separation-qualification-inputs/1"},
+    "interfaceRevision": {"const": 1},
+    "draft": {"const": false},
+    "runId": {"type": "string", "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$"},
+    "phase": {"enum": ["early", "pre-move", "post-move", "candidate"]},
+    "gates": {"type": "array", "minItems": 1, "uniqueItems": true, "items": {"enum": ["G1", "G2", "G3", "G4", "G5", "G6"]}},
+    "contract": {"$ref": "#/$defs/reference"},
+    "artifacts": {"type": "array", "items": {"$ref": "#/$defs/artifact"}},
+    "tools": {"type": "object", "additionalProperties": {"anyOf": [{"$ref": "#/$defs/reference"}, {"type": "null"}]}},
+    "receipts": {"type": "array", "items": {"$ref": "#/$defs/receipt"}},
+    "decisionFlags": {"type": "object", "additionalProperties": {"type": ["boolean", "null"]}},
+    "outputs": {"type": "object", "required": ["root"], "properties": {"root": {"type": "string", "minLength": 1}}, "additionalProperties": true},
+    "isolation": {"type": ["object", "null"]},
+    "candidate": {"type": ["object", "null"]}
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "nullableText": {"type": ["string", "null"]},
+    "reference": {
+      "type": "object",
+      "properties": {"path": {"$ref": "#/$defs/nullableText"}, "sha256": {"$ref": "#/$defs/nullableText"}, "version": {"$ref": "#/$defs/nullableText"}},
+      "additionalProperties": false
+    },
+    "artifact": {
+      "type": "object",
+      "required": ["role"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "archivePath": {"$ref": "#/$defs/nullableText"},
+        "archiveSha256": {"$ref": "#/$defs/nullableText"},
+        "treePath": {"$ref": "#/$defs/nullableText"},
+        "inventoryPath": {"$ref": "#/$defs/nullableText"},
+        "inventorySha256": {"$ref": "#/$defs/nullableText"},
+        "provenancePath": {"$ref": "#/$defs/nullableText"},
+        "provenanceSha256": {"$ref": "#/$defs/nullableText"},
+        "tuple": {"type": ["object", "null"]},
+        "payloadRef": {"anyOf": [{"type": "null"}, {"type": "object", "required": ["role", "path"], "properties": {"role": {"type": "string", "minLength": 1}, "path": {"type": "string", "minLength": 1}}, "additionalProperties": false}]}
+      },
+      "additionalProperties": false
+    },
+    "receipt": {
+      "type": "object",
+      "required": ["role"],
+      "properties": {
+        "role": {"type": "string", "minLength": 1},
+        "path": {"$ref": "#/$defs/nullableText"},
+        "sha256": {"$ref": "#/$defs/nullableText"},
+        "kind": {"enum": ["document", "receipt"]},
+        "artifactRoles": {"type": "array", "uniqueItems": true, "items": {"type": "string", "minLength": 1}},
+        "case": {"$ref": "#/$defs/nullableText"},
+        "variant": {"$ref": "#/$defs/nullableText"}
+      },
+      "additionalProperties": false
+    }
+  }
+}
