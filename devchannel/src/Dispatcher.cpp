@@ -80,6 +80,51 @@ template<class Read> std::string Text(Read&& read) {
     Check(read(buffer.data(), static_cast<int>(buffer.size())));
     return buffer.data();
 }
+Json EngineIdentity() {
+    const auto length = pixie_sdk_identity(nullptr, 0);
+    if (length <= 0 || length > PIXIE_SDK_IDENTITY_MAX_LENGTH)
+        Reject("native SDK identity query failed or exceeded its byte limit", PIXIE_ERROR_INTERNAL);
+    // A nonzero sentinel detects a missing terminator rather than supplying one for the query.
+    std::vector<char> text(static_cast<std::size_t>(length) + 1, '\1');
+    if (pixie_sdk_identity(text.data(), static_cast<int32_t>(text.size())) != length || text.back() != '\0' ||
+        std::find(text.begin(), text.end() - 1, '\0') != text.end() - 1)
+        Reject("native SDK identity read failed, changed length or lacked its terminator", PIXIE_ERROR_INTERNAL);
+    std::vector<std::set<std::string>> keys;
+    const auto callback = [&](int depth, Json::parse_event_t event, Json& value) {
+        if (depth > 16) Reject("native SDK identity JSON exceeds its nesting limit", PIXIE_ERROR_INTERNAL);
+        if (event == Json::parse_event_t::object_start) keys.emplace_back();
+        else if (event == Json::parse_event_t::key) {
+            if (keys.empty() || !keys.back().insert(value.get<std::string>()).second)
+                Reject("native SDK identity JSON has duplicate keys", PIXIE_ERROR_INTERNAL);
+        } else if (event == Json::parse_event_t::object_end) keys.pop_back();
+        return true;
+    };
+    auto identity = Json::parse(text.begin(), text.end() - 1, callback, false);
+    if (identity.is_discarded() || !identity.is_object())
+        Reject("native SDK identity JSON is malformed", PIXIE_ERROR_INTERNAL);
+    const auto matches = [&](const char* name, uint64_t expected) {
+        const auto field = identity.find(name);
+        return field != identity.end() && field->is_number_unsigned() && field->get<uint64_t>() == expected;
+    };
+    const auto bits = pixie_capabilities();
+    const auto capabilities = identity.find("capabilities");
+    if (!matches("schemaVersion", PIXIE_SDK_IDENTITY_SCHEMA) ||
+        !matches("cApiVersion", static_cast<uint64_t>(pixie_api_version())) ||
+        !matches("moduleIdentityContract", PIXIE_MODULE_IDENTITY_CONTRACT) ||
+        !matches("capabilityBits", bits) || capabilities == identity.end() || !capabilities->is_object())
+        Reject("native SDK identity schema/API/capabilities disagree with the runtime", PIXIE_ERROR_INTERNAL);
+    const auto agrees = [&](const char* name, uint64_t bit) {
+        const auto field = capabilities->find(name);
+        return field != capabilities->end() && field->is_boolean() && field->get<bool>() == ((bits & bit) != 0);
+    };
+    if (!agrees("moduleLoading", PIXIE_CAPABILITY_MODULE_LOADING) ||
+        !agrees("nativeAutomation", PIXIE_CAPABILITY_NATIVE_AUTOMATION) ||
+        !agrees("candidateAuthoring", PIXIE_CAPABILITY_CANDIDATE_AUTHORING))
+        Reject("native SDK identity capability fields disagree with the runtime", PIXIE_ERROR_INTERNAL);
+    if ((bits & PIXIE_CAPABILITY_NATIVE_AUTOMATION) == 0)
+        Reject("native automation is unavailable in the selected runtime", PIXIE_ERROR_NOT_FOUND);
+    return identity; // The authoritative C1 object is forwarded without reconstructing its fields.
+}
 Json Error(const Json& id, int rpc, const Failure& error, uint64_t sequence, uint64_t generation) {
     return {{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", rpc}, {"message", error.what()},
         {"data", {{"pixie_result", error.result}, {"pixie_last_error", error.what()},
@@ -411,10 +456,14 @@ struct WorldDispatcher::Impl {
     }
     Json Execute(const std::string& method, const Json& p) {
         if (method == "world.hello") {
-            hello = true;
-            return {{"protocol_version", 1}, {"pixie_api_version", pixie_api_version()}, {"session", nonce},
+            hello = false;
+            auto identity = EngineIdentity();
+            Json value{{"protocol_version", 1}, {"pixie_api_version", pixie_api_version()}, {"session", nonce},
                 {"project", Text([&](char* b, int n) { return pixie_project_name(S(), b, n); })}, {"stats", Stats()},
+                {"engine", std::move(identity)},
                 {"capabilities", {{"world", true}, {"inspector", false}, {"capture", false}, {"transport", false}, {"save", false}}}};
+            hello = true;
+            return value;
         }
         if (!hello) Reject("world.hello must be the first call");
         if (method == "world.prepare_capture") {

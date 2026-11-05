@@ -2,6 +2,7 @@
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie_capi.h"
+#include "pixie_sdk_build.h"
 #include <stdexcept>
 
 namespace {
@@ -27,4 +28,5 @@ public:
 #define PROBE_EXPORT __attribute__((visibility("default")))
 #endif
 extern "C" PROBE_EXPORT int pixie_game_api_version() { return PIXIE_CAPI_VERSION; }
+extern "C" PROBE_EXPORT const char* pixie_game_sdk_identity() { return PIXIE_SDK_NATIVE_IDENTITY_JSON; }
 extern "C" PROBE_EXPORT pixie::Project* pixie_game_create() { return new ProbeProject(); }

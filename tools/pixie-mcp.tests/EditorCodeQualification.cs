@@ -3,14 +3,15 @@ using ModelContextProtocol.Client;
 using ModelContextProtocol.Protocol;
 using System.Text.Json.Nodes;
 
-// A project with code opened cold through MCP: the editor builds the code, and the engine with it,
-// before it opens its channel, so the server must answer its client at once and wait for the host.
+// The Editor builds a cold project's module against the selected installed SDK before
+// opening its channel. The server lists tools while it waits for the host.
 internal static class EditorCodeQualification
 {
     public static async Task Run(string[] args)
     {
-        if (args.Length != 7)
-            throw new ArgumentException("usage: --editor-code <editor.exe> <cold code project> <mcp.dll> <captures> <receipt.json> <folder without a project> <second cold code project>");
+        if (args.Length < 7 || (args.Length - 7) % 2 != 0)
+            throw new ArgumentException("usage: --editor-code <editor.exe> <cold code project> <mcp.dll> <captures> <receipt.json> <folder without a project> <bounded-delay cold project> [explicit SDK options]");
+        var selection = args[7..];
         var (editor, project, mcp, captures) = (Path.GetFullPath(args[0]), Path.GetFullPath(args[1]), Path.GetFullPath(args[2]), Path.GetFullPath(args[3]));
         var records = new JsonArray();
         void Check(bool condition, string name, JsonObject? detail = null)
@@ -23,7 +24,7 @@ internal static class EditorCodeQualification
         Task<McpClient> Connect(string folder, string captureFolder, params string[] extra) => McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "Pixie code project qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
-            Arguments = [mcp, "--host", editor, "--project", folder, "--captures", Path.Combine(captures, captureFolder), "--kind", "editor", .. extra]
+            Arguments = [mcp, "--host", editor, "--project", folder, "--captures", Path.Combine(captures, captureFolder), "--kind", "editor", .. selection, .. extra]
         }));
         static async Task<CallToolResult> Call(McpClient client, string name, JsonObject? p = null)
             => await client.CallToolAsync(name, new Dictionary<string, object?> { ["parameters"] = p ?? new JsonObject() });

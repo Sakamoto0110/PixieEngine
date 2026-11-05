@@ -125,6 +125,7 @@ internal sealed class EditorChannel : IDisposable
             return;
         }
         if (!Pipe.TryTake(out var command) || command == null) return;
+        if (Client != command.Client) { Client = command.Client; Hello = false; }
         JsonNode? id = null;
         bool notification = false;
         bool possiblyApplied = false;
@@ -132,6 +133,12 @@ internal sealed class EditorChannel : IDisposable
         {
             var input = JsonNode.Parse(command.Request, documentOptions: new() { MaxDepth = 32 }) as JsonObject
                 ?? throw new WireException(-32600, "JSON-RPC request must be an object.");
+            var hello = input["method"] is JsonValue helloMethod && helloMethod.TryGetValue<string>(out var helloName) && helloName == "world.hello";
+            if (hello)
+            {
+                Hello = false;
+                notification = !input.ContainsKey("id");
+            }
             if (input["jsonrpc"] is not JsonValue version || !version.TryGetValue<string>(out var versionText) || versionText != "2.0")
                 throw new WireException(-32600, "Expected JSON-RPC2.0.");
             id = input["id"];
@@ -142,9 +149,8 @@ internal sealed class EditorChannel : IDisposable
             var method = Text(input, "method");
             notification = !input.ContainsKey("id");
             var p = input.ContainsKey("params") ? input["params"] as JsonObject ?? throw new ArgumentException("params must be an object.") : new JsonObject();
-            if (Client != command.Client) { Client = command.Client; Hello = false; }
             ++Sequence;
-            if (!Hello && method != "world.hello") throw new InvalidOperationException("world.hello must be the first call.");
+            if (!Hello && !hello) throw new InvalidOperationException("world.hello must be the first call.");
             if (method == "editor.do" && p["command"] is JsonValue recoveryValue &&
                 recoveryValue.TryGetValue<string>(out var recoveryCommand) && recoveryCommand == "recover")
             {
@@ -164,7 +170,29 @@ internal sealed class EditorChannel : IDisposable
                 Pending = new(command, id?.DeepClone(), notification, path, Frame + 1);
                 return; // Complete only after a full subsequent UI frame has rendered.
             }
-            if (method.StartsWith("world.", StringComparison.Ordinal))
+            if (hello)
+            {
+                // A native notification has no success receipt. Ask native for one while keeping the external wire silent.
+                response = notification ? Native(method, (JsonObject)p.DeepClone()) :
+                    JsonNode.Parse(Session.DispatchDevelopment(command.Request))!.AsObject();
+                Synchronize();
+                if (response["error"] is JsonObject error && !response.ContainsKey("result"))
+                {
+                    if (error["data"] is JsonObject data) Context(data);
+                }
+                else
+                {
+                    if (response.ContainsKey("error") || response["result"] is not JsonObject result ||
+                        result["value"] is not JsonObject value || value["engine"] is not JsonObject)
+                        throw new WireException(-32603, "Native hello did not return an engine identity.");
+                    Context(result);
+                    value["capture_directory"] = Captures.Root;
+                    value["capabilities"] = new JsonObject { ["world"] = true, ["inspector"] = true, ["editor"] = true,
+                        ["transport"] = true, ["capture"] = true, ["save"] = Saves };
+                    Hello = true;
+                }
+            }
+            else if (method.StartsWith("world.", StringComparison.Ordinal))
             {
                 possiblyApplied = !Editing.SessionEditGate.IsReadOnlyWorldCommand(method, p);
                 string output = "";
@@ -177,20 +205,9 @@ internal sealed class EditorChannel : IDisposable
                 }
                 else output = Session.DispatchDevelopment(command.Request);
                 Synchronize();
-                if (notification) { if (method == "world.hello") Hello = true; command.Reply.TrySetResult(""); return; }
+                if (notification) { command.Reply.TrySetResult(""); return; }
                 response = JsonNode.Parse(output)!.AsObject();
-                if (response["result"] is JsonObject result)
-                {
-                    Context(result);
-                    if (method == "world.hello")
-                    {
-                        Hello = true;
-                        var value = result["value"]!.AsObject();
-                        value["capture_directory"] = Captures.Root;
-                        value["capabilities"] = new JsonObject { ["world"] = true, ["inspector"] = true, ["editor"] = true,
-                            ["transport"] = true, ["capture"] = true, ["save"] = Saves };
-                    }
-                }
+                if (response["result"] is JsonObject result) Context(result);
                 else if (response["error"]?["data"] is JsonObject data) Context(data);
             }
             else if (method == "inspector.tree") response = Result(id, Inspector.ChannelTree());

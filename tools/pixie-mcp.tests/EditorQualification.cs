@@ -6,8 +6,8 @@ internal static class EditorQualification
 {
     public static async Task Run(string[] args)
     {
-        if (args.Length != 6 || args[5] is not ("save=on" or "save=off"))
-            throw new ArgumentException("usage: --editor <editor.exe> <project> <mcp.dll> <captures> <receipt.json> save=on|off");
+        if (args.Length < 6 || (args.Length - 6) % 2 != 0 || args[5] is not ("save=on" or "save=off"))
+            throw new ArgumentException("usage: --editor <explicit host> <project> <mcp.dll> <captures> <receipt.json> save=on|off [explicit bridge SDK/Editor options]");
         var saves = args[5] == "save=on";
         var records = new JsonArray();
         void Check(bool condition, string name)
@@ -21,7 +21,7 @@ internal static class EditorQualification
             {
                 Name = "Pixie Inspector qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
                 Arguments = [Path.GetFullPath(args[2]), "--host", Path.GetFullPath(args[0]), "--project", Path.GetFullPath(args[1]),
-                    "--captures", Path.Combine(Path.GetFullPath(args[3]), "editor espaço-ação"), "--kind", "editor"]
+                    "--captures", Path.Combine(Path.GetFullPath(args[3]), "editor espaço-ação"), "--kind", "editor", .. args[6..]]
             }));
             async Task<(JsonNode Receipt, CallToolResult Tool)> Call(string name, JsonObject? p = null)
             {
@@ -43,6 +43,9 @@ internal static class EditorQualification
             var hello = await Good("world.hello");
             Check(hello["capabilities"]?["inspector"]?.GetValue<bool>() == true && hello["pixie_api_version"]?.GetValue<int>() == NativeApiVersion.Current, "editor-native-api-and-inspector-capability");
             Check(hello["capabilities"]?["save"]?.GetValue<bool>() == saves, "editor-save-capability-matches-build-" + args[5]);
+            Check(hello["engine"]?["schemaVersion"]?.GetValue<int>() == NativeApiVersion.IdentitySchema &&
+                hello["engine"]?["capabilities"]?["nativeAutomation"]?.GetValue<bool>() == true,
+                "editor-retains-C1-private-native-identity-separate-from-operations");
             var entities = (await Good("world.entities"))["entities"]!.AsArray();
             var first = entities[0]!["id"]!.GetValue<string>();
             await Gesture("select=" + first);
