@@ -12,6 +12,12 @@ internal sealed record EditorOptions
     public string? Game { get; init; }
     public string? Project { get; init; }
     public string? ResumeCode { get; init; }
+    public string? SdkRoot { get; init; }
+    public string? SdkId { get; init; }
+    public string? SdkBuildId { get; init; }
+    public string? SdkManifestSha256 { get; init; }
+    public string? SdkProfile { get; init; }
+    public string? NativeConfiguration { get; init; }
     public ulong Seed { get; init; } = 1;
     // The entity, by name, selected at the start.
     public string? Select { get; init; }
@@ -47,7 +53,13 @@ internal static class Program
         usage: PixieEditor [options]
           With neither --game nor --project, the editor opens its start screen: new project, open project, recent ones.
           --project <folder>       open the project in this folder, in edit mode; its code, if any, is built first
-          --game <name|path>       open a game built in code: boids, flocks, particles, or a path to its capi library
+          --sdk <folder>           optional installed SDK override; otherwise select an SDK in the Editor
+          --sdk-profile <profile>  authoring (default), or explicitly selected private local-development
+          --native-configuration <Debug|Release>  selected native configuration (default Release)
+          --sdk-id <sha256>        expected SDK identity across an Editor restart
+          --sdk-build-id <sha256>  expected profile/build identity across an Editor restart
+          --sdk-manifest-sha256 <sha256> expected package bytes across an Editor restart
+          --game <module-path>     open an explicit game module with the selected SDK
           --seed <n>               seed of the World (default 1)
           --select <name>          select the entity with this name at the start
           --set <Type.Property=v>  after --edit-after seconds, set a property of the selected entity through its inspector; repeatable
@@ -105,7 +117,7 @@ internal static class Program
     public static string GameName(string game) =>
         File.Exists(game) ? Path.GetFileNameWithoutExtension(game).Replace("-module", "") : game;
 
-    private static bool TryParse(string[] args, out EditorOptions options)
+    internal static bool TryParse(string[] args, out EditorOptions options)
     {
         options = new EditorOptions();
         for (var i = 0; i < args.Length; i++)
@@ -116,6 +128,18 @@ internal static class Program
             var value = args[++i];
             switch (args[i - 1])
             {
+                case "--sdk" when !string.IsNullOrWhiteSpace(value):
+                    options = options with { SdkRoot = value }; break;
+                case "--sdk-id" when System.Text.RegularExpressions.Regex.IsMatch(value, "^[0-9a-f]{64}$"):
+                    options = options with { SdkId = value }; break;
+                case "--sdk-build-id" when System.Text.RegularExpressions.Regex.IsMatch(value, "^[0-9a-f]{64}$"):
+                    options = options with { SdkBuildId = value }; break;
+                case "--sdk-manifest-sha256" when System.Text.RegularExpressions.Regex.IsMatch(value, "^[0-9a-f]{64}$"):
+                    options = options with { SdkManifestSha256 = value }; break;
+                case "--sdk-profile" when value is "authoring" or "local-development":
+                    options = options with { SdkProfile = value }; break;
+                case "--native-configuration" when value is "Debug" or "Release":
+                    options = options with { NativeConfiguration = value }; break;
                 case "--game" when options.Project == null:
                     options = options with { Game = value };
                     break;

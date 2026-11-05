@@ -35,6 +35,7 @@ internal sealed class EditorWindow(EditorOptions options)
     // Whether there was no saved dock layout when the editor started; ImGui writes one while the start
     // screen shows, so it is decided before the first frame.
     private bool FirstLayout;
+    private EngineSdk? SelectedSdk;
 
     public unsafe int Run()
     {
@@ -76,25 +77,27 @@ internal sealed class EditorWindow(EditorOptions options)
 
         Start = GLFW.GetTime();
         var exitCode = 0;
-        var session = Open(window);
-        if (session != null)
+        try
         {
-            using (session)
+            var session = Open(window);
+            if (session != null)
             {
-                exitCode = Edit(window, session);
+                using (session) exitCode = Edit(window, session);
             }
         }
-
-        ImGuiImplOpenGL3.Shutdown();
-        ImGuiImplGLFW.Shutdown();
-        // Each backend DLL keeps its own copy of the current context, which DestroyContext does not
-        // clear; left pointing at the freed context, it faulted the process at exit about half the
-        // time (the cause was found in PixieInspector: Sakamoto0110/PixieInspector#6).
-        ImGuiImplOpenGL3.SetCurrentContext(default);
-        ImGuiImplGLFW.SetCurrentContext(default);
-        ImGui.DestroyContext(context);
-        GLFW.DestroyWindow(window);
-        GLFW.Terminate();
+        finally
+        {
+            ImGuiImplOpenGL3.Shutdown();
+            ImGuiImplGLFW.Shutdown();
+            // Each backend DLL keeps its own copy of the current context, which DestroyContext does not
+            // clear; left pointing at the freed context, it faulted the process at exit about half the
+            // time (the cause was found in PixieInspector: Sakamoto0110/PixieInspector#6).
+            ImGuiImplOpenGL3.SetCurrentContext(default);
+            ImGuiImplGLFW.SetCurrentContext(default);
+            ImGui.DestroyContext(context);
+            GLFW.DestroyWindow(window);
+            GLFW.Terminate();
+        }
         return exitCode;
     }
 
@@ -105,11 +108,17 @@ internal sealed class EditorWindow(EditorOptions options)
         if (options.After is { } pid)
             WaitForExit(pid);
 
+        var explicitSdk = EngineSdk.Override(options.SdkRoot, Environment.GetEnvironmentVariable("PIXIE_SDK_ROOT"));
+        if (explicitSdk is { } requested)
+            SelectSdk(EngineSdk.Load(requested.Root, options.SdkProfile ?? "authoring", options.NativeConfiguration ?? "Release",
+                requested.Origin, options.SdkId, options.SdkBuildId, options.SdkManifestSha256));
+
         if (options.Project is { } folder)
-            return OpenProject(window, folder);
+            return SelectedSdk != null ? OpenProject(window, folder) : ChooseProject(window, new(folder, false));
 
         if (options.Game is { } game)
         {
+            if (SelectedSdk == null && !ChooseSdk(window)) return null;
             GameLibrary.Use(GameLibrary.Find(game));
             return EngineSession.Create(ViewWidth, ViewHeight, options.Seed);
         }
@@ -117,9 +126,36 @@ internal sealed class EditorWindow(EditorOptions options)
         return ChooseProject(window);
     }
 
-    private unsafe EngineSession? ChooseProject(GLFWwindowPtr window)
+    private void SelectSdk(EngineSdk sdk)
     {
-        var screen = new StartScreen(Settings);
+        if (options.SdkId != null && options.SdkId != sdk.Id || options.SdkBuildId != null && options.SdkBuildId != sdk.BuildId ||
+            options.SdkManifestSha256 != null && options.SdkManifestSha256 != sdk.ManifestSha256)
+            throw new EngineException("Choose the exact Engine SDK expected by this Editor restart.");
+#if PIXIE_DEVELOPMENT
+        if (options.DevChannel != null && (sdk.CapabilityBits & 2) == 0)
+            throw new EngineException("The selected SDK has no local automation capability. Choose the separate private distribution explicitly.");
+#endif
+        GameLibrary.SelectSdk(sdk); SelectedSdk = sdk;
+    }
+
+    private unsafe bool ChooseSdk(GLFWwindowPtr window)
+    {
+        var screen = new StartScreen(Settings, profile: options.SdkProfile, configuration: options.NativeConfiguration,
+            expectedId: options.SdkId, expectedBuildId: options.SdkBuildId, expectedManifestSha256: options.SdkManifestSha256);
+        screen.RequestSdk();
+        while (GLFW.WindowShouldClose(window) == 0)
+        {
+            GLFW.PollEvents(); BeginFrame(); _ = screen.Draw(); KeyEvents.Pending.Clear(); EndFrame(window, GLFW.GetTime());
+            if (screen.SelectedSdk is { } sdk) { SelectSdk(sdk); return true; }
+        }
+        return false;
+    }
+
+    private unsafe EngineSession? ChooseProject(GLFWwindowPtr window, ProjectChoice? pending = null)
+    {
+        var screen = new StartScreen(Settings, SelectedSdk, options.SdkProfile, options.NativeConfiguration,
+            options.SdkId, options.SdkBuildId, options.SdkManifestSha256);
+        if (pending != null) screen.RequestProject(pending);
         while (GLFW.WindowShouldClose(window) == 0)
         {
             GLFW.PollEvents();
@@ -133,15 +169,19 @@ internal sealed class EditorWindow(EditorOptions options)
 
             try
             {
+                SelectSdk(screen.SelectedSdk ?? throw new EngineException("Choose an Engine SDK first."));
                 if (choice.Create)
                 {
                     // Creating needs a library: the generic one, which a new project opens with.
                     if (!GameLibrary.IsLoaded)
                         GameLibrary.Use(GameLibrary.Find(GameLibrary.SceneGame));
                     EngineSession.CreateProject(choice.Folder);
+                    SdkRequirements.Adopt(choice.Folder, SelectedSdk!);
                     Console.Error.WriteLine($"[info] Created {choice.Folder}");
                 }
 
+                if (!choice.Create && choice.AdoptSdk && !SdkRequirements.Validate(choice.Folder, SelectedSdk!))
+                    SdkRequirements.Adopt(choice.Folder, SelectedSdk!);
                 return OpenProject(window, choice.Folder);
             }
             catch (Exception e) when (e is EngineException or FileNotFoundException or DllNotFoundException)
@@ -157,12 +197,32 @@ internal sealed class EditorWindow(EditorOptions options)
     // window was closed, or when another editor opens the project instead (below).
     private EngineSession? OpenProject(GLFWwindowPtr window, string folder)
     {
+        var sdk = SelectedSdk ?? throw new EngineException("Choose an Engine SDK before opening a project.");
+        _ = SdkRequirements.Validate(folder, sdk);
         var library = GameLibrary.Find(GameLibrary.SceneGame);
         if (ProjectBuild.HasCode(folder))
         {
-            if (BuildProject(window, folder) is not { } outcome)
-                return null;
-            library = outcome.Library ?? library;
+            if (sdk.Generation != null)
+            {
+                var build = ProjectBuild.Prepare(folder, sdk);
+                if (GameLibrary.IsLoaded)
+                {
+                    Relaunch(["--project", folder]);
+                    return null;
+                }
+                var outcome = BuildProject(window, build);
+                if (outcome == null) return null;
+                if (outcome.Library != null) library = outcome.Library;
+            }
+            else
+            {
+                // Older SDKs can still open an existing module admitted by their native identity.
+                var output = Path.Combine(folder, "bin", sdk.Configuration);
+                var modules = Directory.Exists(output) ? Directory.GetFiles(output, "*-module.dll") : [];
+                if (modules.Length != 1)
+                    throw new EngineException("Build this project's game module with the selected Engine SDK before opening it.");
+                library = modules[0];
+            }
         }
 
         // P/Invoke binds one library per process: if another is bound already (the generic one, after
@@ -184,9 +244,9 @@ internal sealed class EditorWindow(EditorOptions options)
 
     // The build screen until the build succeeds, or the user opens the project without its code; null
     // when the window was closed.
-    private unsafe BuildOutcome? BuildProject(GLFWwindowPtr window, string folder)
+    private unsafe BuildOutcome? BuildProject(GLFWwindowPtr window, ProjectBuild.BuildPlan plan)
     {
-        using var screen = new BuildScreen(folder);
+        using var screen = new BuildScreen(plan);
         screen.Start();
         while (GLFW.WindowShouldClose(window) == 0)
         {
@@ -328,12 +388,11 @@ internal sealed class EditorWindow(EditorOptions options)
 #endif
 
         var leaving = Leaving.None;
+        using var exportPanel = new ExportPanel(session, GameLibrary.Selection);
         Action<string>? startExport = null;
-        Func<bool> exporting = () => false;
+        bool Exporting() => exportPanel.Running;
 #if PIXIE_DEVELOPMENT
-        using var exportPanel = new Development.ExportPanel(session);
-        startExport = exportPanel.Start;
-        exporting = () => exportPanel.Running;
+        if (exportPanel.Available) startExport = exportPanel.Start;
         using var channel = options.DevChannel is { } channelName
             ? new Development.EditorChannel(channelName, options.DevCaptureDirectory ?? Path.Combine("build", "captures", channelName),
                 session, selection, inspector, history, command =>
@@ -353,15 +412,15 @@ internal sealed class EditorWindow(EditorOptions options)
         var confirmed = false;
         var toolbar = new Toolbar(session, viewport, authoring, selection)
         {
-#if PIXIE_DEVELOPMENT
-            Export = exportPanel.Open,
-#endif
+            Export = exportPanel.Available ? exportPanel.Open : null,
             Save = () => Save(session),
             AddCode = () =>
             {
+                if (!session.Editing) { Status.Show("Stop Play before adding or rebuilding project code.", error: true); return; }
                 try
                 {
-                    ProjectBuild.AddCode(session.ProjectFolder!);
+                    ProjectBuild.AddCode(session.ProjectFolder!, SelectedSdk!);
+                    _ = ProjectBuild.Prepare(session.ProjectFolder!, SelectedSdk!);
                     Status.Show($"Added code to {session.ProjectName}; building it");
                 }
                 catch (EngineException e)
@@ -370,13 +429,14 @@ internal sealed class EditorWindow(EditorOptions options)
                     return;
                 }
 
-                if (!session.Editing) { Status.Show("Stop Play before rebuilding project code.", error: true); return; }
                 leaving = Leaving.Reopen;
                 confirmed = true;
             },
             BuildAndReopen = () =>
             {
                 if (!session.Editing) { Status.Show("Stop Play before rebuilding project code.", error: true); return; }
+                try { _ = ProjectBuild.Prepare(session.ProjectFolder!, SelectedSdk!); }
+                catch (EngineException error) { Status.Show(error.Message, error: true); return; }
                 leaving = Leaving.Reopen;
                 confirmed = true;
             },
@@ -424,7 +484,7 @@ internal sealed class EditorWindow(EditorOptions options)
         {
             if (session.Edits.IsBlocked) CandidateRecoveryPanel.Draw(session);
             ClosePrompt();
-            var recoveryExporting = exporting();
+            var recoveryExporting = Exporting();
             if (TimedQuit(now) && !recoveryExporting) confirmed = true;
             KeyEvents.Pending.Clear();
             EndFrame(window, now, timed: !recoveryExporting);
@@ -519,10 +579,8 @@ internal sealed class EditorWindow(EditorOptions options)
             CaptureFinished = viewport.Capture?.Finished ?? false;
 #endif
             files.Draw();
-#if PIXIE_DEVELOPMENT
             exportPanel.Draw();
             if (exportPanel.Failed) exitCode = 3;
-#endif
 
             ClosePrompt();
 
@@ -590,10 +648,8 @@ internal sealed class EditorWindow(EditorOptions options)
                 title = current;
             }
 
-            var exportInProgress = exporting();
-#if PIXIE_DEVELOPMENT
+            var exportInProgress = Exporting();
             if (!exportInProgress && exportPanel.Failed) exitCode = 3;
-#endif
             var timedQuit = TimedQuit(now);
             if (timedQuit && !exportInProgress)
             {
@@ -627,11 +683,14 @@ internal sealed class EditorWindow(EditorOptions options)
     }
 
     // A new editor at the start screen; this one closes.
-    private static void OpenStartScreen() => Relaunch([]);
+    private void OpenStartScreen() => Relaunch([]);
 
     // A new editor with these options, which waits for this one to exit; this one closes.
-    private static void Relaunch(string[] arguments) =>
-        Process.Start(Environment.ProcessPath!, [.. arguments, "--after", Environment.ProcessId.ToString(System.Globalization.CultureInfo.InvariantCulture)]);
+    private void Relaunch(string[] arguments)
+    {
+        var sdk = SelectedSdk ?? throw new EngineException("No selected SDK is available for this restart.");
+        Process.Start(EditorLaunch.Create(sdk, arguments, Environment.ProcessId));
+    }
 
     // Asks what to do with unsaved changes; true to go on leaving, false to stay, null while open.
     private static bool? DrawUnsavedPrompt(EngineSession session)

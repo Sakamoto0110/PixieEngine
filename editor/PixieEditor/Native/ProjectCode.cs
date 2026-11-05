@@ -134,7 +134,35 @@ internal static class ProjectCode
         WriteChanges(folder, changes, legacyHashes);
     }
 
-    internal static string CreateComponent(string folder, string name)
+    private static (string Header, string Source) ReadInstalledComponentTemplates(EngineSdk.ProjectSupport support)
+    {
+        try
+        {
+            using var versions = EngineSdk.Parse(EngineSdk.ReadBytes(support.TemplateVersions, 1024 * 1024));
+            var inventory = versions.RootElement;
+            EngineSdk.Schema(inventory);
+            var family = inventory.GetProperty("families").GetProperty("sdk-v1");
+            if (EngineSdk.Text(inventory, "hashPolicy") != "utf8-lf" || family.GetProperty("registrySchema").GetInt32() != 1)
+                throw new EngineException("The selected SDK has an unsupported component template inventory.");
+            var templates = family.GetProperty("templates").EnumerateArray().Select(x => x.GetString()).ToArray();
+            string ReadTemplate(string name, string path)
+            {
+                var text = Normalized(new UTF8Encoding(false, true).GetString(EngineSdk.ReadBytes(path, 1024 * 1024)));
+                if (!templates.Contains(name, StringComparer.Ordinal) ||
+                    EngineSdk.HashBytes(Encoding.UTF8.GetBytes(text)) != EngineSdk.Text(inventory.GetProperty("sha256"), name))
+                    throw new EngineException($"The selected SDK's sdk-v1 component template is missing or changed: {name}.");
+                return text;
+            }
+            return (ReadTemplate("Component.hpp.in", support.ComponentHeader), ReadTemplate("Component.cpp.in", support.ComponentSource));
+        }
+        catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or
+                                      InvalidOperationException or ArgumentException)
+        { throw new EngineException($"Could not read the installed component templates: {error.Message}"); }
+    }
+
+    internal static string CreateComponent(string folder, string name) => CreateComponent(folder, name, GameLibrary.Selection);
+
+    internal static string CreateComponent(string folder, string name, EngineSdk? sdk)
     {
         if (!ValidName(name)) throw new EngineException("Use a C++ identifier of at most 64 letters/digits/underscores, starting with a letter, without reserved keywords or double underscores.");
         var id = File.Exists(CheckedPath(folder, Manifest)) ? ReadMetadata(folder).Metadata["projectId"]!.GetValue<string>() : ProjectIdentity(folder).Id;
@@ -147,7 +175,22 @@ internal static class ProjectCode
             if (File.Exists(CheckedPath(folder, relative)) || Directory.Exists(CheckedPath(folder, relative)))
                 throw new EngineException($"Refusing to overwrite existing component code: {relative}");
         CheckedPath(folder, Header); CheckedPath(folder, Sources);
-        EnsureRegistry(folder);
+        (string Header, string Source)? installed = null;
+        if (sdk == null) EnsureRegistry(folder);
+        else
+        {
+            var support = ProjectBuild.RequireSupport(folder, sdk);
+            installed = ReadInstalledComponentTemplates(support);
+            if (!File.Exists(CheckedPath(folder, Manifest)))
+            {
+                if (ProjectBuild.HasCode(folder))
+                    throw new EngineException("This installed SDK project has no owned sdk-v1 registry. Its existing code and CMake were preserved.");
+                ProjectBuild.AddCode(folder, sdk);
+            }
+            try { _ = ProjectBuild.ReadTarget(folder, support); }
+            catch (Exception error) when (error is IOException or UnauthorizedAccessException or JsonException or KeyNotFoundException or InvalidOperationException or ArgumentException)
+            { throw new EngineException($"Could not verify the installed project registry: {error.Message}"); }
+        }
         var (metadata, manifestBytes) = ReadMetadata(folder);
         var components = (JsonArray)metadata["components"]!;
         var names = components.Select(node => node!.GetValue<string>()).ToList();
@@ -176,8 +219,8 @@ internal static class ProjectCode
         sources.AppendLine(")");
         var changes = new Dictionary<string, string>
         {
-            [componentHeader] = File.ReadAllText(Path.Combine(Templates, "Component.hpp.in")).Replace("@PIXIE_COMPONENT@", name),
-            [componentSource] = File.ReadAllText(Path.Combine(Templates, "Component.cpp.in")).Replace("@PIXIE_COMPONENT@", name),
+            [componentHeader] = (installed?.Header ?? File.ReadAllText(Path.Combine(Templates, "Component.hpp.in"))).Replace("@PIXIE_COMPONENT@", name),
+            [componentSource] = (installed?.Source ?? File.ReadAllText(Path.Combine(Templates, "Component.cpp.in"))).Replace("@PIXIE_COMPONENT@", name),
             [Registry] = Normalized(source.ToString()), [Sources] = Normalized(sources.ToString())
         };
         components.Add(name); UpdateHashes(metadata, changes);

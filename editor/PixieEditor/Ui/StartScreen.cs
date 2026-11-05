@@ -1,17 +1,19 @@
 using System.Numerics;
 using Hexa.NET.ImGui;
+using PixieEditor.Native;
 
 namespace PixieEditor.Ui;
 
 // What the start screen asked for: a new project in a folder, or an existing one.
-internal sealed record ProjectChoice(string Folder, bool Create);
+internal sealed record ProjectChoice(string Folder, bool Create, bool AdoptSdk = false);
 
 // The editor's first screen, when no game or project was given: New project, Open project, and the
 // recent projects. New project takes a location and a name, and makes the folder <location>/<name>;
 // Open project takes a folder that holds a .pixie file. Nothing is written until a choice is made.
-internal sealed class StartScreen(EditorSettings settings)
+internal sealed class StartScreen(EditorSettings settings, EngineSdk? sdk = null, string? profile = null, string? configuration = null,
+    string? expectedId = null, string? expectedBuildId = null, string? expectedManifestSha256 = null)
 {
-    private enum Page { Home, New, Open }
+    private enum Page { Home, New, Open, Sdk }
 
     private static readonly Vector4 ErrorColor = new(1.0f, 0.45f, 0.4f, 1.0f);
     private static readonly Vector4 DimColor = new(0.6f, 0.6f, 0.6f, 1.0f);
@@ -26,6 +28,38 @@ internal sealed class StartScreen(EditorSettings settings)
     private float ContentHeight = 300f;
     private FolderBrowser? Browser;
     private string NewName = "";
+    internal EngineSdk? SelectedSdk { get; private set; } = sdk;
+    internal ProjectChoice? PendingChoice { get; private set; }
+    private FolderBrowser? SdkBrowser;
+    private string SelectedProfile = profile ?? settings.SdkProfile;
+    private string SelectedConfiguration = configuration ?? settings.NativeConfiguration;
+    private bool AdoptSdk;
+    private readonly bool OverrideLocked = sdk?.Origin is "launch" or "environment";
+
+    internal void RequestProject(ProjectChoice choice)
+    {
+        PendingChoice = choice;
+        if (SelectedSdk == null) ChooseSdk();
+    }
+
+    private void ChooseSdk()
+    {
+        Showing = Page.Sdk;
+        SdkBrowser = new FolderBrowser(settings.SdkRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile));
+        Error = null;
+    }
+    internal void RequestSdk() => ChooseSdk();
+
+    internal ProjectChoice? ConfirmSdk(string root)
+    {
+        var selected = EngineSdk.Load(root, SelectedProfile, SelectedConfiguration, expectedId: expectedId,
+            expectedBuildId: expectedBuildId, expectedManifestSha256: expectedManifestSha256);
+        settings.ConfirmSdk(selected);
+        SelectedSdk = selected;
+        Showing = Page.Home;
+        var choice = PendingChoice; PendingChoice = null;
+        return choice;
+    }
 
     // Why the last choice failed, shown until the next one.
     public string? Error { get; set; }
@@ -52,12 +86,23 @@ internal sealed class StartScreen(EditorSettings settings)
                 Centered("A project is a folder: copy it, version it, or open it on another machine as it is.", DimColor);
                 ImGui.Spacing();
                 ImGui.Spacing();
+                ImGui.TextUnformatted("Engine SDK");
+                ImGui.TextWrapped(SelectedSdk?.Summary ?? "Choose an installed Engine SDK to create or open a project.");
+                ImGui.BeginDisabled(OverrideLocked);
+                if (ImGui.Button("Choose SDK...")) ChooseSdk();
+                ImGui.EndDisabled();
+                if (SelectedSdk != null)
+                    ImGui.Checkbox("Record this SDK when opening a legacy project", ref AdoptSdk);
+                ImGui.Spacing();
                 choice = Showing switch
                 {
+                    Page.Sdk => DrawSdk(),
                     Page.New => DrawNew(),
                     Page.Open => DrawOpen(),
                     _ => DrawHome(),
                 };
+                if (choice != null && SelectedSdk == null) { RequestProject(choice); choice = null; }
+                else if (choice != null && AdoptSdk) choice = choice with { AdoptSdk = true };
                 if (Error != null)
                 {
                     ImGui.Spacing();
@@ -70,6 +115,35 @@ internal sealed class StartScreen(EditorSettings settings)
         }
 
         ImGui.End();
+        return choice;
+    }
+
+    private ProjectChoice? DrawSdk()
+    {
+        ImGui.TextWrapped("Choose the installed SDK folder containing sdk.json. Project folders remain portable.");
+        SdkBrowser!.Draw("sdk", 260);
+        if (ImGui.BeginCombo("Native configuration", SelectedConfiguration))
+        {
+            foreach (var value in new[] { "Release", "Debug" })
+                if (ImGui.Selectable(value, value == SelectedConfiguration)) SelectedConfiguration = value;
+            ImGui.EndCombo();
+        }
+#if PIXIE_DEVELOPMENT
+        if (ImGui.BeginCombo("Profile", SelectedProfile))
+        {
+            foreach (var value in new[] { "authoring", "local-development" })
+                if (ImGui.Selectable(value, value == SelectedProfile)) SelectedProfile = value;
+            ImGui.EndCombo();
+        }
+#endif
+        ProjectChoice? choice = null;
+        if (ImGui.Button("Use SDK"))
+        {
+            try { choice = ConfirmSdk(SdkBrowser.Current); }
+            catch (EngineException error) { Error = error.Message; }
+        }
+        ImGui.SameLine();
+        if (ImGui.Button("Cancel")) { PendingChoice = null; Showing = Page.Home; Error = null; }
         return choice;
     }
 

@@ -1,3 +1,5 @@
+#nullable enable
+using System;
 using System.Runtime.InteropServices;
 
 namespace PixieEditor.Native;
@@ -164,8 +166,10 @@ internal static unsafe partial class PixieCapi
 {
     internal const string Library = "pixie_capi";
 
-    // The C API version this editor was written against.
-    internal const int Version = 28;
+    // Supported binding API/schema comes from the selected build metadata header.
+    // Per-launch SDK build/profile identity remains the host selector's responsibility.
+    internal static readonly int Version = NativeApiVersion.Current;
+    internal static readonly int IdentitySchema = NativeApiVersion.IdentitySchema;
 #if PIXIE_DEVELOPMENT
     [LibraryImport(Library, EntryPoint = "pixie_dev_dispatch", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult DevDispatch(nint session, string request, byte* response, int capacity);
@@ -208,6 +212,14 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_api_version")]
     internal static partial int ApiVersion();
+
+    // C1: immutable runtime identity, before session/GL creation. Capacity0 measures;
+    // returned length excludes NUL; invalid arguments return -1 with LastError text.
+    [LibraryImport(Library, EntryPoint = "pixie_sdk_identity")]
+    internal static partial int SdkIdentity(byte* buffer, int capacity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_capabilities")]
+    internal static partial ulong Capabilities();
 
     [LibraryImport(Library, EntryPoint = "pixie_last_error")]
     internal static partial int LastError(byte* buffer, int capacity);

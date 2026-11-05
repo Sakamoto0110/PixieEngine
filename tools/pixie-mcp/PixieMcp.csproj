@@ -13,6 +13,10 @@
     <PackageReference Include="ModelContextProtocol" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.14" />
   </ItemGroup>
+  <PropertyGroup>
+    <PixieNativeMetadataMode Condition="'$(PixieNativeMetadataMode)' == ''">Source</PixieNativeMetadataMode>
+    <PixieNativeApiHeader Condition="'$(PixieNativeMetadataMode)' == 'Source' And '$(PixieNativeApiHeader)' == ''">$(MSBuildThisFileDirectory)../../capi/include/pixie_capi.h</PixieNativeApiHeader>
+  </PropertyGroup>
   <Import Project="../NativeApiVersion.props" />
   <Target Name="RefusePublish" BeforeTargets="PrepareForPublish;Publish">
     <Error Text="Pixie MCP is a local development tool and cannot be published or included in remote-release outputs." />

@@ -11,13 +11,13 @@ internal sealed record BuildOutcome(string? Library);
 // The screen shown while a project's code builds, before the editor opens it: the project, CMake's
 // output as it comes, and, when the build fails, why, with Try again and Open without code. A build
 // that succeeds opens the project at once.
-internal sealed class BuildScreen(string folder) : IDisposable
+internal sealed class BuildScreen(ProjectBuild.BuildPlan plan) : IDisposable
 {
     private static readonly Vector4 ErrorColor = new(1.0f, 0.45f, 0.4f, 1.0f);
     private static readonly Vector4 DimColor = new(0.6f, 0.6f, 0.6f, 1.0f);
     private const float Margin = 30f;
 
-    private readonly ProjectBuild Build = new(folder);
+    private readonly ProjectBuild Build = new(plan);
     private int LinesShown;
 
     public void Start() => Build.Start();
@@ -36,11 +36,11 @@ internal sealed class BuildScreen(string folder) : IDisposable
             ImGui.SetCursorPos(new Vector2(Margin, Margin));
             if (ImGui.BeginChild("##build", new Vector2(width, viewport.WorkSize.Y - 2f * Margin)))
             {
-                var name = Path.GetFileName(folder.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
+                var name = Path.GetFileName(plan.Folder);
                 ImGui.TextUnformatted(Build.Finished
                     ? Build.Succeeded ? $"Built {name}; opening it." : $"{name} did not build."
-                    : $"Building {name}'s code ({ProjectBuild.Configuration}). The first build compiles the engine too, which takes a few minutes.");
-                ImGui.TextColored(DimColor, folder);
+                    : $"Building {name}'s code ({plan.Sdk.Configuration}) with the selected SDK.");
+                ImGui.TextColored(DimColor, plan.Folder);
                 if (Build.Problem is { } problem)
                     ImGui.TextColored(ErrorColor, problem);
 
@@ -65,7 +65,7 @@ internal sealed class BuildScreen(string folder) : IDisposable
         ImGui.End();
 
         if (Build.Finished && Build.Succeeded)
-            outcome = new BuildOutcome(ProjectBuild.Library(folder));
+            outcome = new BuildOutcome(Build.BuiltLibrary);
         return outcome;
     }
 

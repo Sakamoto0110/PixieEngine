@@ -144,8 +144,14 @@ internal sealed class SessionPanel(EngineSession session, string game)
                 ImGui.SameLine();
                 if (ImGui.Button(other))
                 {
-                    Process.Start(Environment.ProcessPath!, ["--game", other]);
-                    CloseRequested = true;
+                    try
+                    {
+                        var sdk = GameLibrary.Selection ?? throw new EngineException("No selected SDK is available for this game launch.");
+                        Process.Start(EditorLaunch.Create(sdk, ["--game", EditorLaunch.SiblingModule(GameLibrary.Loaded, other)], Environment.ProcessId));
+                        CloseRequested = true;
+                    }
+                    catch (Exception error) when (error is EngineException or System.ComponentModel.Win32Exception or InvalidOperationException)
+                    { Status.Show(error.Message, error: true); }
                 }
             }
         }

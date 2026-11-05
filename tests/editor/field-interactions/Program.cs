@@ -57,6 +57,27 @@ internal static class Program
 
     private static unsafe int Main(string[] args)
     {
+        var explicitModule = false;
+        if (args.Length != 0 && args[0] == "--installed-sdk")
+        {
+            if (args.Length != 7 && (args.Length != 11 || args[7] != "--module" || args[9] != "--module-sha256")) return 2;
+            var sdk = EngineSdk.Load(args[1], args[2], args[3], "fixture", expectedManifestSha256: args[4]);
+            var runtime = sdk.RuntimePath;
+            if (args.Length == 11)
+            {
+                var path = args[8];
+                if (!Path.IsPathFullyQualified(path) || !File.Exists(path) ||
+                    !EngineSdk.HashFile(path).Equals(args[10], StringComparison.OrdinalIgnoreCase))
+                {
+                    Console.Error.WriteLine("The explicit fixture module must be an absolute file path matching --module-sha256.");
+                    return 1;
+                }
+                runtime = path;
+                explicitModule = true;
+            }
+            GameLibrary.SelectSdk(sdk);
+            args = [runtime, args[5], args[6]];
+        }
         if (args.Length != 3) return 2;
         var native = Path.GetFullPath(args[0]);
         var root = Path.GetFullPath(args[1]);
@@ -76,9 +97,9 @@ internal static class Program
         ImGuiImplGLFW.InitForOpenGL(new BackendWindow((Hexa.NET.ImGui.Backends.GLFW.GLFWwindow*)window.Handle), true);
         ImGuiImplOpenGL3.SetCurrentContext(context); ImGuiImplOpenGL3.Init("#version 450");
         ImGuiImplOpenGL3.NewFrame(); ImGuiImplGLFW.NewFrame(); ImGui.NewFrame();
-        GameLibrary.Use(native);
         try
         {
+            GameLibrary.Use(native);
             var folder = Path.Combine(root, "project-" + Guid.NewGuid().ToString("N"));
             EngineSession.CreateProject(folder);
             using var session = EngineSession.OpenProject(1280, 900, folder);
@@ -266,6 +287,8 @@ internal static class Program
             history.Redo(session); first = session.Find(firstId)!.Value;
             Check(session.Snapshot([first]) == mixedAfter, "mixed-field-record-redo-restores-complete-observed-result");
             var probeType = session.TypeIndex("WriteProbe");
+            if (explicitModule && probeType < 0)
+                throw new EngineException("The explicit fixture module did not describe WriteProbe.");
             if (probeType >= 0)
             {
                 var probeEntity = session.Entities().First(e => session.Has(e, probeType));
@@ -282,34 +305,39 @@ internal static class Program
                 history.Undo(session); probeEntity = session.Find(probeId)!.Value;
                 Check(history.UndoCount == count && session.Get(probeEntity, transform, session.FieldIndex(transform, "position")).X == 0, "partial-chain-remains-undoable");
             }
-            // A real queued JSON-RPC structural request must close the view before native dispatch.
-            selection.Set(session.Find(firstId)!.Value);
-            var channelName = "field-chain-" + Guid.NewGuid().ToString("N");
-            using (var channel = new EditorChannel(channelName, Path.Combine(root, "captures"), session, selection, panel, history, _ => false))
-            using (var client = new NamedPipeClientStream(".", "pixie-" + channelName, PipeDirection.InOut, PipeOptions.Asynchronous))
+            var privateChannelExecuted = (GameLibrary.Selection!.CapabilityBits & 2) != 0;
+            if (privateChannelExecuted)
             {
-                client.Connect(5000);
-                using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
-                using var reader = new StreamReader(client, leaveOpen: true);
-                string Request(string method)
+                // A real queued JSON-RPC structural request must close the view before native dispatch.
+                selection.Set(session.Find(firstId)!.Value);
+                var channelName = "field-chain-" + Guid.NewGuid().ToString("N");
+                using (var channel = new EditorChannel(channelName, Path.Combine(root, "captures"), session, selection, panel, history, _ => false))
+                using (var client = new NamedPipeClientStream(".", "pixie-" + channelName, PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
-                    writer.WriteLine(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method }));
-                    var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                    var timer = Stopwatch.StartNew();
-                    while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
-                    return read.GetAwaiter().GetResult()!;
+                    client.Connect(5000);
+                    using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
+                    using var reader = new StreamReader(client, leaveOpen: true);
+                    string Request(string method)
+                    {
+                        writer.WriteLine(JsonSerializer.Serialize(new { jsonrpc = "2.0", id = 1, method }));
+                        var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        var timer = Stopwatch.StartNew();
+                        while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
+                        return read.GetAwaiter().GetResult()!;
+                    }
+                    Check(!JsonDocument.Parse(Request("world.hello")).RootElement.TryGetProperty("error", out _), "source-mode-real-channel-handshake");
+                    var pos = InspectorOf(panel, "Transform2D")["positionX"]; view = ViewOf(panel, "Transform2D");
+                    long? finishedRevision = null; bool? abandoned = null;
+                    view.InteractionFinished += (_, e) => { finishedRevision = session.BindingRevision; abandoned = e.Cancelled; };
+                    var revision = session.BindingRevision; count = history.UndoCount;
+                    Begin(view, pos).SetDelta(3);
+                    Check(!JsonDocument.Parse(Request("world.reset")).RootElement.TryGetProperty("error", out _), "source-mode-real-channel-reset");
+                    Check(finishedRevision == revision && abandoned == false && !view.IsEditing && history.UndoCount == count + 1,
+                        "structural-channel-closes-interaction-before-replacing-native-bindings");
                 }
-                Check(!JsonDocument.Parse(Request("world.hello")).RootElement.TryGetProperty("error", out _), "source-mode-real-channel-handshake");
-                var pos = InspectorOf(panel, "Transform2D")["positionX"]; view = ViewOf(panel, "Transform2D");
-                long? finishedRevision = null; bool? abandoned = null;
-                view.InteractionFinished += (_, e) => { finishedRevision = session.BindingRevision; abandoned = e.Cancelled; };
-                var revision = session.BindingRevision; count = history.UndoCount;
-                Begin(view, pos).SetDelta(3);
-                Check(!JsonDocument.Parse(Request("world.reset")).RootElement.TryGetProperty("error", out _), "source-mode-real-channel-reset");
-                Check(finishedRevision == revision && abandoned == false && !view.IsEditing && history.UndoCount == count + 1,
-                    "structural-channel-closes-interaction-before-replacing-native-bindings");
             }
-            File.WriteAllText(args[2], JsonSerializer.Serialize(new { passed = Passed.Count, checks = Passed }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(args[2], JsonSerializer.Serialize(new { passed = Passed.Count, checks = Passed, privateChannelExecuted,
+                writeProbeExecuted = probeType >= 0 }, new JsonSerializerOptions { WriteIndented = true }));
             return 0;
         }
         finally

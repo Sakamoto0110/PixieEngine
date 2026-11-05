@@ -1,6 +1,7 @@
 """Build local publish fixtures; no package or artifact is uploaded."""
 import argparse
 import json
+import os
 from pathlib import Path
 import subprocess
 import tempfile
@@ -38,14 +39,26 @@ def main():
     publish("development-blocked", [], "development operations cannot be published")
     published = publish("shipping", ["-p:PixieDevelopmentTools=false"])
     binary = (published / "PixieEditor.dll").read_bytes()
-    for marker in (b"ProjectExportJob", b"ExportPanel", b"PixieEditor.Development",
-                   b"get_Export", b"DeterministicCapture", b"get_QuitAfterSteps",
+    for marker in (b"ProjectExportJob\0", b"ExportPanel\0", b"get_Export\0", "Export game...".encode("utf-16-le")):
+        assert marker in binary, marker
+    # Attribute the literal to its method so the public export cache can use the same word.
+    inspector = Path(__file__).resolve().with_name("InspectEditorPublishIl.cs")
+    audit_temp = run / "il-temp"
+    audit_temp.mkdir()
+    audit = subprocess.run(
+        ["dotnet", "run", "--file", str(inspector), "--no-cache", "--artifacts-path", str(run / "il-artifacts"),
+         "--", str(published / "PixieEditor.dll")],
+        env=os.environ | {"TEMP": str(audit_temp), "TMP": str(audit_temp), "TMPDIR": str(audit_temp)},
+        text=True, encoding="utf-8", errors="replace", stdout=subprocess.PIPE, stderr=subprocess.STDOUT, timeout=180)
+    (run / "scripted-export-il.log").write_text(audit.stdout, encoding="utf-8")
+    assert audit.returncode == 0, audit.stdout
+    for marker in (b"PixieEditor.Development", b"DeterministicCapture", b"get_QuitAfterSteps",
                    b"EditorChannel", b"EditorPipe", b"CaptureDirectory", b"SynchronizeChannel", b"ChannelTree", b"ChannelGesture",
                    b"DispatchDevelopment", b"DevDispatch", b"pixie_dev_dispatch", b"get_DevChannel", b"get_DevHidden", b"FindSceneEntity",
                    b"PixieEditor.ChannelTests", b"ModelContextProtocol",
                    b"ChannelReferenceLabel",
                    "--dev-channel".encode("utf-16-le"), "--dev-capture-dir".encode("utf-16-le"), "--dev-hidden".encode("utf-16-le"),
-                   "Export game...".encode("utf-16-le"), "--quit-after-steps".encode("utf-16-le")):
+                   "--quit-after-steps".encode("utf-16-le")):
         assert marker not in binary, marker
     for pattern in ("*pixie-mcp*", "*PixieMcp*", "*ModelContextProtocol*", "*pixie-export*"):
         assert not list(published.rglob(pattern)), pattern

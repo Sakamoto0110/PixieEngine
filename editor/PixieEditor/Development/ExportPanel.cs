@@ -1,9 +1,8 @@
 using Hexa.NET.ImGui;
 using PixieEditor.Native;
-using PixieEditor.Ui;
 
-namespace PixieEditor.Development;
-internal sealed class ExportPanel(EngineSession session) : IDisposable
+namespace PixieEditor.Ui;
+internal sealed class ExportPanel(EngineSession session, EngineSdk? sdk) : IDisposable
 {
     private readonly ProjectExportJob Job = new();
     private string Output = session.ProjectFolder == null ? "" : Path.Combine(
@@ -12,6 +11,7 @@ internal sealed class ExportPanel(EngineSession session) : IDisposable
     private bool Reported;
     public bool Running => Job.Running;
     public bool Failed => Job.Failed;
+    public bool Available => sdk?.Exporter != null;
     public void Open() { Requested = true; }
     public void Start(string output)
     {
@@ -20,8 +20,13 @@ internal sealed class ExportPanel(EngineSession session) : IDisposable
             Status.Show("Save the project and stop playing before exporting.", error: true);
             return;
         }
+        if (sdk?.Exporter == null)
+        {
+            Status.Show("The selected Engine SDK does not include a paired exporter.", error: true);
+            return;
+        }
         Output = output;
-        if (!Job.Start(session.ProjectFolder, output)) { Status.Show("An export is already running.", error: true); return; }
+        if (!Job.Start(sdk, session.ProjectFolder, output)) { Status.Show("An export is already running.", error: true); return; }
         Reported = false;
         Status.Show("Exporting the saved project...");
     }

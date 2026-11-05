@@ -24,6 +24,15 @@ internal static class Program
     }
     private static int Main(string[] args)
     {
+        if (args.Length != 0 && args[0] == "--installed-fixture")
+        {
+            if (args.Length != 7 || args[5] is not ("--visual-environment" or "--presentation" or "--scene-authoring"))
+                return 2;
+            var sdk = EngineSdk.Load(args[1], args[2], args[3], "fixture", expectedManifestSha256: args[4]);
+            GameLibrary.SelectSdk(sdk);
+            args = [args[5], sdk.RuntimePath, args[6]];
+        }
+        if (args.Length == 2 && args[0] == "--sdk-selection") return SdkSelectionTests.Run(args[1]);
         if (args.Length == 3 && args[0] == "--process-reopen")
             return ProcessReopenTests.Run(args[1], args[2]);
         if (args.Length == 3 && args[0] == "--module-process-reopen")

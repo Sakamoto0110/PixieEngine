@@ -12,26 +12,37 @@ internal static class CodeWorkspace
     private static readonly JsonDocumentOptions JsonOptions = new() { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
     private static readonly JsonSerializerOptions Pretty = new() { WriteIndented = true };
 
-    internal static void Prepare(string folder, string engine, string cmake)
+    internal static void Prepare(string folder, string engine, string cmake) =>
+        Prepare(folder, cmake, engine, null, null);
+
+    internal static void Prepare(ProjectBuild.BuildPlan plan, Func<bool>? presetExists = null) =>
+        Prepare(plan.Folder, plan.CMake, null, plan, presetExists);
+
+    private static void Prepare(string folder, string cmake, string? engine, ProjectBuild.BuildPlan? plan, Func<bool>? presetExists)
     {
-        try { PrepareCore(Path.GetFullPath(folder), Path.GetFullPath(engine), Path.GetFullPath(cmake)); }
-        catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException)
+        try { PrepareCore(Path.GetFullPath(folder), Path.GetFullPath(cmake), engine, plan, presetExists); }
+        catch (Exception error) when (error is JsonException or IOException or UnauthorizedAccessException or InvalidOperationException or ArgumentException or System.ComponentModel.Win32Exception)
         { throw new EngineException($"Could not prepare CMake Tools: {error.Message}. Review the project configuration and any preimages before retrying, or configure CMake Tools manually."); }
     }
 
-    private static void PrepareCore(string folder, string engine, string cmake)
+    private static void PrepareCore(string folder, string cmake, string? engine, ProjectBuild.BuildPlan? plan, Func<bool>? presetExists)
     {
         var settingsPath = ProjectCode.CheckedPath(folder, ".vscode/settings.json");
         var presetsPath = ProjectCode.CheckedPath(folder, "CMakeUserPresets.json");
-        var cachePath = ProjectCode.CheckedPath(folder, "build/CMakeCache.txt");
+        var cachePath = ProjectCode.CheckedPath(plan?.Cache ?? folder, "build/CMakeCache.txt");
         if (!File.Exists(cachePath)) throw new EngineException("Build this project's code from the editor once before configuring CMake Tools.");
         var cache = File.ReadLines(cachePath).Where(line => !line.StartsWith('#') && !line.StartsWith("//") && line.Contains(':') && line.Contains('='))
             .Select(line => (Name: line[..line.IndexOf(':')], Value: line[(line.IndexOf('=') + 1)..]))
             .ToDictionary(pair => pair.Name, pair => pair.Value, StringComparer.Ordinal);
         if (!cache.TryGetValue("CMAKE_GENERATOR", out var generator) || string.IsNullOrWhiteSpace(generator))
             throw new EngineException("The project's CMake cache has no generator. Rebuild its code from the editor first.");
-        if (!cache.TryGetValue("CMAKE_HOME_DIRECTORY", out var home) || !SamePath(home, folder))
+        if (!cache.TryGetValue("CMAKE_HOME_DIRECTORY", out var home) || !(plan == null ? SamePath(home, folder) : SameAbsolutePath(home, folder)))
             throw new EngineException("The project's build cache belongs to another source folder. Configure its build before opening code.");
+
+        var build = Path.GetDirectoryName(cachePath)!;
+        var cacheVariables = plan == null
+            ? new JsonObject { ["PIXIE_ENGINE_DIR"] = Path.GetFullPath(engine!).Replace('\\', '/') }
+            : InstalledVariables(plan, cache, build);
 
         var settingsBefore = Read(settingsPath);
         using var settings = Parse(settingsBefore ?? "{}"u8.ToArray());
@@ -49,6 +60,13 @@ internal static class CodeWorkspace
         if (settings.RootElement.TryGetProperty("cmake.sourceDirectory", out var source) &&
             (source.ValueKind != JsonValueKind.String || source.GetString() is not ("${workspaceFolder}" or "${workspaceFolder}/") && !SamePath(source.GetString()!, folder)))
             throw new EngineException("Existing cmake.sourceDirectory is retained. Configure its custom source directory manually.");
+        if (plan != null && settings.RootElement.TryGetProperty("cmake.cmakePath", out var executable) &&
+            (executable.ValueKind != JsonValueKind.String || !SameAbsolutePath(executable.GetString()!, cmake)))
+            throw new EngineException("Existing cmake.cmakePath is retained. Select the CMake executable used by the installed SDK build.");
+        // CMake Tools appends these arguments to the preset, where they can override the owned cache.
+        if (plan != null && settings.RootElement.TryGetProperty("cmake.configureArgs", out var arguments) &&
+            (arguments.ValueKind != JsonValueKind.Array || arguments.GetArrayLength() != 0))
+            throw new EngineException("Existing cmake.configureArgs is retained. Review the extra configure arguments before using the installed SDK preset.");
         foreach (var property in settings.RootElement.EnumerateObject()) defaults.Remove(property.Name);
         var settingsAfter = AddProperties(settingsBefore ?? "{}"u8.ToArray(), defaults);
 
@@ -57,15 +75,15 @@ internal static class CodeWorkspace
             ["name"] = PresetName,
             ["displayName"] = "Pixie Editor (local)",
             ["generator"] = generator,
-            ["binaryDir"] = "${sourceDir}/build",
-            ["cacheVariables"] = new JsonObject { ["PIXIE_ENGINE_DIR"] = engine.Replace('\\', '/') }
+            ["binaryDir"] = plan == null ? "${sourceDir}/build" : PresetPath(build),
+            ["cacheVariables"] = cacheVariables
         };
         foreach (var (cacheKey, property) in new[] { ("CMAKE_GENERATOR_PLATFORM", "architecture"), ("CMAKE_GENERATOR_TOOLSET", "toolset") })
             if (cache.TryGetValue(cacheKey, out var value) && value.Length > 0) preset[property] = value;
         var presetsBefore = Read(presetsPath);
         var projectPresetsPath = ProjectCode.CheckedPath(folder, "CMakePresets.json");
         // Let CMake resolve includes/inheritance rather than maintaining another preset graph.
-        var nameExists = (Read(projectPresetsPath) != null || presetsBefore != null) && ExistingPreset(folder, cmake);
+        var nameExists = (Read(projectPresetsPath) != null || presetsBefore != null) && (presetExists?.Invoke() ?? ExistingPreset(folder, cmake));
         byte[] presetsAfter;
         if (presetsBefore == null)
         {
@@ -80,7 +98,7 @@ internal static class CodeWorkspace
                 throw new EngineException("CMakeUserPresets.json has no valid version; it was not changed.");
             if (FindPreset(existing.RootElement) is { } found)
             {
-                if (!Compatible(found, preset))
+                if (!Compatible(found, preset, plan != null) || (plan != null && !nameExists))
                     throw new EngineException($"Existing preset {PresetName} has different settings; it was not changed. Select/configure your preset in CMake Tools.");
                 presetsAfter = presetsBefore;
             }
@@ -116,6 +134,30 @@ internal static class CodeWorkspace
         }
     }
 
+    private static JsonObject InstalledVariables(ProjectBuild.BuildPlan plan, Dictionary<string, string> cache, string build)
+    {
+        plan.Sdk.VerifyUnchanged();
+        var owner = ProjectCode.CheckedPath(plan.Cache, "owner.json");
+        if (!File.Exists(owner) || !EngineSdk.ReadBytes(owner, 64 * 1024).AsSpan().SequenceEqual(plan.Ownership))
+            throw new EngineException("The installed build cache is unowned or belongs to another build. Rebuild this project's code from the editor.");
+        if (!cache.TryGetValue("CMAKE_CACHEFILE_DIR", out var directory) || !SameAbsolutePath(directory, build) ||
+            !cache.TryGetValue("CMAKE_COMMAND", out var command) || !SameAbsolutePath(command, plan.CMake))
+            throw new EngineException("The installed build cache was configured in another directory or with another CMake executable.");
+
+        var variables = new JsonObject();
+        foreach (var argument in plan.Configure.Where(argument => argument.StartsWith("-D", StringComparison.Ordinal)))
+        {
+            var pair = argument[2..].Split('=', 2);
+            var key = pair[0];
+            var expected = pair[1];
+            var path = Path.IsPathFullyQualified(expected);
+            if (!cache.TryGetValue(key, out var configured) || !(path ? SameAbsolutePath(configured, expected) : configured == expected))
+                throw new EngineException($"The installed build cache differs from the selected SDK build at {key}. Rebuild this project's code from the editor.");
+            variables[key] = path ? PresetPath(expected) : expected;
+        }
+        return variables;
+    }
+
     private static bool ExistingPreset(string folder, string cmake)
     {
         var info = new ProcessStartInfo(cmake, ["--list-presets=configure"]) { WorkingDirectory = folder, UseShellExecute = false, CreateNoWindow = true, RedirectStandardOutput = true, RedirectStandardError = true };
@@ -127,6 +169,8 @@ internal static class CodeWorkspace
     }
 
     private static bool SamePath(string left, string right) => Path.GetFullPath(left).TrimEnd('/', '\\').Equals(Path.GetFullPath(right).TrimEnd('/', '\\'), OperatingSystem.IsWindows() ? StringComparison.OrdinalIgnoreCase : StringComparison.Ordinal);
+    private static bool SameAbsolutePath(string left, string right) => Path.IsPathFullyQualified(left) && SamePath(left, right);
+    private static string PresetPath(string path) => path.Replace('\\', '/').Replace("$", "${dollar}");
     private static byte[]? Read(string path)
     {
         if (!File.Exists(path)) return null;
@@ -151,13 +195,17 @@ internal static class CodeWorkspace
             { if (found != null) throw new EngineException("Duplicate Pixie IDE presets; configuration was not changed."); found = preset; }
         return found;
     }
-    private static bool Compatible(JsonElement existing, JsonObject desired)
+    private static bool Compatible(JsonElement existing, JsonObject desired, bool installed)
     {
+        RequireObject(existing);
+        if (installed && existing.EnumerateObject().Any(property => !desired.ContainsKey(property.Name) && property.Name is not ("description" or "vendor")))
+            return false;
         foreach (var key in new[] { "generator", "binaryDir", "architecture", "toolset" })
             if (desired.ContainsKey(key) && (!existing.TryGetProperty(key, out var value) || !JsonNode.DeepEquals(JsonNode.Parse(value.GetRawText()), desired[key]))) return false;
-        return existing.TryGetProperty("cacheVariables", out var variables) && variables.ValueKind == JsonValueKind.Object &&
-            variables.TryGetProperty("PIXIE_ENGINE_DIR", out var engine) && engine.ValueKind == JsonValueKind.String &&
-            SamePath(engine.GetString()!, desired["cacheVariables"]!["PIXIE_ENGINE_DIR"]!.GetValue<string>());
+        if (!existing.TryGetProperty("cacheVariables", out var variables) || variables.ValueKind != JsonValueKind.Object) return false;
+        if (installed) return JsonNode.DeepEquals(JsonNode.Parse(variables.GetRawText()), desired["cacheVariables"]);
+        return variables.TryGetProperty("PIXIE_ENGINE_DIR", out var engine) && engine.ValueKind == JsonValueKind.String &&
+               SamePath(engine.GetString()!, desired["cacheVariables"]!["PIXIE_ENGINE_DIR"]!.GetValue<string>());
     }
     private static byte[] AddProperties(byte[] bytes, JsonObject additions)
     {

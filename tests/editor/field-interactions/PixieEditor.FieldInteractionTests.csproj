@@ -8,8 +8,8 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../../editor/PixieEditor/PixieEditor.csproj" /></ItemGroup>
-  <Target Name="RequireLocalInspector" BeforeTargets="PrepareForBuild">
-    <Error Condition="'$(PixieInspectorLocalRoot)' == ''" Text="Field interaction qualification requires PixieInspectorLocalRoot." />
+  <Target Name="RequireInspectorInteractions" BeforeTargets="PrepareForBuild">
+    <Error Condition="'$(PixieInspectorLocalRoot)' == '' And '$(PixieInspectorPackageVersion)' == ''" Text="Field interaction qualification requires the selected Inspector package pair or a local Inspector project." />
   </Target>
   <Target Name="RefusePublish" BeforeTargets="PrepareForPublish;Publish"><Error Text="Field interaction tests cannot be published." /></Target>
 </Project>

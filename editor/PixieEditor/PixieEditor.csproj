@@ -5,6 +5,12 @@
           Condition="'$(PixieUseLocalConfiguration)' != 'false' And Exists('../../.local/PixieEditor.props')" />
 
   <PropertyGroup>
+    <PixieNativeMetadataMode Condition="'$(PixieNativeMetadataMode)' == ''">Source</PixieNativeMetadataMode>
+    <PixieNativeApiHeader Condition="'$(PixieNativeMetadataMode)' == 'Source' And '$(PixieNativeApiHeader)' == ''">$(MSBuildThisFileDirectory)../../capi/include/pixie_capi.h</PixieNativeApiHeader>
+  </PropertyGroup>
+  <Import Project="../../tools/NativeApiVersion.props" />
+
+  <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
     <Nullable>enable</Nullable>
@@ -14,8 +20,9 @@
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
     <RootNamespace>PixieEditor</RootNamespace>
     <IsPackable>false</IsPackable>
-    <!-- Explicit local integration only; the published dependency remains the default. -->
-    <DefineConstants Condition="'$(PixieInspectorLocalRoot)' != ''">$(DefineConstants);PIXIE_INSPECTOR_FIELD_INTERACTIONS</DefineConstants>
+    <!-- The existing published package remains the default. The selected pair and local source enable the same features. -->
+    <_PixieInspectorFieldInteractions Condition="'$(PixieInspectorLocalRoot)' != '' Or '$(PixieInspectorPackageVersion)' == '0.3.0-pixie021.3'">true</_PixieInspectorFieldInteractions>
+    <DefineConstants Condition="'$(_PixieInspectorFieldInteractions)' == 'true'">$(DefineConstants);PIXIE_INSPECTOR_FIELD_INTERACTIONS</DefineConstants>
     <PixieDevelopmentTools Condition="'$(PixieDevelopmentTools)' == ''">true</PixieDevelopmentTools>
     <DefineConstants Condition="'$(PixieDevelopmentTools)' == 'true'">$(DefineConstants);PIXIE_DEVELOPMENT</DefineConstants>
     <!-- Whether the development channel may save the scene (editor.do save); -p:PixieChannelSave=false leaves it out. -->
@@ -29,7 +36,12 @@
 
   <ItemGroup Condition="'$(PixieDevelopmentTools)' != 'true'">
     <Compile Remove="Development/**/*.cs" />
+    <Compile Include="Development/ExportPanel.cs;Development/ProjectExportJob.cs" />
   </ItemGroup>
+  <Target Name="ValidateInspectorSelection" BeforeTargets="CollectPackageReferences;PrepareForBuild">
+    <Error Condition="'$(PixieInspectorPackageVersion)' != '' And '$(PixieInspectorLocalRoot)' != ''" Text="Choose the selected Inspector package pair or a local Inspector project." />
+    <Error Condition="'$(PixieInspectorPackageVersion)' != '' And '$(PixieInspectorPackageVersion)' != '0.3.0-pixie021.3'" Text="The selected Inspector package pair must be 0.3.0-pixie021.3." />
+  </Target>
   <Target Name="RequireShippingPublish" BeforeTargets="PrepareForPublish;Publish">
     <Error Condition="'$(PixieInspectorLocalRoot)' != ''" Text="Local Inspector integration cannot be published. Clear PixieInspectorLocalRoot." />
     <Error Condition="'$(PixieDevelopmentTools)' == 'true'" Text="Publish requires -p:PixieDevelopmentTools=false; development operations cannot be published." />
@@ -44,15 +56,20 @@
   <ItemGroup>
     <!-- The inspector and its Dear ImGui view, which bring the core, PixieLib, and Hexa.NET.ImGui 2.2.9;
          the window and ImGui's GLFW and OpenGL3 backends, at the versions made with that binding. -->
-    <PackageReference Include="PixieInspector.ImGui" Version="0.3.0" Condition="'$(PixieInspectorLocalRoot)' == ''" />
+    <PackageReference Include="PixieInspector.ImGui" Version="0.3.0" Condition="'$(PixieInspectorLocalRoot)' == '' And '$(PixieInspectorPackageVersion)' == ''" />
     <ProjectReference Include="$(PixieInspectorLocalRoot)/views/PixieInspector.ImGui/PixieInspector.ImGui.csproj" Condition="'$(PixieInspectorLocalRoot)' != ''" />
     <PackageReference Include="Hexa.NET.GLFW" Version="1.0.5" />
     <PackageReference Include="Hexa.NET.ImGui.Backends" Version="1.0.18" />
     <PackageReference Include="Hexa.NET.ImGui.Backends.GLFW" Version="1.0.18" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(PixieInspectorLocalRoot)' != ''">
-    <Content Include="assets/inspector/*.png" CopyToOutputDirectory="PreserveNewest" />
+  <ItemGroup Condition="'$(PixieInspectorLocalRoot)' == '' And '$(PixieInspectorPackageVersion)' == '0.3.0-pixie021.3'">
+    <PackageReference Include="PixieInspector" Version="[$(PixieInspectorPackageVersion)]" />
+    <PackageReference Include="PixieInspector.ImGui" Version="[$(PixieInspectorPackageVersion)]" />
+  </ItemGroup>
+
+  <ItemGroup Condition="'$(_PixieInspectorFieldInteractions)' == 'true'">
+    <Content Include="assets/inspector/*.png" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
   </ItemGroup>
 
 </Project>

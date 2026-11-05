@@ -1,7 +1,6 @@
 using System.Diagnostics;
-using PixieEditor.Native;
 
-namespace PixieEditor.Development;
+namespace PixieEditor.Native;
 
 // The native CLI owns building, manifest creation, copying and validation. The editor only launches it.
 internal sealed class ProjectExportJob : IDisposable
@@ -24,7 +23,31 @@ internal sealed class ProjectExportJob : IDisposable
         lock (Gate) { Output.Enqueue(text); while (Output.Count > 512) Output.Dequeue(); }
         Console.Error.WriteLine(text);
     }
-    public bool Start(string folder, string output)
+    internal static ProcessStartInfo CreateLaunch(EngineSdk sdk, string folder, string output,
+        Func<string?>? discoverCMake = null, string? temporaryRoot = null)
+    {
+        var tool = sdk.Exporter ?? throw new EngineException("The selected Engine SDK does not include a paired exporter.");
+        sdk.VerifyUnchanged();
+        var start = new ProcessStartInfo(tool.Path)
+        {
+            UseShellExecute = false, CreateNoWindow = true,
+            RedirectStandardOutput = true, RedirectStandardError = true,
+        };
+        var project = Path.GetFullPath(folder);
+        start.ArgumentList.Add("--sdk"); start.ArgumentList.Add(sdk.Root);
+        if (ProjectBuild.HasCode(project))
+        {
+            if (sdk.Generation == null || !SdkRequirements.Validate(project, sdk))
+                throw new EngineException("Exporting project code needs the selected SDK's installed build support and a compatible portable requirement.");
+            start.Environment["PIXIE_EXPORT_CMAKE"] = ProjectBuild.RequireCMake(discoverCMake);
+            start.ArgumentList.Add("--work");
+            start.ArgumentList.Add(ProjectBuild.Cache(project, sdk, "shipping-export", temporaryRoot));
+        }
+        start.ArgumentList.Add(project); start.ArgumentList.Add(Path.GetFullPath(output));
+        return start;
+    }
+
+    public bool Start(EngineSdk sdk, string folder, string output)
     {
         lock (Gate)
         {
@@ -36,17 +59,7 @@ internal sealed class ProjectExportJob : IDisposable
             var result = 1;
             try
             {
-                var engine = EngineFolder.Find();
-                var file = OperatingSystem.IsWindows() ? "pixie-export.exe" : "pixie-export";
-                var tool = new[] { "Release", "Debug" }.Select(c => Path.Combine(engine, "bin", c, file))
-                    .FirstOrDefault(File.Exists) ?? throw new EngineException("Build pixie-export before exporting a game.");
-                var start = new ProcessStartInfo(tool)
-                {
-                    UseShellExecute = false, CreateNoWindow = true,
-                    RedirectStandardOutput = true, RedirectStandardError = true,
-                };
-                start.ArgumentList.Add(Path.GetFullPath(folder));
-                start.ArgumentList.Add(Path.GetFullPath(output));
+                var start = CreateLaunch(sdk, folder, output);
                 using var process = new Process { StartInfo = start };
                 process.OutputDataReceived += (_, e) => Line(e.Data);
                 process.ErrorDataReceived += (_, e) => Line(e.Data);

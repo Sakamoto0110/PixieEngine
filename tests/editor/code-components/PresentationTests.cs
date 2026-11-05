@@ -98,45 +98,49 @@ internal static class PresentationTests
             Check(Refuses(() => scenes.ApplyPresentation(scope, "{\"id\":\"fffffffffffffffe\"}")) &&
                 session.ProjectSnapshot() == snapshot && history.UndoCount == undo,
                 "presentation-patch-cannot-reassign-stable-scene-identity");
-            var pipeName = "presentation-" + Guid.NewGuid().ToString("N");
-            using (var channel = new EditorChannel(pipeName, Path.Combine(work, "captures"), session, selection,
-                inspector, history, command =>
-                {
-                    var at = command.IndexOf('=');
-                    return scenes.Run(at < 0 ? command : command[..at], at < 0 ? "" : command[(at + 1)..]);
-                }))
-            using (var client = new NamedPipeClientStream(".", "pixie-" + pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
+            var privateChannelExecuted = (GameLibrary.Selection!.CapabilityBits & 2) != 0;
+            if (privateChannelExecuted)
             {
-                client.Connect(5000);
-                using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
-                using var reader = new StreamReader(client, leaveOpen: true);
-                JsonNode Request(string method, JsonObject? parameters = null)
+                var pipeName = "presentation-" + Guid.NewGuid().ToString("N");
+                using (var channel = new EditorChannel(pipeName, Path.Combine(work, "captures"), session, selection,
+                    inspector, history, command =>
+                    {
+                        var at = command.IndexOf('=');
+                        return scenes.Run(at < 0 ? command : command[..at], at < 0 ? "" : command[(at + 1)..]);
+                    }))
+                using (var client = new NamedPipeClientStream(".", "pixie-" + pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
-                    writer.WriteLine(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 1, ["method"] = method,
-                        ["params"] = parameters ?? new() }.ToJsonString());
-                    var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                    var timer = Stopwatch.StartNew();
-                    while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
-                    return JsonNode.Parse(read.GetAwaiter().GetResult()!)!;
+                    client.Connect(5000);
+                    using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
+                    using var reader = new StreamReader(client, leaveOpen: true);
+                    JsonNode Request(string method, JsonObject? parameters = null)
+                    {
+                        writer.WriteLine(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 1, ["method"] = method,
+                            ["params"] = parameters ?? new() }.ToJsonString());
+                        var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        var timer = Stopwatch.StartNew();
+                        while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
+                        return JsonNode.Parse(read.GetAwaiter().GetResult()!)!;
+                    }
+                    Check(Request("world.hello")["result"] != null, "presentation-channel-handshake");
+                    Check(Request("editor.presentation")["result"]!["value"]!["canonical"]!.GetValue<bool>(),
+                        "presentation-channel-reads-native-authority-and-scene-context");
+                    var generation = Request("inspector.tree")["result"]!["value"]!["generation"]!.GetValue<long>();
+                    var priorCount = history.UndoCount;
+                    Check(Request("editor.do", new() { ["generation"] = generation,
+                        ["command"] = "worldpresentation={\"view\":{\"exposure\":2.5}}" })["result"] != null &&
+                        history.UndoCount == priorCount + 1 && session.PresentationSnapshot()["presentation"]!["view"]!["exposure"]!.GetValue<double>() == 2.5,
+                        "presentation-channel-publishes-one-world-candidate-and-history-entry");
+                    Check(Request("editor.do", new() { ["generation"] = generation,
+                        ["command"] = "worldpresentation={\"view\":{\"exposure\":3}}" })["error"] != null &&
+                        session.PresentationSnapshot()["presentation"]!["view"]!["exposure"]!.GetValue<double>() == 2.5,
+                        "presentation-channel-refuses-stale-generation-before-another-publication");
+                    generation = Request("inspector.tree")["result"]!["value"]!["generation"]!.GetValue<long>();
+                    Check(Request("editor.do", new() { ["generation"] = generation,
+                        ["command"] = "scenepresentation=" + scope.ToString("x16") + ":{\"gravity\":{\"mode\":\"multiply\",\"multiplier\":0.5}}" })["result"] != null &&
+                        session.PresentationSnapshot()["scopes"]![0]!["effectiveGravity"]!["y"]!.GetValue<double>() == 550,
+                        "presentation-channel-scene-gravity-uses-native-resolution");
                 }
-                Check(Request("world.hello")["result"] != null, "presentation-channel-handshake");
-                Check(Request("editor.presentation")["result"]!["value"]!["canonical"]!.GetValue<bool>(),
-                    "presentation-channel-reads-native-authority-and-scene-context");
-                var generation = Request("inspector.tree")["result"]!["value"]!["generation"]!.GetValue<long>();
-                var priorCount = history.UndoCount;
-                Check(Request("editor.do", new() { ["generation"] = generation,
-                    ["command"] = "worldpresentation={\"view\":{\"exposure\":2.5}}" })["result"] != null &&
-                    history.UndoCount == priorCount + 1 && session.PresentationSnapshot()["presentation"]!["view"]!["exposure"]!.GetValue<double>() == 2.5,
-                    "presentation-channel-publishes-one-world-candidate-and-history-entry");
-                Check(Request("editor.do", new() { ["generation"] = generation,
-                    ["command"] = "worldpresentation={\"view\":{\"exposure\":3}}" })["error"] != null &&
-                    session.PresentationSnapshot()["presentation"]!["view"]!["exposure"]!.GetValue<double>() == 2.5,
-                    "presentation-channel-refuses-stale-generation-before-another-publication");
-                generation = Request("inspector.tree")["result"]!["value"]!["generation"]!.GetValue<long>();
-                Check(Request("editor.do", new() { ["generation"] = generation,
-                    ["command"] = "scenepresentation=" + scope.ToString("x16") + ":{\"gravity\":{\"mode\":\"multiply\",\"multiplier\":0.5}}" })["result"] != null &&
-                    session.PresentationSnapshot()["scopes"]![0]!["effectiveGravity"]!["y"]!.GetValue<double>() == 550,
-                    "presentation-channel-scene-gravity-uses-native-resolution");
             }
             selection.PreserveThrough(session, session.Play); selection.PreserveThrough(session, session.Stop);
             Check(selection.Scope == scope && session.ViewportCameraSelection == (1, 0UL, scope) && session.FreeCamera == (71.0, 93.0, 1.5),
@@ -157,7 +161,7 @@ internal static class PresentationTests
             using (var reopened = EngineSession.OpenProject(640, 480, folder))
                 Check(reopened.PresentationSnapshot()["canonical"]!.GetValue<bool>() && reopened.SceneScopes().Single().Id == scope,
                     "canonical-presentation-and-scene-settings-save-reopen");
-            File.WriteAllText(Path.Combine(work, "results.json"), JsonSerializer.Serialize(new { passed = checks.Count, checks,
+            File.WriteAllText(Path.Combine(work, "results.json"), JsonSerializer.Serialize(new { passed = checks.Count, checks, privateChannelExecuted,
                 limitations = "Hidden GL, production candidate/rebind/history/CAPI paths. Owner visual acceptance and actual input execution are separate. AO/normal compatibility remains read-only; no body-gravity activation." }, new JsonSerializerOptions { WriteIndented = true }));
             return 0;
         }

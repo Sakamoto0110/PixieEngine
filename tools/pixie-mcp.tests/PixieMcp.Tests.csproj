@@ -8,6 +8,10 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup><PackageReference Include="ModelContextProtocol" Version="2.3.0" /></ItemGroup>
+  <PropertyGroup>
+    <PixieNativeMetadataMode Condition="'$(PixieNativeMetadataMode)' == ''">Source</PixieNativeMetadataMode>
+    <PixieNativeApiHeader Condition="'$(PixieNativeMetadataMode)' == 'Source' And '$(PixieNativeApiHeader)' == ''">$(MSBuildThisFileDirectory)../../capi/include/pixie_capi.h</PixieNativeApiHeader>
+  </PropertyGroup>
   <Import Project="../NativeApiVersion.props" />
   <Target Name="RefusePublish" BeforeTargets="PrepareForPublish;Publish">
     <Error Text="Development qualification clients cannot be published." />

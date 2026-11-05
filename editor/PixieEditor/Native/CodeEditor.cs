@@ -25,8 +25,10 @@ internal static class CodeEditor
         string? notice = null;
         try
         {
-            var cmake = ProjectBuild.FindCMake() ?? throw new EngineException("CMake was not found. Install the Visual Studio C++ workload or select CMake in VS Code.");
-            CodeWorkspace.Prepare(folder, EngineFolder.Find(), cmake);
+            if (GameLibrary.Selection is { } sdk)
+                CodeWorkspace.Prepare(ProjectBuild.Prepare(folder, sdk));
+            else
+                CodeWorkspace.Prepare(folder, EngineFolder.Find(), ProjectBuild.RequireCMake());
         }
         catch (EngineException error) { notice = "VS Code opened; IDE setup needs attention: " + error.Message; }
         try { using var process = Process.Start(start); }

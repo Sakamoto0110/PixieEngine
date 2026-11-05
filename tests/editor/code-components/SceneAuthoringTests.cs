@@ -222,49 +222,53 @@ internal static class SceneAuthoringTests
             Check(session.SceneScopes().Length == priorUiCount && selection.IsWorld && session.ViewportEnvironmentSelection == priorEnvironment,
                 "actual-empty-scene-remove-button-preserves-entities-and-viewport-policy");
             scenes.Select(inspectedScope); Frame(); Frame("scenes-input-qualified");
-            var pipeName = "scene-authoring-" + Guid.NewGuid().ToString("N");
-            using (var channel = new EditorChannel(pipeName, Path.Combine(work, "captures"), session, selection, inspector, history,
-                command => { var at = command.IndexOf('='); if (command == "undo") { authoring.Undo(); return true; }
-                    if (command.StartsWith("select=", StringComparison.Ordinal)) { selection.Set(session.Find(ulong.Parse(command[7..], System.Globalization.NumberStyles.HexNumber))!.Value); return true; }
-                    return scenes.Run(at < 0 ? command : command[..at], at < 0 ? "" : command[(at + 1)..]); }))
-            using (var client = new NamedPipeClientStream(".", "pixie-" + pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
+            var privateChannelExecuted = (GameLibrary.Selection!.CapabilityBits & 2) != 0;
+            if (privateChannelExecuted)
             {
-                client.Connect(5000);
-                using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
-                using var reader = new StreamReader(client, leaveOpen: true);
-                JsonNode Request(string method, JsonObject? p = null)
+                var pipeName = "scene-authoring-" + Guid.NewGuid().ToString("N");
+                using (var channel = new EditorChannel(pipeName, Path.Combine(work, "captures"), session, selection, inspector, history,
+                    command => { var at = command.IndexOf('='); if (command == "undo") { authoring.Undo(); return true; }
+                        if (command.StartsWith("select=", StringComparison.Ordinal)) { selection.Set(session.Find(ulong.Parse(command[7..], System.Globalization.NumberStyles.HexNumber))!.Value); return true; }
+                        return scenes.Run(at < 0 ? command : command[..at], at < 0 ? "" : command[(at + 1)..]); }))
+                using (var client = new NamedPipeClientStream(".", "pixie-" + pipeName, PipeDirection.InOut, PipeOptions.Asynchronous))
                 {
-                    writer.WriteLine(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 1, ["method"] = method, ["params"] = p ?? new() }.ToJsonString());
-                    var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
-                    var timer = Stopwatch.StartNew(); while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
-                    return JsonNode.Parse(read.GetAwaiter().GetResult()!)!;
+                    client.Connect(5000);
+                    using var writer = new StreamWriter(client, leaveOpen: true) { AutoFlush = true };
+                    using var reader = new StreamReader(client, leaveOpen: true);
+                    JsonNode Request(string method, JsonObject? p = null)
+                    {
+                        writer.WriteLine(new JsonObject { ["jsonrpc"] = "2.0", ["id"] = 1, ["method"] = method, ["params"] = p ?? new() }.ToJsonString());
+                        var read = reader.ReadLineAsync().WaitAsync(TimeSpan.FromSeconds(5));
+                        var timer = Stopwatch.StartNew(); while (!read.IsCompleted && timer.Elapsed < TimeSpan.FromSeconds(5)) { channel.Drain(); Thread.Sleep(1); }
+                        return JsonNode.Parse(read.GetAwaiter().GetResult()!)!;
+                    }
+                    Check(Request("world.hello")["result"] != null, "scene-channel-handshake");
+                    var liveBefore = session.ProjectSnapshot(); var liveRevision = session.ProjectRevision();
+                    var savedToken = Request("world.snapshot", new() { ["ids"] = new JsonArray(firstId.ToString("x16")) })["result"]!["value"]!["token"]!.GetValue<string>();
+                    Check(Request("world.restore", new() { ["token"] = savedToken })["error"] != null &&
+                        session.ProjectSnapshot() == liveBefore && session.ProjectRevision().Equals(liveRevision) && session.Find(firstId) != null,
+                        "v2-raw-channel-restore-refuses-before-destroying-live-entities");
+                    var tree = Request("inspector.tree");
+                    Check(tree["result"]!["value"]!["target"]!.GetValue<string>() == "scene", "channel-observes-scene-target-without-rebinding-as-empty-entities");
+                    var generation = inspector.ChannelGeneration;
+                    Check(Request("inspector.set", new() { ["generation"] = generation, ["path"] = "Transform2D/positionX", ["value"] = 99 })["error"] != null,
+                        "scene-target-refuses-entity-inspector-write");
+                    var listed = Request("editor.scenes");
+                    Check(listed["result"]!["value"]!["scopes"]!.AsArray().Count == 3, "channel-enumerates-stable-scene-catalog");
+                    var receipt = Request("editor.do", new() { ["generation"] = generation, ["command"] = "scenecreate=from channel" });
+                    Check(receipt["result"] != null && session.SceneScopes().Length == 4 && inspector.ChannelGeneration > generation,
+                        "real-channel-scene-command-uses-coordinator-and-invalidates-generation");
+                    Check(Request("editor.do", new() { ["generation"] = generation, ["command"] = "scenecreate=stale" })["error"] != null && session.SceneScopes().Length == 4,
+                        "stale-channel-scene-command-refuses-before-another-publication");
+                    Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "undo" })["result"] != null && session.SceneScopes().Length == 3,
+                        "channel-undo-routes-scene-history-from-scope-target");
+                    Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "select=" + firstId.ToString("x16") })["result"] != null && selection.Items.Count == 1,
+                        "channel-navigation-leaves-scope-target-for-fresh-entity-bindings");
+                    Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "scenecreate=from entity target" })["result"] != null &&
+                        selection.Scope != null && session.SceneScopes().Length == 4, "channel-scene-publication-retires-bound-entity-inspectors");
+                    Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "undo" })["result"] != null && session.SceneScopes().Length == 3,
+                        "channel-candidate-undo-restores-entity-selection");
                 }
-                Check(Request("world.hello")["result"] != null, "scene-channel-handshake");
-                var liveBefore = session.ProjectSnapshot(); var liveRevision = session.ProjectRevision();
-                var savedToken = Request("world.snapshot", new() { ["ids"] = new JsonArray(firstId.ToString("x16")) })["result"]!["value"]!["token"]!.GetValue<string>();
-                Check(Request("world.restore", new() { ["token"] = savedToken })["error"] != null &&
-                    session.ProjectSnapshot() == liveBefore && session.ProjectRevision().Equals(liveRevision) && session.Find(firstId) != null,
-                    "v2-raw-channel-restore-refuses-before-destroying-live-entities");
-                var tree = Request("inspector.tree");
-                Check(tree["result"]!["value"]!["target"]!.GetValue<string>() == "scene", "channel-observes-scene-target-without-rebinding-as-empty-entities");
-                var generation = inspector.ChannelGeneration;
-                Check(Request("inspector.set", new() { ["generation"] = generation, ["path"] = "Transform2D/positionX", ["value"] = 99 })["error"] != null,
-                    "scene-target-refuses-entity-inspector-write");
-                var listed = Request("editor.scenes");
-                Check(listed["result"]!["value"]!["scopes"]!.AsArray().Count == 3, "channel-enumerates-stable-scene-catalog");
-                var receipt = Request("editor.do", new() { ["generation"] = generation, ["command"] = "scenecreate=from channel" });
-                Check(receipt["result"] != null && session.SceneScopes().Length == 4 && inspector.ChannelGeneration > generation,
-                    "real-channel-scene-command-uses-coordinator-and-invalidates-generation");
-                Check(Request("editor.do", new() { ["generation"] = generation, ["command"] = "scenecreate=stale" })["error"] != null && session.SceneScopes().Length == 4,
-                    "stale-channel-scene-command-refuses-before-another-publication");
-                Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "undo" })["result"] != null && session.SceneScopes().Length == 3,
-                    "channel-undo-routes-scene-history-from-scope-target");
-                Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "select=" + firstId.ToString("x16") })["result"] != null && selection.Items.Count == 1,
-                    "channel-navigation-leaves-scope-target-for-fresh-entity-bindings");
-                Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "scenecreate=from entity target" })["result"] != null &&
-                    selection.Scope != null && session.SceneScopes().Length == 4, "channel-scene-publication-retires-bound-entity-inspectors");
-                Check(Request("editor.do", new() { ["generation"] = inspector.ChannelGeneration, ["command"] = "undo" })["result"] != null && session.SceneScopes().Length == 3,
-                    "channel-candidate-undo-restores-entity-selection");
             }
             var finalDocument = session.ProjectSnapshot();
             var undoCount = history.UndoCount;
@@ -319,8 +323,8 @@ internal static class SceneAuthoringTests
             Check(Refuses(() => editor.EditFragment("bad import", "{broken", [], false)) &&
                 session.ProjectSnapshot() == refusedBefore && history.UndoCount == refusedHistory && session.ProjectRevision().Equals(refusedToken),
                 "v2-bad-fragment-retains-world-history-and-content-token");
-            File.WriteAllText(Path.Combine(work, "results.json"), JsonSerializer.Serialize(new { passed = checks.Count, checks,
-                limitations = "Hidden real GL/ImGui frames and real pipe; presentation acceptance remains with the owner. No worker or code-project candidate activation." }, new JsonSerializerOptions { WriteIndented = true }));
+            File.WriteAllText(Path.Combine(work, "results.json"), JsonSerializer.Serialize(new { passed = checks.Count, checks, privateChannelExecuted,
+                limitations = "Hidden GL/ImGui frames. Presentation acceptance remains with the owner. No worker or code-project candidate activation." }, new JsonSerializerOptions { WriteIndented = true }));
             return 0;
         }
         finally

@@ -1,4 +1,6 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
+using PixieEditor.Native;
 
 namespace PixieEditor;
 
@@ -11,23 +13,38 @@ internal sealed class EditorSettings
 
     public List<string> RecentProjects { get; set; } = [];
     public string? LastLocation { get; set; }
+    public string? SdkRoot { get; set; }
+    public string SdkProfile { get; set; } = "authoring";
+    public string NativeConfiguration { get; set; } = "Release";
+    [JsonIgnore] internal string? StoragePath { get; set; }
 
     private static string FilePath => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "PixieEditor", "settings.json");
 
-    public static EditorSettings Load()
+    public static EditorSettings Load(string? storagePath = null)
     {
         try
         {
-            if (File.Exists(FilePath))
-                return JsonSerializer.Deserialize<EditorSettings>(File.ReadAllText(FilePath)) ?? new EditorSettings();
+            if (File.Exists(storagePath ?? FilePath))
+            {
+                var settings = JsonSerializer.Deserialize<EditorSettings>(File.ReadAllText(storagePath ?? FilePath)) ?? new EditorSettings();
+                settings.StoragePath = storagePath;
+                return settings;
+            }
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
         {
             Console.Error.WriteLine($"[warning] The editor's settings could not be read: {e.Message}");
         }
 
-        return new EditorSettings();
+        return new EditorSettings { StoragePath = storagePath };
+    }
+
+    internal void ConfirmSdk(EngineSdk sdk)
+    {
+        sdk.VerifyUnchanged();
+        SdkRoot = sdk.Root; SdkProfile = sdk.Profile; NativeConfiguration = sdk.Configuration;
+        Save();
     }
 
     // Puts the project first among the recent ones, and its parent as the place to make the next one.
@@ -52,8 +69,9 @@ internal sealed class EditorSettings
     {
         try
         {
-            Directory.CreateDirectory(Path.GetDirectoryName(FilePath)!);
-            File.WriteAllText(FilePath, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
+            var path = StoragePath ?? FilePath;
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+            File.WriteAllText(path, JsonSerializer.Serialize(this, new JsonSerializerOptions { WriteIndented = true }));
         }
         catch (Exception e) when (e is IOException or UnauthorizedAccessException)
         {
