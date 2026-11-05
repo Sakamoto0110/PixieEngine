@@ -57,8 +57,8 @@ public:
 
     // The image at `image`, as a Sprite names it, from its top-left corner at `size` pixels; without
     // a size, at the image's own. `tint` multiplies it.
-    void Sprite(std::string_view image, pxPoint topLeft, pxVec2 size, pxColorRgba tint = {255, 255, 255},
-                SpriteFilter filter = SpriteFilter::Smooth);
+    PIXIE_RUNTIME_API void Sprite(std::string_view image, pxPoint topLeft, pxVec2 size, pxColorRgba tint = {255, 255, 255},
+                                  SpriteFilter filter = SpriteFilter::Smooth);
     PIXIE_RUNTIME_API void Sprite(std::string_view image, pxPoint topLeft);
 
     // A polyline `width` pixels wide, in `fillColor` up to `fill` (0 to 1) of its length and in
