@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (27), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (28), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,

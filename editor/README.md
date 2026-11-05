@@ -303,21 +303,33 @@ Play it writes the scene as it was at Play, and its receipt reports `unsaved`.
 the editor's own Save is unchanged. World commands never save, in the player or
 the editor.
 
-`py tests/mcp/qualify_mcp.py --config Release` (or `Debug`) builds the bridge, its
-test clients and both save variants of the editor, and runs, in disposable
-projects under `build/tests/mcp/`: the player's real-pipe and MCP cases, the
-editor's Inspector/history cases with and without save, the direct pipe and
-fault fixtures, a killed server closing its host, the no-code physics authoring
-workflow (presets, handles, layers, compounds, Play/Stop, save/reopen and a legacy
-migration; see the [physics qualification](../docs/physics-qualification.md#no-code-editor-workflow)),
-and a project with code opened
-cold, which builds the engine again (`--skip-cold` leaves it out). For the `ci`
-preset, pass `--work build-ci/tests/mcp` and set `--bin` to that cache's
-`PIXIE_OUTPUT_ROOT`. Both presets default to the source-root `bin/`; use
-`--bin build-ci/bin` only when configuring that separate output root explicitly.
-Build/test presets serially when they share native output folders. See the
-[qualification record](../docs/shared-engine-export-validation.md) for Windows
-scope, executed cases and remaining project-wide gates.
+Run the local MCP qualification from the repository root. Use the supplied
+schema 1 artifact and fixture inventory for one private `local-development`
+SDK configuration, and an absolute work directory outside the inputs. Use
+separate inventories and work roots for Debug and Release. The Windows replay
+requires `dotnet`, PowerShell, and a desktop session with OpenGL 4.5.
+
+```powershell
+py tests/mcp/qualify_mcp.py --inputs "C:\qualification\inputs.json" --work "C:\qualification\work" --preflight-only
+py tests/mcp/qualify_mcp.py --inputs "C:\qualification\inputs.json" --work "C:\qualification\work"
+```
+
+The inventory identifies the exact SDK catalog and profile. Its `artifacts`
+object has six required keys: `editorSaveOn`, `editorSaveOff`, `bridge`,
+`client`, `writeProbe` and `channelTests`. Each entry supplies an absolute
+`root`, a root-relative `entry` and a complete `files` inventory with paths,
+sizes and SHA-256 hashes. The `fixtures` object supplies `noCode` and
+`legacyScene`. See the [qualification driver](../tests/mcp/qualify_mcp.py)
+for the full schema fields.
+Preflight checks the identities and file hashes without launching hosts. The
+full run stages copies in a fresh run directory under `--work` and records
+player, Editor, pipe, physics and owned-host cleanup results in `results.json`.
+
+Set `cold.status` to `deferred` with a reason until the exact private authoring
+handoff and never-built success and deadline fixtures are supplied. A deferred
+cold suite is recorded as omitted. See the
+[historical qualification record](../docs/shared-engine-export-validation.md)
+for earlier source-build runs and their scope.
 
 ## World properties
 

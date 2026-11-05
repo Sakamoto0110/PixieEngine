@@ -1,0 +1,106 @@
+{
+  "schema": "pixie-separation-060-g1-fixture-contract/1",
+  "contractId": "B0-F1",
+  "revision": 1,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 narrow independent B9 fixture allocation",
+  "assignment": "K03 retains the whole B9/B10 unit; this is its next useful B9 milestone after Q1, not a new/split assignment",
+  "producerContracts": [
+    {
+      "path": "docs/proposals/engine-sdk-editor-separation-contract.json",
+      "sha256": "3ef9ed79645a23d423d4ca262d68b70da63416ec957a665e81d4fb7d162dbd31"
+    },
+    {
+      "path": "docs/proposals/engine-sdk-editor-separation-package-selection-contract.json",
+      "sha256": "ef0c265f144f5cd44cde2da1c0378daea633743b47cfca61d6da923e75afc7db"
+    }
+  ],
+  "allocation": {
+    "clearanceId": "G0-K03-G1-FIXTURE-F1",
+    "repository": "PixieEngine",
+    "unit": "K03",
+    "block": "B9",
+    "operations": [
+      {
+        "path": "tests/sdk-consumers/CMakeLists.txt",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "path": "tests/sdk-consumers/InstalledRuntime.cpp",
+        "operation": "add",
+        "preimageSha256": null
+      }
+    ],
+    "outputRoot": ".local/separation-060/K03/",
+    "sharedRootRegistration": "none; this is a standalone fixture CMake project"
+  },
+  "cmakeContract": {
+    "minimum": "3.25",
+    "requiredInputs": {
+      "PIXIE_SDK_ROOT": "explicit absolute relocated SDK root; no environment/default/ancestor/source discovery",
+      "PIXIE_SDK_PROFILE": "explicit C1 profile, initially public authoring for the headless fixture; actual C1 supported configuration only",
+      "PIXIE_CONSUMER_CONFIGURATION": "explicit Debug or Release; validate that this selected C1/C2 profile tuple exists; build command uses the same --config or CMAKE_BUILD_TYPE"
+    },
+    "configureValidation": "reject absent/nonabsolute SDK root, absent/invalid C2 sdk.json/profile selection and conflicting cached package location before compiler discovery where possible. Missing/invalid-package refusal checks need no real SDK or runtime. They are fixture guard checks, not G1 passes.",
+    "package": "find_package(PixieEngine CONFIG REQUIRED PATHS <selected-root>/lib/cmake/PixieEngine NO_DEFAULT_PATH); reject a cached/discovered PixieEngine_DIR outside that exact selected location rather than silently accepting it",
+    "fallbackForbidden": [
+      "add_subdirectory Engine",
+      "FetchContent Engine/dependencies",
+      "producer absolute include/support paths",
+      "ambient package registry or unselected same-name package",
+      "changing global PATH/SDK settings"
+    ],
+    "executableTarget": "pixie-installed-runtime",
+    "publicTargets": [
+      "Pixie::Runtime",
+      "pixie::math"
+    ],
+    "configuration": "C++20 and the exact imported MSVC/CRT/profile/configuration/CPU identity. Include installed pixie_sdk_build.h compile guards; never config-remap or compile producer sources.",
+    "runtimeClosure": "when actual inputs exist, use only explicit declared selected runtime/dependency paths/hashes and an owned staging/process environment. No recursive producer-bin copy or undeclared global DLL fallback. No actual SDK/runtime is invented by this source-authoring clearance.",
+    "optionalExpectedInputs": {
+      "PIXIE_CONSUMER_EXPECT_SDK_ID": "if supplied, match selected root sdkId exactly",
+      "PIXIE_CONSUMER_EXPECT_BUILD_ID": "if supplied, match selected profile/configuration sdkBuildId exactly",
+      "PIXIE_CONSUMER_EXPECT_MANIFEST_SHA256": "if supplied, match actual selected sdk.json bytes; independently handed-off archive/inventory identity is still required for G1 acceptance"
+    },
+    "inputNaming": "SDK root/profile inputs are PIXIE_SDK_ROOT and PIXIE_SDK_PROFILE, shared with the producer/selection contract. Do not add competing PIXIE_CONSUMER_SDK_ROOT/PROFILE aliases. Consumer-only configuration/expected-value/run inputs have PIXIE_CONSUMER_ prefix.",
+    "generatedHeaderPropagation": "Pixie::Runtime must transitively provide the selected profile/configuration pixie_sdk_build.h include directory and C1 macros/guards. Fixture includes it through target usage; do not manually add producer/profile include paths to hide a broken imported interface.",
+    "runtimeDirectoryInput": {
+      "name": "PIXIE_CONSUMER_RUNTIME_DIR",
+      "semantics": "optional explicit absolute selected runtime/native-closure directory or an owned hash-bound staging copy for run registration. If absent, compile/refusal preparation may proceed but actual runtime evidence is blocked/not registered, never passed.",
+      "invocation": "CTest/manual wrapper may prepend only this declared directory to a child-process environment with declared system/tool paths; never change global PATH or copy a whole producer bin. Report actual loaded pixie.dll path and C1 identity so the later runner verifies selected file hashes/closure and rejects unselected fallback. Actual positive qualification requires immutable manifest-bound runtime/GLFW/CRT closure and environment evidence."
+    }
+  },
+  "nativeConsumer": {
+    "headers": [
+      "pixie/runtime/World.hpp",
+      "pixie/runtime/Scene.hpp",
+      "pixie/runtime/Presentation2D.hpp",
+      "pixie/runtime/ViewportCamera2D.hpp",
+      "pixie/math/pxMat.hpp",
+      "pixie_capi.h",
+      "pixie_sdk_build.h"
+    ],
+    "coverage": "headless instantiate/call suitable existing public World/logical-scope/Scene/presentation/viewport APIs and resolve supported gravity; exercise a non-inline float mat4 pxInverse symbol so missing compiled math cannot be hidden by header-only calls. Read current public headers for exact APIs; do not rewrite producer semantics.",
+    "identity": "query bounded context-free C1 native identity/capabilities, expose actual query plus expected installed header SDK/build/profile/configuration identity for later typed C1 comparison. Reject native API/query failures. Do not depend on private nlohmann or producer-source headers; the later artifact runner may parse printed native JSON with its declared tools.",
+    "preservation": "preserve ABI28/contract1 independent axes and 018 World/Scene/presentation/gravity baseline; no module/candidate-authoring factory fixture or render/context test in this slice"
+  },
+  "focusedEvidence": {
+    "canProceedImmediately": [
+      "author both exact fixture source files against frozen C1/C2 public targets/metadata",
+      "missing SDK root/package and invalid manifest/profile/cached location refusal checks using disposable owned roots"
+    ],
+    "mustWaitForActualInputs": "real compile/link/run requires immutable exact SDK/runtime/toolchain closure; G1 acceptance additionally requires qualifying source-unavailable environment or explicitly accepted access-verification method",
+    "negativeCasesWhenAvailable": [
+      "remove required public header in a disposable package copy and compile must fail",
+      "remove compiled math archive in a separate disposable package copy and link must fail",
+      "missing/mixed runtime/profile identity refuses with attributable diagnostic"
+    ],
+    "outcomes": "fixture source or synthetic/refusal success is not installed compatibility/independence; missing genuine inputs remain blocked, never fabricated pass"
+  },
+  "limits": [
+    "no edits to four Q1 files to add product executors; Q1 structural boundary remains",
+    "no G2 ContractProject.cpp/ModuleAdmission.cpp, release/CI/policy/peer files or source moves",
+    "D08/D09/D12/D14/B11 and full SDK assembly do not gate this source-authoring slice",
+    "all product gates and whole units remain incomplete; no publication or broader allocation"
+  ]
+}

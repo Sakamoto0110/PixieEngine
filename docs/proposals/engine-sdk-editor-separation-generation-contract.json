@@ -1,0 +1,127 @@
+{
+  "schema": "pixie-separation-060-generation-contract/1",
+  "contractId": "B0-C3",
+  "revision": 3,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; accepted D06/D07/D11 technical role/source-preparation contract",
+  "extends": {
+    "contract": "docs/proposals/engine-sdk-editor-separation-package-selection-contract.json",
+    "sha256": "ef0c265f144f5cd44cde2da1c0378daea633743b47cfca61d6da923e75afc7db"
+  },
+  "sourceDraftSha256": "d494fdf11e4de1156c70b6707f819a3a285be5431dd938d638f70c36d6851a00",
+  "buildRole": {
+    "input": "PIXIE_PROJECT_BUILD_ROLE",
+    "values": [
+      "authoring",
+      "shipping-export"
+    ],
+    "default": "authoring; a Release label never selects export role",
+    "authoring": "require exact portable requirement SDK/profile/platform/architecture/compiler/CPU match against the selected admitted authoring or private profile; normal UI/B2 uses the C2 selection",
+    "shipping-export": "B3 explicitly passes this role with public PIXIE_SDK_PROFILE=shipping and standard CMake configuration Release. Validate the same common sdkId/toolchain/platform/architecture/CPU as the project's public authoring requirement, without changing/adopting its requirement profile to shipping. Private local-development cannot project/fall back into a public export.",
+    "capabilities": "authoring workflow capability requirements stay associated with the declared public authoring role; they never turn on shipping module/channel output. Reject unknown or invalid public-role requirements; actual shipping targets enforce module/channel absence.",
+    "configuration": "CMAKE_BUILD_TYPE or restricted CMAKE_CONFIGURATION_TYPES, not another SDK configuration selector",
+    "B3Invocation": "explicit -DPIXIE_PROJECT_BUILD_ROLE=shipping-export -DPIXIE_SDK_ROOT=<selected public root> -DPIXIE_SDK_PROFILE=shipping with Release config; B2 helpers use only that installed package/support"
+  },
+  "generation": {
+    "requirement": "one .pixie-code/sdk.json schema1 under C2; no installation path, implicit adoption or scene conversion",
+    "familyInventory": "templates/project-code/versions.json, schema1 describing preserved legacy/current snapshots and a distinct sdk-v1 family with template paths/content hashes; exclude self-hash recursion",
+    "registry": "existing schema1/markers/hash/preimage authority stays intact; optional family metadata cannot waive existing checks",
+    "candidateOptIn": "new SDK generator accepts explicit PIXIE_GENERATED_CANDIDATE_AUTHORING=ON/OFF, defaultOFF when not deliberately supplied. Only an explicitly selected new authoring-generator contract may emit pixie_game(... CANDIDATE_AUTHORING). Recognition/migration/SDK identity alone never grants contract1 or custom-type admission.",
+    "sourceMode": "explicit PIXIE_ENGINE_MODE=SOURCE with supplied source root remains separate; package mode never add_subdirectory/discovers/falls back to Engine",
+    "userData": "preflight all outputs, preserve edited code/CMake/registry/presets and known snapshots; unfamiliar or changed ownership refuses actionably before writes. No v1 backup creation/conversion outside existing explicit migration.",
+    "sdkPayload": "B1's already-cleared helper/assembler may supply the declared cmake helpers, support/player/PlayerMain.cpp and SceneGame.cpp, support/module/GameModuleEntry.cpp and template inventory as real hashed package inputs. Derive public support without local channel/capture blocks; do not rewrite live player/vendor/runtime source.",
+    "features": "existing SDK features.projectGeneration stays false until all declared helper/support/template payload and coherent metadata are actually supplied; a true availability flag is not G1/G2 evidence",
+    "B5Handoff": "emit exact family/registry/requirement artifact hashes and generator invocation to B0/coordinator before B5 implements its managed migration/build adapter; same representation, no second generator/selector"
+  },
+  "allocation": {
+    "clearanceId": "G0-K01-GENERATION-C3",
+    "operations": [
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "templates/project-code/versions.json",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "templates/project-code/sdk/CMakeLists.txt.in",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "tests/project-code/PreservingGeneration.cmake",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "cmake/PixieProject.cmake",
+        "operation": "modify",
+        "preimageSha256": "edfce2c4e0d14b48933520890fa8146c3bdcd54938cf686f23ac8d2ff0dd293b"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "cmake/PixieGame.cmake",
+        "operation": "modify",
+        "preimageSha256": "174b304bd6c9b9b01c487a8c83a8120ef7649fa760ed645fe520c1609902871f"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "cmake/PixieAddCode.cmake",
+        "operation": "modify",
+        "preimageSha256": "8b1a309bafed303bc945f16467156230ee5264d78ea4b88ffde78d2f173058b7"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "cmake/PixieComponentRegistry.cmake",
+        "operation": "modify",
+        "preimageSha256": "a5e2dc08e01c9c39e74b2c1b19634115c28af410f24c481db561a22d53b04fe5"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "cmake/PixieInitComponents.cmake",
+        "operation": "modify",
+        "preimageSha256": "8e637d1c599a1fedb7adbaa8a46dabadf150485030fa57e172906dea56cf844e"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B2",
+        "path": "tests/project-code/ProjectCodeTest.cmake",
+        "operation": "modify",
+        "preimageSha256": "efa2a6b1f8baa0e0aff4302b63b3a69d291148b6cdb6dd8cb74c41f86fcc7f5e"
+      }
+    ],
+    "outputRoot": ".local/separation-060/K01/",
+    "rootRegistration": "B0 registers focused CTest only after exact script/command handoff; no root or B5 property writes by K01"
+  },
+  "readiness": {
+    "immediate": "source implementation plus preserving/refusal/role tests using explicit temporary/synthetic inputs may proceed now, without serializing the unit on final isolation or other products",
+    "actualInstalledConsumption": "positive installed build/module tests require the corresponding immutable B1 SDK/support and applicable reviewed G1 inputs; full G2 acceptance still requires G1 for those exact candidate trees/tuple and qualifying external evidence",
+    "identityChange": "generation/support source changes can create a new sdkId/buildId; recompose/rebuild actual SDK and invalidate/recheck only evidence bound to changed inputs. Never relabel early C2/F1 bytes as final C3 candidate.",
+    "noCode": "no-code SDK/player open/export does not run CMake/compiler; code build uses declared compatible toolchain only"
+  },
+  "limits": [
+    "nine existing planned B2 operations only; other current template snapshots/runtime player/capi factory sources remain read-only unless separately amended",
+    "no B5 ProjectCode/EngineSession/history or B3 source takeover",
+    "no SDK/source fallback, scene format/physics/render/vendor change",
+    "no full G1/G2/task245/unit completion, commit/push/publication or extraction",
+    "D08/D09/D12/D14 stay dependent gates; D13 nonblocking"
+  ]
+}

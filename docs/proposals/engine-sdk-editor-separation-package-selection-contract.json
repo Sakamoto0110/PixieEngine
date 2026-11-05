@@ -1,0 +1,371 @@
+{
+  "schema": "pixie-separation-060-package-selection-contract/1",
+  "contractId": "B0-C2",
+  "revision": 2,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 exact technical interface and path extension",
+  "extends": {
+    "contract": "docs/proposals/engine-sdk-editor-separation-contract.json",
+    "sha256": "3ef9ed79645a23d423d4ca262d68b70da63416ec957a665e81d4fb7d162dbd31",
+    "rule": "C1 native query/projection/bounds and existing allocation remain immutable; this adds package/selection representation and disjoint exact paths"
+  },
+  "sourceHandoffSha256": {
+    "K01-plan": "c60f7ebd24400448588a31e14e4f60b6eea78683162370b221d63426b21f16c0",
+    "K01-contract": "f1c3b3071a7974f12afda7259173835ea47b4655453411074044bb223c860cf8",
+    "K02-plan": "d7f92a4023f7c0ce175bb01d628af046ecf0eb5068a7a1cfba7c6315e3893b62",
+    "K02-consumer": "a5b20882f1e7f541e43af95453af6f4d6ca38a5114971d1336f724d47d7a820b"
+  },
+  "nextOwnerDecision": {
+    "coordinatorChat": "01a1a97a-f185-7412-a8e1-a23850a4c2e5",
+    "humanMessage": "01a1a9a5-df31-7123-aa3f-458072ffdc14",
+    "answer": "Accept D06/D07/D11 (Recommended)",
+    "acceptedDecisions": [
+      "D06",
+      "D07",
+      "D11"
+    ],
+    "verifiedLocalDate": "2026-11-05",
+    "questionTurnStartedUtc": "2026-11-05T02:59:42Z",
+    "questionTurnStartedLocal": "2026-11-04T23:59:42-03:00",
+    "timestampLimit": "turn start is not a separately exposed answer timestamp; do not infer an exact acceptance time from it",
+    "outcomes": {
+      "D06": "installed SDK through Editor UI or optional launch overrides; no CLI/PATH/env needed for normal create/open, no compiler for no-code; portable requirements, explicit adoption, SDK-specific caches and exact selection continuity; no ancestor/checkout/same-name fallback",
+      "D07": "evolve existing versioned templates/registry; preserve code/custom CMake/preimages/refusals and scene formats; no competing generator or implicit scene conversion",
+      "D11": "pair exporter/runtime/descriptors to selected SDK, explicit dependency inventories, reject mixed identities, separate tool and selected-runtime provenance"
+    }
+  },
+  "sdkRootManifest": {
+    "path": "sdk.json",
+    "schemaVersion": 1,
+    "requiredFields": [
+      "schemaVersion",
+      "sdkId",
+      "productVersion",
+      "distributionClass",
+      "profiles",
+      "files"
+    ],
+    "distributionClass": [
+      "public",
+      "local-private"
+    ],
+    "profilesEntry": {
+      "profile": "authoring, shipping or local-development under C1 composition",
+      "configuration": "Debug or Release; actual available tuple only",
+      "sdkBuildId": "exact lowercase SHA256",
+      "manifest": "normalized SDK-root-relative profiles/<profile>/<configuration>/profile.json",
+      "manifestSha256": "SHA256 of actual profile manifest bytes"
+    },
+    "filesEntry": {
+      "path": "normalized SDK-root-relative path",
+      "size": "nonnegative byte length",
+      "sha256": "lowercase 64-hex SHA256",
+      "role": "owning payload role"
+    },
+    "inventory": "all installed payloads including profile manifest bytes; excludes sdk.json itself to avoid recursion. Hash sdk.json bytes externally in selection/cache/receipts. Reject undeclared payload, traversal, case collisions, missing/mixed hash, absolute producer discovery paths and public/private contamination.",
+    "tools": "reserved metadata object; exporter entry appears only after actual paired B3 artifact/schema handoff, never label the old producer-path exporter as qualified"
+  },
+  "profileManifest": {
+    "path": "profiles/<profile>/<configuration>/profile.json",
+    "identityShape": "C1 identity fields are flat top-level fields; compare the typed C1 nativeMatchFields projection, not whole JSON",
+    "additionalRequiredFields": [
+      "capabilities",
+      "runtime",
+      "player"
+    ],
+    "capabilities": {
+      "moduleLoading": "boolean, actual native bit1",
+      "nativeAutomation": "boolean, actual native bit2; private only",
+      "candidateAuthoring": "boolean, actual native bit4 facility; contract1/type/token admission remains separate"
+    },
+    "runtime": {
+      "path": "SDK-root-relative pixie.dll path",
+      "sha256": "actual file SHA256 matching root inventory"
+    },
+    "player": {
+      "path": "SDK-root-relative generic no-code player",
+      "sha256": "actual file SHA256 matching root inventory"
+    },
+    "pathBase": "all payload paths are relative to SDK root, never implicitly profile-manifest directory",
+    "bindingPaths": [
+      "bindings/dotnet/PixieCapi.cs",
+      "bindings/dotnet/NativeApiVersion.cs",
+      "bindings/dotnet/NativeApiVersion.props"
+    ],
+    "templateInventory": "templates/project-code/versions.json after B2 generation clearance",
+    "earlyLimit": "early G1 package evidence does not imply native export, managed binding adoption or generation is complete; absent paired exporter/support feature blocks its own later acceptance rather than inventing a capability"
+  },
+  "selection": {
+    "uiRequired": "Editor installed-SDK browse/select/confirm works before native runtime/session creation; normal New/Open/Recent needs no CLI, PATH change or environment variable and no-code needs no compiler",
+    "precedence": [
+      "explicit --sdk <root>",
+      "optional process-local PIXIE_SDK_ROOT",
+      "SDK selected/confirmed in Editor UI"
+    ],
+    "failure": "invalid explicit input fails; never fall through to another root or scan ancestors/neighbors/source checkouts",
+    "rememberedUiLocation": "Editor-owned machine-local user settings may prefill the UI choice; validate through the same selector. Never an implicit per-project override or portable requirement path.",
+    "normalizedSelection": [
+      "resolved local SDK root",
+      "sdk.json byte hash",
+      "sdkId",
+      "distributionClass",
+      "profile",
+      "native configuration",
+      "sdkBuildId",
+      "profile-manifest hash",
+      "full C1 native identity projection",
+      "runtime path/hash",
+      "selection origin for diagnostics"
+    ],
+    "nativeOptions": {
+      "configuration": "--native-configuration, independent of managed configuration; Release default only when available",
+      "profile": "--sdk-profile or UI choice, restricted to actual admitted authoring host roles. Local automation explicitly chooses private local-development; never generate its module as public authoring."
+    },
+    "runtimeAdmission": "hash/manifest/requirement preflight before load; actual runtime C1 query/capabilities before session; actual module identity before C++ callbacks. Preserve one-game-per-process failure/retry boundary and all 018 session/history/recovery lifetimes.",
+    "sourceDevelopment": "explicit separate mode only, not package failure fallback",
+    "cacheAndReopen": "exact SDK/manifest/build/profile/configuration/compiler/STL/CRT/CPU/generator/location identity selects cache and survives every launch/rebuild/reopen; preserve old caches/presets and dirty full authored state"
+  },
+  "portableRequirement": {
+    "path": ".pixie-code/sdk.json",
+    "schemaVersion": 1,
+    "requiredFields": {
+      "schemaVersion": "integer1",
+      "sdkId": "selected exact common SDK identity, lowercase SHA256",
+      "profile": "admitted authoring or local-development profile",
+      "platform": "windows",
+      "architecture": "x64",
+      "compilerVersion": "SDK producer compiler version metadata, not a requirement to install a compiler for no-code",
+      "cpuFeatures": "canonical lower-case CPU feature array"
+    },
+    "optionalFields": {
+      "requiredCapabilities": "recognized C1 capability-name array; intersect with actual role/module/type admission, never grant authority"
+    },
+    "forbidden": "installation paths, machine-local UI state, competing .pixie requirement file, implicit scene conversion",
+    "adoption": "legacy/unfamiliar projects with no requirement are not overwritten. Explicit adoption/migration preserves user source/CMake/markers/hashes/preimages and scene format. No-code open does not run compiler/Engine configure.",
+    "representationAuthority": "one B2 generation/B5 consuming representation; technical filename/spelling does not create a second owner product decision"
+  },
+  "packagePolicies": {
+    "publicProfiles": "C1 public authoring Debug/Release and shipping Release; separate private local-development Debug/Release. No unavailable config remap.",
+    "headers": "public install excludes engine/platform LocalCommandChannel.hpp and devchannel include tree, plus local-only C API channel declarations/implementation inputs; preserve canonical producer/private source bytes",
+    "support": "public installed PlayerMain support excludes local-only channel/capture command paths and includes; derive/review installed public input without rewriting or deleting live source to simulate absence. Private support can retain its admitted operations.",
+    "dependencies": "complete unchanged contained primitives/math/GLM/EnTT/GLEW/OpenGL closure, compiled math, actual GLFW/CRT closure, notices/provenance; no events ABI commitment or peer writes",
+    "interop": "Engine-delivered source/metadata remains at currently allocated source paths until B0 extraction. Installed metadata route fails if selected inputs are absent; no source-header fallback. B5 owns resolver and csproj/property registration; coordinate any live managed version route transition as a B5 delta rather than taking its file.",
+    "moduleExportMarkers": [
+      "pixie_game_api_version",
+      "pixie_game_create",
+      "pixie_game_candidate_contract",
+      "pixie_game_sdk_identity"
+    ],
+    "runtimeQueriesAreNotModuleMarkers": [
+      "pixie_sdk_identity",
+      "pixie_capabilities"
+    ],
+    "B3Boundary": "accepted D11 does not by itself freeze the exporter/build-product schema or clear B3 writes; actual paired tool/runtime/dependency schema remains a separate bounded handoff"
+  },
+  "allocation": {
+    "clearances": [
+      {
+        "id": "G0-K01-PACKAGE-C2",
+        "unit": "K01",
+        "blocks": [
+          "B1",
+          "B4"
+        ],
+        "limit": "ten exact remaining producer/identity/binding paths; B2 consumption still waits for B1/G1 and its exact generation slice"
+      },
+      {
+        "id": "G0-K02-SELECTION-C2",
+        "unit": "K02",
+        "blocks": [
+          "B5"
+        ],
+        "limit": "nine exact parser/UI/load-routing paths; synthetic fixtures establish parsing/refusal/UI wiring only, not G4/native independence or Inspector package parity"
+      }
+    ],
+    "operations": [
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B1",
+        "path": "cmake/sdk/PixieEngineConfig.cmake.in",
+        "operation": "add",
+        "purpose": "Relocatable imported public/dependency target definitions and explicit selected profile/configuration validation",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B1",
+        "path": "cmake/sdk/PixieSdkManifest.cmake.in",
+        "operation": "add",
+        "purpose": "Install-time relative file/hash/provenance manifest generation; no producer absolute paths",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B1",
+        "path": "scripts/sdk/assemble_sdk.py",
+        "operation": "add",
+        "purpose": "Compose immutable per-profile/config installs; reject conflicting common inputs",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B1",
+        "path": "scripts/sdk/verify_sdk.py",
+        "operation": "add",
+        "purpose": "SDK-specific hash/closure/tuple validation, distinct from B3 game-export policy",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B4",
+        "path": "capi/src/GameModules.hpp",
+        "operation": "modify",
+        "purpose": "Store any admitted identity with the module lease; preserve destruction order",
+        "preimageSha256": "19c25b51759ef6f1b87d35220c86c0bdceafb0b2eb17008ba4e3c6bfce43c173"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B4",
+        "path": "tests/capi/ModuleLifetime.c",
+        "operation": "modify",
+        "purpose": "Retain live lease/refusal/null-factory evidence with exact identity checks",
+        "preimageSha256": "d258ee96188d12546c284295a31d8ffcf00232bdb0adf40e16940f2297c7ef0b"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B4",
+        "path": "editor/PixieEditor/Native/PixieCapi.cs",
+        "operation": "modify",
+        "purpose": "Add query declarations and consume deliberate generated version metadata route; no resolver/session/history changes",
+        "preimageSha256": "45d86faa41879a0704f8c273020742377d4d60aa81c2731430ae8b597a97e26c"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B4",
+        "path": "tools/NativeApiVersion.cs",
+        "operation": "modify",
+        "purpose": "Expose native identity schema/version metadata from the actual binding host assembly",
+        "preimageSha256": "75c9ccd41b3c8c10abc0a87651e409b773d2741b2ea36a89744896a495c65670"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B4",
+        "path": "tools/NativeApiVersion.props",
+        "operation": "modify",
+        "purpose": "Installed relative metadata/header source route and explicit source-mode input, no source-tree scan",
+        "preimageSha256": "35b1218425b0c3558655ae9f90e5daf05fc09a0795e4179df89d077c328f936e"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K01",
+        "block": "B1",
+        "path": "cmake/PixieTargetDefaults.cmake",
+        "operation": "modify",
+        "purpose": "Share and enforce selected toolchain/CRT/CPU identity without exporting producer definitions",
+        "preimageSha256": "b9ede5b89bae10141dcb8fd23e14a213caa3c59f066090ba02c24cf38ab7949f"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/EditorSettings.cs",
+        "operation": "modify",
+        "purpose": "optional local selected SDK diagnostics/settings if D06 adopts persistence",
+        "preimageSha256": "141216e3f92264513f473f866a39dd1478eceb2dee9cb74c2d4a459f56622eb8"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Native/EngineSdk.cs",
+        "operation": "add",
+        "purpose": "S1: immutable installed selection and manifest/tuple validation",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Native/GameLibrary.cs",
+        "operation": "modify",
+        "purpose": "selected runtime resolution and B4 admission, retaining failed-load pin and leases",
+        "preimageSha256": "bed612d80f104740360c590fb70ddbff676e3c30af0e1a0974b0375c292e7deb"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Native/SdkRequirements.cs",
+        "operation": "add",
+        "purpose": "S1: portable project requirement parsing and explicit adoption",
+        "preimageSha256": null
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Program.cs",
+        "operation": "modify",
+        "purpose": "explicit SDK/profile/native configuration and launch parsing",
+        "preimageSha256": "824df7650d994652230a0df0083431e1fd76c30006131319482d1df3c6a51142"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Ui/EditorWindow.cs",
+        "operation": "modify",
+        "purpose": "selection before load; canonical relaunch, B6 constructor and separate export capability",
+        "preimageSha256": "9e49015d73d66410e0cd9cc6df47af8b7515dad8db99a61d9b261a33aec1c413"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Ui/StartScreen.cs",
+        "operation": "modify",
+        "purpose": "explicit SDK choice and actionable selection errors if D06 adopts picker",
+        "preimageSha256": "f851efbc7a073244828793995f70705280f66ab234d91553ef9a8e8c63cdd5a0"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "tests/editor/code-components/Program.cs",
+        "operation": "modify",
+        "purpose": "S1 runner wiring; explicit artifact selection for later focused cases",
+        "preimageSha256": "7610b351fa9a682c649f97a0d092baa3c1400b6ad6934a4e460b3c49675cf03d"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "tests/editor/code-components/SdkSelectionTests.cs",
+        "operation": "add",
+        "purpose": "S1: explicit selection/requirements and refusal tests",
+        "preimageSha256": null
+      }
+    ],
+    "b0RootTransaction": {
+      "path": "CMakeLists.txt",
+      "operation": "later add pixie_sdk_install() once K01 signals implementation-ready; separate registration-ready handoff before package install",
+      "initialC1Build": "not held by this later install registration"
+    },
+    "outputs": "unit-local .local/separation-060/K01 or K02 build/bin/obj/cache/nuget/dotnet-home/fixtures/artifacts/evidence; no shared mutable output or global selection"
+  },
+  "acceptanceLimits": [
+    "C1/Q1 remain unchanged; no G1-G6 or whole-unit completion claimed",
+    "actual SDK/runtime/Editor artifacts and affected regression cases required for integrated gates",
+    "K02 preserves New/Open/Recent and 018 dirty snapshot/history/recovery/presentation; no B4/B6/Inspector peer edits",
+    "D08/D09/D12/D14 remain open; B7 conditional/unassigned, B8 inactive, B11 unassigned; D13 nonblocking",
+    "no source move, new peer project, commit/push/publication; exact additional paths need a B0 amendment"
+  ]
+}

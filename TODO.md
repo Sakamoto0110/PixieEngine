@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Last promotion decision:** 2026-11-02
+**Last promotion decision:** 2026-11-04
 
 ## Purpose and admission rule
 
@@ -74,6 +74,17 @@ entry may keep an explicit gate after promotion.
 **Dependencies and gates:** preserve PIXIE-TODO-055's delivered C++ capabilities, source/CMake ownership, IntelliSense and unsaved/selection handoff, and PIXIE-TODO-054's interaction contracts. PIXIE-TODO-053 retains its inventory/rules review gate; the corresponding block below does not authorize an unreviewed generic Inspector rewrite. Proposal 016 retains its own World/Scene design, Luna assignment and independent acceptance; this entry authorizes coordination, not implementing that backend incidentally. Blocks A/B can be assigned independently; later blocks require their stated inputs, not completion of a World rewrite. Promotion records the work and does not launch every block, authorize a permanent final toolbar layout, or authorize commit/push/publication.
 **Completion criteria:** all numbered child tasks are done or explicitly dropped with reasons; one real normal-editor exercise demonstrates create/attach/code/IntelliSense/build/play/save/reopen, contextual component access, visible build/attachment state and predictable camera gestures; reviewed field/preset decisions and UI prototype receive owner acceptance; each implemented slice has candidate hashes, relevant regressions, independent review, normal Debug/Release adoption and a concise guide. Deferred manager/telemetry blocks must either receive their bounded designs and qualification or an explicit disposition before parent closure; no blanket completion while they remain open.
 **Breakdown:** [Editor and C++ authoring consolidation](TASKLIST.md#pixie-todo-056--editor-and-c-authoring-consolidation)
+
+### `PIXIE-TODO-060` — Separate Engine SDK, game runtime and Editor delivery
+
+**Status:** in-progress (initial SDK decisions accepted; scoped implementation and later gates retained)
+**Source:** owner decision on 2026-11-04: "promote proposal 021" (translated from Portuguese); [PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md), consolidated on the same date.
+**Dispatch:** on 2026-11-04 the owner assigned B0, K01 (B4/B1/B2), K02 (B3/B5), K03 (B9/B10) and B6 to five separate chats. On 2026-11-05 the coordinator assigned the whole B11 unit to B06 with a separate preparation root and assigned whole B7 to a sixth dedicated chat. The [dispatch register](TASKLIST.md#dispatch-register--owner-decision-2026-11-04) records their identities and scopes. B7's first D08 package milestone uses the committed Inspector source as read-only input. Inspector repository changes require separate exact review. Implementation requires B0's applicable G0 clearance. B8 is inactive under accepted D04. Reports return to the coordinator for independent validation and owner acceptance.
+**Decisions:** the owner accepted D01-D05/D10 on 2026-11-04 and D06/D07/D11 in the [subsequent verified human answer](TASKLIST.md#accepted-selectiongenerationexport-decisions--verified-2026-11-05); TASKLIST records outcomes and timestamp limits. Public authoring/shipping SDK payloads exclude the separate private automation distribution. D04 keeps B8 inactive; its optional task is dropped with a reason. The [scoped clearances](TASKLIST.md#scoped-g0-clearance--b0-c1) cover only the listed identity/package, validator/consumer, Editor selection/launch, exporter, private automation and [generation](TASKLIST.md#scoped-g0-clearance--b0-c3) paths, with serial B0 root wiring. They are not whole-unit or product-gate acceptance.
+**Accepted scope:** independently consumable and relocatable Engine SDK; qualified authoring/shipping runtime profiles; installed-package game support and generation; compatible native/module/managed interop; SDK selection and full authoring-state continuity; native export with runtime-only closure; extraction of Editor into its own local project/repository; bounded automation, external-consumer qualification, coherent product documentation and independent release-candidate pipelines. Adopt proposal contracts C01-C12 as acceptance targets and blocks B0-B11 as bounded ownership units. B7 Inspector and B8 Lib remain conditional on D08/D04; preserve their independent ownership, versions and releases. Separately owned projects may live outside Engine, without a sibling-layout requirement. Preserve completed proposal 018 / PIXIE-TODO-057 and unrelated active work.
+**Dependencies and gates:** G0 reconciles the actual source and working-state baseline and freezes exact write paths, interfaces and immutable artifact inputs. D01-D12 are accepted at the recorded scope. D14's physical planning baseline is accepted. D09 implementation and qualification are outside the separation gates under the [D09 freeze](ROADMAP.md#d09-glfw-distribution). Inspector peer writes and the exact extraction transaction require separate review. Actual artifact and interface prerequisites still apply. D13 is a deferred follow-up outside this scope. VAW delivery, installation, rebind, member registration and future validation block no separation gate. Preserve the single native runtime baseline, ABI28/contract1 admission and lifetimes, scene v1/v2 safeguards, full-document history/recovery, presentation/viewport semantics, local motor/pool gravity and global-body fallback. Dispatch only whole blocks or whole single-agent batches with one active owner per block. Physical extraction requires the B0 move ledger and a writer freeze. Extraction is paused pending owner authorization to resume. The promotion's preservation and publication boundaries remain in force. Subsequent exact clearances belong to TASKLIST.
+**Completion criteria:** every child task is done or dropped with a reason; G0-G6 pass for exact accepted SDK/runtime/Editor artifacts and their supported tuples. External consumers build/run with producer checkouts unavailable and no silent source fallback; code/no-code exports contain only qualified runtime dependencies and preserve authored data; the independent Editor preserves the selected authoring/Inspector baseline, unsaved rebuild/reopen and mismatch/recovery behavior across two SDKs; allowed automation and artifact exclusions are qualified; current documentation has one owner per contract and working references; independent release candidates pass provenance, payload and pipeline rehearsal without publication. Existing 018 evidence remains bounded regression input; newly separated artifacts require their own applicable runtime/visual evidence. Completion does not wait for VAW.
+**Breakdown:** [Engine SDK, game runtime and Editor separation](TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation)
 
 ## Completed
 
@@ -135,3 +146,21 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-051` | shared native engine, manifest game export, local MCP and approved deterministic capture | 2026-11-01 | [Completion](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md) |
 | `PIXIE-TODO-052` | 2D lighting: lights, shadows, emission, particle light, authoring, budgets and optional effects | 2026-10-31 | [Completion](docs/archive/todo-052-2d-lighting-2026-10-31.md) |
 | `PIXIE-TODO-057` | World/Scene scopes, transactional authoring, presentation/cameras and qualified gravity fallback | 2026-11-04 | [Completion](docs/archive/todo-057-world-scene-reconciliation-2026-11-04.md) |
+
+### `PIXIE-TODO-058` — Export the existing sized ScreenCanvas sprite overload
+
+**Status:** implemented and consumer-validated; archive pending
+**Source:** owner request on 2026-11-02 to complete the LogicSandbox build and investigate stale binaries; [PIXIE-PROPOSAL-019](docs/proposals/screen-canvas-sprite-export.md).
+**Accepted scope:** add PIXIE_RUNTIME_API to the existing sized/tinted ScreenCanvas::Sprite declaration. No rendering or simulation changes.
+**Completion criteria:** all LogicSandbox Release targets link and its complete CTest suite passes. Performance qualification remains separate.
+
+**PIXIE-TODO-058 validation (2026-11-02):** all LogicSandbox Release targets linked; full CTest suite passed (151 tests, zero failed checks). Consumer browser follow-up passed five focused tests. Evidence: consumer docs/build-performance-2026-11-02.md and build/release-tests.log. This is local Windows evidence only.
+
+### `PIXIE-TODO-059` — Native player exit requests
+
+**Status:** implemented and consumer-validated; archive pending
+**Source:** owner request on 2026-11-02 for Play/Quit and contextual Resume/Quit consumer menus; [PIXIE-PROPOSAL-020](docs/proposals/project-quit-request.md).
+**Accepted scope:** World-scoped exit request functions in PlayerExit.hpp; ProjectApp closes its Window after observing a request and retains normal shutdown. Embedded hosts keep ownership of their lifetime. No Project vtable or object-layout changes.
+**Completion criteria:** consumer menu request/isolation tests and the complete Release build pass; verify the native menu renders. This does not close an editor host.
+
+**PIXIE-TODO-059 validation (2026-11-02):** all consumer Release targets built; 163 consumer tests passed, including request isolation by World, menu Quit state, pause restoration and input ownership. Native start screen rendered and inspected; normal timed player shutdown succeeded. Evidence: consumer docs/interaction-polish-2026-11-02.md and build/polish-tests-final.log. No editor-window close behavior is introduced.
