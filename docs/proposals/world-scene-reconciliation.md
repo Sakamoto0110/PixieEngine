@@ -159,7 +159,7 @@ The snapshot must satisfy these invariants:
 
 The decisive editor case is to create an empty Scene, edit a World default
 without saving, then build and reopen. The empty Scene, new value, selection
-and unsaved state must survive. The [reopen handoff](../../editor/PixieEditor/Native/CodeReopen.cs)
+and unsaved state must survive. The [reopen handoff](../../editor/README.md#source-provenance) (`editor/PixieEditor/Native/CodeReopen.cs`)
 now captures a complete authored snapshot, ordered selection, its anchor, dirty state and pending
 attachment targets. Its version 2 restore uses a candidate World before editor bindings subscribe;
 legacy version 1 handoffs remain readable. Qualified editor v2 fragment edits now
@@ -256,10 +256,10 @@ Editor Scene selection does not change the viewport Environment.
 | PixieLib | Supply value types such as vectors, rectangles and colors. Engine uses the vendored C++ tree; Inspector references the managed package. Neither dependency automatically adopts changes from the sibling checkout. |
 
 The audit baseline was Engine `ae598b6`, Inspector `c4dccc9` and Lib
-`a23ca6d`. See the [editor dependency configuration](../../editor/PixieEditor/PixieEditor.csproj)
+`a23ca6d`. See the [editor dependency configuration](../../editor/README.md#source-provenance) (`editor/PixieEditor/PixieEditor.csproj`)
 and [native dependency configuration](../../external/CMakeLists.txt).
 
-The editor currently builds fields around a [ComponentHandle](../../editor/PixieEditor/Inspection/ComponentHandle.cs)
+The editor currently builds fields around a [ComponentHandle](../../editor/README.md#source-provenance) (`editor/PixieEditor/Inspection/ComponentHandle.cs`)
 addressed by entity, type and field. The first expected integration change is
 a World or Scene target in the Engine editor. Bind a distinct target through
 the Inspector's existing manual binding, show authored values as editable

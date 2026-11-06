@@ -35,7 +35,7 @@ bin/Release/pixie-player --project samples/sprites
 To edit the scene, open the folder in the editor, and drop more PNG files on its viewport:
 
 ```bash
-editor/PixieEditor/bin/Release/net10.0/PixieEditor --project samples/sprites
+C:/tools/PixieEditor/PixieEditor.exe --sdk C:/sdk/public --project samples/sprites
 ```
 
 The middle button and the wheel pan and zoom, in the player as in the editor.

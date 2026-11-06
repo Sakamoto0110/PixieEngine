@@ -21,13 +21,15 @@
 **Indexing:** include
 
 The room for reviewing the [character/body coupling](../../docs/character-body-coupling.md)
-by playing it. Run the player with native debug outlines, or open this folder in the editor
-and press Play:
+by playing it. Run the player with native debug outlines:
 
 ```text
 bin/Release/coupling-lab.exe --physics-debug 127
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/coupling-lab
 ```
+
+This sample's C++ code uses the Engine source build. In [independent PixieEditor](../../editor/README.md),
+choose **Open without code** to inspect the authored scene. Use the native
+sample player to exercise its game code.
 
 Use **A/D or the arrows** to move the yellow player (E) and **Space** to jump. **R** resets the
 room: bodies, characters, platforms, particles and dropped objects. **Left drag** pulls a box or

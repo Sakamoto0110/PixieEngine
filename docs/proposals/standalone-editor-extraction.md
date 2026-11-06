@@ -22,7 +22,12 @@
 
 ## 1. State, purpose and owner decisions
 
-**State:** proposed for review on 2026-11-05. The owner authorized writing this detailed proposal after reviewing the extraction plan. This document does not execute the extraction, remove source files, create the destination repository, change product behavior, commit, push, tag or publish a release.
+**State:** promoted by the owner on 2026-11-05 under
+[PIXIE-TODO-060](../../TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
+The [extraction task plan](../../TASKLIST.md#proposal-022--standalone-editor-extraction)
+owns execution state and clearances. The observed inventory still requires a
+reviewed execution baseline. Source removal and publication each require
+separate authorization.
 
 The objective is to place PixieEditor in its own project/repository, make it build and operate against installed Engine SDK artifacts, and leave PixieEngine independently buildable and distributable. A sibling folder is the owner's preferred workplace arrangement, not a dependency-resolution contract.
 
@@ -47,7 +52,10 @@ The following owner decisions govern this proposal:
 9. Correct path resolution is a release condition. The Editor must not accidentally work only because it remains next to Engine, launches from one directory, or reuses an old cache.
 10. This proposal retains the detailed reviewed plan. Future implementation requires a reviewed execution baseline and explicit authorization for source removal; drafting does not grant either.
 
-This is a focused follow-on to [Engine SDK and Editor separation](engine-sdk-editor-separation.md), not a rewrite of that document's historical implementation record. The confirmed destination and OpenGL target above replace conflicting earlier assumptions for this work. No scheduler or status in that earlier proposal is silently updated here.
+This proposal details the extraction phase of
+[Engine SDK and Editor separation](engine-sdk-editor-separation.md).
+The confirmed destination and future OpenGL target supersede earlier planning
+assumptions for that phase.
 
 ## 2. Evidence, baseline and limits
 
@@ -65,15 +73,15 @@ Important inspected owners:
 
 | Finding | Owning source | Consequence |
 |---|---|---|
-| Editor imports Engine-local metadata, a source header, local adoption settings and Engine version | [Editor project](../../editor/PixieEditor/PixieEditor.csproj) | Replace producer-relative build inputs and establish Editor version ownership |
+| Editor imports Engine-local metadata, a source header, local adoption settings and Engine version | [Editor project](../../editor/README.md#source-provenance) (`editor/PixieEditor/PixieEditor.csproj`) | Replace producer-relative build inputs and establish Editor version ownership |
 | SDK inventory and installation read a binding from inside Editor | [SDK producer](../../cmake/sdk/PixieSdk.cmake) | Relocate the canonical source before deleting Editor's source tree |
 | Public packaging strips development-only binding declarations | [SDK assembly](../../scripts/sdk/assemble_sdk.py) | Select matching public/development binding inputs for each managed build |
 | Native fixture is registered in Engine CMake despite its Editor directory | [Native tests](../../tests/CMakeLists.txt) | Relocate it within Engine and preserve its target and artifact role |
-| Installed project build plans already bind exact SDK/cache/toolchain inputs | [ProjectBuild](../../editor/PixieEditor/Native/ProjectBuild.cs) | Preserve identity checks and remove implicit source-location assumptions |
-| Source helpers and some tests still search Engine ancestors | [ProjectCode](../../editor/PixieEditor/Native/ProjectCode.cs), [workspace tests](../../tests/editor/code-components/CodeWorkspaceTests.cs) | Replace discovery with admitted SDK inputs or explicitly supplied fixture inputs |
-| Relaunch already carries explicit SDK identities | [EditorLaunch](../../editor/PixieEditor/Native/EditorLaunch.cs) | Preserve continuity while making launch paths independent of working directory |
-| Editor publication removes automation while keeping export UI | [Publish qualification](../../tests/export/qualify_editor_publish.py) | Preserve capability separation and audit the destination artifact |
-| Capture script assumes a game name rather than an explicit installed selection | [Capture qualification](../../tests/capture/qualify_editor_capture.py) | Adapt the test invocation rather than relying on ancestor layout |
+| Installed project build plans already bind exact SDK/cache/toolchain inputs | [ProjectBuild](../../editor/README.md#source-provenance) (`editor/PixieEditor/Native/ProjectBuild.cs`) | Preserve identity checks and remove implicit source-location assumptions |
+| Source helpers and some tests still search Engine ancestors | [ProjectCode](../../editor/README.md#source-provenance) (`editor/PixieEditor/Native/ProjectCode.cs`), [workspace tests](../../editor/README.md#source-provenance) (`tests/editor/code-components/CodeWorkspaceTests.cs`) | Replace discovery with admitted SDK inputs or explicitly supplied fixture inputs |
+| Relaunch already carries explicit SDK identities | [EditorLaunch](../../editor/README.md#source-provenance) (`editor/PixieEditor/Native/EditorLaunch.cs`) | Preserve continuity while making launch paths independent of working directory |
+| Editor publication removes automation while keeping export UI | [Publish qualification](../../editor/README.md#source-provenance) (`tests/export/qualify_editor_publish.py`) | Preserve capability separation and audit the destination artifact |
+| Capture script assumes a game name rather than an explicit installed selection | [Capture qualification](../../editor/README.md#source-provenance) (`tests/capture/qualify_editor_capture.py`) | Adapt the test invocation rather than relying on ancestor layout |
 
 ## 3. Product ownership after extraction
 
@@ -282,7 +290,8 @@ The SDK and runtime package contents stay owned by Engine. A shipping runtime is
 
 ## 7. Ordered implementation plan
 
-Each stage has an output and a concrete exit condition. The stages are a proposed execution order, not a dispatch of agents or an assertion of task status. Do not run a later destructive stage because an earlier build happened to pass.
+Each stage has an output and a concrete exit condition. The task plan maps
+the stages to existing owners and records the gates for execution.
 
 ### A. Establish a reliable source baseline
 
@@ -495,7 +504,9 @@ Extraction is complete only when:
 
 Before execution, resolve and record the actual Git baseline, initial Editor version, selected .NET SDK, Inspector feature/package baseline and feed availability, concrete matching native GLFW artifact selection, exact test artifact set, and handling of any newly discovered source-specific fixture. Before release implementation, finalize repository URLs, release asset naming, SDK/runtime archive boundaries and retrieval metadata. These are bounded selections; they do not reopen the confirmed destination or require a VAW update.
 
-The proposal's path requirements are mandatory acceptance targets if promoted, not a present-tense guarantee. An implementer cannot close the work with "all paths updated" without the caller inventory and relocation evidence. Conversely, a stale absolute cache or unsupported location handled with a clear, data-preserving refusal is not evidence of an incorrect fallback.
+The path requirements are mandatory acceptance targets. Closure requires
+the caller inventory and relocation evidence, including clear,
+data-preserving refusals for stale caches and unsupported paths.
 
 ## Appendix A. Exact observed source-to-destination inventory
 

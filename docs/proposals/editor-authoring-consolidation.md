@@ -59,7 +59,7 @@ Inspector. They do not establish whether the interaction changed camera pose,
 entity transform, or both. Preserve this as a reported defect until a minimal
 reproduction measures both; the root cause is not established here.
 
-Current [entity creation](../../editor/PixieEditor/Ui/Authoring.cs) confirms that
+Current [entity creation](../../editor/README.md#source-provenance) (`editor/PixieEditor/Ui/Authoring.cs`) confirms that
 Collider, Character and Physics actions construct component bundles. They are
 creation presets, not additional ECS object kinds. The Character starter adds
 a motor and a generic keyboard component; that does not itself define movement

@@ -23,7 +23,7 @@
 Open this folder in PixieEditor, or run:
 
 ```text
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/compound-lab
+C:/tools/PixieEditor/PixieEditor.exe --sdk C:/sdk/public --project samples/compound-lab
 bin/Release/pixie-player.exe --project samples/compound-lab
 ```
 

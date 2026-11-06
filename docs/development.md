@@ -56,10 +56,12 @@ cmake --build --preset vs2026-debug
 cmake --build --preset vs2026-release
 ```
 
-- The configure step writes `build/` and the root `PixieEngine.slnx`, with the
-  engine, the samples, and the dependencies built from source. Open the
-  solution, or open the folder in Visual Studio. Both are generated: to add a
-  file or a project, change CMake and configure again.
+- The configure step writes `build/PixieEngine.slnx` with the engine, samples,
+  and source dependencies. CMake owns its project list. Edit the CMake
+  targets and configure again to add a file or project. The Pixie workspace
+  generator reads the curated project list in `build/PixieEngine.root.slnx`.
+  Run `py -3 update_pixie_workspace.py` from the Pixie workspace root to
+  refresh the shared solution after configuring.
 - Executables land in `bin/Debug/` and `bin/Release/`.
 - `-DPIXIE_BUILD_SAMPLES=OFF` builds the engine alone, and
   `-DPIXIE_ENGINE_BUILD_TESTS=OFF` leaves out the tests (PixieLib owns the name
@@ -82,15 +84,8 @@ cmake --build --preset vs2026-release
 
 `build/` and `bin/` can be deleted at any time; configure again.
 
-The C# editor builds on its own, with the .NET 10 SDK, after the engine (it
-loads the shared engine and selected development game module from `bin/`):
-
-```bash
-dotnet build editor/PixieEditor.slnx -c Release
-```
-
-It compiles with warnings as errors. Its output stays under `editor/`; see
-[`editor/README.md`](../editor/README.md).
+PixieEditor builds in its own repository with an installed Engine SDK.
+The [migration guide](../editor/README.md) points to its build, publish and qualification entry points.
 
 ## Installed SDK and local rehearsal
 
@@ -146,6 +141,52 @@ together. This is a manual Engine SDK rehearsal. Editor release rehearsal,
 source-unavailable qualification, G6 acceptance and publication have
 separate evidence or authorization.
 
+### Prepare the Engine SDK and Runtime release
+
+From a reviewed clean Windows x64 checkout, open an x64 Visual Studio developer
+shell with CMake, Ninja and Python 3.12 available. Choose a fresh absolute output
+directory outside the checkout.
+
+```powershell
+python -B scripts/release/prepare_release.py --out "C:\qualification\pixie-engine-candidate"
+```
+
+The producer builds the public `authoring/Debug`, `authoring/Release` and
+`shipping/Release` SDK units in separate profile build and binary directories.
+The SDK ZIP retains the paired exporter and shipping inputs required by export.
+The Runtime ZIP contains the matching `shipping/Release` player, DLLs, notices,
+provenance and runtime manifest. Its generic player runs an existing no-code
+project folder. A code export supplies its own game executable.
+Both ZIPs are re-extracted and verified before `assets/` receives the checksums
+and release receipt. Debug authoring requires the matching developer CRT.
+The standalone PixieEditor checkout's `docs/development.md` describes the
+consumer rehearsal. It takes the Engine workflow artifact and the trusted SDK
+archive and catalog hashes, with the locked Inspector pair as a separate input.
+
+After the [manual release workflow](../.github/workflows/publish.yml) is present
+on the default branch, dispatch it to run Engine CI and upload the verified
+candidates as a workflow artifact. The default dispatch stops there. To prepare
+a GitHub Release later, dispatch with `draft_release` enabled from an existing
+`v<version>` tag whose commit contains the workflow. The workflow checks that
+the tag points to the packaged commit and attaches those exact archives to an
+unpublished draft. Review the draft and its checksums before publishing it in
+GitHub. Tag creation, dispatch, and publication are separate owner actions.
+Archive verification and identity checks are distinct from G6 acceptance.
+
+### Separation contract ownership
+
+| Contract | Authority and stable identity | Consumer reference and check |
+| --- | --- | --- |
+| SDK compatibility, native bindings, runtime and export | PixieEngine owns [ABI28](modules/capi/REFERENCE.md), `sdk.json`, profile manifests and the release receipt. The catalog SHA-256 and profile build IDs bind the installed inputs. | The Editor takes the installed SDK and catalog hash. The SDK verifier and both candidate rehearsals check the identities and inventory. |
+| Editor application, SDK selection and release | PixieEditor owns its README, `docs/development.md`, `version.json`, selected-package lock and native provenance manifest. Its candidate binds these inputs through `editor.json` and the ZIP digest. | The Engine guide names the standalone guide by project and path. Editor links, locked restore and publish checks cover its own checkout. |
+| Inspector packages and contained Lib | PixieInspector and PixieLib each own their repository README, dependency record and product version. The Editor records its selected package identities and content hashes in its lock. Engine owns the inventory and notices for the native Lib snapshot it ships. | The rehearsal verifies the Inspector pair against the Editor lock. The installed SDK verifier checks the contained native inventory. |
+
+Keep relative links within their owning repository. Use project and path for
+the local Editor guide while it has no remote, and use package or catalog
+identities at product boundaries. The Engine documentation validator checks
+its own links and scheduler. The standalone guide links are checked against
+the Editor root.
+
 ## Checks before a commit
 
 - **Build:** Debug and Release build with 0 warnings and 0 errors.
@@ -166,7 +207,7 @@ separate evidence or authorization.
   vsync off, and a frame cap, and the numbers are recorded with the machine and
   commit (see the [policy](governance/documentation-policy.md#tests-and-evidence)).
 - **Development channel:** a change to `devchannel/`, `engine/platform/src/LocalCommandChannel.cpp`,
-  `editor/PixieEditor/Development/`, `tools/pixie-mcp*` or `tests/editor/channel/` also passes
+  `tools/pixie-mcp*`, the native probe in `tests/devchannel/`, or the Editor's channel also passes
   the [explicit-input MCP qualification](../editor/README.md#local-development-mcp-channel)
   for each affected SDK configuration. The driver verifies and runs declared
   artifacts and fixtures outside CTest.
@@ -190,7 +231,9 @@ requests, and by hand:
   no GPU, so Mesa's software renderer, llvmpipe (a pinned release of
   mesa-dist-win, checked by SHA-256), is placed next to the tests for the
   OpenGL 4.5 core context they open; the log shows the renderer they get.
-- **Editor** (Windows): `dotnet build editor/PixieEditor.slnx -c Release`.
+
+PixieEditor runs its Windows build and publish workflow in its own repository.
+It downloads an explicitly selected public SDK artifact and checks its catalog hash.
 
 Warnings are errors there as here: what the runner's compiler reports is fixed
 in the code. After every push, its run is checked to the end, and a red `main`

@@ -50,14 +50,9 @@ cmake --build --preset vs2026-release
 bin/Release/boids
 ```
 
-The player opens `samples/boids`. To edit the scene, open the folder in the editor, which builds it
-as a project of its own (into `build/` and `bin/` here, which git ignores):
-
-```bash
-editor/PixieEditor/bin/Release/net10.0/PixieEditor --project samples/boids
-```
-
-`--game boids` still opens the game from the engine's `bin/`, without the scene.
+The player opens `samples/boids`. This sample's C++ code uses the Engine source build. In [independent PixieEditor](../../editor/README.md),
+choose **Open without code** to inspect the authored scene. Use the native
+sample player to exercise its game code.
 
 ## Options
 
