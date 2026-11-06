@@ -1,0 +1,97 @@
+name: Prepare Engine SDK and Runtime release
+
+on:
+  workflow_dispatch:
+    inputs:
+      draft_release:
+        description: Create an unpublished GitHub release for the existing version tag
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: engine-release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  package:
+    needs: ci
+    runs-on: windows-2025
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Build and verify the release candidates
+        shell: pwsh
+        run: |
+          $vswhere = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer\vswhere.exe"
+          $vs = & $vswhere -latest -products * -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 -property installationPath
+          if (-not $vs) { throw 'No Visual Studio installation with the x64 C++ tools was found.' }
+          Import-Module "$vs\Common7\Tools\Microsoft.VisualStudio.DevShell.dll"
+          Enter-VsDevShell -VsInstallPath $vs -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
+          python -B scripts/release/prepare_release.py --out (Join-Path $env:RUNNER_TEMP 'pixie-release')
+          if ($LASTEXITCODE -ne 0) { throw 'Engine release candidate preparation failed.' }
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pixie-engine-release-candidates-windows-x64
+          path: ${{ runner.temp }}/pixie-release/assets/
+          if-no-files-found: error
+          retention-days: 30
+
+  draft:
+    if: ${{ inputs.draft_release }}
+    needs: package
+    runs-on: windows-2025
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: pixie-engine-release-candidates-windows-x64
+          path: ${{ runner.temp }}/engine-assets
+      - name: Verify the existing tag and create the draft
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $dir = Join-Path $env:RUNNER_TEMP 'engine-assets'
+          $receipt = Get-Content -Raw -LiteralPath (Join-Path $dir 'release.json') | ConvertFrom-Json
+          $version = $receipt.productVersion
+          $tag = "v$version"
+          if ($version -cnotmatch '^[0-9]+(\.[0-9]+){3}$' -or $env:GITHUB_REF -cne "refs/tags/$tag") {
+            throw 'Dispatch draft creation from the existing v<version> tag.'
+          }
+          $commit = & gh api "repos/$env:GITHUB_REPOSITORY/commits/$tag" --jq .sha
+          if ($LASTEXITCODE -ne 0 -or $commit -cne $receipt.sourceCommit) {
+            throw 'The release tag no longer resolves to the packaged commit.'
+          }
+
+          $names = @("PixieEngine-SDK-$version-windows-x64.zip", "PixieEngine-Runtime-$version-windows-x64.zip")
+          $archives = @($receipt.archives)
+          if ($archives.Count -ne 2 -or (Compare-Object $names @($archives.name) -CaseSensitive)) {
+            throw 'The release inventory must contain the exact SDK and Runtime ZIPs.'
+          }
+          $files = foreach ($archive in $archives) {
+            $file = Join-Path $dir $archive.name
+            if ((Get-Item -LiteralPath $file).Length -ne $archive.size -or
+                (Get-FileHash -LiteralPath $file).Hash -ine $archive.sha256) {
+              throw "Release archive changed: $($archive.name)"
+            }
+            $file
+          }
+          $checksums = Join-Path $dir 'SHA256SUMS.txt'
+          $expected = @($archives | ForEach-Object { "$($_.sha256)  $($_.name)" })
+          if (((Get-Content -LiteralPath $checksums) -join "`n") -cne ($expected -join "`n")) {
+            throw 'Archive checksums do not match the release receipt.'
+          }
+          $files += $checksums, (Join-Path $dir 'release.json')
+          gh release create $tag @files --repo $env:GITHUB_REPOSITORY --verify-tag --draft --generate-notes --title "PixieEngine $version"
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
