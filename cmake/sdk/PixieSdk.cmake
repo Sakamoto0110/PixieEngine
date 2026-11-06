@@ -58,7 +58,7 @@ function(pixie_sdk_prepare)
     endif()
     set(sdk_inputs CMakeLists.txt version.json external/CMakeLists.txt
         external/pixielib/cpp/CMakeLists.txt external/glfw/CMakeLists.txt external/box2d/CMakeLists.txt
-        editor/PixieEditor/Native/PixieCapi.cs tools/NativeApiVersion.cs tools/NativeApiVersion.props)
+        capi/bindings/dotnet/PixieCapi.cs tools/NativeApiVersion.cs tools/NativeApiVersion.props)
     foreach(pattern IN LISTS sdk_patterns)
         file(GLOB_RECURSE matches CONFIGURE_DEPENDS LIST_DIRECTORIES FALSE RELATIVE "${sdk_root}" "${sdk_root}/${pattern}")
         list(APPEND sdk_inputs ${matches})
@@ -231,7 +231,7 @@ function(pixie_sdk_install)
     install(FILES "${sdk_root}/capi/src/GameModuleEntry.cpp" DESTINATION support/module COMPONENT PixieSDK)
     install(FILES "${sdk_root}/runtime/player/PlayerMain.cpp" "${sdk_root}/capi/src/SceneGame.cpp"
         DESTINATION support/player COMPONENT PixieSDK)
-    install(FILES "${sdk_root}/editor/PixieEditor/Native/PixieCapi.cs" "${sdk_root}/tools/NativeApiVersion.cs"
+    install(FILES "${sdk_root}/capi/bindings/dotnet/PixieCapi.cs" "${sdk_root}/tools/NativeApiVersion.cs"
         "${sdk_root}/tools/NativeApiVersion.props" DESTINATION bindings/dotnet COMPONENT PixieSDK)
     foreach(helper PixieTargetDefaults PixieProject PixieGame PixieAddCode PixieComponentRegistry PixieInitComponents PixieExportProduct)
         install(FILES "${sdk_root}/cmake/${helper}.cmake" DESTINATION cmake COMPONENT PixieSDK)
