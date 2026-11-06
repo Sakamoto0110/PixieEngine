@@ -20,12 +20,15 @@
 
 **Indexing:** include
 
-Run the player, or open this folder in the editor and press Play:
+Run the native player:
 
 ```text
 bin/Release/light-machine.exe
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/light-machine
 ```
+
+This sample's C++ code uses the Engine source build. In [independent PixieEditor](../../editor/README.md),
+choose **Open without code** to inspect the authored scene. Use the native
+sample player to exercise its game code.
 
 Room 3 of the [lighting work](../../docs/lighting-requirements.md#10-proposed-delivery-gates-and-rooms):
 a dark room with a machine. A and D move the character, Space jumps, **P** switches the machine's

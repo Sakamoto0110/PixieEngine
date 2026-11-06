@@ -195,9 +195,10 @@ and optional automation overrides must resolve through one shared contract befor
 native runtime/session creation; machine-local locations are not portable project
 requirements. This preservation rule selects no remaining D06 alternative.
 
-D01-D12 are **accepted** at the recorded scope. D09 implementation and
-qualification are deferred. D14's physical planning baseline is accepted. Exact
-extraction execution remains **open**. The original alternatives and deadlines are in
+D01-D12 are **accepted** at the recorded scope. D09 shared-binary implementation
+and detailed qualification are deferred. The [proposal 022 amendment](#proposal-022--standalone-editor-extraction)
+records the current D14 baseline. Exact extraction execution remains **open**.
+The original alternatives and deadlines are in
 [proposal section 5](docs/proposals/engine-sdk-editor-separation.md#5-open-decisions-and-their-deadlines).
 B0 records accepted outcomes and contract revisions here before the affected
 implementation or gate; the owner accepts product/scope choices and block owners
@@ -291,6 +292,57 @@ Windows x64. Implementation and qualification of the shared binary are deferred
 outside the current separation scope. The later qualification will verify the
 loaded provider and OpenGL context creation, rendering and teardown. The policy
 decision records no new test result.
+
+### Proposal 022 — Standalone Editor extraction
+
+The owner promoted [PIXIE-PROPOSAL-022](docs/proposals/standalone-editor-extraction.md)
+on 2026-11-05 within PIXIE-TODO-060. D14's current destination is
+`<workspace>/PixieEditor`, superseding the
+earlier path recorded above. Installed consumers must work from unrelated
+locations. Existing task assignments and statuses carry forward.
+
+| Proposal stage | Existing tasks and owners |
+|---|---|
+| A — Review the source and artifact baseline | PIXIE-TASK-242 (B0). Reconcile the observed 94-entry inventory, including current local work, and freeze the exact execution ledger and affected writers. |
+| B — Relocate Engine-owned inputs | PIXIE-TASK-254 (B0), with B1/B4 ownership of SDK production and interop. Preserve installed binding paths and the private native fixture identity. |
+| C–E — Stage Editor, build from installed inputs and reconcile paths | PIXIE-TASK-254 (B0) for staged transfer. PIXIE-TASK-247 (B5) and PIXIE-TASK-248 (B6) own consumer changes and harness adaptation. |
+| F — Qualify the staged destination | PIXIE-TASK-251 (B9), with the affected block owners. Verify the proposal's relocation and preservation cases against matched inputs before source removal. |
+| G–H — Switch ownership and remove original sources | PIXIE-TASK-254 (B0) owns the approved move and integration switch. PIXIE-TASK-253 (B11) owns documentation reconciliation. PIXIE-TASK-255 (B9) owns post-move qualification. |
+| I — Prepare independent release candidates | PIXIE-TASK-252 and PIXIE-TASK-256 (B10, with B9 verification) own workflows and local rehearsal under D12. |
+
+G0 clearance and the reviewed move ledger precede the corresponding writes.
+Stage H also requires passing staged qualification, fresh preimages and
+separate owner authorization for the exact removals. Destination repository
+creation and the workspace launcher edit must be listed in the reviewed
+transaction. Remote publication retains its own approval.
+
+On 2026-11-05 the owner selected the GLFW 3.5 series for extraction.
+Use native GLFW 3.5.1 to match the Engine SDK baseline. Pin the Editor
+artifact and verify it with the OpenGL 4.5 smoke check. The shared-binary
+change and detailed provider investigation remain deferred under the
+[D09 freeze](ROADMAP.md#d09-glfw-distribution).
+OpenGL 4.3 adaptation and VMware qualification follow extraction.
+
+The independent Windows x64 Editor builds and publishes against installed SDK
+inputs and carries a pinned GLFW 3.5.1 artifact. The canonical binding and native
+write probe remain in Engine at their relocated paths.
+
+A restricted Windows token denied Engine source access during public and private
+managed builds, publish, no-code launch and export, and code generation. The
+restricted tool runner needed detached MSVC commands for its native replay.
+The normal Editor CMake flow separately configured and built a fresh project
+against the installed SDK with the Engine working tree and local outputs
+physically removed from their original location. Only the Git database remained
+there during that run. The Editor loaded the module and rendered a frame.
+
+The installed reopen tests passed for a clean non-cooperative module and a
+dirty cooperative module rebuilt in a new process. The original scene bytes
+were preserved. The restricted development channel teardown also passed.
+
+The local cutover switched the Windows Editor workflow and workspace launcher,
+replaced the old guides with pointers, and removed the allowlisted nested Editor
+sources. The [migration guide](editor/README.md) records the import provenance.
+Remote workflow execution and broader release acceptance are tracked separately.
 
 ### Assignment and ownership
 
@@ -1549,12 +1601,14 @@ local Python 3.15.1. CI and full G6 remain open.
 ### B0 — Contract readiness and coordinated extraction
 
 - `PIXIE-TASK-242` — **Status:** in-progress — Reconcile actual HEAD and dirty work with completed 018; prepare D01-D12/D14 outcomes for owner decisions at their deadlines, select optional blocks, freeze C01-C12 interfaces/product profiles and exact unit/path/artifact ledgers for dispatch. Pass G0 per affected unit; reject duplicate ownership or an unresolved prerequisite. Preserve unrelated player/export/proposal work. The exact clearances above are scoped readiness results; later decisions, interfaces and whole-unit G0 remain incomplete.
-- `PIXIE-TASK-254` — **Status:** open — After affected pre-move gates pass, freeze B4/B5/B6/B11 writers and execute the single B0 source-removal/destination-addition transaction under D14. Transfer source, test, documentation, root/CI registration and binding ownership coherently; original block owners retain semantic responsibility. Close the move ledger without unrelated cleanup, history rewriting or writes to old paths during the move.
+- `PIXIE-TASK-254` — **Status:** done — The local D14 source cutover was applied to the standalone `PixieEditor` checkout inside the Pixie workspace. The cutover ledger records the 90 source removals, destination paths and content hashes. The Editor origin guide records the Engine import anchor, and M4 records the post-move evidence.
 
 The coordinator accepted the provisional D14 plan and verified all 89
-candidate source entries, Git references and proposed destination boundaries.
-Refresh the exact move ledger after the writer freeze and obtain separate
-execution approval.
+candidate source entries, Git references and proposed destination boundaries
+at that baseline. The [proposal 022 amendment](#proposal-022--standalone-editor-extraction)
+supplies the planning inventory. The applied ledger in
+`.local/separation-060/proposal-022/cutover-final/transaction.json` records
+the executed scope.
 
 ### K01 — Native SDK and consumer support, one agent
 
@@ -1565,7 +1619,7 @@ execution approval.
 ### K02 — Export and Editor authoring, one agent
 
 - `PIXIE-TASK-246` — **Status:** in-progress — B3: deliver the native SDK-aware exporter, accepted CLI/product policy, selected-runtime/descriptor/manifest identity and nonadjacent dependency resolution. Pass G3 with code/no-code runtime-only launch, asset/native/CRT closure, complete v2 scopes/presentation/seed/opaque data and unchanged v1 policy. Detect missing DLLs, mixed identities and development payload contamination without producer-machine paths. E1 source implementation is active; schema/parser evidence and root tool registration are not G3 acceptance.
-- `PIXIE-TASK-247` — **Status:** in-progress — B5: make Editor an independent SDK consumer with explicit selection/discovery, portable project requirements, cache/profile continuity, selected Inspector adoption, authoring/export capabilities and owned native graphics assets. G4 exercises two SDKs, mismatch/relocation, create/open/Add code, full dirty v2 rebuild/reopen, exact targets, camera/Environment, Play/Stop, history and committed recovery. Resolve D09 with actual loaded paths/hashes and context create/render/dispose evidence; preserve 018 in admitted package/local Inspector modes and record visual regression evidence for changed surfaces. C2/M1 selection/UI/guard/metadata slices are underway; actual G4 and the full application scope remain incomplete.
+- `PIXIE-TASK-247` — **Status:** in-progress — B5: make Editor an independent SDK consumer with explicit selection/discovery, portable project requirements, cache/profile continuity, selected Inspector adoption, authoring/export capabilities and owned native graphics assets. G4 exercises two SDKs, mismatch/relocation, create/open/Add code, full dirty v2 rebuild/reopen, exact targets, camera/Environment, Play/Stop, history and committed recovery. Verify the proposal 022 GLFW version and graphics smoke requirements. Preserve 018 in admitted package/local Inspector modes and record visual regression evidence for changed surfaces. C2/M1 selection/UI/guard/metadata slices are underway. Actual G4 and the full application scope remain incomplete.
 
 ### B6/B7/B8 — Standalone adapters and conditional dependencies
 
@@ -1594,13 +1648,13 @@ isolation, B7 completion and G4 remain open.
 ### K03 — External evidence and release preparation, one agent
 
 - `PIXIE-TASK-251` — **Status:** in-progress — B9: prepare isolated external consumer fixtures and acceptance inputs for G1-G5, using exact SDK/profile/toolchain/package identities and preserving affected 018 regressions. Verify available upstream artifacts incrementally; source paths must be unavailable or covered by an explicitly accepted access-verification method. Read-only live checkouts do not prove independence; never rename/delete the owner's repositories to simulate absence. Q1 structural implementation is independently confirmed above; product consumers, real G1-G5 evidence and the whole unit remain incomplete.
-- `PIXIE-TASK-252` — **Status:** open — B10: after D12, prepare independent Engine SDK/runtime and Editor CI/release pipelines over immutable inputs, B9 fixtures, dependency locks, provenance, capability exclusions and retention policy. Keep B7/B8 peer workflow ownership and independent product versions; prepare local candidate assembly and verification without creating remote repositories, pushing, tagging or publishing.
-- `PIXIE-TASK-255` — **Status:** open — B9: after the B0 move, run the coordinated external-consumer integration against the moved artifacts, record exact identities and affected G1-G5 results, and verify no source fallback or accepted-feature loss. Reconcile focused evidence and rerun only checks affected by changed inputs; builds alone do not establish independence or runtime/visual acceptance.
-- `PIXIE-TASK-256` — **Status:** open — B10 with B9 verification: assemble exact SDK/runtime/Editor release candidates and pass G6 using completed B11 documentation and the accepted D12 policy. Verify payloads, native assets, locks/provenance/notices, public/local exclusions and mismatch/contamination negatives; record rehearsal results and remaining limits. No upload, tag, push, release or future VAW validation is required.
+- `PIXIE-TASK-252` — **Status:** done — B10 prepared the independent Engine SDK/Runtime producer and standalone Editor candidate workflow under D12. The workflow definitions passed static validation. The Editor workflow command passed locally with the real SDK ZIP and the locked Inspector pair. Hosted workflow qualification belongs to task 256.
+- `PIXIE-TASK-255` — **Status:** done — B9: reconciled the accepted standard-account consumer results with the post-move integration evidence and recorded the affected candidate checks for the local G6 rehearsal.
+- `PIXIE-TASK-256` — **Status:** in-progress — B10 with B9 verification: the exact local candidates and Engine-to-Editor handoff passed. Full G6 requires a verification-only hosted run and resolution of the remaining Windows x64 native provenance listed below.
 
 ### B11 — Product documentation without a VAW prerequisite
 
-- `PIXIE-TASK-253` — **Status:** open — B11: map each fact/contract to one authoritative project, canonical location, stable identity, supported cross-project reference and validator; deliver minimum SDK/Editor guides and reconcile current references after the move, including the consumed API27 overview to implemented ABI28 baseline. Route peer-document edits through B7/B8 or their repository owner, preserve archive bodies and complete C11/G6 under current rules with bounded documented validator limits. No competing workplace/schema framework, broad API formalization or VAW installation/rebind work.
+- `PIXIE-TASK-253` — **Status:** done — B11 reconciled the installed SDK and standalone Editor guides, the ABI28 overview and current product references. The [ownership map](docs/development.md#separation-contract-ownership) records canonical contracts, identities and supported checks. The affected references passed. The Engine-wide validator retains six pre-existing scheduler diagnostics outside this scope.
 
 #### Scoped G0 clearance — B0-DOC1
 
@@ -1675,8 +1729,109 @@ K03 post-move consumer verification and B11 reference/guide reconciliation.
 M5 is exact-candidate G6 rehearsal. These are readiness milestones, not agent
 assignment batches; a unit retains one owner while spanning several milestones.
 
+**M4 closed (2026-11-06).** The owner directed closure using the existing
+evidence. Seven coordinator receipts cover focused installed consumer, export,
+manual Editor and private automation cases. The applied cutover record binds
+the source-withheld CMake run, module load and rendered frame. The post-move
+Editor run passed all 46 field, channel and write-probe checks. The current
+Engine and Editor guide routes were checked for the B11 post-move reconciliation.
+The local receipt at `.local/g6-r1/m4-reconciliation.json` records the evidence
+digests. Earlier product-gate claims retain their original scope. Candidate
+checks repeat only where the package or binding inputs changed.
+
+**Local G6 rehearsal completed (2026-11-06).** The Windows x64 Engine SDK,
+shipping Runtime and standalone Editor 0.3.0.0 archives were assembled, extracted
+and verified by SHA-256. The SDK contains authoring Debug and Release and
+shipping Release. The Editor restored the selected Inspector pair from a locked
+offline feed after correcting the standalone lock graph. All eight package
+versions and NuGet content hashes were preserved. Nine candidate checks passed
+and four controls refused the expected mismatched or incomplete payloads.
+Installed code generation, export and module loading used the extracted SDK.
+The shipping player, code export and Editor rendered on OpenGL 4.5 core.
+The local receipt at `.local/g6-r1/g6-rehearsal.json` binds the exact archives,
+source snapshot, catalog, logs and frame digests. The Editor's native notice
+and source provenance limits and the independent pipeline verification remain
+open under G6. The rehearsal used local artifacts and the existing source
+isolation evidence.
+
+#### Remaining G6 work and Proposal 021 closure
+
+The owner approved recording this closure plan on 2026-11-06. The M4
+disposition and local G6 rehearsal remain the evidence baseline. The following
+work stays with the existing assignments.
+
+1. **Pipeline handoff and verification** (`PIXIE-TASK-252`, B10). Qualify
+   the [Engine workflow](.github/workflows/publish.yml) and the Editor workflow
+   in `PixieEditor/.github/workflows/ci.yml` as independent producers and
+   consumers. The Engine emits distinct SDK and Runtime ZIPs with a release
+   receipt. The Editor consumes the exact SDK from an approved run, checks the
+   archive SHA-256, extracts it to a fresh directory and verifies the trusted
+   `sdk.json` hash before building. Restore the selected Inspector core and
+   ImGui pair `0.3.0-pixie021.3` in locked mode from an approved immutable feed
+   or artifact. A verification-only run must produce the Engine packages and
+   the independently versioned Editor package with their inventories. Retain
+   run identifiers, catalog and package digests, and expected refusals for
+   mismatched SDK and dependency inputs. Workflow execution follows the
+   applicable clearances. Publication retains separate owner authorization.
+2. **Windows x64 Editor native notices and provenance** (`PIXIE-TASK-256`,
+   B10 with B9 verification and B7 evidence). Review the exact DLL hashes in
+   the candidate inventory. Establish the build inputs for `cimgui` and
+   `cimgui_impl`, the Windows FreeType version, and Brotli linkage and version
+   where applicable. Match the applicable notices to those binary inputs.
+   Record verified facts and unresolved items separately. Treat the existing
+   B7 receipt as evidence for its verified subset. The
+   [D09 freeze](ROADMAP.md#d09-glfw-distribution) governs GLFW changes and
+   detailed provider work. The [OpenGL 4.3 VMware investigation](ROADMAP.md#deferred-investigation)
+   stays deferred.
+3. **Gate and task disposition** (B0 with B9 and B11). For each remaining
+   G0-G6 criterion, record the exact supported tuple, applicable evidence,
+   acceptance status and any outstanding gap. Reuse the existing Bob and
+   source-withheld cutover receipts at their recorded scope. Repeat only
+   checks affected by a change in candidate bytes or contract. Any remaining
+   source-isolation gap needs an explicitly approved route or an explicit
+   owner decision on scope. Finish the current guide and reference checks
+   under `PIXIE-TASK-253` and give each open child task a recorded disposition.
+
 Close the parent only when every child task is done or explicitly dropped with
 a reason and the accepted G0-G6 outcomes are evidenced for the same immutable
 product tuples. Conditional omissions do not waive an accepted contract. Keep
 actual publication separately authorized, retain other TODO owners' scopes and
 state, and complete separation without waiting for the later VAW adoption.
+
+#### Execution results and gate dispositions
+
+The Editor verification command consumed the existing Engine SDK ZIP
+`1ea303955f08f574e9e867199af75f52b869c82524e9b8dfca1de26c490f31ea`
+and catalog `2a5493900bca1a8ba484a62e4bcaba6dcdb0d1c91514b8595399dc035dd9171c`.
+It restored the selected Inspector pair in a fresh cache against the lock.
+The offline feed and NuGet.org upstream cases passed. Wrong catalog, modified
+SDK archive and modified Inspector package were refused before any candidate
+was emitted. The Editor candidate with the updated notice inventory is
+`5dd9f3d0d46e8f674bf220502bb97cdc3725a9bc052dd6bb8fc53de9f13a5a1c`.
+The exact ZIP passed inventory and public IL checks. Its app compiled and
+loaded a C++ project module against the installed SDK, accepted Play/Stop,
+rendered on OpenGL 4.5 core and refused a mismatched SDK identity. The unchanged
+Engine Runtime retains its prior exact candidate evidence.
+
+The Editor native provenance manifest binds the four DLL hashes and verified
+notice inputs. The cimgui initializer identifies FreeType 2.13.3, and its
+compiled data and code references establish static Brotli presence. The exact
+Brotli decoder revision and the original Windows wrapper source commits and
+toolchain inputs remain unresolved. The upstream recipes used floating source
+refs. The standalone Editor checkout has no commit or remote for hosted CI.
+The verification artifact uses the Engine candidate's 30-day retention setting.
+
+| Gate and remaining tasks | Verified evidence and disposition |
+| --- | --- |
+| G0 · 242 | Scoped D01–D12/D14 decisions, exact clearances and applied D14 cutover are recorded. Whole-unit G0 remains open for the unreconciled readiness and acceptance items. |
+| G1 · 244, 251 | Standard-account Release A and Debug D installed cases retain their reviewed scope. The current SDK's complete inventory and installed consumption passed locally. Full unavailable-source coverage for the current tuple remains open. |
+| G2 · 243, 245, 251 | Retain the accepted module/generation cases and the source-withheld cutover proof. The current Editor candidate compiled and loaded an installed-SDK module and refused an identity mismatch. The complete generation and ABI rejection matrix remains open at the current tuple. |
+| G3 · 246, 251 | Retain the accepted standard-account code/no-code launches and prior authored-data evidence. The unchanged local Runtime and paired export ran in the r1 rehearsal. Full acceptance still requires reconciliation of the authored-data and dependency cases to the accepted shipping tuple. |
+| G4 · 247, 249, 251 | Retain the standard-account manual authoring cases, post-cutover 46-check suite and selected Inspector package evidence. The r2 candidate used the locked package pair and passed the local module/graphics smoke. Two-SDK continuity and the complete preservation scope remain open. |
+| G5 · 248, 251 | Retain the focused private standard-account and cutover protocol evidence. The r2 public Editor excludes private automation. Full cold external-code, admission and recovery coverage remains open on the accepted private tuple. |
+| G6 · 256 | Local handoff and exact-candidate verification passed. Hosted workflow verification and the remaining native provenance are open. C11 guide and reference work is complete at the documented validator scope. |
+
+The exact artifact, evidence and log digests are recorded in
+`.local/g6-r2/closure.json`. The prior standard-account and source-withheld
+receipts keep their original candidate scope. No new standard-account run
+was used for this disposition.

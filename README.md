@@ -9,8 +9,7 @@ from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
 Early stage: Core, Platform, Render and App native boundaries, with Runtime
 and C API packaged into one shared engine, the samples under [`samples/`](samples/) (three of them the anchors:
-boids, flocks, and particles; `sprites` a project without code), and the C# ImGui editor under [`editor/`](editor/README.md),
-which runs any of the anchors. Windows shared-engine distribution, manifest-only
+boids, flocks, and particles; `sprites` a project without code), and the independent [PixieEditor](editor/README.md). Windows shared-engine distribution, manifest-only
 game export, local MCP and the initial approved lighting snapshot are delivered;
 the [qualification record](docs/shared-engine-export-validation.md) states their
 executed evidence and platform, tooling and reference-selection limits.
@@ -22,15 +21,11 @@ cmake --build --preset vs2026-debug
 bin/Debug/boids
 ```
 
-Then the editor, with the .NET 10 SDK:
+Build the independent PixieEditor against an installed Engine SDK.
+See the [Editor migration guide](editor/README.md) for the checkout and build entry point.
 
-```bash
-dotnet build editor/PixieEditor.slnx -c Release
-editor/PixieEditor/bin/Release/net10.0/PixieEditor --game boids
-```
-
-The configure step also writes `PixieEngine.slnx` at the root. Building,
-checking, and committing are in the [development guide](docs/development.md).
+The configure step writes the native solution at `build/PixieEngine.slnx`.
+Building, checking, and committing are in the [development guide](docs/development.md).
 
 In the native player, F3 shows FPS/UPS and F3+C opens a command bar at the top of the window.
 Try `-vsync false`, `-fps-cap true 60`, or `-fps-cap false`; Enter runs the command and Escape

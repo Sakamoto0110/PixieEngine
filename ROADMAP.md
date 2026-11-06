@@ -20,7 +20,7 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-11-04
+**Direction decision date:** 2026-11-05
 
 ## Purpose
 
@@ -146,6 +146,14 @@ promotion. None is an automatic follow-up to completed telemetry work.
   sample effect in a blank project. Review is deferred to 2026-10-23; root cause
   and a fix remain unconfirmed. The [runtime finding](docs/modules/runtime/FINDINGS.md#runtime-finding-001-particle-authoring-in-a-blank-project)
   owns the report, evidence limits and reproduction questions.
+- **OpenGL 4.3 graphics on VMware (2026-11-06).** The experimental build opened
+  the exported player and standalone Editor on Windows 11 with OpenGL 4.3 core
+  and VMware SVGA3D (Mesa 24.1.0). Editor Play/Stop worked. The player showed
+  broken shadows and objects that nearly disappeared into the lighting. In the
+  Editor, lighting disappeared abruptly while the scene was stationary, well
+  after Stop. The cause remains unresolved. Revisit if accelerated graphics in
+  a clean VMware guest becomes useful enough to justify visual qualification.
+  This is an optional investigation outside the execution queue.
 
 ### Boundary decisions
 
@@ -177,6 +185,13 @@ Product documentation must remain coherent under the available repository rules;
 future VAW installation/rebind is a separate, nonblocking follow-up. Product,
 compatibility and packaging choices retain the gates in
 [PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
+
+On 2026-11-05 the owner promoted the detailed
+[standalone Editor extraction plan](docs/proposals/standalone-editor-extraction.md).
+PixieEditor consumes installed Engine SDK artifacts from its own
+repository. See the [Editor migration guide](editor/README.md). The extraction
+retains OpenGL 4.5. The OpenGL 4.3 VMware test is recorded under
+[deferred investigation](#deferred-investigation).
 
 ## Active guardrails
 
@@ -257,10 +272,11 @@ compatibility and packaging choices retain the gates in
 
 The [accepted D09 policy](TASKLIST.md#d09--accepted-glfw-distribution-policy)
 selects the same GLFW binary for the Windows x64 Editor and SDK packages.
-Implementation and qualification are frozen until the owner explicitly
-authorizes resumption. Preserve the decision and the current GLFW binaries
-and provider behavior during Editor extraction. The extraction can proceed
-under its own approval while this freeze remains active.
+Shared-binary implementation and detailed provider qualification remain frozen
+until the owner explicitly authorizes resumption. The
+[extraction plan](docs/proposals/standalone-editor-extraction.md#62-inspector-lib-and-graphical-assets)
+requires matching native GLFW versions and a graphics smoke check at the
+current OpenGL baseline.
 
 ## Explicit non-goals
 

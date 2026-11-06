@@ -23,7 +23,7 @@
 Open this folder in the editor, or run from the engine repository:
 
 ```text
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/physics-lab
+C:/tools/PixieEditor/PixieEditor.exe --sdk C:/sdk/public --project samples/physics-lab
 ```
 
 Press Play to drop the orange box onto the ramp, settle four green boxes and

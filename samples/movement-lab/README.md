@@ -23,7 +23,7 @@
 Open this folder through the editor's File/Open project, or run:
 
 ```text
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/movement-lab
+C:/tools/PixieEditor/PixieEditor.exe --sdk C:/sdk/public --project samples/movement-lab
 ```
 
 It uses the generic version-9 scene library, with no project C++ code. Four
