@@ -72,7 +72,7 @@ version change.
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
 | .NET SDK | Local MCP tooling | 10.0 | — | `ok` | PixieEditor pins its own SDK and consumes managed bindings from the installed Engine SDK. See the [migration guide](editor/README.md). |
 | Git | Version control | 2.55.0 | — | `ok` | |
-| Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
+| Python | Native tooling and qualification scripts (documentation uses PowerShell) | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
 | Pillow | Development snapshot PNG comparison | 13.0.0 pinned by `scripts/requirements-snapshots.txt` (2026-10-29) | Not checked | `ok` | Install into the snapshot tool's Python environment. The documentation verifier remains standard-library-only. No Pillow files belong in game exports or editor publish payloads. See the scoped capture update above; this is not a refreshed upstream audit. |
 
 ## Graphics and platform

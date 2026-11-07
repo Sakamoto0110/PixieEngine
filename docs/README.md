@@ -56,9 +56,10 @@ owns the authority table: which document owns which kind of fact.
 | [`schemas/`](schemas/README.md) | Documentation structure and vocabulary, and its derivation |
 | [`templates/`](templates/) | Templates for modules, schedulers, proposals, and archive records |
 | [`proposals/`](proposals/README.md) | Unpromoted ideas |
-| [`archive/`](archive/README.md) | Chronology, completed work, dated rationale |
+| [`history/`](history/README.md) | Roadmap closures, outcomes and links to evidence |
+| [`archive/`](archive/README.md) | Preserved legacy chronology, completed work and dated rationale |
 | [`../editor/`](../editor/README.md) | The C# ImGui editor |
-| `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
+| `../checkdocs.ps1` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
 | [`modules/runtime/`](modules/runtime/README.md) | The `runtime` module: World, entities, Behaviours, update phases, particles, reflection, and projects |
 | [`modules/runtime/FINDINGS.md`](modules/runtime/FINDINGS.md) | Unconfirmed runtime observations and deferred investigations |
 | [`modules/core/`](modules/core/README.md) | CPU timing, logging, telemetry and images |

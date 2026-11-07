@@ -29,8 +29,9 @@ of many small tasks, do not pollute `TODO.md`.
 - Every section names its parent in `Parent`, and the parent links back here
   in `Breakdown`.
 - Tasks decompose the parent's accepted scope and never extend it.
-- When the parent completes, its section moves to
-  [`docs/archive/`](docs/archive/README.md).
+- When the parent completes, remove its section through the
+  [closure flow](docs/history/README.md). Retain only important details or links
+  in the closure; Git preserves the full breakdown.
 
 The full rules are in the
 [documentation policy](docs/governance/documentation-policy.md#scheduling-todomd-and-tasklistmd),

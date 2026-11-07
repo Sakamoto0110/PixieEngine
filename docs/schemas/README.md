@@ -33,8 +33,8 @@ schema version 1, as observed on 2026-10-09. Its authority traversal,
 self-review, and stop rules come from the documentation references of Void
 Agent Workplace (`profiles/nekolib/references/documentation/`, observed
 2026-10-12 at `c9d81ba`), adapted to this repository. The documentation is a
-derivation and depends on none of Void Agent Workplace's tooling: no build,
-check, or document here runs it. Since 2026-10-16 the repository is also bound
+historical derivation. Current structural checks use a pinned, standalone
+PowerShell snapshot of the generic VAW checker; no VAW checkout is needed. Since 2026-10-16 the repository is also bound
 to a Void Agent Workplace profile, for identity, routing, and skill discovery
 only ([development guide](../development.md#void-agent-workplace)).
 
@@ -43,7 +43,7 @@ PixieLib and PixieInspector derived their documentation from this schema at
 on the same day: `docs/development.md`, the named commit identity, the branch
 rule, `.local/` in disposable environments, the evidence rules, and the
 language of imported records. NekoLib is a released .NET library
-family; PixieEngine is a pre-code C++ and C# engine. Parts of the source that
+family; PixieEngine is a C++ engine with an independently owned C# Editor. Parts of the source that
 only fit the former were changed or left out deliberately:
 
 | Area | NekoLib | PixieEngine | Reason |
@@ -66,4 +66,13 @@ only fit the former were changed or left out deliberately:
 | Work campaigns and premises | Separate schemas and policies | Not adopted | Frozen in the originating tooling; not needed yet |
 | Local SQLite documentation index | Policy and tooling | Not adopted | No tooling here |
 
-No verifier checks this schema yet; see the policy's enforcement section.
+See the policy enforcement section for the current structural checks.
+
+## Workspace contract adoption — 2026-11-06
+
+The table above records the historical derivation. Current planning uses ROADMAP
+for rationale, phases and acceptance criteria; TODO for accepted work; optional
+TASKLIST for decomposition. New closures preserve roadmap intent and outcome,
+link evidence and important nested decisions, and record the Git planning
+baseline. Earlier archive records remain unchanged; completed TODO/task lists
+are not copied into new closures. The project policy owns this adoption.

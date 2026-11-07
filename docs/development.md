@@ -211,7 +211,7 @@ the Editor root.
   the [explicit-input MCP qualification](../editor/README.md#local-development-mcp-channel)
   for each affected SDK configuration. The driver verifies and runs declared
   artifacts and fixtures outside CTest.
-- **Documentation:** `python scripts/check_docs.py` reports no problem, and
+- **Documentation:** `pwsh -File ./checkdocs.ps1` reports no problem, and
   the policy's [self-review](governance/documentation-policy.md#self-review)
   passes for what the script does not check. The script checks relative links
   and anchors, metadata fields and their vocabulary, the cross-links and task
@@ -223,7 +223,7 @@ the Editor root.
 GitHub Actions runs `.github/workflows/ci.yml` on every push to `main`, on pull
 requests, and by hand:
 
-- **Documentation** (Linux): `python scripts/check_docs.py`.
+- **Documentation** (Linux): `pwsh -File ./checkdocs.ps1`.
 - **Engine** (Windows): the `ci` preset, Ninja Multi-Config with the compiler of
   the Visual Studio the runner has (the workflow finds it with `vswhere`, enters
   its developer environment, and logs its version), built in Debug and Release
@@ -253,60 +253,28 @@ Third-party code lives unmodified under `external/<name>/`, built by
 
 ## Void Agent Workplace
 
-On the owner's machine, this repository lives inside a Void Agent Workplace
-checkout, in its Pixie family of managed projects (`projects/Pixie/`, beside
-PixieInspector and PixieLib), and is bound to the VAW profile `pixieengine`,
-revision 3. The checkout is on the local branch `codex/pixie-workplace`
-(commit `bb1c8b3`, VAW 0.3.0.0), whose `profiles/pixieengine/` holds the
-profile. The binding is in an explicit registry for the Pixie family,
-`.local\bindings\pixie.json` in the VAW checkout, passed with `-BindingsPath`
-on every command: agents have seen different copies of the default AppData
-registry ([PIXIE-ARCHIVE-071](archive/vaw-explicit-registry-2026-10-16.md)). VAW ignores
-`projects/`, so the repository keeps its own history and remote. The profile
-maps VAW's authority roles to this repository's documents, routes each source
-area to the documents that own it, and lists the full matrix as its
-validation. Nothing in this repository depends on it: a machine without it
-builds, checks, and commits as before.
+The workspace owns project profiles outside the VAW source repository. The
+active Pixie family contains Engine, Editor, Inspector and Lib at profile
+revision 4; product code and local project contracts remain independently owned.
+The Editor's `vaw-local` remote is a local binding identity, not publication.
 
-The three Pixie profiles (`pixieengine`, `pixieinspector`, `pixielib`) share one
-revision number and are revised together, even when only one of them changes.
-
-The profile adopts, besides binding and skill discovery: workflow records with
-planned-pause checkpoints that another agent can verify and resume, scoped
-premises (to skip re-reviewing validated code that has not changed), repository
-state in those records, multi-agent validation and documentation records,
-package validation, and product versioning (below). Campaigns stay frozen in
-VAW. Two skills of this profile, `pixieengine-documentation` and
-`pixieengine-qualification`, route an agent to this guide and the
-[documentation policy](governance/documentation-policy.md); the repository's
-documents remain the authority. VAW records live in `.local/vaw/` (unversioned)
-and never replace `TODO.md`, `TASKLIST.md`, the archive, or the code: they point
-to them.
-
-Before a task, an agent resolves the binding for the task's routes (`core`,
-`platform`, `render`, `app`, `engine`, `runtime`, `capi`, `devchannel`, `tools`,
-`editor`, `samples`, `build`, `documentation`), from the repository root, in
-PowerShell 7 (the VAW checkout is three directories up):
+Use the activated workspace launcher from the project root in PowerShell 7:
 
 ```powershell
-$bindings = (Resolve-Path ..\..\..\.local\bindings\pixie.json).Path  # VAW needs it absolute
-..\..\..\scripts\resolve-project-binding.ps1 -RepositoryPath . -BindingsPath $bindings `
-    -CompatibilityScope Routes -RouteId runtime,documentation
-..\..\..\vaw.ps1 skills list -Agent claude -RepositoryPath . -BindingsPath $bindings
+& ../../.governance/vaw.ps1 -Action resolve-project-binding -Arguments @{ RepositoryPath = (Get-Location).Path }
+& ../../.governance/vaw.ps1 -Action resolve-workplace-binding -Arguments @{ WorkplacePath = (Resolve-Path ..).Path }
 ```
 
-Select all routes affected by the actual task; `runtime,documentation` is an
-example. `skills show <name>` takes the same arguments as `skills list`, and
-Codex passes `-Agent codex`.
+The launcher selects external profiles, the explicit registry, and the installed
+package set. Require `bound` for the project and `workplace_bound` for the family.
+Its activation receipt records the platform location, exact pins, packages and
+shared-policy hash. The shared policy is materialized from the workspace's
+versioned configuration; runtime copies and coordination records are local.
 
-Never delete ignored files in the VAW checkout (`git clean -x` and the like):
-`projects/` is ignored there, so that would delete this repository and its
-unpushed work.
-
-It requires `bound_scoped` with every selected route checked (or `bound` without
-`-CompatibilityScope`), and the task's archive record states the VAW commit, the
-profile and revision, and the routes checked. A binding grants no authority:
-commits, pushes, and releases follow the rules below.
+Do not use an old VAW checkout's default profile directory after rebind. A
+binding grants no publication authority. Standalone project build and validation
+still work without VAW. Never run `git clean -x` on the enclosing VAW checkout:
+its ignored `projects/` contains independent repositories and unpushed work.
 
 ## Product version
 
