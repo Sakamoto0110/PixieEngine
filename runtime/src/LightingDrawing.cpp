@@ -1,4 +1,5 @@
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 
 #include "pixie/core/Image.hpp"
 #include "pixie/runtime/LightingEnvironment2D.hpp"
@@ -337,12 +338,13 @@ const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const Sprite& sprite,
 void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges, SpriteAlphaOutlines* outlines) {
     edges.clear();
     entt::registry& registry = world.Registry();
-    for (auto [id, occluder, transform] : registry.view<const Occluder2D, const Transform2D>().each()) {
+    auto occluders = registry.view<const Occluder2D, const Transform2D>();
+    for (const auto id : occluders) {
+        const auto& occluder = occluders.get<const Occluder2D>(id);
         if (!occluder.enabled) {
             continue;
         }
-        const auto* previous = registry.try_get<const PreviousTransform2D>(id);
-        const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, transform, alpha) : transform;
+        const Transform2D drawn = InterpolatedTransform2D(world.Wrap(id), alpha);
         if (occluder.source == OccluderSource2D::SpriteAlpha) {
             const auto* sprite = registry.try_get<const Sprite>(id);
             if (outlines == nullptr || sprite == nullptr) {
@@ -390,12 +392,13 @@ void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edge
 void GatherLights(World& world, double alpha, const pxRect* view, std::vector<LightInstance>& lights) {
     lights.clear();
     entt::registry& registry = world.Registry();
-    for (auto [id, light, transform] : registry.view<const Light2D, const Transform2D>().each()) {
+    auto sources = registry.view<const Light2D, const Transform2D>();
+    for (const auto id : sources) {
+        const auto& light = sources.get<const Light2D>(id);
         if (!light.enabled || !std::isfinite(light.range) || !std::isfinite(light.intensity)) {
             continue;
         }
-        const auto* previous = registry.try_get<const PreviousTransform2D>(id);
-        const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, transform, alpha) : transform;
+        const Transform2D drawn = InterpolatedTransform2D(world.Wrap(id), alpha);
         const LightInstance instance = MakeLightInstance(light, drawn.position, drawn.rotation);
         if (view == nullptr || Reaches(instance, *view)) {
             lights.push_back(instance);

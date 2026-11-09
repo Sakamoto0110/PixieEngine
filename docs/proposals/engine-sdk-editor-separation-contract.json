@@ -1,0 +1,555 @@
+{
+  "schema": "pixie-separation-060-contract/1",
+  "contractId": "B0-C1",
+  "revision": 1,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 technical allocation and interface contract",
+  "scope": "K01 B4 identity/query/pre-factory refusal plus B1 generated identity input; no B1/G1 or B2 completion",
+  "sourceBaseline": {
+    "head": "312f07a1790fcc32821aa4e2f84f708d1ef5274f",
+    "branch": "main",
+    "sourceTruth": "actual preimage hashes below; HEAD alone does not identify dirty bytes"
+  },
+  "ownerDecision": {
+    "date": "2026-11-04",
+    "timezone": "America/Sao_Paulo",
+    "coordinatorChat": "01a1a97a-f185-7412-a8e1-a23850a4c2e5",
+    "humanMessage": "01a1a995-ac10-7cf1-8c49-aacb9c339539",
+    "answer": "Accept this initial baseline (Recommended)",
+    "acceptedDecisions": [
+      "D01",
+      "D02",
+      "D03",
+      "D04",
+      "D05",
+      "D10"
+    ],
+    "canonicalOutcomes": "TASKLIST.md accepted initial decisions section"
+  },
+  "sourceDraftSha256": {
+    "producer-contract-r2.json": "f1c3b3071a7974f12afda7259173835ea47b4655453411074044bb223c860cf8",
+    "write-plan-r2.json": "c60f7ebd24400448588a31e14e4f60b6eea78683162370b221d63426b21f16c0",
+    "packet-manifest-r2.json": "55434e43f6586e4af0e415012fb563d73ea5e9f7d9aa684bbdf185c0be804940"
+  },
+  "products": [
+    {
+      "profile": "authoring",
+      "distribution": "public SDK",
+      "configurations": [
+        "Debug",
+        "Release"
+      ],
+      "moduleLoading": true,
+      "nativeAutomation": false
+    },
+    {
+      "profile": "shipping",
+      "distribution": "public SDK/runtime",
+      "configurations": [
+        "Release"
+      ],
+      "moduleLoading": false,
+      "nativeAutomation": false,
+      "limit": "preserve existing qualified Release export boundary; no unqualified shipping Debug or config fallback claim"
+    },
+    {
+      "profile": "local-development",
+      "distribution": "separate private distribution",
+      "configurations": [
+        "Debug",
+        "Release"
+      ],
+      "moduleLoading": true,
+      "nativeAutomation": true,
+      "publicPayload": false
+    }
+  ],
+  "commonTuple": {
+    "platform": "windows",
+    "architecture": "x64",
+    "cppStandard": 20,
+    "compilerId": "MSVC",
+    "cpuFeatures": [
+      "avx2",
+      "fma",
+      "f16c"
+    ],
+    "crtByConfiguration": {
+      "Debug": "MDd",
+      "Release": "MD"
+    },
+    "compilerStlIdentity": "actual full compiler/STL/iterator-debug macros and selected toolchain; no directory-name or marketing-version substitution",
+    "dependencyPolicy": "unchanged contained native Lib primitives/math and actual public closure; no events ABI commitment"
+  },
+  "identity": {
+    "schemaVersion": 1,
+    "moduleIdentityContract": 1,
+    "fields": [
+      {
+        "name": "schemaVersion",
+        "type": "integer == 1",
+        "authority": "B4 identity contract; B1 serializes package manifest",
+        "check": "Refuse unknown schema"
+      },
+      {
+        "name": "sdkId",
+        "type": "lowercase SHA256 string",
+        "authority": "canonical relevant native producer/public-header/player/module/binding/support/dependency/build-option/toolchain inputs; exclude scheduler/docs, tests/evidence-only files and generated outputs",
+        "check": "Portable project requirement identifies one SDK; Debug/Release profile records have separate sdkBuildId values"
+      },
+      {
+        "name": "sdkBuildId",
+        "type": "lowercase SHA256 string",
+        "authority": "B1 sdkId + canonical profile/config/compiler/STL/CRT/CPU tuple; frozen before compilation",
+        "check": "Exact host/module tuple match; product version is not a substitute"
+      },
+      {
+        "name": "productVersion",
+        "type": "four-component version string",
+        "authority": "Engine version.json, B0 owned",
+        "check": "Display/provenance; independent from C API and SDK identity"
+      },
+      {
+        "name": "cApiVersion",
+        "type": "integer, currently 28",
+        "authority": "capi/include/pixie_capi.h, B4",
+        "check": "Independent API admission; preserve existing layouts"
+      },
+      {
+        "name": "moduleIdentityContract",
+        "type": "integer == 1",
+        "authority": "B4 separate SDK identity handshake contract",
+        "check": "Required before C++ factory invocation; does not imply candidate admission"
+      },
+      {
+        "name": "candidateContract",
+        "type": "integer 0 or 1, per module",
+        "authority": "B4 module entry; explicit B2 CANDIDATE_AUTHORING opt-in",
+        "check": "Keep contract1 declarative-type/token checks and module/session leases"
+      },
+      {
+        "name": "platform",
+        "type": "string == windows",
+        "authority": "B1 configured target platform, accepted D01",
+        "check": "Exact target match"
+      },
+      {
+        "name": "architecture",
+        "type": "string == x64",
+        "authority": "B1 target pointer size and compiler target, accepted D01",
+        "check": "Reject x86/ARM/host-target mismatch"
+      },
+      {
+        "name": "compilerId",
+        "type": "string == MSVC",
+        "authority": "B1 CMake compiler detection, with B4 module compile assertion",
+        "check": "Do not infer compatibility for clang-cl or other ABI producers"
+      },
+      {
+        "name": "compilerVersion",
+        "type": "CMake detected full version string",
+        "authority": "B1 detected compiler; B4 module compilation validates _MSC_FULL_VER",
+        "check": "Exact version initially; no speculative compatible range"
+      },
+      {
+        "name": "msvcFullVersion",
+        "type": "integer from _MSC_FULL_VER",
+        "authority": "Actual C++ compilation, B4/B1 generated identity",
+        "check": "Exact host/module value; reject overridden package config claims"
+      },
+      {
+        "name": "stlVersion",
+        "type": "integer from _MSVC_STL_VERSION",
+        "authority": "Actual C++ compilation",
+        "check": "Exact host/module value"
+      },
+      {
+        "name": "stlUpdate",
+        "type": "integer from _MSVC_STL_UPDATE",
+        "authority": "Actual C++ compilation",
+        "check": "Exact host/module value"
+      },
+      {
+        "name": "iteratorDebugLevel",
+        "type": "integer from _ITERATOR_DEBUG_LEVEL",
+        "authority": "Actual C++ compilation",
+        "check": "Exact host/module value, independently of the configuration label"
+      },
+      {
+        "name": "cppStandard",
+        "type": "integer == 20",
+        "authority": "B1 public CMake target contract",
+        "check": "Required C++ feature level; package must not export producer build macros"
+      },
+      {
+        "name": "configuration",
+        "type": "string Debug or Release",
+        "authority": "B1 built artifact/configuration",
+        "check": "Exact host/module match; refuse unavailable imported configurations"
+      },
+      {
+        "name": "crt",
+        "type": "string MDd or MD",
+        "authority": "B1 MSVC runtime property plus B4 module compile check",
+        "check": "Debug MDd / Release MD; no fallback config mapping"
+      },
+      {
+        "name": "cpuFeatures",
+        "type": "array of strings, initially avx2/fma/f16c",
+        "authority": "B1 actual selected code-generation options; accepted D01",
+        "check": "Declare binary minimum; consumer flags cannot lower a prebuilt binary baseline"
+      },
+      {
+        "name": "profile",
+        "type": "string authoring, shipping, or local-development",
+        "authority": "B0 accepted product table, B1 artifact selection",
+        "check": "Exact module/host profile; CMake refuses module generation for shipping"
+      },
+      {
+        "name": "capabilities.moduleLoading",
+        "type": "boolean",
+        "authority": "B1 actual PIXIE_DEVELOPMENT build, B4 query",
+        "check": "authoring/local-development true; shipping false"
+      },
+      {
+        "name": "capabilities.nativeAutomation",
+        "type": "boolean",
+        "authority": "B1/B6 actual PIXIE_DEV_CHANNEL build",
+        "check": "local-development only; absence explicit"
+      },
+      {
+        "name": "capabilities.candidateAuthoring",
+        "type": "boolean native facility, not per-module admission",
+        "authority": "B4 actual API capability, intersected with contract1/type/token checks",
+        "check": "Never interpret as blanket custom-type admission"
+      },
+      {
+        "name": "capabilities.nativeExportTool",
+        "type": "boolean plus relative tool reference",
+        "authority": "B3 tool artifact and B1 SDK manifest composition after D11",
+        "check": "Paired SDK tool only; executable presence is verified separately"
+      },
+      {
+        "name": "sourceInventorySha256",
+        "type": "lowercase SHA256 string",
+        "authority": "separate full source/dirty provenance inventory; not an exact native-match field",
+        "check": "Do not label a dirty build only with HEAD"
+      },
+      {
+        "name": "dependencyInventorySha256",
+        "type": "lowercase SHA256 string",
+        "authority": "B1 contained dependency inventory or actual B8 artifact if selected",
+        "check": "Exact consumed dependency input, not presumed standalone Lib parity"
+      },
+      {
+        "name": "files",
+        "type": "array of relative path/size/SHA256/role records",
+        "authority": "relative payload path/size/hash/role records are post-build manifest data, not a recursive identity input; hash manifest/archive bytes externally",
+        "check": "Verify closure, traversal, missing/mixed artifacts; absolute producer paths forbidden"
+      },
+      {
+        "name": "distributionClass",
+        "type": "string public or local-private",
+        "authority": "Accepted D03/D10 product boundary; B1 composition and B4 identity",
+        "check": "Public SDK supports authoring/shipping only; private automation is a distinct root/distribution and cannot be included or selected in a public manifest"
+      },
+      {
+        "name": "exceptions",
+        "type": "boolean from _CPPUNWIND",
+        "authority": "Actual C++ compilation",
+        "check": "Record/enforce admitted C++ callback exception mode without changing the delivered contract1 exception/teardown policy"
+      },
+      {
+        "name": "rtti",
+        "type": "boolean from _CPPRTTI",
+        "authority": "Actual C++ compilation",
+        "check": "Record/enforce actual host/module C++ ABI feature mode"
+      },
+      {
+        "name": "windowsSdkVersion",
+        "type": "version string",
+        "authority": "B1 selected Windows SDK/toolchain metadata",
+        "check": "Record exact producer toolchain provenance and explicit supported consumer selection"
+      }
+    ],
+    "sdkIdInputs": "canonical relevant native producer/public-header/player/module/binding/support/dependency/build-option/toolchain inputs; exclude scheduler/docs, tests/evidence-only files and generated outputs",
+    "sdkBuildIdInputs": "sdkId plus canonical actual distributionClass/profile/configuration/compiler/STL/CRT/CPU/exception/RTTI/Windows-SDK tuple, fixed before compilation",
+    "fullDirtyProvenance": "separate source/provenance inventory; unrelated scheduler/document changes must not mutate immutable SDK identity",
+    "postBuildFiles": "relative payload path/size/hash/role records are post-build manifest data, not a recursive identity input; hash manifest/archive bytes externally",
+    "nativeMatchFields": [
+      "schemaVersion",
+      "sdkId",
+      "sdkBuildId",
+      "cApiVersion",
+      "moduleIdentityContract",
+      "platform",
+      "architecture",
+      "compilerId",
+      "compilerVersion",
+      "msvcFullVersion",
+      "stlVersion",
+      "stlUpdate",
+      "iteratorDebugLevel",
+      "cppStandard",
+      "configuration",
+      "crt",
+      "cpuFeatures",
+      "profile",
+      "distributionClass",
+      "exceptions",
+      "rtti",
+      "windowsSdkVersion",
+      "dependencyInventorySha256"
+    ],
+    "separateAxes": "product version, ABI28, candidate contract1, scene v2, presentation1 and private reopen format remain independent; candidate opt-in is not an exact host/module tuple field",
+    "queries": [
+      {
+        "signature": "int32_t pixie_sdk_identity(char* buffer, int32_t capacity)",
+        "owner": "B4",
+        "semantics": "UTF-8 immutable identity JSON; length excluding NUL returned as with pixie_last_error; no session or GL context required. Caller can probe length. Retain API28 layouts; a separate identity schema versions this addition."
+      },
+      {
+        "signature": "uint64_t pixie_capabilities(void)",
+        "owner": "B4",
+        "semantics": "Stable bit assignments frozen with B0/B6: moduleLoading=1, nativeAutomation=2, candidateAuthoring=4. Export tool availability belongs to SDK manifest/tool verification, not a DLL inference."
+      },
+      {
+        "signature": "const char* pixie_game_sdk_identity(void)",
+        "owner": "B4 module entry",
+        "semantics": "C-only immutable identity handshake, consumed after OS image loading and before pixie_game_create. Missing identity or exact tuple mismatch refuses replacement of selected factory. Does not call Project callbacks."
+      }
+    ],
+    "preflight": {
+      "B5BeforeNativeLoad": "Validate explicit selected SDK/profile manifest, file hashes, requirements, configuration, runtime placement and actual binding assembly; no ancestor or adjacent same-name override.",
+      "B4AfterRuntimeLoad": "Compare runtime query to selected identity before session/API use.",
+      "B4ModuleLoad": "OS image loader necessarily runs before an exported function can be queried. Compare SDK ID/compiler/STL/CRT/config/profile/C API before any factory/Describe/Build callback. Preserve previous selected factory and existing leases on refusal.",
+      "limit": "This does not prevent DllMain/static initializer effects or promise security/rollback for arbitrary external effects. Optional pre-load PE metadata inspection would require a separate accepted contract amendment; it is not silently claimed."
+    },
+    "queryLengthContract": "pixie_sdk_identity returns full UTF-8 byte length excluding NUL (maximum 65535); capacity0 probes length without writing; a null buffer with capacity0 is valid. Positive capacity requires nonnull buffer and always NUL terminates bounded truncation. Negative capacity, null buffer with positive capacity, or internal oversize identity returns -1 and sets pixie_last_error. No session or GL context required. Test capacity1, exact size, undersize, invalid arguments, no overwrite and repeat stability.",
+    "comparison": "compare the canonical typed nativeMatchFields projection, not whole manifest/runtime/module JSON or byte order. Exclude files/tool availability and per-module candidateContract. Refuse missing/unknown/malformed/oversized identities before C++ callbacks; module identity UTF-8 string is bounded to 65535 bytes under the cooperative module contract.",
+    "capabilityBits": {
+      "moduleLoading": 1,
+      "nativeAutomation": 2,
+      "candidateAuthoring": 4
+    },
+    "capabilityAdmission": "report actual native facilities; shipping is not an admitted Editor authoring host even if preserved fallback candidate functions exist; no blanket custom-type admission"
+  },
+  "producerInterface": {
+    "manifest": "sdk.json",
+    "cmakeConfig": "lib/cmake/PixieEngine/PixieEngineConfig.cmake",
+    "profileManifest": "profiles/<profile>/<configuration>/profile.json",
+    "binding": {
+      "recommendation": "Engine-delivered source, compiled into each consuming host assembly; no new binding repository or binary package",
+      "sourcePath": "bindings/dotnet/PixieCapi.cs",
+      "versionSource": "capi/include/pixie_capi.h -> generated NativeApiVersion.props/assembly metadata; PixieCapi.Version and MCP read that same route",
+      "namespace": "Retain PixieEditor.Native initially to avoid an unapproved namespace/assembly migration; B4 file remains at current source path until B0 extraction freeze.",
+      "resolver": "B5 owns GameLibrary resolver and selected runtime policy. With source delivery the imports remain in the host assembly; any later move must register against typeof(PixieCapi).Assembly.",
+      "B6Consumption": "NativeApiVersion.props uses an explicit installed header/metadata path in package mode and fails when absent; source header access is only explicit source-development mode. No Engine ancestor discovery."
+    },
+    "publicTargets": [
+      "Pixie::Shared",
+      "Pixie::Core",
+      "Pixie::Platform",
+      "Pixie::Render",
+      "Pixie::App",
+      "Pixie::Runtime",
+      "Pixie::Engine"
+    ],
+    "dependencyTargets": [
+      {
+        "name": "pixie::pixie",
+        "kind": "contained header-only primitives"
+      },
+      {
+        "name": "pixie::math",
+        "kind": "contained compiled static library plus GLM headers",
+        "definitions": [
+          "GLM_FORCE_EXPLICIT_CTOR",
+          "GLM_FORCE_CTOR_INIT"
+        ]
+      },
+      {
+        "name": "EnTT::EnTT",
+        "kind": "contained headers"
+      },
+      {
+        "name": "GLEW headers/OpenGL::GL",
+        "kind": "GLEW import headers plus system OpenGL",
+        "definitions": [
+          "GLEW_NO_GLU"
+        ]
+      }
+    ],
+    "producerMacroExclusions": [
+      "PIXIE_CORE_BUILD",
+      "PIXIE_PLATFORM_BUILD",
+      "PIXIE_RENDER_BUILD",
+      "PIXIE_APP_BUILD",
+      "PIXIE_RUNTIME_BUILD",
+      "PIXIE_CAPI_BUILD",
+      "GLEW_STATIC"
+    ],
+    "configurationSelection": "profile/config-specific generated identity headers and imported locations; unavailable configuration/profile refuses rather than remapping",
+    "publicPolicy": "public SDK/Editor/runtime archive excludes private local-development operations/dependencies and payloads; a working install layout never grants publication eligibility"
+  },
+  "integration": {
+    "rootOwner": "B0",
+    "sourceOwner": "K01",
+    "functions": [
+      "pixie_sdk_prepare() before native targets",
+      "pixie_sdk_attach(pixie_shared) after native target/options assembly"
+    ],
+    "generatedIncludeVariable": "PIXIE_SDK_GENERATED_INCLUDE_DIR (may contain $<CONFIG>)",
+    "installRegistration": "deferred to B1 package slice, not required for initial B4 configure",
+    "profileSelection": "explicit PIXIE_SDK_PROFILE validates actual module/channel flags; only a fresh source configure with no profile derives the default from those flags; cached mismatches refuse",
+    "testSource": "tests/capi/SdkIdentity.c",
+    "testTarget": "sdk-identity-test",
+    "testCommand": "sdk-identity-test receives five incompatible module paths in ascending case order, then null-game-module; shipping/query-only invocation has no arguments",
+    "negativeSource": "tests/capi/IncompatibleModule.c",
+    "negativeCaseDefinition": "PIXIE_IDENTITY_CASE",
+    "negativeCases": [
+      {
+        "value": 0,
+        "name": "missing-identity"
+      },
+      {
+        "value": 1,
+        "name": "wrong-api"
+      },
+      {
+        "value": 2,
+        "name": "wrong-sdk"
+      },
+      {
+        "value": 3,
+        "name": "wrong-config"
+      },
+      {
+        "value": 4,
+        "name": "wrong-profile"
+      }
+    ],
+    "negativeTargetPrefix": "sdk-negative-",
+    "factorySafety": "refusal must precede factory/Describe/Build; document unavoidable OS-loading/DllMain effects separately"
+  },
+  "allocation": {
+    "clearanceId": "G0-K01-IDENTITY-C1",
+    "status": "scoped implementation clearance; no full G0 or product acceptance",
+    "operations": [
+      {
+        "block": "B4",
+        "path": "capi/src/SdkIdentity.hpp",
+        "operation": "add",
+        "purpose": "Canonical C-safe build identity and compatibility comparison; no Editor session policy",
+        "preimageSha256": null,
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "tests/capi/SdkIdentity.c",
+        "operation": "add",
+        "purpose": "Query and exact mismatch/refusal tests without a GL context",
+        "preimageSha256": null,
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "tests/capi/IncompatibleModule.c",
+        "operation": "add",
+        "purpose": "Controlled missing/ABI/SDK/config/profile identity-negative module variants; factory must remain uncalled",
+        "preimageSha256": null,
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B1",
+        "path": "cmake/sdk/PixieSdk.cmake",
+        "operation": "add",
+        "purpose": "Producer identity preparation, target attachment and relocatable install registration",
+        "preimageSha256": null,
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B1",
+        "path": "cmake/sdk/PixieSdkBuild.h.in",
+        "operation": "add",
+        "purpose": "Tuple-specific generated C-safe identity/compiler guard header",
+        "preimageSha256": null,
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "capi/include/pixie_capi.h",
+        "operation": "modify",
+        "purpose": "Add identity/capability queries and separate identity-contract constants; preserve API28 layouts",
+        "preimageSha256": "2f1f290892f81c0ab72b4dce057aa5b5f0eb7b291ae924083cbddc57e7ed5cd8",
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "capi/src/Capi.cpp",
+        "operation": "modify",
+        "purpose": "Implement queries and reject incompatible module identity before C++ callbacks while preserving loaded module on failure",
+        "preimageSha256": "1e6c6d61b6d391761c546bc9027ac8c7ceab1002bc58d75c49e7c95cce987267",
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "capi/src/GameModuleEntry.cpp",
+        "operation": "modify",
+        "purpose": "Export canonical SDK tuple handshake beside ABI28 and explicit candidate contract1",
+        "preimageSha256": "d616f59cd44828639ac80f6ce281877294677645dd45b9159513659d380322fc",
+        "repository": "PixieEngine",
+        "unit": "K01"
+      },
+      {
+        "block": "B4",
+        "path": "tests/capi/NullModule.c",
+        "operation": "modify",
+        "purpose": "Retain valid identity + broken factory negative under the new handshake",
+        "preimageSha256": "80e2dd6e62fe71b679ff7edc0570bb656f7350513bd90c8dd8ddb6dd73b8ce82",
+        "repository": "PixieEngine",
+        "unit": "K01"
+      }
+    ],
+    "b0Transactions": [
+      {
+        "path": "CMakeLists.txt",
+        "operation": "modify",
+        "preimageSha256": "41e26237b449706e3f6a23d64f2d135d30771dee0c5fbc98dde692b1ac346193"
+      },
+      {
+        "path": "tests/CMakeLists.txt",
+        "operation": "modify",
+        "preimageSha256": "1cbf67e4e351e9faec3645306e693e5822ba40a99747c8c707bb6879834c41b4"
+      }
+    ],
+    "outputRoot": ".local/separation-060/K01/",
+    "outputPolicy": "unit-local build/bin/cache/install/evidence by tuple/run; no shared mutable output or global SDK selection",
+    "otherOperations": "not cleared; any additional planned path needs an exact B0 amendment",
+    "preserve": "018 ABI/token/receipt/lifetime/type admission, all native runtime/physics/render/vendor/sample semantics and unrelated dirty work"
+  },
+  "remaining": {
+    "decisions": [
+      "D06",
+      "D07",
+      "D08",
+      "D09",
+      "D11",
+      "D12",
+      "D14"
+    ],
+    "D13": "deferred outside scope and nonblocking",
+    "B8": "inactive under accepted D04; no peer writes",
+    "B7": "conditional/unassigned",
+    "B11": "unassigned",
+    "otherUnits": "no clearance by this contract; K03 structural-only contract remains separate",
+    "productGates": "G1-G6 not passed; first evidence is focused producer identity/refusal and preservation only",
+    "finalExtraction": "accepted pre-move evidence, D14, exact move ledger, writer freeze and coordinator confirmation required; no move or publication"
+  }
+}

@@ -62,7 +62,12 @@ struct ProbeProject final : pixie::Project {
 
 TEST(HandshakeProtocolAndNoFilesystemAliases) {
     Session s;
-    CHECK(s.Call("world.stats").contains("error"));
+    for (const char* method : {"world.stats", "world.create"}) {
+        const auto refused = s.Call(method);
+        CHECK(refused.contains("error"));
+        CHECK(refused["error"]["data"]["possibly_applied"] == false);
+        CHECK(refused["error"]["data"]["generation"] == 0);
+    }
     const auto hello = s.Good("world.hello");
     CHECK(hello["protocol_version"] == 1);
     CHECK(hello["pixie_api_version"] == PIXIE_CAPI_VERSION);
@@ -77,6 +82,46 @@ TEST(HandshakeProtocolAndNoFilesystemAliases) {
     CHECK(pixie_dev_dispatch(s.value, notification.c_str(), s.output.data(), static_cast<int>(s.output.size())) == PIXIE_OK);
     CHECK(s.output[0] == '\0');
     CHECK(s.Good("world.stats")["paused"] == true);
+}
+
+TEST(HandshakeForwardsAuthoritativeNativeIdentity) {
+    // Read the actual query independently of the adapter's length-probe/allocation path.
+    std::vector<char> text(PIXIE_SDK_IDENTITY_MAX_LENGTH + 1, '\1');
+    const auto length = pixie_sdk_identity(text.data(), static_cast<int32_t>(text.size()));
+    CHECK(length > 0 && length <= PIXIE_SDK_IDENTITY_MAX_LENGTH);
+    if (length <= 0 || length > PIXIE_SDK_IDENTITY_MAX_LENGTH) return;
+    CHECK(text[static_cast<std::size_t>(length)] == '\0');
+    const auto expected = Json::parse(text.data(), text.data() + length);
+    const auto bits = pixie_capabilities();
+    Session s;
+    const auto response = s.Call("world.hello");
+    CHECK(response.contains("result"));
+    if (!response.contains("result")) return;
+    const auto& result = response["result"];
+    const auto& hello = result["value"];
+    CHECK(hello["engine"] == expected);
+    CHECK(hello["engine"]["capabilityBits"] == bits);
+    CHECK(hello["engine"]["capabilities"]["moduleLoading"] == ((bits & PIXIE_CAPABILITY_MODULE_LOADING) != 0));
+    CHECK(hello["engine"]["capabilities"]["nativeAutomation"] == ((bits & PIXIE_CAPABILITY_NATIVE_AUTOMATION) != 0));
+    CHECK(hello["engine"]["capabilities"]["candidateAuthoring"] == ((bits & PIXIE_CAPABILITY_CANDIDATE_AUTHORING) != 0));
+    CHECK((bits & PIXIE_CAPABILITY_NATIVE_AUTOMATION) != 0);
+    CHECK(hello["engine"]["profile"] == "local-development");
+    CHECK(hello["engine"]["distributionClass"] == "local-private");
+    CHECK(hello["capabilities"] == Json({{"world", true}, {"inspector", false}, {"capture", false}, {"transport", false}, {"save", false}}));
+    CHECK(!hello["capabilities"].contains("nativeAutomation"));
+    CHECK(!hello["engine"]["capabilities"].contains("save"));
+    CHECK(hello["protocol_version"] == 1);
+    CHECK(hello["pixie_api_version"] == pixie_api_version());
+    CHECK(hello["session"].is_string() && !hello["session"].get<std::string>().empty());
+    CHECK(hello["project"].is_string());
+    CHECK(hello["stats"].is_object());
+    CHECK(result["session"] == hello["session"]);
+    CHECK(result["generation"] == 0);
+    const auto repeated = s.Call("world.hello");
+    CHECK(repeated["result"]["value"] == hello);
+    CHECK(repeated["result"]["generation"] == result["generation"]);
+    CHECK(repeated["result"]["sequence"] > result["sequence"]);
+    CHECK(s.Good("world.stats") == hello["stats"]);
 }
 
 // Lighting debug views over the channel (C API 19): {flags} sets them, the reply says what is on,

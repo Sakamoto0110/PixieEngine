@@ -20,12 +20,13 @@
 
 **Indexing:** include
 
-**Direction decision date:** 2026-10-28
+**Direction decision date:** 2026-11-05
 
 ## Purpose
 
 This document owns what PixieEngine is, what it is not, where it is heading,
-and which boundaries must be preserved. It does not authorize implementation;
+and which boundaries must be preserved, with phase outcomes, rationale and
+acceptance criteria. It does not authorize implementation;
 [`TODO.md`](TODO.md) is the only scheduler. Unpromoted ideas live in
 [`docs/proposals/`](docs/proposals/README.md), and the rationale behind the
 decisions below is in the [archive](docs/archive/README.md).
@@ -35,8 +36,8 @@ decisions below is in the [archive](docs/archive/README.md).
 - A game engine whose first target is **2D**.
 - A **C++ runtime** rendering through **OpenGL 4.5 core**.
 - A **standalone player** executable as the deployable form of a game.
-- A **C# editor** that uses PixieInspector to inspect and edit engine state,
-  with hosts on more than one platform.
+- An **SDK** consumed by games and the independent **C# PixieEditor**.
+  Editor source, build and product documentation belong to its own repository.
 - A consumer of **PixieLib**, which supplies the basic primitives and forwards
   to math libraries.
 
@@ -68,24 +69,35 @@ The 2026-11-02 owner decision prioritizes a coherent C++ authoring/editing loop:
 usable Behaviour code and input, predictable viewport interaction, then reviewed
 fields/presets and editor composition. World/Scene backend work keeps its separate
 contract and acceptance; later diagnostics/resources do not block the core loop.
+[PIXIE-ROADMAP-056](#pixie-roadmap-056) owns its accepted outcome and criteria;
 [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation)
-owns that front's accepted scope and ordered blocks, rather than this summary.
+routes its ordered work and dependencies.
+
+The 2026-11-04 owner decision promotes SDK/runtime/Editor separation.
+[PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery)
+owns its contract preparation, conditional blocks, implementation gates and
+artifact qualification. It preserves completed World/Scene behavior and the
+other authoring fronts; promotion does not dispatch every block.
 
 [TODO.md](TODO.md#current-promoted-work) owns the current execution queue,
-scope and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
+dependencies and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
+The [delivery phases below](#active-delivery-phases) own scope and acceptance.
 Neither a roadmap direction nor a requirement schedules implementation.
-Completed work is routed through [TODO.md](TODO.md#completed) and the
-[archive](docs/archive/README.md), rather than repeated here.
+Completed work is routed through the [history index](docs/history/README.md)
+and the [legacy archive](docs/archive/README.md), rather than repeated here.
 
 ### Accepted direction: expansion required
 
 The owner retained colliders, physics and lighting as roadmap directions and
-confirmed the game's atmosphere/movement priorities. Detailed architecture,
-dependencies, budgets and completion gates remain to be expanded when scoped
-work starts. The [direction record](docs/archive/roadmap-reconciliation-2026-10-22.md#owner-dispositions-after-review)
-preserves the decisions and the earlier design suggestions.
+confirmed the game's atmosphere/movement priorities. This horizon predates
+the delivered collision, dynamics and lighting slices; it is not a list of
+unimplemented features. The [feature guides](docs/README.md#features-and-samples)
+and [evidence index](docs/evidence/README.md) describe those baselines and limits.
+Further expansion needs bounded work in TODO. The
+[direction record](docs/archive/roadmap-reconciliation-2026-10-22.md#owner-dispositions-after-review)
+preserves the decisions and earlier design suggestions.
 
-| Direction | Intended result | Decisions to expand |
+| Direction | Intended result | Design concerns |
 |---|---|---|
 | Colliders, triggers and queries | Reusable geometry queries and predictable interaction events | Shapes/transforms, filtering, event order, backend and edge-case behavior |
 | Basic 2D physics | Bodies, gravity and coherent scene lifecycle | Library/boundary, units, ECS synchronization and verification scenarios |
@@ -94,21 +106,9 @@ preserves the decisions and the earlier design suggestions.
 | Atmosphere and presentation | Coherent world composition, sound and camera behavior | Art/sound direction and the smallest reusable audio, camera and animation facilities |
 | Dynamic particles | A spawner marks its particles dynamic; static and dynamic particles share one pool, and only the dynamic ones feel gravity and colliders (each particle's look, set by its spawner, was delivered by PIXIE-TODO-047) | Per-kind payload, collider responses (bounce, stop, die), and how the dynamic part's cost is reported |
 
-**Particle data design note (owner discussion, 2026-10-26).** A particle is born complete: a
-`ParticleSpawner` creates almost all of them, and `ParticleSystem::Emit` (code and tools) shares the
-same field-filling function; whoever creates a particle sets its kind, which does not change during
-its life. After birth the system owns it, and the step and affectors only evolve it (age, velocity,
-death). PIXIE-TODO-047 delivered the 40-byte layout: RGBA8 color (4), size as a 16-bit half float
-(2), a flags byte (1), and one spare byte. The flags byte holds the dynamic bit and the
-shape (2 bits for 4 shapes, up to 7 bits for 128), so with 4 shapes 13 bits remain free; 48 bytes
-would be needed only for data that does not fit, such as a float size, rotation, or a second color.
-Data for mutually exclusive kinds of particle shares a fixed payload slot read through typed
-accessors (`std::bit_cast`), not a C++ `union`, whose inactive-member reads are undefined; the
-shader reads the slot as integers and decodes it by the flags. Data that only a few particles use,
-or that only the CPU reads (a dynamic particle's contacts or bounces), lives in a side table kept
-in step with the pool's removals, so its cost follows the particles that use it. Collision runs
-only for dynamic particles, so its cost scales with their number, not the pool's; it is reported
-separately in telemetry rather than capped.
+The [particle data design note](docs/particle-memory-layout.md#particle-data-design-note--2026-10-26)
+preserves the owner's layout/payload rationale and separates open designs from
+the delivered particle baseline.
 
 The owner requested detailed body-dynamics planning before proceeding to lighting
 and representative test rooms. The [physics requirements and proposed design](docs/rigid-body-physics-requirements.md)
@@ -140,6 +140,14 @@ promotion. None is an automatic follow-up to completed telemetry work.
   sample effect in a blank project. Review is deferred to 2026-10-23; root cause
   and a fix remain unconfirmed. The [runtime finding](docs/modules/runtime/FINDINGS.md#runtime-finding-001-particle-authoring-in-a-blank-project)
   owns the report, evidence limits and reproduction questions.
+- **OpenGL 4.3 graphics on VMware (2026-11-06).** The experimental build opened
+  the exported player and standalone Editor on Windows 11 with OpenGL 4.3 core
+  and VMware SVGA3D (Mesa 24.1.0). Editor Play/Stop worked. The player showed
+  broken shadows and objects that nearly disappeared into the lighting. In the
+  Editor, lighting disappeared abruptly while the scene was stationary, well
+  after Stop. The cause remains unresolved. Revisit if accelerated graphics in
+  a clean VMware guest becomes useful enough to justify visual qualification.
+  This is an optional investigation outside the execution queue.
 
 ### Boundary decisions
 
@@ -160,6 +168,120 @@ qualification; this does not approve reference images or enable channel save.
 Execution, the EnTT-first gate and qualification are
 owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 
+On 2026-11-04 the owner promoted
+[PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md): an
+independently consumable Engine SDK, qualified authoring/shipping runtime
+delivery and an independently owned Editor consuming that SDK. The single
+native runtime remains the baseline; Inspector and Lib retain independent
+ownership and release identities. New local projects may live outside Engine,
+but installed consumers must not depend on sibling folders or producer sources.
+Product documentation must remain coherent under the available repository rules;
+future VAW installation/rebind is a separate, nonblocking follow-up. Product,
+compatibility and packaging choices retain the gates in
+[PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
+
+On 2026-11-05 the owner promoted the detailed
+[standalone Editor extraction plan](docs/proposals/standalone-editor-extraction.md).
+PixieEditor consumes installed Engine SDK artifacts from its own
+repository. See the [Editor migration guide](editor/README.md). The extraction
+retains OpenGL 4.5. The OpenGL 4.3 VMware test is recorded under
+[deferred investigation](#deferred-investigation).
+
+## Active delivery phases
+
+These blocks own accepted outcomes and criteria; TODO owns execution state.
+Their scope is unchanged by the documentation reorganization.
+
+| Phase | Outcome |
+|---|---|
+| [053](#pixie-roadmap-053) | Reviewed Inspector fields and interactions |
+| [054](#pixie-roadmap-054) | Field chaining and manual edit locks |
+| [055](#pixie-roadmap-055) | Entity input and C++ component authoring |
+| [056](#pixie-roadmap-056) | Coherent Editor and C++ authoring loop |
+| [060](#pixie-roadmap-060) | Independent SDK, runtime and Editor delivery |
+
+### PIXIE-ROADMAP-053
+
+**Outcome:** Inspector fields, options and interactions overhaul
+
+**Rationale and source:** owner promotion on 2026-10-31: review and overhaul all the Inspector fields and options, and how they interact. Promoted deliberately vague; the owner marked it expansion required.
+
+**Accepted scope:** every field and option the editor's Inspector shows for engine components and settings, and the interactions between them, such as options that enable, disable, hide or override other fields, and fields that have no effect in a given mode. The review covers labels, units, ranges, defaults, tooltips and widget choice. The overhaul applies the decisions from that review. The expansion defines the inventory, the target rules and the order of work, and where changes land: engine metadata, the editor or PixieInspector.
+
+**Acceptance criteria:** to be defined by the expansion. At minimum, every reviewed field and option has a recorded decision, and the agreed changes are covered by Inspector qualification over the development channel.
+
+**Work:** [PIXIE-TODO-053](TODO.md#pixie-todo-053--inspector-fields-options-and-interactions-overhaul). Execution status,
+dependencies and task decomposition remain there. This phase retains its existing
+acceptance limits; documentation migration does not close it.
+
+### PIXIE-ROADMAP-054
+
+**Outcome:** Field chaining and manual edit locks
+
+**Rationale and source:** owner authorization on 2026-11-01, including chaining Shape and Collider dimensions on the same selected objects.
+
+**Accepted scope:** selection-scoped numeric chains and direct-edit locks through PixieInspector's generic API; per-bind total-delta scrubbing and absolute view-value entry; cross-component displayed dimensions; grouped native history, cancellation and lifecycle invalidation. Local source adoption is opt-in; the default published dependency stays unchanged.
+
+**Acceptance criteria:** isolated Debug/Release builds, native-backed regression evidence for propagation, locks, history and lifecycle, default-package compatibility, publish refusal in local mode, documented limits, and a delivery handoff to the originating chat. Owner visual acceptance is recorded separately.
+
+**Work:** [PIXIE-TODO-054](TODO.md#pixie-todo-054--field-chaining-and-manual-edit-locks). Execution status,
+dependencies and task decomposition remain there. This phase retains its existing
+acceptance limits; documentation migration does not close it.
+
+### PIXIE-ROADMAP-055
+
+**Outcome:** Entity input controls and C++ component authoring
+
+**Rationale and source:** owner authorization on 2026-11-01: generic entity KeyboardControl/MouseControl and C++ components created through Add component, with Open code and normal-build adoption; design and explicit legacy adapter reviewed by the coordinating owner chat.
+
+**Accepted scope:** ordered raw device events and enabled-aware entity queries/callbacks through Behaviour; explicit KeyboardControl2D compatibility adapter; preserving C++ generation, registration/source metadata, CMake integration, VS Code opening, rebuild/reopen and stable selection/unsaved state. No gameplay/action mapping in the generic controls.
+
+**Acceptance criteria:** runtime lifecycle/order/fixed-step/capture regressions; generated multi-component C++ code compiles and persists through scene/editor/player; failure/preservation fixtures for code/CMake paths; normal editor Debug/Release builds expose the feature; proportional native/editor validation and independent review.
+
+**Work:** [PIXIE-TODO-055](TODO.md#pixie-todo-055--entity-input-controls-and-c-component-authoring). Execution status,
+dependencies and task decomposition remain there. This phase retains its existing
+acceptance limits; documentation migration does not close it.
+
+### PIXIE-ROADMAP-056
+
+**Outcome:** Editor and C++ authoring consolidation
+
+**Rationale and source:** owner promotion on 2026-11-02 of [PIXIE-PROPOSAL-017](docs/proposals/editor-authoring-consolidation.md), including the subsequent section 4.1 rework, selection-aware headers, and removal of extra controller prerequisites for Behaviour events.
+
+**Accepted scope:** consolidate the delivered C++ workflow into usable create/attach/edit/build operations, minimal contextual templates and discoverable grouped Behaviours; provide callbacks without attaching KeyboardControl/MouseControl merely to unlock events; reproduce/correct viewport gesture defects; inventory Inspector fields and clarify presets; evaluate Session/viewport presentation; coordinate the separate World/Scene experiment; retain later diagnostics and editor-asset/runtime-resource manager work as gated blocks. Documentation is delivered with each slice.
+
+**Acceptance criteria:** all numbered child tasks are done or explicitly dropped with reasons; one real normal-editor exercise demonstrates create/attach/code/IntelliSense/build/play/save/reopen, contextual component access, visible build/attachment state and predictable camera gestures; reviewed field/preset decisions and UI prototype receive owner acceptance; each implemented slice has candidate hashes, relevant regressions, independent review, normal Debug/Release adoption and a concise guide. Deferred manager/telemetry blocks must either receive their bounded designs and qualification or an explicit disposition before parent closure; no blanket completion while they remain open.
+
+**Work:** [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation). Execution status,
+dependencies and task decomposition remain there. This phase retains its existing
+acceptance limits; documentation migration does not close it.
+
+### PIXIE-ROADMAP-060
+
+**Outcome:** Separate Engine SDK, game runtime and Editor delivery
+
+**Rationale and source:** owner decision on 2026-11-04: "promote proposal 021" (translated from Portuguese); [PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md), consolidated on the same date.
+
+**Accepted scope:** independently consumable and relocatable Engine SDK; qualified authoring/shipping runtime profiles; installed-package game support and generation; compatible native/module/managed interop; SDK selection and full authoring-state continuity; native export with runtime-only closure; extraction of Editor into its own local project/repository; bounded automation, external-consumer qualification, coherent product documentation and independent release-candidate pipelines. Adopt proposal contracts C01-C12 as acceptance targets and blocks B0-B11 as bounded ownership units. B7 Inspector and B8 Lib remain conditional on D08/D04; preserve their independent ownership, versions and releases. Separately owned projects may live outside Engine, without a sibling-layout requirement. Preserve completed proposal 018 / PIXIE-TODO-057 and unrelated active work.
+
+**Acceptance criteria:** every child task is done or dropped with a reason; G0-G6 pass for exact accepted SDK/runtime/Editor artifacts and their supported tuples. External consumers build/run with producer checkouts unavailable and no silent source fallback; code/no-code exports contain only qualified runtime dependencies and preserve authored data; the independent Editor preserves the selected authoring/Inspector baseline, unsaved rebuild/reopen and mismatch/recovery behavior across two SDKs; allowed automation and artifact exclusions are qualified; current documentation has one owner per contract and working references; independent release candidates pass provenance, payload and pipeline rehearsal without publication. Existing 018 evidence remains bounded regression input; newly separated artifacts require their own applicable runtime/visual evidence. Completion does not wait for VAW.
+
+**Work:** [PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery). Execution status,
+dependencies and task decomposition remain there. This phase retains its existing
+acceptance limits; documentation migration does not close it.
+
+### PIXIE-ROADMAP-061
+
+**Outcome:** Native 2D entity parenting and hierarchy authoring in the independent Editor.
+
+**Rationale and source:** the owner promoted [PIXIE-PROPOSAL-023](docs/proposals/native-entity-parenting.md) on 2026-11-07 after the Weapons-Lab composition exposed the need for persistent parent links, relative poses and separately editable entities.
+
+**Accepted scope:** runtime relationships and pose evaluation, authored scenes and snapshots, a compatible SDK and Editor hierarchy UI. Preserve the meaning of flat world-space transforms and existing scene formats. Game-specific fault rules remain in the game. The [D09 freeze](#d09-glfw-distribution) applies.
+
+**Acceptance criteria:** the simple three-level fixture passes runtime, authored persistence, SDK, Editor history/rebuild and standalone export checks before Weapons-Lab is used for consumer acceptance. Each surface records its own evidence. Flat projects retain existing poses, and unsupported readers refuse scenes that require parenting.
+
+**Work:** [PIXIE-TODO-061](TODO.md#pixie-todo-061--native-entity-parenting).
+
 ## Active guardrails
 
 - **2D first.** Accepted 2026-10-09.
@@ -174,8 +296,9 @@ owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11
 - **C++20, without modules.** Accepted 2026-10-10. Rationale in the
   [inception record](docs/archive/inception-2026-10-09.md#recommendations-not-yet-accepted).
   Moving to C++26 is to be evaluated later; it is an intention, not a plan.
-- **CMake builds the native side.** Accepted 2026-10-10. The C# editor keeps
-  its own solution.
+- **CMake builds the native side.** Accepted 2026-10-10. The independent C#
+  Editor owns its project and build; the workspace solution aggregates entry
+  points without replacing either project's build ownership.
 - **Object model: an EC-style API over ECS storage.** Game logic is written as
   C++ `Behaviour` classes with `Update()`; components are data-only structs in
   contiguous storage, iterated by engine systems. There is one runtime, and no
@@ -235,7 +358,15 @@ owned by [PIXIE-TODO-051](docs/archive/todo-051-shared-engine-export-mcp-2026-11
 
 ## Freezes
 
-None.
+### D09 GLFW distribution
+
+The [accepted D09 policy](TASKLIST.md#d09--accepted-glfw-distribution-policy)
+selects the same GLFW binary for the Windows x64 Editor and SDK packages.
+Shared-binary implementation and detailed provider qualification remain frozen
+until the owner explicitly authorizes resumption. The
+[extraction plan](docs/proposals/standalone-editor-extraction.md#62-inspector-lib-and-graphical-assets)
+requires matching native GLFW versions and a graphics smoke check at the
+current OpenGL baseline.
 
 ## Explicit non-goals
 

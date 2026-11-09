@@ -1,6 +1,7 @@
 // The development module exports only this versioned factory and its game's code.
 #include "pixie/runtime/Project.hpp"
 #include "pixie_capi.h"
+#include "pixie_sdk_build.h"
 
 #ifdef _WIN32
 #define PIXIE_MODULE_EXPORT __declspec(dllexport)
@@ -8,6 +9,8 @@
 #define PIXIE_MODULE_EXPORT __attribute__((visibility("default")))
 #endif
 extern "C" PIXIE_MODULE_EXPORT int pixie_game_api_version() { return PIXIE_CAPI_VERSION; }
+// C-only tuple admission follows OS image loading and precedes every Project callback.
+extern "C" PIXIE_MODULE_EXPORT const char* pixie_game_sdk_identity() { return PIXIE_SDK_NATIVE_IDENTITY_JSON; }
 // Contract1 requires fresh candidate-owned construction, stable descriptors and
 // nonthrowing teardown. No factory/Describe/Build callback may mutate published
 // or external state. Cleanup hooks/deleters likewise remain local to retired or

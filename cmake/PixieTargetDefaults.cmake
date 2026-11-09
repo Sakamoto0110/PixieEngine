@@ -7,6 +7,9 @@
 option(PIXIE_AVX2 "Generate AVX2, FMA and F16C code for x86-64" ON)
 
 function(pixie_target_defaults target)
+    if(DEFINED PixieEngine_SDK_ID AND NOT PIXIE_AVX2)
+        message(FATAL_ERROR "PIXIE_AVX2=OFF cannot lower the selected prebuilt SDK's AVX2/FMA/F16C baseline")
+    endif()
     target_compile_features(${target} PUBLIC cxx_std_20)
     set_target_properties(${target} PROPERTIES MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
     if(MSVC)

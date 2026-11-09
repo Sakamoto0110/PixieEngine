@@ -52,3 +52,11 @@ other documents.
 The body says what happened and why, and links deeper evidence instead of
 copying it. After creation, change only narrowly identified metadata or links,
 or append a dated reconciliation section; never rewrite the body.
+
+## New roadmap closures
+
+For newly completed roadmap work use `docs/history/` and the
+[roadmap closure template](ROADMAP-CLOSURE.md). Preserve the roadmap
+block, outcome, acceptance disposition, evidence links and planning commit.
+Do not copy TODO/TASKLIST; include only important nested details. Existing
+archive records and identifiers remain unchanged.

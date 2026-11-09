@@ -2,6 +2,7 @@
 
 #include "pixie/runtime/Culling.hpp"
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 
 #include "pixie/runtime/Sprite.hpp"
 #include "pixie/runtime/SpriteImages.hpp"
@@ -147,9 +148,7 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
             const pxRect* view, LightingPass pass) {
     entt::registry& registry = world.Registry();
     ForEachDrawnInOrder(world, [&](const Drawn& item) {
-        const auto* previous = registry.try_get<const PreviousTransform2D>(item.id);
-        const Transform2D drawn =
-            previous != nullptr ? Interpolate(previous->value, item.transform, alpha) : item.transform;
+        const Transform2D drawn = InterpolatedTransform2D(world.Wrap(item.id), alpha);
         if (item.text != nullptr) {
             if (texts != nullptr && (view == nullptr || TextInView(*item.text, drawn, TextBlock(*item.text, texts->fonts), *view))) {
                 if (pass != LightingPass::Color) {

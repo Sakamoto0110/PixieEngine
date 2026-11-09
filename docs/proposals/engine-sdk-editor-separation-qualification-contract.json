@@ -1,0 +1,727 @@
+{
+  "schema": "pixie-separation-060-qualification-contract/1",
+  "contractId": "B0-Q1",
+  "revision": 1,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 technical infrastructure allocation",
+  "status": "scoped G0 structural implementation clearance; no product gate, whole-unit completion or release policy acceptance",
+  "sourceBaseline": "312f07a1790fcc32821aa4e2f84f708d1ef5274f plus exact absent new-file preconditions",
+  "sourceHandoffSha256": {
+    "manifest.json": "861844041d1955e5ac819df250d72b4c32f6c7323e2a7cec2e78595cf12ef0e2",
+    "acceptance-plan.md": "fdddffc43c0e6371d6eb7492634c8200f82a877b56d2af98dd789960ae6433e2",
+    "gate-dependencies.draft.json": "06b11969e9dfaf51e545806cce026e7f4d06b99993752171687c9ef7a12548b4",
+    "inputs.draft.json": "17adb79e5b157e4d04355aa1dfba59d227b561e640ca2c6b20e5e1865290677d"
+  },
+  "allocation": {
+    "clearanceId": "G0-K03-STRUCTURE-Q1",
+    "unit": "K03",
+    "block": "B9",
+    "repository": "PixieEngine",
+    "operations": [
+      {
+        "path": "tests/separation/inputs.schema.json",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "path": "tests/separation/artifacts.py",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "path": "tests/separation/qualify.py",
+        "operation": "add",
+        "preimageSha256": null
+      },
+      {
+        "path": "tests/separation/test_artifacts.py",
+        "operation": "add",
+        "preimageSha256": null
+      }
+    ],
+    "outputRoot": ".local/separation-060/K03/",
+    "rootRegistrations": "none in this slice; run focused Python commands explicitly"
+  },
+  "technicalContract": {
+    "inputSchema": "pixie-separation-qualification-inputs/1",
+    "interfaceRevision": 1,
+    "dependencyMap": {
+      "schema": "pixie-separation-gate-dependencies/1",
+      "draft": false,
+      "revision": 1,
+      "common": {
+        "artifacts": [
+          "fixture-runner"
+        ],
+        "tools": [
+          "python"
+        ],
+        "rule": "Apply only to the selected gate/cases and the identities they actually consume. G0 and decision receipts are scoped, not proofs of unrelated decision closure.",
+        "inputReceipts": [
+          "b0.g0-scoped",
+          "b0.contract-scoped",
+          "producer.identities"
+        ],
+        "generatedPreflightReceipts": [
+          "runner.environment"
+        ],
+        "independenceAcceptanceReceipts": [
+          "runner.source-unavailable"
+        ],
+        "executionModeRule": "focused-only may run ready slices with readable source paths and yields partial evidence. A qualifying gate additionally requires verified source-unavailable evidence; a false/absent result cannot pass."
+      },
+      "gates": {
+        "G1": {
+          "cases": [
+            "public-closure",
+            "profile",
+            "relocation",
+            "closure-negatives"
+          ],
+          "artifacts": [
+            "sdk-a",
+            "runtime-a",
+            "g1-consumer-fixture"
+          ],
+          "tools": [
+            "cmake",
+            "generator",
+            "compiler"
+          ],
+          "conditionalRules": [
+            "external-native-lib"
+          ],
+          "inputReceipts": [
+            "k01.sdk-interface"
+          ],
+          "generatedCaseReceipts": [],
+          "decisionsAtExecution": [
+            "D01",
+            "D02",
+            "D03",
+            "D04",
+            "D10"
+          ],
+          "acceptanceReceipts": [],
+          "priorGateReceipts": []
+        },
+        "G2": {
+          "cases": [
+            "module",
+            "admission",
+            "generation",
+            "v1-preservation"
+          ],
+          "artifacts": [
+            "sdk-a",
+            "runtime-a",
+            "g2-module-fixtures",
+            "g2-generation-fixtures",
+            "generation-tool",
+            "g2-admission-probes"
+          ],
+          "tools": [
+            "cmake",
+            "generator",
+            "compiler",
+            "graphicsProvider"
+          ],
+          "conditionalRules": [
+            "external-native-lib",
+            "managed-generation-tool"
+          ],
+          "inputReceipts": [
+            "k01.module-interface",
+            "k01.generation-interface"
+          ],
+          "generatedCaseReceipts": [
+            "runner.graphics-context"
+          ],
+          "decisionsAtExecution": [
+            "D01",
+            "D02",
+            "D03",
+            "D04",
+            "D05",
+            "D06",
+            "D07",
+            "D10"
+          ],
+          "acceptanceReceipts": [],
+          "priorGateReceipts": [
+            "G1/sdk-a-used-profile"
+          ]
+        },
+        "G3": {
+          "cases": [
+            "code-export",
+            "no-code-export",
+            "document-assets",
+            "shipping-closure-negatives"
+          ],
+          "artifacts": [
+            "sdk-shipping",
+            "runtime-shipping",
+            "exporter",
+            "g3-project-fixtures"
+          ],
+          "tools": [
+            "cmake",
+            "generator",
+            "compiler",
+            "graphicsProvider"
+          ],
+          "conditionalRules": [
+            "external-native-lib"
+          ],
+          "inputReceipts": [
+            "k02.export-interface"
+          ],
+          "generatedCaseReceipts": [
+            "runner.graphics-context"
+          ],
+          "decisionsAtExecution": [
+            "D01",
+            "D02",
+            "D03",
+            "D04",
+            "D06",
+            "D07",
+            "D10",
+            "D11"
+          ],
+          "acceptanceReceipts": [],
+          "priorGateReceipts": [
+            "G1/sdk-shipping-used-profile",
+            "G2/code-support-used-tuple"
+          ]
+        },
+        "G4": {
+          "cases": [
+            "sdk-selection",
+            "authoring",
+            "inspector-assets",
+            "native-context",
+            "visual-regression"
+          ],
+          "artifacts": [
+            "sdk-a",
+            "runtime-a",
+            "sdk-b",
+            "runtime-b",
+            "editor",
+            "inspector-core",
+            "inspector-view",
+            "g4-authoring-probes",
+            "g4-project-fixtures"
+          ],
+          "tools": [
+            "cmake",
+            "generator",
+            "compiler",
+            "dotnet",
+            "packageSourceLocks",
+            "graphicsProvider"
+          ],
+          "conditionalRules": [
+            "external-native-lib",
+            "editor-export-workflow"
+          ],
+          "inputReceipts": [
+            "k01.module-interface",
+            "k01.generation-interface",
+            "k02.editor-host-interface",
+            "k02.inspector-selection"
+          ],
+          "generatedCaseReceipts": [
+            "runner.graphics-context",
+            "k03.native-context-result",
+            "k03.changed-surface-visual-result"
+          ],
+          "decisionsAtExecution": [
+            "D01",
+            "D02",
+            "D03",
+            "D04",
+            "D05",
+            "D06",
+            "D07",
+            "D08",
+            "D10"
+          ],
+          "acceptanceReceipts": [
+            "b0.d09-disposition"
+          ],
+          "priorGateReceipts": [
+            "G1/sdk-a-used-profile",
+            "G1/sdk-b-used-profile",
+            "G2/code-support-used-tuple"
+          ],
+          "caseReceiptNote": "D09/native-context and visual-result outputs are produced by the requested cases. They are not prerequisite input receipts. D09 disposition follows the experiment and is required only to accept G4."
+        },
+        "G5": {
+          "cases": [
+            "native-protocol",
+            "native-package-independence",
+            "bridge-startup-refusal",
+            "editor-protocol-admission-recovery",
+            "save-disabled",
+            "cold-external-code",
+            "product-exclusion"
+          ],
+          "artifacts": [
+            "private-automation-sdk",
+            "private-automation-runtime",
+            "native-automation-host",
+            "private-automation-editor",
+            "private-automation-editor-save-off",
+            "automation-client",
+            "g5-protocol-probes",
+            "g5-cold-project-fixtures",
+            "generation-tool"
+          ],
+          "tools": [
+            "cmake",
+            "generator",
+            "compiler",
+            "dotnet",
+            "packageSourceLocks",
+            "graphicsProvider"
+          ],
+          "conditionalRules": [
+            "external-native-lib"
+          ],
+          "inputReceipts": [
+            "k01.module-interface",
+            "k02.editor-host-interface",
+            "b6.protocol-interface",
+            "b6.capability-policy"
+          ],
+          "generatedCaseReceipts": [
+            "runner.graphics-context"
+          ],
+          "decisionsAtExecution": [
+            "D01",
+            "D02",
+            "D03",
+            "D04",
+            "D05",
+            "D06",
+            "D07",
+            "D10"
+          ],
+          "acceptanceReceipts": [],
+          "priorGateReceipts": [
+            "G1/private-automation-sdk-used-profile",
+            "G2/private-code-support-used-tuple"
+          ],
+          "distributionBoundary": "Private automation inputs never satisfy public SDK/runtime/Editor roles and never enter their candidate payloads.",
+          "fullGateExpansion": "Expand every evidence slice and every accepted product-exclusion variant, preserving explicit host/product selectors. Slice requirements replace this full-gate union when --case/--variant is selected.",
+          "evidenceSlices": {
+            "native-protocol": {
+              "artifacts": [
+                "private-automation-runtime",
+                "native-automation-host",
+                "automation-client",
+                "g5-protocol-probes"
+              ],
+              "tools": [
+                "dotnet",
+                "packageSourceLocks",
+                "graphicsProvider"
+              ],
+              "inputReceipts": [
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "priorGateReceipts": [],
+              "generatedCaseReceipts": [
+                "runner.graphics-context"
+              ]
+            },
+            "native-package-independence": {
+              "artifacts": [
+                "private-automation-sdk",
+                "private-automation-runtime",
+                "native-automation-host",
+                "automation-client",
+                "g5-protocol-probes"
+              ],
+              "tools": [
+                "dotnet",
+                "packageSourceLocks",
+                "graphicsProvider"
+              ],
+              "inputReceipts": [
+                "k01.sdk-interface",
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "priorGateReceipts": [
+                "G1/private-automation-sdk-used-profile"
+              ],
+              "generatedCaseReceipts": [
+                "runner.graphics-context"
+              ]
+            },
+            "bridge-startup-refusal": {
+              "artifacts": [
+                "automation-client",
+                "g5-protocol-probes"
+              ],
+              "tools": [
+                "dotnet",
+                "packageSourceLocks"
+              ],
+              "inputReceipts": [
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "variantRequired": true,
+              "variants": {
+                "native": {
+                  "artifacts": [
+                    "private-automation-runtime",
+                    "native-automation-host"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "k01.sdk-interface"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                },
+                "editor": {
+                  "artifacts": [
+                    "private-automation-runtime",
+                    "private-automation-editor"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "k02.editor-host-interface"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                }
+              },
+              "note": "Startup refusal paths must fail before host launch when specified; a variant that launches requires its declared native/context tool closure. No unused host is required."
+            },
+            "editor-protocol-admission-recovery": {
+              "artifacts": [
+                "private-automation-runtime",
+                "private-automation-editor",
+                "automation-client",
+                "g5-protocol-probes"
+              ],
+              "tools": [
+                "dotnet",
+                "packageSourceLocks",
+                "graphicsProvider"
+              ],
+              "inputReceipts": [
+                "k01.module-interface",
+                "k02.editor-host-interface",
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "priorGateReceipts": [],
+              "generatedCaseReceipts": [
+                "runner.graphics-context"
+              ]
+            },
+            "save-disabled": {
+              "artifacts": [
+                "private-automation-runtime",
+                "private-automation-editor-save-off",
+                "automation-client",
+                "g5-protocol-probes"
+              ],
+              "tools": [
+                "dotnet",
+                "packageSourceLocks",
+                "graphicsProvider"
+              ],
+              "inputReceipts": [
+                "k02.editor-host-interface",
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "priorGateReceipts": [],
+              "generatedCaseReceipts": [
+                "runner.graphics-context"
+              ]
+            },
+            "cold-external-code": {
+              "artifacts": [
+                "private-automation-sdk",
+                "private-automation-runtime",
+                "private-automation-editor",
+                "automation-client",
+                "g5-protocol-probes",
+                "g5-cold-project-fixtures",
+                "generation-tool"
+              ],
+              "tools": [
+                "cmake",
+                "generator",
+                "compiler",
+                "dotnet",
+                "packageSourceLocks",
+                "graphicsProvider"
+              ],
+              "inputReceipts": [
+                "k01.module-interface",
+                "k01.generation-interface",
+                "k02.editor-host-interface",
+                "b6.protocol-interface",
+                "b6.capability-policy"
+              ],
+              "priorGateReceipts": [
+                "G1/private-automation-sdk-used-profile",
+                "G2/private-code-support-used-tuple"
+              ],
+              "generatedCaseReceipts": [
+                "runner.graphics-context"
+              ]
+            },
+            "product-exclusion": {
+              "artifacts": [
+                "product-exclusion-probe"
+              ],
+              "tools": [],
+              "inputReceipts": [
+                "b6.capability-policy"
+              ],
+              "variantRequired": true,
+              "variants": {
+                "public-sdk": {
+                  "artifacts": [
+                    "public-sdk"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "product.payload-policy/public-sdk"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                },
+                "public-runtime": {
+                  "artifacts": [
+                    "public-runtime"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "product.payload-policy/public-runtime"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                },
+                "public-editor": {
+                  "artifacts": [
+                    "public-editor"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "product.payload-policy/public-editor"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                },
+                "shipping-code-export": {
+                  "artifacts": [
+                    "shipping-code-export"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "product.payload-policy/shipping-code-export"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                },
+                "shipping-no-code-export": {
+                  "artifacts": [
+                    "shipping-no-code-export"
+                  ],
+                  "tools": [],
+                  "inputReceipts": [
+                    "product.payload-policy/shipping-no-code-export"
+                  ],
+                  "priorGateReceipts": [],
+                  "generatedCaseReceipts": []
+                }
+              },
+              "note": "Exactly the selected candidate/archive and its policy/probe closure. Input-hash inventory scan is meaningful static evidence; runtime capability probe requires only that selected product native/tool/context closure, specified by its frozen recipe. Never require all other products for this slice."
+            }
+          }
+        },
+        "G6": {
+          "cases": [
+            "exact-candidate-inventory",
+            "candidate-dependent-gates",
+            "release-policy",
+            "documentation",
+            "contamination-negatives"
+          ],
+          "artifacts": [
+            "candidate-sdk",
+            "candidate-runtime",
+            "candidate-editor"
+          ],
+          "tools": [],
+          "conditionalRules": [],
+          "inputReceipts": [
+            "b0.extraction",
+            "b11.documentation",
+            "b10.release-policy",
+            "candidate.provenance-locks-notices",
+            "candidate.exact-tree-map"
+          ],
+          "generatedCaseReceipts": [
+            "b10.pipeline-rehearsal"
+          ],
+          "decisionsAtExecution": [
+            "D12",
+            "D14"
+          ],
+          "acceptanceReceipts": [
+            "G1/exact-candidate-tuples",
+            "G2/exact-candidate-tuples",
+            "G3/exact-candidate-tuples",
+            "G4/exact-candidate-tuples",
+            "G5/exact-candidate-tuples"
+          ],
+          "priorGateReceipts": [],
+          "candidateBindingRule": "G1-G4 public product roles bind to exact candidate trees; G5 private inputs remain separately hashed evidence-only artifacts compatible with the same SDK identity and are never candidate public payload members. D12 selects private candidate retention without implying public inclusion."
+        }
+      },
+      "conditionalRules": {
+        "external-native-lib": {
+          "decision": "D04",
+          "flag": "nativeLibExternal",
+          "appliesToArtifactRoles": [
+            "sdk-a",
+            "sdk-b",
+            "sdk-shipping",
+            "private-automation-sdk"
+          ],
+          "whenTrue": {
+            "artifacts": [
+              "native-lib"
+            ],
+            "receipts": [
+              "b8.package-interface"
+            ]
+          },
+          "whenFalse": {
+            "requirement": "Contained native Lib identity/closure remains in the SDK inventory/provenance; no B8 artifact or receipt."
+          },
+          "unknown": "Block only requested cases consuming an SDK until its Lib closure is selected.",
+          "acceptedFlagValue": false
+        },
+        "managed-generation-tool": {
+          "decision": "D07",
+          "flag": "generationToolManaged",
+          "whenTrue": {
+            "tools": [
+              "dotnet",
+              "packageSourceLocks"
+            ]
+          },
+          "whenFalse": {
+            "requirement": "generation-tool is an SDK/CMake/native artifact with its declared runtime closure; no managed tool input."
+          },
+          "unknown": "Block G2/generation only; other ready G2 cases may execute but cannot close G2."
+        },
+        "editor-export-workflow": {
+          "decision": "D10",
+          "flag": "editorExportWorkflowRequired",
+          "whenTrue": {
+            "cases": [
+              "editor-export-workflow"
+            ],
+            "artifacts": [
+              "sdk-shipping",
+              "runtime-shipping",
+              "exporter",
+              "g3-project-fixtures"
+            ],
+            "receipts": [
+              "k02.export-interface"
+            ],
+            "tools": [
+              "cmake",
+              "generator",
+              "compiler"
+            ],
+            "requiredPriorGateReceipts": [
+              "G3/exporter-runtime-used-tuple"
+            ]
+          },
+          "whenFalse": {
+            "requirement": "An explicit future owner scope revision would be needed to remove the accepted public Editor native-export capability. Native B3/G3 export remains required."
+          },
+          "unknown": "The accepted D10 capability is required; the K02/D11 invocation contract is still needed before its case implementation.",
+          "acceptedFlagValue": true
+        }
+      },
+      "selectionRules": [
+        "No implicit gates. One --gate G1 request resolves only common + G1 requirements, including relevant conditional rules.",
+        "Roles identify logical payloads: a runtime/tool/dependency may be a hashed subtree/member of its SDK/Editor archive or a separate declared archive, according to accepted D03/D04/D05. Do not require a separate archive or new producer merely to satisfy a role.",
+        "Validate required roles/receipts/tools for the selected gate first; null/absent nonrequired roles, candidate data, .NET or graphics-context inputs do not block headless G1.",
+        "Unknown conditional decisions block only affected cases/acceptance. Record partial-case results without passing the whole gate.",
+        "An explicitly selected subset of cases yields a partial receipt. It cannot satisfy a required full-gate receipt.",
+        "Required prior gate receipts must match the actual content tree, profile and tuple. Explicit coordinator acceptance may reuse unchanged content evidence; filenames/version/ABI equality do not suffice.",
+        "G4 native-context and visual-result receipts are generated by the run, not required as existing input receipts. D09 may remain open for the experiment; accepted b0.d09-disposition is required for gate acceptance after the experiment.",
+        "G6 is candidate-phase only. Resolve the union of the full required G1-G5 case dependencies for every accepted candidate tuple, with those product roles bound to exact candidate archive members/trees, plus G6-specific requirements. SDK-B remains an actual distinct accepted comparison SDK.",
+        "G6 requires all applicable G1-G5 receipts for the exact candidate trees, B0 extraction, B11 documentation and accepted D12 policy; missing independent producer inputs block their own gates and G6, not early G1.",
+        "No topology implies producer artifacts are already available. Any missing genuinely required role/receipt/tool yields blocked with the smallest missing set.",
+        "Preflight/case receipts listed as generated outputs need not exist before the run. Their producing case must actually execute successfully; an input producer receipt cannot substitute for a newly required runtime/context result.",
+        "Accepted D04 fixes nativeLibExternal=false. Accepted D10 fixes editorExportWorkflowRequired=true without selecting a toolbar/UI design or exporter invocation; D11 remains open.",
+        "G1 requires neither .NET nor a graphics-context receipt for its headless consumer. Native DLL closure is still a required runtime input. Any future graphics-specific G1 case requires a scoped contract amendment.",
+        "For G5 --case/--variant resolve common plus only the selected evidenceSlices entry/variant, not G5 full-gate artifacts/tools/receipts/prior gates. Full G5 resolves all slices and accepted exclusion variants.",
+        "Full G5 includes actual save-off host and per-product exclusion results; no single native-only slice closes G5.",
+        "An execution recipe states any additional context/runtime closure used by startup/product probes before it runs. Unknown recipe inputs block that case only; static inventory-only evidence cannot be promoted to a runtime exclusion pass."
+      ],
+      "acceptedDecisionEvidence": {
+        "threadId": "01a1a97a-f185-7412-a8e1-a23850a4c2e5",
+        "humanMessageId": "01a1a995-ac10-7cf1-8c49-aacb9c339539",
+        "acceptedIds": [
+          "D01",
+          "D02",
+          "D03",
+          "D04",
+          "D05",
+          "D10"
+        ],
+        "remainingOpen": [
+          "D06",
+          "D07",
+          "D08",
+          "D09",
+          "D11",
+          "D12",
+          "D14"
+        ],
+        "D13": "deferred, nonblocking",
+        "note": "Authoritative accepted outcomes are in TASKLIST; actual per-execution receipts bind selected artifacts. This map is an infrastructure contract, not product acceptance."
+      }
+    },
+    "selection": "resolve common plus selected gate/cases/variants only; no implicit full-matrix expansion. A role can be a hashed member/subtree rather than a separate archive. Null unrelated roles do not block ready cases.",
+    "inputValidation": "draft=true is never runnable; unresolved selected required hashes, identities, artifacts, tools or receipts yield precise blocked/invalid input. Unknown decisions block only dependent cases/acceptance. Never substitute producer HEAD or filenames for artifact byte identity.",
+    "identity": "archive SHA256 and separately hashed normalized relative path/size/SHA256 inventories; exact source/dirty/tuple provenance. Rehash actual inputs around checks; no self-trusted embedded checksum replaces independent handoff identity.",
+    "pathPolicy": "reject absolute/traversal/drive/UNC entries, case-colliding paths, undeclared payload, symlink/reparse/hardlink escapes; source/output roots and extraction destinations are explicit and bounded. Never rename/delete live producer paths or write shared caches.",
+    "receipts": "separate input producer/contract receipts from generated preflight/case/acceptance outputs. Bind results to actual artifact/case/gate/tuple and hashes. Case outcomes pass/fail/blocked/unsupported; an executed subset is partial and never closes a full gate.",
+    "runtimeAndIndependence": "structural inventory success is not compile/run/graphics/independence evidence. Source-unavailable/environment/context results are generated and must actually qualify before the corresponding gate can pass; readable-source runs remain focused-only.",
+    "fixtureScope": "synthetic temporary fixtures test validator sensitivity and receipt logic only. This slice creates no SDK/native/editor fixture, runs no product matrix and claims no product-gate pass. Product cases without actual implementation/artifacts stay blocked.",
+    "driver": "python tests/separation/qualify.py --inputs <absolute-inputs.json> --gate <G> --out <owned-root>; permit --case/--variant for explicit partial selection. Reject or block the sealed example because draft/null inputs remain unresolved.",
+    "tests": "focused standard-library Python validation tests cover healthy inventory plus bad hash/tree/path/case collision/link/receipt and gate-scope negatives. No external dependency or new workplace framework is required.",
+    "publicPrivate": "separate private automation distribution and evidence from public SDK/Editor/runtime candidate members. G6 resolves exact candidate dependencies plus its own policy/docs/move requirements; it does not make early G1 wait for them."
+  },
+  "clearanceLimits": [
+    "no scripts/release, CI, native consumer fixture or producer source edits",
+    "no D06-D09/D11-D12/D14 choice is selected",
+    "D13/VAW nonblocking; no new peer project/namespace or runner is created",
+    "D12 executable policy and G6 remain gated",
+    "K03 retains whole B9/B10 ownership across later milestones",
+    "only these four paths are cleared; additional paths require exact B0 amendment"
+  ]
+}

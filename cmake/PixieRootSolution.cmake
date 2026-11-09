@@ -1,7 +1,6 @@
-# Writes PixieEngine.slnx at the repository root, pointing at the projects CMake generates under the
-# build directory. Unlike the solution CMake writes into the build directory, it leaves out what
-# nobody opens: ALL_BUILD and utility targets such as GLFW's update_mappings. Dependencies built from
-# source and ZERO_CHECK stay, because Visual Studio only builds projects that are in the solution.
+# Writes the curated Pixie workspace input next to CMake's generated native solution.
+# ALL_BUILD and utility targets such as GLFW's update_mappings are omitted. Source
+# dependencies and ZERO_CHECK stay in the workspace for Visual Studio builds.
 #
 # Call once, at the end of the root CMakeLists.txt, after every target exists.
 
@@ -16,8 +15,7 @@ function(pixie_collect_targets directory out)
 endfunction()
 
 function(pixie_write_root_solution)
-    # Only the default build directory owns the root solution; another build directory (a test
-    # configuration, another generator) must not overwrite it.
+    # The Pixie workspace consumes the default Visual Studio build directory.
     if(NOT CMAKE_GENERATOR MATCHES "^Visual Studio"
        OR NOT CMAKE_BINARY_DIR STREQUAL "${PROJECT_SOURCE_DIR}/build")
         return()
@@ -38,7 +36,7 @@ function(pixie_write_root_solution)
             set(folder "")
         endif()
         get_target_property(binaryDir ${target} BINARY_DIR)
-        file(RELATIVE_PATH path ${PROJECT_SOURCE_DIR} ${binaryDir}/${target}.vcxproj)
+        file(RELATIVE_PATH path "${CMAKE_BINARY_DIR}" "${binaryDir}/${target}.vcxproj")
         set(attributes "")
         if(target STREQUAL startup)
             set(attributes " DefaultStartup=\"true\"")
@@ -48,7 +46,7 @@ function(pixie_write_root_solution)
         list(APPEND folders "${folder}")
     endforeach()
     if(NOT CMAKE_SUPPRESS_REGENERATION)
-        file(RELATIVE_PATH path ${PROJECT_SOURCE_DIR} ${CMAKE_BINARY_DIR}/ZERO_CHECK.vcxproj)
+        file(RELATIVE_PATH path "${CMAKE_BINARY_DIR}" "${CMAKE_BINARY_DIR}/ZERO_CHECK.vcxproj")
         set(folder "cmake")
         string(MAKE_C_IDENTIFIER "folder_${folder}" key)
         string(APPEND ${key} "\t\t<Project Path=\"${path}\"/>\n")
@@ -75,8 +73,5 @@ function(pixie_write_root_solution)
     endforeach()
     string(APPEND content "</Solution>\n")
 
-    # Copy only when the content changed, so an open Visual Studio is not asked to reload for nothing.
-    file(WRITE ${CMAKE_BINARY_DIR}/PixieEngine.root.slnx "${content}")
-    configure_file(${CMAKE_BINARY_DIR}/PixieEngine.root.slnx ${PROJECT_SOURCE_DIR}/PixieEngine.slnx
-                   COPYONLY)
+    file(CONFIGURE OUTPUT "${CMAKE_BINARY_DIR}/PixieEngine.root.slnx" CONTENT "${content}" @ONLY)
 endfunction()

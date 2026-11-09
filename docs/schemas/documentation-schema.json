@@ -155,7 +155,7 @@
       "requiredFields": ["Status", "Description"],
       "conditionalFields": { "dropped": ["Reason"] },
       "statuses": ["open", "in-progress", "done", "dropped"],
-      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. A completed parent's section moves to docs/archive/."
+      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. Completed tasks leave active planning; roadmap closure preserves important details and references the Git planning baseline."
     }
   },
   "records": {
@@ -215,7 +215,7 @@
   "archive": {
     "directory": "docs/archive",
     "index": "docs/archive/README.md",
-    "indexRole": "router: one table row per record, in Archive ID order, with enough to find the record",
+    "indexRole": "Legacy router retained. New roadmap closures are indexed under docs/history/.",
     "indexColumns": ["ID", "Date", "Type", "Origin", "Author", "Summary", "Commits", "Record"],
     "authors": ["owner", "claude", "codex"],
     "template": "docs/templates/ARCHIVE-RECORD.md",

@@ -28,7 +28,8 @@ struct SceneId {
 // The scene file's format name and the newest version this engine can read and write.
 // A normal write retains the version of a loaded scene; new Worlds begin with version 1.
 inline constexpr std::string_view kSceneFormat = "pixie-scene";
-inline constexpr int kSceneVersion = 2;
+inline constexpr int kParentingSceneVersion = 3;
+inline constexpr int kSceneVersion = kParentingSceneVersion;
 // The format name of a set of entities written apart from their scene (WriteEntities), with the
 // scene's version.
 inline constexpr std::string_view kEntitiesFormat = "pixie-entities";

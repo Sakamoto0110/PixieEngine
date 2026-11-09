@@ -39,7 +39,7 @@ Claude was not to put the game under version control; the owner would. After PIX
 completed ([PIXIE-ARCHIVE-058](todo-032-logic-sandbox-stage-1-2026-10-15.md)), the owner asked
 Claude to do it.
 
-The game, `C:\Users\Sakamoto\dev\LogicSandbox`, is now its own git repository on `main`, pushed to the
+The game, `<development-root>/LogicSandbox`, is now its own git repository on `main`, pushed to the
 private GitHub repository [`Sakamoto0110/LogicSandbox`](https://github.com/Sakamoto0110/LogicSandbox)
 with the owner's approval. Its first commit, `069df175902d0c636482b17e8d4fc6295776467c`, holds stage 1
 as PIXIE-TODO-032 delivered it, with `assets/` (the copies from the shared resources) so that a clone

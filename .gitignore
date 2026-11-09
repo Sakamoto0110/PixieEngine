@@ -7,7 +7,7 @@
 /build/
 /build-ci/
 /bin/
-# Generated on configure by cmake/PixieRootSolution.cmake.
+# Legacy generated root solution from older checkouts.
 /PixieEngine.slnx
 /out/
 *.user

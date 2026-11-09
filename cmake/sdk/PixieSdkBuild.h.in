@@ -1,0 +1,80 @@
+/* Generated for exactly one SDK/profile/configuration; no producer paths. */
+#ifndef PIXIE_SDK_BUILD_H
+#define PIXIE_SDK_BUILD_H
+
+#if !defined(PIXIE_SDK_PRODUCER) && (defined(PIXIE_CORE_BUILD) || defined(PIXIE_PLATFORM_BUILD) || \
+    defined(PIXIE_RENDER_BUILD) || defined(PIXIE_APP_BUILD) || defined(PIXIE_RUNTIME_BUILD) || \
+    defined(PIXIE_CAPI_BUILD) || defined(GLEW_STATIC))
+#error Producer export/static-loader definitions are not a consumer SDK interface.
+#endif
+
+#if !defined(_WIN32) || !defined(_M_X64) || !defined(_MSC_VER) || defined(__clang__)
+#error This SDK requires its exact Windows x64 MSVC toolchain.
+#endif
+#if _MSC_FULL_VER != @sdk_msvcFullVersion@
+#error The compiler does not match the selected SDK; select its exact toolchain.
+#endif
+#if !defined(_DLL)
+#error The selected SDK requires the dynamic MSVC runtime.
+#endif
+#if @sdk_debug@
+#if !defined(_DEBUG)
+#error A Debug SDK requires the Debug dynamic CRT; no configuration remapping is supported.
+#endif
+#else
+#if defined(_DEBUG)
+#error A Release SDK requires the Release dynamic CRT; no configuration remapping is supported.
+#endif
+#endif
+
+#ifdef __cplusplus
+#include <string>
+#if _MSVC_LANG != 202002L
+#error The selected SDK requires C++20.
+#endif
+#if _MSVC_STL_VERSION != @sdk_stlVersion@ || _MSVC_STL_UPDATE != @sdk_stlUpdate@
+#error The standard library does not match the selected SDK.
+#endif
+#if _ITERATOR_DEBUG_LEVEL != @sdk_iteratorDebugLevel@
+#error The iterator debug ABI does not match the selected SDK.
+#endif
+#if defined(_CPPUNWIND)
+#define PIXIE_SDK_ACTUAL_EXCEPTIONS 1
+#else
+#define PIXIE_SDK_ACTUAL_EXCEPTIONS 0
+#endif
+#if defined(_CPPRTTI)
+#define PIXIE_SDK_ACTUAL_RTTI 1
+#else
+#define PIXIE_SDK_ACTUAL_RTTI 0
+#endif
+#if PIXIE_SDK_ACTUAL_EXCEPTIONS != @sdk_exceptions@ || PIXIE_SDK_ACTUAL_RTTI != @sdk_rtti@
+#error The C++ exception or RTTI mode does not match the selected SDK.
+#endif
+#if defined(GLM_FORCE_DEFAULT_ALIGNED_GENTYPES) || defined(GLM_FORCE_ALIGNED_GENTYPES)
+#error The selected SDK uses unaligned public GLM types.
+#endif
+#endif
+
+#define PIXIE_SDK_ID "@sdk_id@"
+#define PIXIE_SDK_BUILD_ID "@sdk_build_id@"
+#define PIXIE_SDK_CONFIGURATION "@sdk_configuration@"
+#define PIXIE_SDK_PROFILE_NAME "@PIXIE_SDK_PROFILE@"
+#define PIXIE_SDK_EXPECTED_CAPABILITIES @sdk_capabilities@
+
+/* Arguments permit identity-negative fixtures without mutating the selected SDK. */
+#define PIXIE_SDK_IDENTITY_FOR(SDK_ID, CONFIGURATION, PROFILE) \
+    "{\"schemaVersion\":1,\"sdkId\":\"" SDK_ID "\",\"sdkBuildId\":\"@sdk_build_id@\"," \
+    "\"cApiVersion\":@sdk_capi_version@,\"moduleIdentityContract\":1," \
+    "\"platform\":\"windows\",\"architecture\":\"x64\",\"compilerId\":\"MSVC\"," \
+    "\"compilerVersion\":\"@CMAKE_CXX_COMPILER_VERSION@\",\"msvcFullVersion\":@sdk_msvcFullVersion@," \
+    "\"stlVersion\":@sdk_stlVersion@,\"stlUpdate\":@sdk_stlUpdate@,\"iteratorDebugLevel\":@sdk_iteratorDebugLevel@," \
+    "\"cppStandard\":20,\"configuration\":\"" CONFIGURATION "\",\"crt\":\"@sdk_crt@\"," \
+    "\"cpuFeatures\":[\"avx2\",\"fma\",\"f16c\"],\"profile\":\"" PROFILE "\"," \
+    "\"distributionClass\":\"@sdk_distribution@\",\"exceptions\":@sdk_exceptions_json@,\"rtti\":@sdk_rtti_json@," \
+    "\"windowsSdkVersion\":\"@sdk_windows_version@\",\"dependencyInventorySha256\":\"@sdk_dependency_hash@\"}"
+#define PIXIE_SDK_NATIVE_IDENTITY_JSON \
+    PIXIE_SDK_IDENTITY_FOR(PIXIE_SDK_ID, PIXIE_SDK_CONFIGURATION, PIXIE_SDK_PROFILE_NAME)
+#define PIXIE_SDK_RUNTIME_IDENTITY_JSON "@sdk_runtime_json_escaped@"
+
+#endif

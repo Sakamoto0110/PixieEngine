@@ -1,0 +1,59 @@
+{
+  "schema": "pixie-separation-060-editor-integration-contract/1",
+  "contractId": "B0-M1",
+  "revision": 1,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 exact B5 integration amendment",
+  "extends": {
+    "contract": "docs/proposals/engine-sdk-editor-separation-package-selection-contract.json",
+    "sha256": "ef0c265f144f5cd44cde2da1c0378daea633743b47cfca61d6da923e75afc7db"
+  },
+  "managedProducerPacketSha256": "22d25ab62b67d0c3be3626dc5fd58519b277ee2f4971b8cbf46fc05bee5f01e9",
+  "allocation": {
+    "clearanceId": "G0-K02-INTEGRATION-M1",
+    "operations": [
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/Native/ProjectBuild.cs",
+        "operation": "modify",
+        "preimageSha256": "c4de85802ff47c794a92383dc5cc05ac3d2e5feaf7f9040af1b74c5780f5b7a3"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "K02",
+        "block": "B5",
+        "path": "editor/PixieEditor/PixieEditor.csproj",
+        "operation": "modify",
+        "preimageSha256": "33e4713f2400585e4c7d36d9d2fc7ec209737df1c3b1108bb1c61dc311b3c64c"
+      }
+    ],
+    "outputRoot": ".local/separation-060/K02/"
+  },
+  "sourceFallbackGuard": {
+    "path": "editor/PixieEditor/Native/ProjectBuild.cs",
+    "scope": "At the existing EngineFolder.Find source-discovery boundary, when GameLibrary.Selection is set, refuse checkout/ancestor discovery with an actionable installed-support-not-yet-ready diagnostic. Preserve user files/state; no implicit source fallback for AddCode/Run/ProjectCode/CodeEditor callers.",
+    "limit": "This is a guard, not implementation of B2 installed build/generation/cache/workspace adapters. It must not silently route package mode through source helpers or rewrite project/preset data. Explicit source-development mode stays separate."
+  },
+  "managedRegistration": {
+    "path": "editor/PixieEditor/PixieEditor.csproj",
+    "scope": "Register K01-owned NativeApiVersion.props/source in current pre-extraction source Editor. This is B5's project property/import transaction, never K01's peer write.",
+    "sourceProperties": {
+      "PixieNativeMetadataMode": "Source only if not already explicitly supplied",
+      "PixieNativeApiHeader": "$(MSBuildThisFileDirectory)../../capi/include/pixie_capi.h only when Source and no explicit header was supplied"
+    },
+    "import": "../../tools/NativeApiVersion.props",
+    "installedBoundary": "The actual independent package build must import the selected SDK bindings/dotnet/NativeApiVersion.props with installed header/metadata, not retain mandatory producer-source imports. This amendment registers the present source build only; source extraction/package-mode project wiring remains its later exact transaction.",
+    "failure": "missing/invalid selected header/API/schema fails; no checkout/header fallback in Installed mode; API/schema support metadata remains independent from per-launch SDK build identity",
+    "versionSwitch": "After B5 confirms this registration builds and is usable, coordinator routes readiness to K01 to switch PixieCapi.Version to NativeApiVersion.Current and expose schema. B5 does not edit K01-owned declarations/props; K01 does not edit csproj.",
+    "preserve": "current publish guards, Inspector selection, framework/native assets, product version and B6 application-hook ownership. No feature/publish broadening in this amendment."
+  },
+  "validation": "Focused source Editor build/type/refusal checks use unit-local outputs/cache with actual explicit metadata inputs. Record commands/hashes and missing-header/schema negatives. Synthetic/guard success is not installed SDK independence, full authoring continuity or G4 acceptance.",
+  "limits": [
+    "two exact planned existing paths only; no new tracked filename",
+    "no B2 build/generation implementation or project/state mutations",
+    "no B4/B6/peer file edits",
+    "no D08/D09/D12/D14 choice, source move, commit/push/publication",
+    "K02 retains its whole B3/B5 assignment; later steps proceed as their own inputs clear"
+  ]
+}

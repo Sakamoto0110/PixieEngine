@@ -97,83 +97,17 @@ against the new shared engine. Scene component names and format do not change.
 
 ## Create and edit a component
 
-Select persistent scene entities in Edit mode, open the existing **Add
-component** popup, enter a new C++ component name, and choose **Create component
-and rebuild**. This is the same component path used for data and Behaviours;
-there is no separate per-entity script or Add behaviour abstraction. One type
-may be attached to many entities, and an entity can have many types.
+The Editor UI, rebuild handoff and IDE workflow are documented in
+PixieEditor's `docs/code-authoring.md`. See the [Editor migration guide](../editor/README.md).
 
-Names are ASCII C++ identifiers, at most64 characters, starting with a letter,
-without keywords or reserved double underscores. Template/project symbols
-such as Spinner and the generated project class are reserved before writing
-anything. Files are `src/components/<Name>.hpp` and `.cpp`; the complete
-template has Start/Update/Stop, device callbacks, and its own static Describe.
-Its example only demonstrates enabled-aware polling and raw args. It supplies
-no movement/physics rule. The user edits that Describe to add fields, metadata,
-or upgrades. The generated registry calls each type's Describe without owning
-the fields of the user's implementation.
-
-The flow reuses Add code and its CMake templates if the project has no code.
-The generated registry/header/source list are owned through hashes in
-`.pixie-code/manifest.json`. The project CMake block invokes
-`pixie_project_components()` to attach those sources to its existing game
-library. User CMake text outside that block and existing component source are
-preserved. New implementations use CreateNew; an existing unknown destination,
-changed generated registry, malformed manifest, or linked path is refused.
-Preimages of replaced owned files are retained in `.pixie-code/backups/`.
-An I/O failure can leave partial new outputs; its error names that recovery
-folder rather than silently overwriting or deleting the files.
-
-The editor writes a private handoff under `.local/editor-reopen/`, restarts
-through its existing build-and-reopen mechanism, and waits for the old process
-to release the module. It does not implicitly save an unsaved scene. After a
-successful build it restores unsaved authored state and selection by scene ID,
-then checks the requested type's registration and explicit source before
-attaching it to all original targets. Missing targets are refused rather than
-replaced by a guessed selection. A clean rebuild remains clean; attaching a
-new component is an edit. Constructor/addition failures remain visible and the
-request is retained. Build failures keep the existing retry/open-without-code
-choices and retain the handoff for recovery.
-
-Code rebuild is an Edit-mode operation. Runtime Play changes are not carried
-into authored state. Undo history and camera position are not serialized
-across a process restart. Restoring a scene still runs the consumer's Build;
-the engine cannot promise preservation against arbitrary mutations made by
-that user code. Handoffs/preimages are local recovery evidence, not shared
-scene formats, and are not automatically deleted.
-
-An expanded Inspector section with declared user source offers **Open code**.
-The component descriptor's `Source("src/components/Name.cpp")` owns the
-association. The editor never searches for a homonymous file or falls back to
-an engine source. It validates a C++ file inside the current project, rejects
-escaping/linked paths, and launches VS Code with structured project/file
-arguments. Missing source or VS Code produces an actionable error. Opening
-code does not edit the scene. Normal Visual Studio Debug/Release builds use
-this implementation; local Inspector settings remain separate.
-
-Open code also connects VS Code's C/C++ extension to the **CMake Tools**
-configuration provider. It prepares `.vscode/settings.json` and a machine-local
-`CMakeUserPresets.json` preset named `pixie-editor-local`, using the existing
-`build/CMakeCache.txt` generator and the editor's engine/CMake paths. Build
-the project's code from the editor once before this setup. Do not commit
-the machine-specific user presets file.
-
-On the first VS Code opening, select **Pixie Editor (local)** when CMake Tools
-asks for a configure preset; **CMake: Configure** refreshes its model. CMake
-Tools supplies the real compiler, C++ standard, transitive includes and
-defines to C/C++. No include list is duplicated and no `compile_commands.json`
-is invented for Visual Studio generators. Install Microsoft's C/C++ and
-CMake Tools extensions if they are missing.
-
-Preparation adds missing settings/presets without replacing explicit values,
-comments or unfamiliar configuration. Preimages of changed files are kept
-under `.local/code-editor-backups/`. Conflicting providers, disabled presets,
-different custom source directories, preset name collisions and malformed
-configuration produce an actionable notice; the source still opens and the
-existing choices remain intact. An explicit `cmake.configureOnOpen: false`
-is respected. This is not a multi-file transaction: an I/O failure may leave
-partial setup, with preimages for recovery. CMake Tools' own save-before-build
-setting can also save an already dirty editor buffer during Configure.
+The Engine SDK provides the C++ templates and CMake generation contract.
+Names are ASCII C++ identifiers of at most 64 characters, starting with a letter.
+The generated registry calls each component's Describe. The owned registry,
+header and source list are tracked by hash in `.pixie-code/manifest.json`.
+Project CMake uses `pixie_project_components()` to attach those sources to its
+game library. Generated changes preserve the user's component source and the
+CMake text outside the managed block. Conflicts are refused and replaced owned
+files have preimages in `.pixie-code/backups/`.
 
 ## Adopt an existing custom C++ project
 
@@ -213,7 +147,7 @@ expects one game library/module for the project.
 
 `tests/runtime/InputControlTests.cpp` and `tests/engine/InputTests.cpp` qualify
 ordering, state, disabled/absent controls, lifecycle, fixed-update retention,
-and reentry. `tests/editor/code-components/` qualifies generation refusals and
+and reentry. PixieEditor's `tests/code-components/` qualifies generation refusals and
 byte preservation, a real multi-component CMake consumer, C API metadata and
 callbacks, scene save/reopen and handoff, the production Add component popup
 through ImGui input, and viewport routing. Normal editor/player smoke results,

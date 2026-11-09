@@ -9,8 +9,12 @@ using System.Text.Json.Nodes;
 var options = new Dictionary<string, string>(StringComparer.Ordinal);
 for (var i = 0; i < args.Length; i += 2)
 {
-    if (i + 1 >= args.Length || !new[] { "--host", "--project", "--captures", "--channel", "--kind", "--startup-timeout" }.Contains(args[i]))
-        throw new ArgumentException("usage: PixieMcp --host <exe> --project <folder> --captures <folder> [--channel <name>] [--kind player|editor] [--startup-timeout <seconds>]");
+    if (i + 1 >= args.Length || !new[] { "--host", "--project", "--captures", "--channel", "--kind", "--startup-timeout",
+        "--sdk", "--sdk-id", "--sdk-build-id", "--sdk-manifest-sha256", "--sdk-profile", "--native-configuration", "--editor-assembly" }.Contains(args[i]))
+        throw new ArgumentException("usage: PixieMcp --host <explicit exe> --project <folder> --captures <folder> --sdk <private SDK root> " +
+            "[--kind player|editor] [--sdk-profile local-development] [--native-configuration Debug|Release] " +
+            "[--sdk-id <sha256>] [--sdk-build-id <sha256>] [--sdk-manifest-sha256 <sha256>] " +
+            "[--editor-assembly <absolute editor.dll>] [--channel <name>] [--startup-timeout <seconds>]");
     options.Add(args[i], args[i + 1]);
 }
 foreach (var required in new[] { "--host", "--project", "--captures" })
@@ -19,7 +23,7 @@ var name = options.GetValueOrDefault("--channel", $"mcp-{Guid.NewGuid():N}");
 if (name.Length is < 1 or > 64 || name.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_')) throw new ArgumentException("Invalid channel name.");
 var kind = options.GetValueOrDefault("--kind", "player");
 if (kind is not ("player" or "editor")) throw new ArgumentException("kind must be player or editor");
-// A project with code is built before the editor opens its channel; the first build compiles the engine too.
+// A cold code project is built with the selected SDK before the editor opens its channel.
 var startup = options.TryGetValue("--startup-timeout", out var seconds)
     ? double.TryParse(seconds, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is > 0 and <= 86400
         ? TimeSpan.FromSeconds(value) : throw new ArgumentException("startup-timeout must be 1..86400 seconds")
@@ -27,7 +31,8 @@ var startup = options.TryGetValue("--startup-timeout", out var seconds)
 
 // The MCP server answers its client at once; the host opens in the background and the first call waits for it.
 using var stopping = new CancellationTokenSource();
-var opening = EngineConnection.OpenAsync(options["--host"], options["--project"], options["--captures"], name, kind == "editor", startup, stopping.Token);
+var opening = EngineConnection.OpenAsync(options["--host"], options["--project"], options["--captures"], name, kind == "editor", startup,
+    stopping.Token, options, Environment.GetEnvironmentVariable("PIXIE_SDK_ROOT"));
 var availableTools = ToolCatalog.ForHost(kind == "editor");
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole(logging => logging.LogToStandardErrorThreshold = LogLevel.Trace);
@@ -45,10 +50,10 @@ builder.Services.AddMcpServer().WithStdioServerTransport()
         try { connection = await opening.WaitAsync(cancellationToken); }
         catch (Exception e) when (e is not OperationCanceledException || !cancellationToken.IsCancellationRequested)
         {
-            // Nothing was sent to a host that never connected, so nothing was applied.
+            // No mutating MCP request is admitted until the startup identity has been verified.
             return new CallToolResult { IsError = true, Content = [new TextContentBlock
             {
-                Text = new JsonObject { ["error"] = "Host did not open its development channel: " + e.Message,
+                Text = new JsonObject { ["error"] = "Host development startup was refused: " + e.Message,
                     ["possibly_applied"] = false, ["retry_automatically"] = false }.ToJsonString()
             }] };
         }

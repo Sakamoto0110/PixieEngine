@@ -67,6 +67,7 @@ enum class FieldEditor : std::uint8_t { Auto, Number, Slider, Toggle, Choice, Co
 
 // Which way dragging a field's label changes it.
 enum class ScrubAxis : std::uint8_t { Horizontal, Vertical };
+enum class FieldStorage : std::uint8_t { Authored, Derived, Runtime };
 
 // How a tool shows and edits a field: the vocabulary of PixieInspector's node options. Range, step,
 // and scrub are in the displayed unit, the one a person reads and types.
@@ -100,6 +101,9 @@ struct FieldMetadata {
     // For a Text field that names a file: the file's kind, as its extension without the dot
     // ("png"); the path is relative to the project folder. Empty for plain text.
     std::string asset;
+    // Presentation only. Slash-separated group labels, independent of the saved field name.
+    std::string group;
+    FieldStorage storage = FieldStorage::Authored;
 };
 
 // One reflected field: a name, a kind, how to read and write it in a component instance, and how a
@@ -572,6 +576,9 @@ public:
     ComponentBuilder& Label(std::string text) {
         return Last([&](FieldMetadata& m) { m.label = std::move(text); });
     }
+    ComponentBuilder& Group(std::string path) {
+        return Last([&](FieldMetadata& m) { m.group = std::move(path); });
+    }
     ComponentBuilder& Tooltip(std::string text) {
         return Last([&](FieldMetadata& m) { m.tooltip = std::move(text); });
     }
@@ -583,6 +590,12 @@ public:
     }
     ComponentBuilder& ReadOnly() {
         return Last([](FieldMetadata& m) { m.readOnly = true; });
+    }
+    ComponentBuilder& Derived() {
+        return Last([](FieldMetadata& m) { m.readOnly = true; m.storage = FieldStorage::Derived; });
+    }
+    ComponentBuilder& RuntimeOnly() {
+        return Last([](FieldMetadata& m) { m.readOnly = true; m.storage = FieldStorage::Runtime; });
     }
     ComponentBuilder& Editor(FieldEditor editor) {
         return Last([&](FieldMetadata& m) { m.editor = editor; });

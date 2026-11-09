@@ -11,8 +11,9 @@ internal static class EditorPhysicsQualification
 {
     public static async Task Run(string[] args)
     {
-        if (args.Length != 7)
-            throw new ArgumentException("usage: --editor-physics <editor.exe> <empty project> <second empty project> <legacy project> <mcp.dll> <captures> <receipt.json>");
+        if (args.Length < 7 || (args.Length - 7) % 2 != 0)
+            throw new ArgumentException("usage: --editor-physics <editor.exe> <empty project> <second empty project> <legacy project> <mcp.dll> <captures> <receipt.json> [explicit SDK options]");
+        var selection = args[7..];
         var (editor, project, second, legacy, mcp, captures) = (Path.GetFullPath(args[0]), Path.GetFullPath(args[1]),
             Path.GetFullPath(args[2]), Path.GetFullPath(args[3]), Path.GetFullPath(args[4]), Path.GetFullPath(args[5]));
         var records = new JsonArray();
@@ -26,7 +27,7 @@ internal static class EditorPhysicsQualification
         Task<McpClient> Connect(string folder, string captureFolder) => McpClient.CreateAsync(new StdioClientTransport(new StdioClientTransportOptions
         {
             Name = "Pixie physics authoring qualification", Command = "dotnet", StandardErrorLines = Console.Error.WriteLine,
-            Arguments = [mcp, "--host", editor, "--project", folder, "--captures", Path.Combine(captures, captureFolder), "--kind", "editor"]
+            Arguments = [mcp, "--host", editor, "--project", folder, "--captures", Path.Combine(captures, captureFolder), "--kind", "editor", .. selection]
         }));
         static async Task<(JsonNode Receipt, CallToolResult Tool)> Call(McpClient client, string name, JsonObject? p = null)
         {

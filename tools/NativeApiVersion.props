@@ -1,12 +1,21 @@
 <Project>
   <PropertyGroup>
-    <PixieNativeApiVersion>$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(MSBuildThisFileDirectory)../capi/include/pixie_capi.h')), '(?s).*#define PIXIE_CAPI_VERSION ([0-9]+).*', '$1'))</PixieNativeApiVersion>
+    <PixieNativeMetadataMode Condition="'$(PixieNativeMetadataMode)' == ''">Installed</PixieNativeMetadataMode>
+    <!-- Importing an installed metadata file selects its own SDK. Source callers must
+         explicitly supply Source mode and their owning header; there is no fallback. -->
+    <PixieNativeApiHeader Condition="'$(PixieNativeMetadataMode)' == 'Installed' And '$(PixieNativeApiHeader)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../../include/pixie_capi.h'))</PixieNativeApiHeader>
+    <PixieNativeApiVersion Condition="Exists('$(PixieNativeApiHeader)')">$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(PixieNativeApiHeader)')), '(?s).*#define PIXIE_CAPI_VERSION ([0-9]+).*', '$1'))</PixieNativeApiVersion>
+    <PixieSdkIdentitySchema Condition="Exists('$(PixieNativeApiHeader)')">$([System.Text.RegularExpressions.Regex]::Replace($([System.IO.File]::ReadAllText('$(PixieNativeApiHeader)')), '(?s).*#define PIXIE_SDK_IDENTITY_SCHEMA ([0-9]+).*', '$1'))</PixieSdkIdentitySchema>
   </PropertyGroup>
   <ItemGroup>
     <AssemblyMetadata Include="PixieNativeApiVersion" Value="$(PixieNativeApiVersion)" />
+    <AssemblyMetadata Include="PixieSdkIdentitySchema" Value="$(PixieSdkIdentitySchema)" />
     <Compile Include="$(MSBuildThisFileDirectory)NativeApiVersion.cs" Link="NativeApiVersion.cs" />
   </ItemGroup>
   <Target Name="ValidateNativeApiVersion" BeforeTargets="GenerateAssemblyInfo">
-    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(PixieNativeApiVersion)', '^[0-9]+$'))" Text="The native C API version could not be read from pixie_capi.h." />
+    <Error Condition="'$(PixieNativeMetadataMode)' != 'Installed' And '$(PixieNativeMetadataMode)' != 'Source'" Text="PixieNativeMetadataMode must be Installed or explicit Source." />
+    <Error Condition="'$(PixieNativeApiHeader)' == '' Or !Exists('$(PixieNativeApiHeader)')" Text="The selected native metadata header is absent. Import the selected SDK metadata or explicitly supply PixieNativeApiHeader for Source mode; no checkout fallback is allowed." />
+    <Error Condition="!$([System.Text.RegularExpressions.Regex]::IsMatch('$(PixieNativeApiVersion)', '^[1-9][0-9]{0,9}$')) Or !$([System.Text.RegularExpressions.Regex]::IsMatch('$(PixieSdkIdentitySchema)', '^[1-9][0-9]{0,9}$'))" Text="The selected native C API/identity schema metadata must contain positive Int32 values." />
+    <Error Condition="'$(PixieNativeApiVersion)' &gt; '2147483647' Or '$(PixieSdkIdentitySchema)' &gt; '2147483647'" Text="The selected native C API/identity schema metadata exceeds Int32.MaxValue." />
   </Target>
 </Project>

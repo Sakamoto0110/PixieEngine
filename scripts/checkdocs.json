@@ -1,0 +1,18 @@
+{
+  "exclude": [
+    "external/*",
+    "docs/templates/*",
+    "tools/gl43-vm-test/*"
+  ],
+  "requiredDocuments": [
+    "ROADMAP.md",
+    "TODO.md",
+    "docs/README.md",
+    "docs/governance/documentation-policy.md",
+    "docs/history/README.md",
+    "docs/history/consumer-integration-2026-11-06.md"
+  ],
+  "metadataSchema": "docs/schemas/documentation-schema.json",
+  "closureDirectory": "docs/history",
+  "closureIndex": "docs/history/README.md"
+}

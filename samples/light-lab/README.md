@@ -20,12 +20,15 @@
 
 **Indexing:** include
 
-Run the player, or open this folder in the editor and press Play:
+Run the native player:
 
 ```text
 bin/Release/light-lab.exe
-editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe --project samples/light-lab
 ```
+
+This sample's C++ code uses the Engine source build. In [independent PixieEditor](../../editor/README.md),
+choose **Open without code** to inspect the authored scene. Use the native
+sample player to exercise its game code.
 
 Two rooms of the [lighting work](../../docs/lighting-requirements.md#10-proposed-delivery-gates-and-rooms)
 stand side by side, behind a wall with a doorway at the floor. Press Play; A and D move the
@@ -55,20 +58,11 @@ one-channel-level raster rounding (at most 0.001% of the compared pixels);
 redo reapplies the edit. Play/pause followed by 120 additional fixed steps and Stop
 exercise the room's game module without writing the authored scene.
 
-```powershell
-dotnet build tools/pixie-mcp.tests/PixieMcp.Tests.csproj -c Release
-python -c "import shutil; shutil.copytree('samples/light-lab', 'build/lighting-editor-project', ignore=shutil.ignore_patterns('build', 'bin', 'imgui.ini', 'snapshots'))"
-tools/pixie-mcp.tests/bin/Release/net10.0/PixieMcp.Tests.exe --editor-lighting editor/PixieEditor/bin/Release/net10.0/PixieEditor.exe build/lighting-editor-project tools/pixie-mcp/bin/Release/net10.0/PixieMcp.dll build/lighting-editor-captures build/lighting-editor-results.json
-```
-
-Build the editor, MCP bridge and native engine first. Use fresh disposable project
-and capture directories for each run; an existing project layout is rejected and
-the channel refuses to overwrite images. The editor may build the copied project's
-code before its channel opens. Editor captures include the whole window; the test
-requires the default 1600x900 layout, asserts viewport visibility, and compares only
-the scene rectangle (360,250)-(1150,700), excluding Inspector values and status text.
-The fixture also establishes a dirty-but-restored baseline. Play can run a tick before Pause:
-the MCP check asserts 120 requested additional steps, not a total tick count of 120.
+The original run used the nested source Editor's default 1600x900 layout and
+compared the scene rectangle (360,250)-(1150,700). It also verified restoration
+of the authored state. For current cross-product checks, use the
+[explicit-artifact MCP driver](../../tests/mcp/qualify_mcp.py) with an admitted
+SDK project and disposable capture paths.
 
 The approved player snapshot in `snapshots/scenarios.json` fixes the total
 at 120 steps, seed 1 and 960x540 pixels. On the qualified machine, two captures were

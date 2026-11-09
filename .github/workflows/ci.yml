@@ -1,5 +1,5 @@
 # PixieEngine's continuous integration: the documentation verifier, the engine built and tested in
-# Debug and Release, and the editor built. A red main comes before anything else
+# Debug and Release. A red main comes before anything else
 # (docs/governance/documentation-policy.md#commits).
 
 name: CI
@@ -9,6 +9,7 @@ on:
     branches: [main]
   pull_request:
   workflow_dispatch:
+  workflow_call:
 
 permissions:
   contents: read
@@ -23,11 +24,9 @@ jobs:
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
       - name: Verify the documentation
-        run: python scripts/check_docs.py
+        shell: pwsh
+        run: ./checkdocs.ps1
 
   engine:
     name: Engine (Debug and Release)
@@ -101,14 +100,3 @@ jobs:
 
       - name: Test Release
         run: ctest --preset ci-release
-
-  editor:
-    name: Editor
-    runs-on: windows-2025
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-dotnet@v4
-        with:
-          dotnet-version: "10.0.x"
-      - name: Build the editor
-        run: dotnet build editor/PixieEditor.slnx -c Release

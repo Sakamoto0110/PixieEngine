@@ -207,6 +207,7 @@ public:
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
 
 private:
+    void RefreshAuthoringPreview();
     PIXIE_RUNTIME_API bool Build(bool resetCamera, std::string_view sceneText, SceneBuildTimings* timings = nullptr,
                                  bool validateMovement = false);
     // A lit frame's receiver or emission pass: the sprites, texts and shapes again, in that pass.
@@ -251,6 +252,7 @@ private:
     EnvironmentSelection2D environmentSelection_;
     bool environmentFallbackReported_ = false;
     RenderTarget target_;
+    bool authoringPreviewDirty_ = false;
     bool started_ = false;
     bool paused_ = false;
     double timeScale_ = 1.0;

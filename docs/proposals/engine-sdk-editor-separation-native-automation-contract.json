@@ -1,0 +1,71 @@
+{
+  "schema": "pixie-separation-060-native-automation-contract/1",
+  "contractId": "B0-N1",
+  "revision": 1,
+  "authority": "PIXIE-TODO-060 / TASKLIST.md; B0 exact native-only interface and path clearance",
+  "sourceHandoff": {
+    "manifestSha256": "a23e460db0019c2062d5258d82096599ea675703429aefe8fc354b0e141d66e3",
+    "planSha256": "0145e8355210e69eac704abdb5f2638f00d12580d6f1e16c24641eeb47424c95",
+    "consumerReviewSha256": "c7c1feafbc43ae22c851c154091f1c0ad77dcb873920ed24ec88c507464609f2"
+  },
+  "nativeIdentity": {
+    "contract": "docs/proposals/engine-sdk-editor-separation-contract.json",
+    "sha256": "3ef9ed79645a23d423d4ca262d68b70da63416ec957a665e81d4fb7d162dbd31",
+    "rule": "C1 owns query signatures, 65535-byte UTF8 bound, buffer/error behavior, typed identity fields, capability bits and module admission; do not create another identity source"
+  },
+  "hello": {
+    "protocolVersion": 1,
+    "valueMember": "engine",
+    "wirePath": "result.value.engine",
+    "engineValue": "the parsed authoritative pixie_sdk_identity JSON object, forwarded with its native identity/capability fields unchanged. Do not open an SDK/source manifest or synthesize identity from filenames/version/HEAD.",
+    "operationCapabilities": "existing result.value.capabilities stays the operation allowlist surface. Native engine.capabilities/capabilityBits remain separate; later Player/Editor overlays may adjust only their owned operation surface without dropping engine.",
+    "queryHandling": "use C1 length probe/bounded allocation/read and handle -1/malformed/oversized identity as explicit handshake failure. Cross-check actual pixie_capabilities bits with the reported native fields; never manufacture a capability.",
+    "admission": "preserve required first hello. Do not mark handshake successful on identity failure; no world/storage/history mutation or authority grant follows a failed hello.",
+    "unchanged": "retain protocol/API/session/project/stats fields, request/response bounds, owner-thread checks, candidate type/token/history/recovery behavior, forbidden-operation diagnostics and save=false native baseline"
+  },
+  "allocation": {
+    "clearanceId": "G0-B6-NATIVE-N1",
+    "operations": [
+      {
+        "repository": "PixieEngine",
+        "unit": "B6",
+        "block": "B6",
+        "path": "devchannel/src/Dispatcher.cpp",
+        "operation": "modify",
+        "preimageSha256": "3f3bcff012718bc6b690785448751b314f996b4a911331bddeba3e550db1806f"
+      },
+      {
+        "repository": "PixieEngine",
+        "unit": "B6",
+        "block": "B6",
+        "path": "tests/devchannel/DispatcherTests.cpp",
+        "operation": "modify",
+        "preimageSha256": "1413d8bcc6a23fe47986c673b1174a18dffe54bd4a25d166925c14a749abde3c"
+      }
+    ],
+    "outputRoot": ".local/separation-060/B6/",
+    "rootOrProjectEdits": "none; current devchannel CMake already includes C API declarations and existing devchannel-tests registration suffices",
+    "conditionalCMake": "not cleared; request an exact amendment only if a concrete needed wiring delta appears",
+    "ownership": "same whole B6 owner across milestones; no B5 hooks/EditorChannel or B4 metadata/source takeover"
+  },
+  "validation": {
+    "preparationCanRunNow": "native adapter/test source implementation and private test design",
+    "focusedBuildInput": "wait for a coherent exact K01 native input handoff/identity regeneration fix, or an explicitly sealed producer-source snapshot. No shared build/bin/restore/cache and no testing against stale unlabelled DLLs while peer source is mid-write.",
+    "requiredFocusedCases": [
+      "hello engine equals actual C1 runtime identity projection/query",
+      "actual native capability bits agree and remain separate from operation capabilities",
+      "protocol1/API28/session/stats preserved",
+      "pre-hello refusal and forbidden/save operation negatives unchanged",
+      "Debug/Release private profile outputs recorded with exact commands/source/runtime/input/output hashes"
+    ],
+    "scopeLimit": "focused private native producer evidence only. Installed source independence, actual Editor host, cold external code, save-off and public/runtime candidate exclusions remain later G5 slices, never implied by this result."
+  },
+  "productBoundary": "local-only private automation; no public SDK/Editor/game payload admission or publication guard relaxation",
+  "remaining": [
+    "actual K01 runtime input/evidence before native focused run",
+    "B5 host/reopen and B6 managed client/channel interfaces before their own paths",
+    "B2 installed cold project and full per-slice G5 artifacts/runner evidence",
+    "D08/D09/D12/D14 remain their own dependent gates; D13 nonblocking",
+    "B0/B6 tasks and G1-G6 not complete; no source moves/publication"
+  ]
+}

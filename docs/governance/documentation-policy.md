@@ -32,11 +32,12 @@ stop rules from the documentation references of Void Agent Workplace (observed
 PixieInspector derive their documentation from this one. The derivation and
 every intentional difference are recorded in the
 [schema index](../schemas/README.md). None of those projects is an authority
-over this repository. Since 2026-10-16 the repository is bound, on the owner's
-machine, to a Void Agent Workplace profile for project binding and skill
-discovery only (see the [development guide](../development.md#void-agent-workplace));
-the binding grants no authority, and the documentation is still checked by this
-repository's own verifier, not by Void Agent Workplace.
+over this repository. The workspace now owns shared governance and external
+project profiles; the Engine retains its source, contracts, planning and evidence.
+Machine-local VAW bindings route that configuration and are not durable authority.
+The Engine's standalone verifier is a pinned copy of the generic VAW checker;
+it requires no VAW checkout. See the
+[development guide](../development.md#void-agent-workplace).
 
 ## Authority
 
@@ -52,24 +53,25 @@ to its owner; they must not maintain a competing mutable copy.
 | How to build, check, and commit a change | `docs/development.md`, under the commit rules below |
 | What a sample shows and how to run it | `samples/<sample>/README.md` |
 | Third-party source code | `external/<name>/`, unmodified from the release recorded in `DEPENDENCIES.md` |
-| Public native API | The module's public header, once it exists |
+| Public native API | The module's public headers |
 | Module technical contract | `docs/modules/<boundary>/REFERENCE.md` |
 | Module routing and identity | `docs/modules/<boundary>/MANIFEST.md` |
-| What the engine is and is not, direction, guardrails, and freezes | Root `ROADMAP.md` |
-| Formally promoted work, ordering, gates, and completion criteria | Root `TODO.md` |
+| Overall picture, rationale, phase outcomes, acceptance criteria, guardrails and freezes | Root `ROADMAP.md` |
+| Accepted work, status, ordering, dependencies and execution gates | Root `TODO.md` |
 | Decomposition of a promoted `TODO.md` entry into tasks | Root `TASKLIST.md` |
-| Unpromoted ideas | One record per file under `docs/proposals/` |
+| Proposed designs and their originating rationale | One record per file under `docs/proposals/`; promotion routes active work to ROADMAP/TODO |
 | Confirmed defects | Module `ISSUES.md` |
 | Unconfirmed observations | Module `FINDINGS.md` |
 | Evidence requirements | Module `VALIDATION_REQUIREMENTS.md` |
-| Executed evidence | Module `VALIDATIONS.md`, tests, scenarios, and the verification recorded in archive records |
-| Chronology, completed work, superseded state, and dated rationale | `docs/archive/` |
+| Executed evidence | Canonical qualification reports, `docs/evidence/`, and earlier archive records; module `VALIDATIONS.md` routes relevant results |
+| New completed outcomes and acceptance dispositions | `docs/history/`, linking evidence and the Git planning baseline |
+| Legacy chronology, completed work, superseded state and dated rationale | `docs/archive/`, preserved at its original baselines |
 | Documentation structure and vocabulary | `docs/schemas/documentation-schema.json` |
 | Open questions and answers before promotion | `.local/` (unversioned; never authority) |
 | VAW coordination records: workflow state, checkpoints, premises, validation | `.local/vaw/` (unversioned; never authority; they point to the owners above) |
 
-Generated output is never authority and is never versioned: `build/`, `bin/`, and the root
-`PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
+Generated output is never authority and is never versioned: `build/`, `bin/`, and
+`build/PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
 instead.
 
 ## Authority traversal
@@ -82,44 +84,33 @@ for the facts it owns, in this order:
 2. Public headers establish the public native API.
 3. Module `REFERENCE.md` files and this policy establish the documented
    contracts.
-4. `ROADMAP.md` establishes direction, guardrails, and freezes.
-5. `TODO.md` and `TASKLIST.md` establish promoted work, gates, and completion.
+4. `ROADMAP.md` establishes direction, outcomes, acceptance criteria, guardrails and freezes.
+5. `TODO.md` and `TASKLIST.md` establish accepted work, dependencies and task state.
 6. Tests, samples, scenarios, and recorded verification demonstrate bounded
    claims.
-7. Archive records preserve chronology and rationale at their baselines.
+7. History and archive records preserve outcomes, chronology and rationale at their baselines.
 8. Proposals, findings, `.local/`, and the documents of other repositories are
    non-normative leads.
 
 ## Scheduling: `TODO.md` and `TASKLIST.md`
 
-`TODO.md` is the only scheduler. An entry enters it only through an explicit
-owner decision with its scope, gates, and completion criteria formalized. A
-change to the scope of a promoted entry also needs an owner decision and is
-recorded in the entry with its date.
+The workspace adopts ROADMAP -> TODO -> optional TASKLIST. ROADMAP owns the
+big picture, rationale, phases and acceptance criteria. TODO records accepted
+work needed to achieve those outcomes. TASKLIST decomposes only large items;
+children reference their parent and do not expand its scope. Owner instructions
+can authorize work; record the accepted scope without creating another queue.
 
-When an entry completes, it moves to `docs/archive/` as a snapshot, together
-with its `TASKLIST.md` section if it has one, its verification, and the commits
-that delivered it; `TODO.md` keeps a one-line pointer to the archive record.
+Completion preserves the roadmap block and its outcome in one document under
+`docs/history/`, linking evidence and incorporating only important nested details.
+Record original work IDs and the last planning commit. Remove completed entries
+from active TODO/TASKLIST; do not archive copies of all three lists. A completed
+child does not close its active roadmap parent. Keep permanent rules and freezes
+in their governing document. Legacy direct-owner work without a roadmap block
+states that limitation instead of inventing one.
 
-`TASKLIST.md` is a child scheduler of `TODO.md`. It exists so that an entry
-whose scope is large, or that decomposes into many small tasks, does not
-pollute `TODO.md`. Its rules:
-
-- Every section belongs to exactly one `TODO.md` entry, named in its `Parent`
-  field, and that entry links back to the section in its `Breakdown` field.
-  A task without an existing parent is invalid.
-- Tasks decompose the parent's accepted scope; they never extend it. Work
-  outside that scope is promoted to `TODO.md` first.
-- The parent completes only when each of its tasks is `done` or `dropped`, and
-  every `dropped` task states why.
-- When the parent completes, its section moves to `docs/archive/` with the
-  parent's record and leaves `TASKLIST.md`.
-- Task IDs are global and stable (`PIXIE-TASK-001`); they are not renumbered
-  when a parent changes, completes, or is archived.
-
-`ROADMAP.md` states direction but does not authorize implementation. A
-proposal, finding, issue, archive record, or direct owner decision becomes work
-only through formal promotion to `TODO.md`.
+Use the history index to discover closures. Existing archive records remain
+unchanged at their historical baselines. Evidence records distinguish requirements,
+actual execution and limitations; a structural check cannot accept a product gate.
 
 ## Dependencies
 
@@ -163,16 +154,15 @@ is given.
 
 `docs/archive/` owns the history of the repository: what changed, what was
 completed, and why things changed. Each distinct archived event has one record:
-a decision, a promotion, a completed `TODO.md` entry with its `TASKLIST.md`
-section, a fix, a finding, a proposal outcome, a dependency change, or a roadmap
+a decision, a promotion, a legacy completed work snapshot, a fix, a finding, a proposal outcome, a dependency change, or a roadmap
 change. An event need not be split into permission, promotion and completion
 records that repeat the same facts. Material imported from other repositories
 for provenance is archived the same way.
 
 Owner clarification, 2026-10-22: a plain authorization such as "you may
 implement" does not need a separate archive entry that repeats the scheduler and
-the eventual implementation report. Keep accepted scope in TODO/TASKLIST and
-preserve it in the completion snapshot. A distinct promotion record is useful
+the eventual implementation report. Keep accepted scope in TODO/TASKLIST while active; preserve roadmap intent and
+important decisions in the closure, with a Git reference to detailed planning. A distinct promotion record is useful
 when it preserves an actual scope/lifecycle transition or rationale that would
 otherwise be lost. Do not multiply decision, authorization and promotion records
 for the same fact. Existing historical records retain their IDs and bodies.
@@ -252,6 +242,11 @@ expected outcome, and how to read the result. What such a project demonstrates
 is evidence; it never defines behavior.
 
 ## Tests and evidence
+
+The [evidence index](../evidence/README.md) routes detailed execution and dated
+decision records that would otherwise obscure the active planners. Each record
+names its source baseline, results and limitations; it is not a second queue or
+a completion claim. Closure records link to these owners instead of copying them.
 
 Tests, samples, and measured runs are evidence: they demonstrate claims and
 never define behavior. A measurement holds only for the machine, configuration,
@@ -359,11 +354,17 @@ documentation, and the commit or push.
 
 ## Enforcement
 
-`scripts/check_docs.py` mechanically checks part of these rules: relative
-links and their anchors, no link into `.local/`, the metadata fields that the
-schema requires and their vocabulary, unique Document IDs, the scheduler rules
-(parents, back-links, unique task IDs, reasons on dropped tasks), and an archive
-router that lists every record once, in order, under its own ID. The rest
-(single ownership of facts, claims that match the source, honest evidence) is
-applied by review only. Claims about structural validity say which of the two
-they rest on.
+`pwsh -File ./checkdocs.ps1` checks the Git-owned Markdown inventory, local
+links and anchors, required metadata, duplicate document IDs, declared work
+references and new closure structure. TASKLIST is optional. No exact task-line
+syntax, archive sequence order, or product-specific acceptance is enforced by
+the generic checker. Use `-IncludeUntracked` to check new documents before commit.
+
+The canonical checker is VAW's `scripts/checkdocs.ps1`; the repository includes
+an exact snapshot for standalone CI. Its digest and update rule are recorded in
+`scripts/checkdocs.source.json`. Project scope is in `scripts/checkdocs.json`.
+The workspace owns external profiles and shared governance; project source,
+contracts, evidence and this local policy retain their own responsibilities.
+
+Verifier replacement baseline: `94d3412f512fa785adfb2e664c465f90d70198f4`. The generic source
+commit and digest are pinned in `scripts/checkdocs.source.json`.

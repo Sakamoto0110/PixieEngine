@@ -195,6 +195,7 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
     // No handle into the old World remains valid after this point. A failed read never reaches it.
     input_.EndUpdate();
     world_.swap(candidate);
+    authoringPreviewDirty_ = false;
     if (candidateProject) {
         types_.Swap(candidateTypes);
         project_.swap(candidateProject);
@@ -262,6 +263,7 @@ bool ProjectSession::Play() {
     }
     std::string nextPlayedFrom;
     try {
+        RefreshAuthoringPreview();
         nextPlayedFrom = WriteScene(*world_, types_);
     } catch (const std::runtime_error& error) {
         error_ = error.what();
@@ -302,6 +304,7 @@ bool ProjectSession::Save() {
     std::vector<std::string> warnings;
     std::string text;
     try {
+        RefreshAuthoringPreview();
         text = mode_ == SessionMode::Play ? playedFrom_ : WriteScene(*world_, types_, &warnings);
     } catch (const std::runtime_error& error) {
         error_ = error.what();
@@ -321,7 +324,14 @@ bool ProjectSession::Save() {
 void ProjectSession::MarkChanged() {
     if (opened_ && mode_ == SessionMode::Edit) {
         unsaved_ = true;
+        authoringPreviewDirty_ = true;
     }
+}
+
+void ProjectSession::RefreshAuthoringPreview() {
+    if (!authoringPreviewDirty_ || mode_ != SessionMode::Edit) return;
+    project_->RefreshAuthoringPreview(*world_);
+    authoringPreviewDirty_ = false;
 }
 
 bool ProjectSession::ConvertStartSceneToV2() {
@@ -408,6 +418,7 @@ constexpr double kCullPadding = 32.0;
 } // namespace
 
 void ProjectSession::Render(double alpha) {
+    RefreshAuthoringPreview();
     const Camera2D camera = ResolvedCamera().camera;
     const pxColorRgba background = project_->Background();
     const ViewportEnvironment2D environment = ResolveViewportEnvironment2D(*world_, environmentSelection_);

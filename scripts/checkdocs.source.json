@@ -1,0 +1,7 @@
+{
+  "sourceRepository": "https://github.com/Sakamoto0110/void-agent-workplace",
+  "sourcePath": "scripts/checkdocs.ps1",
+  "sha256": "13a3accd59d4790882d403515bf0a4df7d4337370cae71db4dba841af84d7d5d",
+  "updatePolicy": "Explicit sync from canonical VAW source, verify digest, run checker fixture tests. No consumer-specific edits.",
+  "sourceCommit": "dca6382fd5db53a2e29ed8df6af2dee34b1b15c3"
+}

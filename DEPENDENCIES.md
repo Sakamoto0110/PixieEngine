@@ -70,9 +70,9 @@ version change.
 | Visual Studio Community 2026 (MSVC) | C++ compiler | 18.10; MSVC toolsets 14.51, 14.44, 14.16 | — | `ok` | Builds the native side in C++20. The 2026-10-28 shared-engine decision replaces static runtime linkage with /MDd Debug and /MD Release. App-local runtime deployment remains an export qualification gate, not a claim about a development build directory. |
 | CMake | Native build system (accepted 2026-10-10) | 4.3.1, bundled with Visual Studio | — | `ok` | Not on `PATH`; available from the Visual Studio developer shell. A standalone install is needed only to build outside Visual Studio or on another OS. GLFW 3.5.1 builds through its own `CMakeLists.txt`. |
 | Ninja | Native build backend | Bundled with Visual Studio | — | `ok` | Same `PATH` note as CMake. |
-| .NET SDK | The C# editor (`editor/`) and PixieInspector | 10.0.401 and 10.0.301 | — | `ok` | The editor targets `net10.0` and builds with `dotnet build editor/PixieEditor.slnx` (2026-10-13). |
+| .NET SDK | Local MCP tooling | 10.0 | — | `ok` | PixieEditor pins its own SDK and consumes managed bindings from the installed Engine SDK. See the [migration guide](editor/README.md). |
 | Git | Version control | 2.55.0 | — | `ok` | |
-| Python | The documentation verifier, `scripts/check_docs.py` | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
+| Python | Native tooling and qualification scripts (documentation uses PowerShell) | 3.14.7 | — | `ok` | Standard library only. Any Python 3.10 or newer runs it. |
 | Pillow | Development snapshot PNG comparison | 13.0.0 pinned by `scripts/requirements-snapshots.txt` (2026-10-29) | Not checked | `ok` | Install into the snapshot tool's Python environment. The documentation verifier remains standard-library-only. No Pillow files belong in game exports or editor publish payloads. See the scoped capture update above; this is not a refreshed upstream audit. |
 
 ## Graphics and platform
@@ -107,15 +107,9 @@ The engine has no dependency on a GUI toolkit or binding. Its contract with an
 editor host is an active OpenGL 4.5 core context and a texture to display; any
 host that provides that works.
 
-The C# editor (`editor/`, since 2026-10-13) takes one PixieInspector view
-package, and its host uses the binding and the version that package brings:
-`PixieInspector.ImGui` 0.3.0 brings Hexa.NET.ImGui 2.2.9, which the editor uses
-with Hexa.NET.GLFW 1.0.5 and Hexa.NET.ImGui.Backends and
-Hexa.NET.ImGui.Backends.GLFW 1.0.18, the versions PixieInspector's own ImGui
-host uses (`editor/PixieEditor/PixieEditor.csproj`). `PixieInspector.Avalonia`
-0.1.0 would bring Avalonia 12.1.3. Those are dependencies of the editor
-project, not of the engine. A change of binding is PixieInspector's decision;
-its own `DEPENDENCIES.md` lists them.
+PixieEditor owns its GUI, managed packages and native GLFW 3.5.1 artifact.
+Its `DEPENDENCIES.md` records the selected Inspector and binding versions.
+See the [Editor migration guide](editor/README.md).
 
 ## Local development MCP tool
 
