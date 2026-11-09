@@ -46,7 +46,7 @@ each with a section in `TASKLIST.md` (PIXIE-TASK-144 to PIXIE-TASK-151):
 
 Decided by Claude at promotion, where the proposal left it open:
 
-- The project's folder is `C:\Users\Sakamoto\dev\LogicSandbox`, beside the engine's, and its
+- The project's folder is `<development-root>/LogicSandbox`, beside the engine's, and its
   name `LogicSandbox`. Claude does not put it under version control: the owner versions it.
 - The game's rules are tested by tests of its own, built with the project, including its gestures
   driven with synthetic input (the engine's `Input`), since computer use is not used; what only real

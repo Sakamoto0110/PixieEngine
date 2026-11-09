@@ -30,11 +30,11 @@
 
 **Reference date:** 2026-10-15
 
-**Commits:** none in this repository: the game is in `C:\Users\Sakamoto\dev\LogicSandbox`, outside it and not under version control, which the owner keeps; this record is committed with parent `d577557ea762e6c9c74423397cb930614fdc6066`
+**Commits:** none in this repository: the game is in `<development-root>/LogicSandbox`, outside it and not under version control, which the owner keeps; this record is committed with parent `d577557ea762e6c9c74423397cb930614fdc6066`
 
 **Original path:** `TODO.md` (the entry) and `TASKLIST.md` (the breakdown)
 
-**Current state:** the project's `README.md` in `C:\Users\Sakamoto\dev\LogicSandbox`, and [PIXIE-PROPOSAL-009](../proposals/logic-sandbox.md)
+**Current state:** the project's `README.md` in `<development-root>/LogicSandbox`, and [PIXIE-PROPOSAL-009](../proposals/logic-sandbox.md)
 
 ## Entry as completed
 
@@ -42,7 +42,7 @@
 
 **Source:** owner decision on 2026-10-15; [PIXIE-PROPOSAL-009](../proposals/logic-sandbox.md), stage 1
 
-**Accepted scope:** a project with C++ code, `LogicSandbox`, made by the engine's tools in `C:\Users\Sakamoto\dev\LogicSandbox`, with the `logic-gates` sprites, `gates.json`, and Inter copied in through `vdr cp`. Pieces: the eight gates (1 to 4 inputs; NOT and BUF one), a power source toggled by a click, a lamp, and a relay. Pins drawn by the game at the anchors of `gates.json` through `SpritePoint` (a dot for the output, a ring for an input), clicked within about 10 view pixels, growing under the mouse; bodies select and move pieces. Wires as `Path`s from an output to an input, routed horizontally and vertically with rounded corners through the bends clicked on empty space, Esc or the right button cancelling, valid inputs lit and the preview snapping to them; refused: from an input, from a gate to itself, a second wire into an input, a wire crossing or overlapping another; moving a piece routes its wires again. Signals travel down wires at a fixed speed, drawn by the fill, and a gate evaluates one step after an input changes. A vertical hotbar on the left of the screen layer, its symbols from the 32 or 64 PNGs, the name on hover, keys 1 to 9; R turns the selected pieces 90 degrees and F mirrors them. A lamp lit says so, and the sandbox goes on. The circuit is the project's scene, so the editor opens and saves it. Out: saves of the player and templates (PIXIE-TODO-033), undo inside the game, sound.
+**Accepted scope:** a project with C++ code, `LogicSandbox`, made by the engine's tools in `<development-root>/LogicSandbox`, with the `logic-gates` sprites, `gates.json`, and Inter copied in through `vdr cp`. Pieces: the eight gates (1 to 4 inputs; NOT and BUF one), a power source toggled by a click, a lamp, and a relay. Pins drawn by the game at the anchors of `gates.json` through `SpritePoint` (a dot for the output, a ring for an input), clicked within about 10 view pixels, growing under the mouse; bodies select and move pieces. Wires as `Path`s from an output to an input, routed horizontally and vertically with rounded corners through the bends clicked on empty space, Esc or the right button cancelling, valid inputs lit and the preview snapping to them; refused: from an input, from a gate to itself, a second wire into an input, a wire crossing or overlapping another; moving a piece routes its wires again. Signals travel down wires at a fixed speed, drawn by the fill, and a gate evaluates one step after an input changes. A vertical hotbar on the left of the screen layer, its symbols from the 32 or 64 PNGs, the name on hover, keys 1 to 9; R turns the selected pieces 90 degrees and F mirrors them. A lamp lit says so, and the sandbox goes on. The circuit is the project's scene, so the editor opens and saves it. Out: saves of the player and templates (PIXIE-TODO-033), undo inside the game, sound.
 
 **Dependencies and gates:** none
 
@@ -50,7 +50,7 @@
 
 ## Breakdown as completed
 
-- `PIXIE-TASK-144` — **Status:** done — The project: made with code in `C:\Users\Sakamoto\dev\LogicSandbox`, the sprites, `gates.json`, and Inter copied in with `vdr cp`; its components described for the editor; its tests' target.
+- `PIXIE-TASK-144` — **Status:** done — The project: made with code in `<development-root>/LogicSandbox`, the sprites, `gates.json`, and Inter copied in with `vdr cp`; its components described for the editor; its tests' target.
 - `PIXIE-TASK-145` — **Status:** done — The logic: gates and their truth tables, the power source, the lamp, the relay, signals travelling down wires, evaluation one step after an input changes; tests.
 - `PIXIE-TASK-146` — **Status:** done — Pins at the `gates.json` anchors, turned and mirrored; wires routed through bends with rounded corners; the wiring rules; moving pieces re-routes their wires; tests.
 - `PIXIE-TASK-147` — **Status:** done — The hotbar on the screen layer, hover names, keys 1 to 9, placing, selecting and moving, R and F, toggling the source, the lamp's message; gestures tested with synthetic input.
@@ -121,7 +121,7 @@ Machine: Windows 11, AMD Radeon RX 7600, against the engine at `d577557`.
   and the snap from 14 pixels; moving on the grid, R, F, + and -, and Del.
 - The project builds in Debug and Release with zero warnings on its own (`cmake -S . -B build
   -DPIXIE_ENGINE_DIR=...`), and through the editor (`PixieEditor --project
-  C:/Users/Sakamoto/dev/LogicSandbox --recent off --quit-after 10 --screenshot`), which built the
+  <development-root>/LogicSandbox --recent off --quit-after 10 --screenshot`), which built the
   code, opened the project in edit mode, and showed the circuit, the bar, and the help line.
 - The player (`bin/Release/LogicSandbox --quit-after 3 --screenshot`) showed the saved circuit lit:
   both sources, the AND, the wires in the signal's color with rounded corners, the lamp lit, and "A
