@@ -24,10 +24,13 @@
 
 **State:** promoted by the owner on 2026-11-05 under
 [PIXIE-TODO-060](../../TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
-The [extraction task plan](../../TASKLIST.md#proposal-022--standalone-editor-extraction)
-owns execution state and clearances. The observed inventory still requires a
-reviewed execution baseline. Source removal and publication each require
-separate authorization.
+This document preserves the extraction design and its pre-move inventory.
+The [execution record](../evidence/sdk-editor-separation-2026-11-06.md#proposal-022--standalone-editor-extraction)
+retains scoped clearances; the [milestone record](../evidence/sdk-editor-separation-2026-11-06.md#milestones-and-closure)
+records the applied local cutover and its evidence limits. Current task state
+belongs to [TASKLIST](../../TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation).
+The original execution gates below describe the reviewed plan, not an instruction
+to repeat extraction. Publication requires separate authorization.
 
 The objective is to place PixieEditor in its own project/repository, make it build and operate against installed Engine SDK artifacts, and leave PixieEngine independently buildable and distributable. A sibling folder is the owner's preferred workplace arrangement, not a dependency-resolution contract.
 

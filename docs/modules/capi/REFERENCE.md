@@ -56,6 +56,21 @@ development-free export/MCP barriers remain separately qualified under
 See the [qualification matrix](../../shared-engine-export-validation.md) for
 configuration-specific evidence and pending delivery gates.
 
+## Optional 2D parenting functions
+
+Hosts may detect both `pixie_entity_parent_2d` and
+`pixie_entities_set_parent_2d` on an ABI 28 library before offering
+parenting tools. The query takes a live entity handle and reports its parent
+handle or `UINT32_MAX` for a root. The write requires a version 3 authored
+project in Edit mode on the session's owner thread. Pass `UINT32_MAX` as
+the parent to detach and set `keep_local` to zero to preserve world pose.
+With `keep_local` set to one, the operation preserves local pose.
+
+The write checks the selection and new parent before changing any links.
+Only the selected branch roots are reparented. The `changed` output
+distinguishes an accepted no-op from a change. Rejection leaves the graph
+and poses intact.
+
 ## Rules for every function
 
 - The OpenGL 4.5 core context the session was created with must be current on the calling thread.
@@ -464,6 +479,18 @@ Events are kept until the next step reads them.
   entity field, the component type a valid choice has, or, for a text field that names a file, its
   kind as an extension, such as `png` (`PIXIE_TEXT_ASSET`; `PixieFieldText`). They export the runtime's `FieldMetadata`; a host builds its editors from
   them.
+- `pixie_field_group` is an optional ABI 28 export. Detect the symbol before use.
+  It copies the slash-separated display group from `ComponentBuilder::Group`,
+  or an empty string for a root field. Hosts can group ordinary fields and
+  record-list fields under the same header. Field names, indices and saved
+  values keep their existing meaning. Record-list addressing remains one level.
+- `PIXIE_FIELD_DERIVED` and `PIXIE_FIELD_RUNTIME` mark nonpersistent
+  inspection fields. Their values remain readable. The optional
+  `pixie_field_authoring_lock` query also includes the selected project's
+  per-entity policy. Field setters reject those locked writes.
+- The optional `pixie_authoring_circle` query returns an Edit-mode circle in
+  world units and its diameter in meters. A zero radius means the selection
+  has no guide. Hosts using either extension must check for the export.
 - `pixie_field_get` and `pixie_field_set` read and write one field through its descriptor, as a
   `PixieValue`; `PixieFieldKind` says which members are used. A `PIXIE_FIELD_ENTITY` field holds an
   entity handle in `x`, with 4294967295 for none. A `PIXIE_FIELD_ENUM` field takes a whole `x`

@@ -34,9 +34,10 @@ self-review, and stop rules come from the documentation references of Void
 Agent Workplace (`profiles/nekolib/references/documentation/`, observed
 2026-10-12 at `c9d81ba`), adapted to this repository. The documentation is a
 historical derivation. Current structural checks use a pinned, standalone
-PowerShell snapshot of the generic VAW checker; no VAW checkout is needed. Since 2026-10-16 the repository is also bound
-to a Void Agent Workplace profile, for identity, routing, and skill discovery
-only ([development guide](../development.md#void-agent-workplace)).
+PowerShell snapshot of the generic VAW checker; no VAW checkout is needed.
+The current workspace binding routes shared governance and external project
+profiles while product contracts and evidence remain in their repositories
+([development guide](../development.md#void-agent-workplace)).
 
 PixieLib and PixieInspector derived their documentation from this schema at
 `46ee6aa` on 2026-10-12. Practices they added that fit here were brought back

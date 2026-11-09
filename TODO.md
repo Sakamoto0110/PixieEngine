@@ -8,7 +8,7 @@
 
 **Lifecycle:** current
 
-**Subject:** formally promoted work, gates, dependencies, and completion criteria
+**Subject:** accepted work, status, dependencies and links to roadmap acceptance
 
 **Surface:** work-scheduler
 
@@ -24,11 +24,11 @@
 
 ## Purpose and admission rule
 
-This file is the only scheduler. It holds work that the owner has formally
-promoted, with enough scope to execute and close it. It does not hold ideas
+This file owns the active work queue. The roadmap owns scope and acceptance;
+this file states what remains, with dependencies and links to decomposition. It does not hold ideas
 ([`docs/proposals/`](docs/proposals/README.md)), direction
-([`ROADMAP.md`](ROADMAP.md)), or completion narratives
-([`docs/archive/`](docs/archive/README.md)).
+([`ROADMAP.md`](ROADMAP.md)), or execution narratives
+([evidence](docs/evidence/README.md) and [history](docs/history/README.md)).
 
 An entry whose scope is large, or that decomposes into many small tasks, keeps
 one entry here and its breakdown in [`TASKLIST.md`](TASKLIST.md). The rules are
@@ -77,21 +77,26 @@ entry may keep an explicit gate after promotion.
 
 ### `PIXIE-TODO-060` — Separate Engine SDK, game runtime and Editor delivery
 
-**Status:** in-progress (initial SDK decisions accepted; scoped implementation and later gates retained)
-**Source:** owner decision on 2026-11-04: "promote proposal 021" (translated from Portuguese); [PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md), consolidated on the same date.
-**Dispatch:** on 2026-11-04 the owner assigned B0, K01 (B4/B1/B2), K02 (B3/B5), K03 (B9/B10) and B6 to five separate chats. On 2026-11-05 the coordinator assigned the whole B11 unit to B06 with a separate preparation root and assigned whole B7 to a sixth dedicated chat. The [dispatch register](TASKLIST.md#dispatch-register--owner-decision-2026-11-04) records their identities and scopes. B7's first D08 package milestone uses the committed Inspector source as read-only input. Inspector repository changes require separate exact review. Implementation requires B0's applicable G0 clearance. B8 is inactive under accepted D04. Reports return to the coordinator for independent validation and owner acceptance.
-**Decisions:** the owner accepted D01-D05/D10 on 2026-11-04 and D06/D07/D11 in the [subsequent verified human answer](TASKLIST.md#accepted-selectiongenerationexport-decisions--verified-2026-11-05); TASKLIST records outcomes and timestamp limits. Public authoring/shipping SDK payloads exclude the separate private automation distribution. D04 keeps B8 inactive; its optional task is dropped with a reason. The [scoped clearances](TASKLIST.md#scoped-g0-clearance--b0-c1) cover only the listed identity/package, validator/consumer, Editor selection/launch, exporter, private automation and [generation](TASKLIST.md#scoped-g0-clearance--b0-c3) paths, with serial B0 root wiring. They are not whole-unit or product-gate acceptance.
+**Status:** in-progress (remaining acceptance dispositions recorded; implementation and local cutover exist).
+**Source:** [Proposal 021](docs/proposals/engine-sdk-editor-separation.md), with the [proposal 022 extraction amendment](docs/proposals/standalone-editor-extraction.md).
 **Accepted scope:** [Roadmap outcome](ROADMAP.md#pixie-roadmap-060).
-**Scope amendment (2026-11-05):** the owner promoted [PIXIE-PROPOSAL-022](docs/proposals/standalone-editor-extraction.md) as the detailed plan for the existing Editor extraction phase. It establishes the revised D14 destination, transfer and path-resolution rules, preservation and relocation acceptance, and independent release preparation. The [task plan](TASKLIST.md#proposal-022--standalone-editor-extraction) maps the stages to existing owners.
-**Dependencies and gates:** G0 reconciles the actual source and working-state baseline and freezes exact write paths, interfaces and immutable artifact inputs. D01-D12 are accepted at the recorded scope. D14 uses the destination recorded in the scope amendment. Extraction requires matching native GLFW versions and a graphics smoke check at OpenGL 4.5. Shared-binary implementation and detailed native-provider qualification remain under the [D09 freeze](ROADMAP.md#d09-glfw-distribution). Inspector peer writes and the exact extraction transaction require separate authorization. Actual artifact and interface prerequisites still apply. D13 is a deferred follow-up outside this scope. VAW delivery, installation, rebind, member registration and future validation block no separation gate. Preserve the single native runtime baseline, ABI28/contract1 admission and lifetimes, scene v1/v2 safeguards, full-document history/recovery, presentation/viewport semantics, local motor/pool gravity and global-body fallback. Dispatch only whole blocks or whole single-agent batches with one active owner per block. Physical extraction requires the reviewed B0 move ledger, a writer freeze and applicable stage gates. Publication requires separate authorization. Subsequent exact clearances belong to TASKLIST.
+**Tracking:** the breakdown retains the previously recorded task states and scope; the [execution record](docs/evidence/sdk-editor-separation-2026-11-06.md#execution-results-and-gate-dispositions) owns exact results and limitations. This cleanup does not reopen accepted deliveries or schedule additional qualification.
+**Dependencies and gates:** preserve installed-SDK identity and source boundaries, completed World/Scene behavior, project data/history and independent Inspector/Lib ownership. D13 is deferred; B8 stays inactive. The [D09 freeze](ROADMAP.md#d09-glfw-distribution) remains in force. VAW adoption does not block separation; publication requires separate authorization. This documentation change authorizes no new qualification run.
 **Completion criteria:** [Roadmap acceptance criteria](ROADMAP.md#pixie-roadmap-060).
-The local source and build cutover is recorded in the [task plan](TASKLIST.md#proposal-022--standalone-editor-extraction). The extraction phase also tracks the [proposal 022 completion criteria](docs/proposals/standalone-editor-extraction.md#11-completion-criteria-and-unresolved-selections), including staged relocation evidence and post-removal checks. On 2026-11-06, M4 closed from the existing consumer, cutover and guide evidence, and the authorized local rehearsal passed for the exact Engine SDK, Runtime and Editor candidates. The [milestone record](TASKLIST.md#milestones-and-closure) records the remaining G6 limits. The [OpenGL 4.3 VMware investigation](ROADMAP.md#deferred-investigation), remote releases and automatic SDK acquisition are later work.
+**Breakdown:** [Remaining separation dispositions](TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation).
+**Recorded delivery:** M4 and the local G6 rehearsal are preserved in the [milestone record](docs/evidence/sdk-editor-separation-2026-11-06.md#milestones-and-closure); accepted decisions and scope amendments are retained there with their original limits.
 
-**Closure work (2026-11-06):** the local Engine-to-Editor candidate handoff, locked Inspector restore and affected Editor package checks passed. Pipeline preparation, the applied local cutover and the C11 documentation work are complete. The [execution record](TASKLIST.md#execution-results-and-gate-dispositions) records the scope of the existing G0–G5 evidence and the remaining hosted workflow verification and Windows x64 native provenance under G6.
+### `PIXIE-TODO-061` — Native entity parenting
 
-**Breakdown:** [Engine SDK, game runtime and Editor separation](TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation)
+**Status:** in-progress.
+**Source:** owner promotion of [Proposal 023](docs/proposals/native-entity-parenting.md) on 2026-11-07.
+**Accepted scope:** [Roadmap outcome](ROADMAP.md#pixie-roadmap-061).
+**Dependencies and gates:** start with the simple runtime fixture. Resolve the authored format and compatibility before wiring persistence and the independent Editor. Weapons-Lab is reserved for acceptance after the complete simple fixture passes.
+**Breakdown:** [Parenting implementation and qualification](TASKLIST.md#pixie-todo-061--native-entity-parenting).
+**Recorded delivery:** [Runtime fixture in Release](docs/evidence/native-parenting-runtime-2026-11-07.md) and [persisted simple scene through the SDK, Editor and no-code player](docs/evidence/native-parenting-persistence-2026-11-07.md). [The Editor hierarchy, structural history and code-bearing fixture](docs/evidence/native-parenting-editor-2026-11-07.md) passed the local qualification. [Weapons-Lab r5 consumer acceptance](docs/evidence/native-parenting-weapons-lab-2026-11-07.md) passed on the separate copy and paired player.
 
 ## Completion records
 
-Completed work is discoverable through the [history index](docs/history/README.md)
-and the [legacy archive](docs/archive/README.md). This file contains active work only.
+Use the [history index](docs/history/README.md) for completed outcomes and the
+[legacy archive](docs/archive/README.md) for earlier records. The
+[evidence index](docs/evidence/README.md) also covers delivered slices of still-open work.

@@ -87,6 +87,28 @@ cmake --build --preset vs2026-release
 PixieEditor builds in its own repository with an installed Engine SDK.
 The [migration guide](../editor/README.md) points to its build, publish and qualification entry points.
 
+### Build and rehearsal storage
+
+For an iteration on the Engine DLL, build the affected target and configuration
+in the existing CMake tree. The command
+`cmake --build --preset vs2026-release --target pixie_shared` builds the Release
+DLL and its dependencies. Build the
+specific sample or test target when the change needs it. Use the full presets
+when the commit or qualification checks require them. A game consuming an
+installed SDK uses the Editor's project build and needs no Engine checkout build.
+
+Reuse an incremental tree while the generator, toolchain and SDK inputs are
+compatible. A multi-config tree can hold both Debug and Release. Give a run its
+own tree when isolation, a different SDK or a clean qualification check requires
+one. Keep rerun instructions, identities, relevant logs and receipts as
+the durable evidence. Retain the exact verified archive when the result depends
+on those binary bytes. Treat extraction trees, staged copies and object files as
+working outputs once their checks finish and any required evidence is recorded.
+Before retaining another full copy, record what it is needed for and when that
+need ends. Reuse the same verified package across local runs where the test
+permits it. Keep installed SDKs, active caches and evidence needed by open work
+separate from scratch outputs.
+
 ## Installed SDK and local rehearsal
 
 Start with the supplied SDK root containing `sdk.json`. Select a declared

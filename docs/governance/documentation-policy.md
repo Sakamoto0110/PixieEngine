@@ -32,11 +32,12 @@ stop rules from the documentation references of Void Agent Workplace (observed
 PixieInspector derive their documentation from this one. The derivation and
 every intentional difference are recorded in the
 [schema index](../schemas/README.md). None of those projects is an authority
-over this repository. Since 2026-10-16 the repository is bound, on the owner's
-machine, to a Void Agent Workplace profile for project binding and skill
-discovery only (see the [development guide](../development.md#void-agent-workplace));
-the binding grants no authority, and the documentation is still checked by this
-repository's own verifier, not by Void Agent Workplace.
+over this repository. The workspace now owns shared governance and external
+project profiles; the Engine retains its source, contracts, planning and evidence.
+Machine-local VAW bindings route that configuration and are not durable authority.
+The Engine's standalone verifier is a pinned copy of the generic VAW checker;
+it requires no VAW checkout. See the
+[development guide](../development.md#void-agent-workplace).
 
 ## Authority
 
@@ -52,24 +53,25 @@ to its owner; they must not maintain a competing mutable copy.
 | How to build, check, and commit a change | `docs/development.md`, under the commit rules below |
 | What a sample shows and how to run it | `samples/<sample>/README.md` |
 | Third-party source code | `external/<name>/`, unmodified from the release recorded in `DEPENDENCIES.md` |
-| Public native API | The module's public header, once it exists |
+| Public native API | The module's public headers |
 | Module technical contract | `docs/modules/<boundary>/REFERENCE.md` |
 | Module routing and identity | `docs/modules/<boundary>/MANIFEST.md` |
-| What the engine is and is not, direction, guardrails, and freezes | Root `ROADMAP.md` |
-| Formally promoted work, ordering, gates, and completion criteria | Root `TODO.md` |
+| Overall picture, rationale, phase outcomes, acceptance criteria, guardrails and freezes | Root `ROADMAP.md` |
+| Accepted work, status, ordering, dependencies and execution gates | Root `TODO.md` |
 | Decomposition of a promoted `TODO.md` entry into tasks | Root `TASKLIST.md` |
-| Unpromoted ideas | One record per file under `docs/proposals/` |
+| Proposed designs and their originating rationale | One record per file under `docs/proposals/`; promotion routes active work to ROADMAP/TODO |
 | Confirmed defects | Module `ISSUES.md` |
 | Unconfirmed observations | Module `FINDINGS.md` |
 | Evidence requirements | Module `VALIDATION_REQUIREMENTS.md` |
-| Executed evidence | Module `VALIDATIONS.md`, tests, scenarios, and the verification recorded in archive records |
-| Chronology, completed work, superseded state, and dated rationale | `docs/archive/` |
+| Executed evidence | Canonical qualification reports, `docs/evidence/`, and earlier archive records; module `VALIDATIONS.md` routes relevant results |
+| New completed outcomes and acceptance dispositions | `docs/history/`, linking evidence and the Git planning baseline |
+| Legacy chronology, completed work, superseded state and dated rationale | `docs/archive/`, preserved at its original baselines |
 | Documentation structure and vocabulary | `docs/schemas/documentation-schema.json` |
 | Open questions and answers before promotion | `.local/` (unversioned; never authority) |
 | VAW coordination records: workflow state, checkpoints, premises, validation | `.local/vaw/` (unversioned; never authority; they point to the owners above) |
 
-Generated output is never authority and is never versioned: `build/`, `bin/`, and the root
-`PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
+Generated output is never authority and is never versioned: `build/`, `bin/`, and
+`build/PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
 instead.
 
 ## Authority traversal
@@ -82,11 +84,11 @@ for the facts it owns, in this order:
 2. Public headers establish the public native API.
 3. Module `REFERENCE.md` files and this policy establish the documented
    contracts.
-4. `ROADMAP.md` establishes direction, guardrails, and freezes.
-5. `TODO.md` and `TASKLIST.md` establish promoted work, gates, and completion.
+4. `ROADMAP.md` establishes direction, outcomes, acceptance criteria, guardrails and freezes.
+5. `TODO.md` and `TASKLIST.md` establish accepted work, dependencies and task state.
 6. Tests, samples, scenarios, and recorded verification demonstrate bounded
    claims.
-7. Archive records preserve chronology and rationale at their baselines.
+7. History and archive records preserve outcomes, chronology and rationale at their baselines.
 8. Proposals, findings, `.local/`, and the documents of other repositories are
    non-normative leads.
 
@@ -240,6 +242,11 @@ expected outcome, and how to read the result. What such a project demonstrates
 is evidence; it never defines behavior.
 
 ## Tests and evidence
+
+The [evidence index](../evidence/README.md) routes detailed execution and dated
+decision records that would otherwise obscure the active planners. Each record
+names its source baseline, results and limitations; it is not a second queue or
+a completion claim. Closure records link to these owners instead of copying them.
 
 Tests, samples, and measured runs are evidence: they demonstrate claims and
 never define behavior. A measurement holds only for the machine, configuration,

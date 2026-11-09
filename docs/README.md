@@ -20,51 +20,83 @@
 
 **Indexing:** include
 
-Start with the [documentation policy](governance/documentation-policy.md). It
-owns the authority table: which document owns which kind of fact.
+Choose a route by the question you need to answer. The
+[documentation policy](governance/documentation-policy.md#authority) names the
+owner of each kind of fact; evidence records describe specific executed baselines.
 
-| Location | Contents |
+## Build and use
+
+| Guide | Contents |
 |---|---|
-| [`../ROADMAP.md`](../ROADMAP.md) | What the engine is and is not, direction, guardrails, freezes |
-| [`../TODO.md`](../TODO.md) | Formally promoted work |
-| [`../TASKLIST.md`](../TASKLIST.md) | Task breakdowns of promoted work |
-| [`../DEPENDENCIES.md`](../DEPENDENCIES.md) | Dependencies, versions, status, and candidates |
-| [`development.md`](development.md) | How to build, check, and commit a change |
-| [`shared-engine-export-validation.md`](shared-engine-export-validation.md) | PIXIE-TODO-051 qualification and closure: shared engine, export barriers, local MCP and the approved lighting snapshot |
-| [`game-export.md`](game-export.md) | Native manifest export command, shipping/build separation and current qualification limits |
-| [`deterministic-capture.md`](deterministic-capture.md) | Development fixed-step capture, seed precedence and snapshot candidate/approval boundaries |
-| [`player-debug.md`](player-debug.md) | Native-player F3 rates and F3+C runtime VSync/frame cap commands |
-| [`telemetry.md`](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
-| [`physics-telemetry.md`](physics-telemetry.md) | Physics stage boundaries, retained sync buffers and bounded headless qualification |
-| [`physics-qualification.md`](physics-qualification.md) | PHY-001 to PHY-021 coverage, executed physics qualification, residual limits and pending owner review |
-| [`character-body-coupling.md`](character-body-coupling.md) | D4 motor preparation, bounded body impulses, support carry and unsafe-placement policy |
-| [`collision-movement.md`](collision-movement.md) | Static collision queries, capsule movement, controller ownership and neutral room |
-| [`editor-movement.md`](editor-movement.md) | Scene components, editor authoring/Play-Stop, diagnostics and in-game laboratory reuse |
-| [`entity-input-and-code-components.md`](entity-input-and-code-components.md) | Generic entity input, C++ component creation, explicit source association and preserving rebuilds |
-| [`proposals/editor-authoring-consolidation.md`](proposals/editor-authoring-consolidation.md) | Proposed editor/C++ consolidation priorities, UX acceptance and coordination with World/Scene work |
-| [`editor-field-interactions.md`](editor-field-interactions.md) | Local opt-in numeric field chains, manual locks, grouped history and lifecycle limits |
-| [`rigid-body-physics-requirements.md`](rigid-body-physics-requirements.md) | Proposed dynamics architecture, character coupling, authoring, migration and staged acceptance before lighting |
-| [`lighting-requirements.md`](lighting-requirements.md) | Proposed 2D lights, shadows, emissive surfaces and particles, composition, authoring, budgets and staged acceptance |
-| [`lighting-l0-design.md`](lighting-l0-design.md) | L0 choices for lighting: data model, units, composition order, compatibility and the measured shadow technique; owner review waived on 2026-10-31 |
-| [`lighting-l5-consolidation.md`](lighting-l5-consolidation.md) | L5 for lighting: regression matrix against the acceptance cases, stress report and residual limits; references and the owner's visual review open |
-| [`body-dynamics.md`](body-dynamics.md) | Initial native/scene body dynamics, world gravity, units, lifecycle and remaining delivery gates |
-| [`body-events.md`](body-events.md) | Contact/sensor lifetimes, queries, scene identities and bounded stack/material/fast-body qualification |
-| [`particle-dynamics.md`](particle-dynamics.md) | Native dynamic particles, world gravity, bounded circle-sweep bounce and the playable sparks room |
-| [`particle-memory-layout.md`](particle-memory-layout.md) | The particle's 40-byte layout, how pools are stepped and drawn, and the open directions for dynamic particles and SIMD; a handoff |
-| [`circuit-puzzle-requirements.md`](circuit-puzzle-requirements.md) | Existing consumer requirements analysis: atmosphere, lighting, movement and circuit panels; design input |
-| [`governance/`](governance/documentation-policy.md) | Documentation and commit rules |
-| [`schemas/`](schemas/README.md) | Documentation structure and vocabulary, and its derivation |
-| [`templates/`](templates/) | Templates for modules, schedulers, proposals, and archive records |
-| [`proposals/`](proposals/README.md) | Unpromoted ideas |
-| [`history/`](history/README.md) | Roadmap closures, outcomes and links to evidence |
-| [`archive/`](archive/README.md) | Preserved legacy chronology, completed work and dated rationale |
-| [`../editor/`](../editor/README.md) | The C# ImGui editor |
-| `../checkdocs.ps1` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |
-| [`modules/runtime/`](modules/runtime/README.md) | The `runtime` module: World, entities, Behaviours, update phases, particles, reflection, and projects |
-| [`modules/runtime/FINDINGS.md`](modules/runtime/FINDINGS.md) | Unconfirmed runtime observations and deferred investigations |
-| [`modules/core/`](modules/core/README.md) | CPU timing, logging, telemetry and images |
-| [`modules/platform/`](modules/platform/README.md) | Window/context ownership, input and frame limiting |
-| [`modules/render/`](modules/render/README.md) | GL resources, dimension-neutral View/readback and 2D renderers |
-| [`modules/app/`](modules/app/README.md) | Native player loop and debug/input composition |
-| [`modules/capi/`](modules/capi/README.md) | The C interface in the shared engine and development game modules |
-| `modules/` | One directory per decided engine boundary |
+| [Consumer handbook](handbook/README.md) | First game with an installed SDK and independent Editor: setup, public API, examples, UI handoff and export |
+| [Development](development.md) | Build the native engine, consume an installed SDK, prepare releases and work in the shared solution |
+| [Game export](game-export.md) | Manifest export, shipping/build separation and dependency closure |
+| [Independent Editor](../editor/README.md) | Migration, checkout and build entry point; Editor-owned guides live with the Editor |
+| [Dependencies](../DEPENDENCIES.md) | Toolchains, packages, versions, ownership and candidates |
+| [Player controls](player-debug.md) | F3 metrics and F3+C VSync/frame-cap commands |
+| [Telemetry](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
+| [Deterministic capture](deterministic-capture.md) | Fixed-step capture, seed precedence and snapshot approval boundaries |
+| [Entity input and C++ components](entity-input-and-code-components.md) | Generic input, component creation, source association and preserving rebuilds |
+| [Scene movement authoring](editor-movement.md) | Components, Play/Stop, diagnostics and laboratory reuse |
+| [Inspector field interactions](editor-field-interactions.md) | Route to the independent Editor's chain/lock/history guide |
+
+## Native modules and API
+
+Each module's manifest routes its public headers, reference contract and evidence.
+Headers own the public API; the reference explains its contract.
+
+| Module | Responsibility |
+|---|---|
+| [Core](modules/core/README.md) | CPU timing, logging, telemetry and images |
+| [Platform](modules/platform/README.md) | Window/context ownership, input and frame limiting |
+| [Render](modules/render/README.md) | GL resources, dimension-neutral View/readback and 2D renderers |
+| [App](modules/app/README.md) | Native player loop and debug/input composition |
+| [Runtime](modules/runtime/README.md) | World, entities, Behaviours, update phases, particles, reflection and projects |
+| [C API](modules/capi/README.md) | Shared-engine C interface and development game modules |
+
+## Features and samples
+
+| Subject | Guide | Sample |
+|---|---|---|
+| Collision and movement | [Ownership, units and limits](collision-movement.md) | [Native movement room](../samples/movement/README.md), [no-code movement lab](../samples/movement-lab/README.md) |
+| Body dynamics | [Gravity, lifecycle and limits](body-dynamics.md) | [Physics lab](../samples/physics-lab/README.md), [compound lab](../samples/compound-lab/README.md) |
+| Body events | [Contact/sensor lifetimes and scene identities](body-events.md) | [Physics lab](../samples/physics-lab/README.md) |
+| Character/body coupling | [Impulses, support carry and placement](character-body-coupling.md) | [Coupling lab](../samples/coupling-lab/README.md) |
+| Dynamic particles | [Gravity and bounded circle-sweep bounce](particle-dynamics.md) | [Sample tree](../samples/) |
+| Particle storage | [Layout, measurements and open design](particle-memory-layout.md) | [Sample tree](../samples/) |
+| Physics telemetry | [Stages, buffers and qualification limits](physics-telemetry.md) | [Telemetry sample](../samples/telemetry/README.md) |
+
+## Direction and design
+
+| Document | Role |
+|---|---|
+| [Roadmap](../ROADMAP.md) | Overall picture, phase rationale, outcomes, acceptance criteria and freezes |
+| [TODO](../TODO.md) | Accepted work, dependencies and gates |
+| [TASKLIST](../TASKLIST.md) | Decomposition of large TODO entries |
+| [Proposals](proposals/README.md) | Design origins and promotion records; the active planners own execution |
+| [Editor authoring consolidation](proposals/editor-authoring-consolidation.md) | Origin of the C++/UX consolidation scope and World/Scene coordination |
+| [Rigid-body requirements](rigid-body-physics-requirements.md) | Dynamics, coupling, migration and staged acceptance design |
+| [Lighting requirements](lighting-requirements.md) | Lights, shadows, emissive surfaces, composition and acceptance design |
+| [Lighting L0 design](lighting-l0-design.md) | Recorded data-model, composition and shadow-technique decisions |
+| [Circuit consumer requirements](circuit-puzzle-requirements.md) | Atmosphere, lighting, movement and circuit panels as design input |
+| [Runtime findings](modules/runtime/FINDINGS.md) | Unconfirmed observations and deferred investigations |
+
+## Evidence and history
+
+| Record | Contents |
+|---|---|
+| [Evidence index](evidence/README.md) | 021/022 decisions and execution, authoring deliveries and links to existing qualification |
+| [Shared-engine/export qualification](shared-engine-export-validation.md) | TODO-051 results, local MCP, lighting snapshot and exact qualification limits |
+| [Physics qualification](physics-qualification.md) | PHY-001–021 coverage, results and acceptance limits |
+| [Lighting L5 consolidation](lighting-l5-consolidation.md) | Scenario matrix, stress report and recorded reference/visual limits |
+| [History](history/README.md) | Completed roadmap outcomes with evidence links and planning baselines |
+| [Legacy archive](archive/README.md) | Preserved earlier chronology, completed work and dated rationale |
+
+## Documentation maintenance
+
+| Document | Contents |
+|---|---|
+| [Policy](governance/documentation-policy.md) | Fact ownership, planning, evidence, closure and commit rules |
+| [Schemas](schemas/README.md) | Metadata vocabulary and historical derivation |
+| [Templates](templates/) | Module, planning, proposal and closure shapes |
+| [Documentation checker](../checkdocs.ps1) | Standalone PowerShell structural check; [usage](development.md#checks-before-a-commit) |

@@ -36,8 +36,8 @@ decisions below is in the [archive](docs/archive/README.md).
 - A game engine whose first target is **2D**.
 - A **C++ runtime** rendering through **OpenGL 4.5 core**.
 - A **standalone player** executable as the deployable form of a game.
-- A **C# editor** that uses PixieInspector to inspect and edit engine state,
-  with hosts on more than one platform.
+- An **SDK** consumed by games and the independent **C# PixieEditor**.
+  Editor source, build and product documentation belong to its own repository.
 - A consumer of **PixieLib**, which supplies the basic primitives and forwards
   to math libraries.
 
@@ -69,8 +69,9 @@ The 2026-11-02 owner decision prioritizes a coherent C++ authoring/editing loop:
 usable Behaviour code and input, predictable viewport interaction, then reviewed
 fields/presets and editor composition. World/Scene backend work keeps its separate
 contract and acceptance; later diagnostics/resources do not block the core loop.
+[PIXIE-ROADMAP-056](#pixie-roadmap-056) owns its accepted outcome and criteria;
 [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation)
-owns that front's accepted scope and ordered blocks, rather than this summary.
+routes its ordered work and dependencies.
 
 The 2026-11-04 owner decision promotes SDK/runtime/Editor separation.
 [PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery)
@@ -79,7 +80,8 @@ artifact qualification. It preserves completed World/Scene behavior and the
 other authoring fronts; promotion does not dispatch every block.
 
 [TODO.md](TODO.md#current-promoted-work) owns the current execution queue,
-scope and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
+dependencies and gates. [TASKLIST.md](TASKLIST.md) owns task decomposition.
+The [delivery phases below](#active-delivery-phases) own scope and acceptance.
 Neither a roadmap direction nor a requirement schedules implementation.
 Completed work is routed through the [history index](docs/history/README.md)
 and the [legacy archive](docs/archive/README.md), rather than repeated here.
@@ -87,12 +89,15 @@ and the [legacy archive](docs/archive/README.md), rather than repeated here.
 ### Accepted direction: expansion required
 
 The owner retained colliders, physics and lighting as roadmap directions and
-confirmed the game's atmosphere/movement priorities. Detailed architecture,
-dependencies, budgets and completion gates remain to be expanded when scoped
-work starts. The [direction record](docs/archive/roadmap-reconciliation-2026-10-22.md#owner-dispositions-after-review)
-preserves the decisions and the earlier design suggestions.
+confirmed the game's atmosphere/movement priorities. This horizon predates
+the delivered collision, dynamics and lighting slices; it is not a list of
+unimplemented features. The [feature guides](docs/README.md#features-and-samples)
+and [evidence index](docs/evidence/README.md) describe those baselines and limits.
+Further expansion needs bounded work in TODO. The
+[direction record](docs/archive/roadmap-reconciliation-2026-10-22.md#owner-dispositions-after-review)
+preserves the decisions and earlier design suggestions.
 
-| Direction | Intended result | Decisions to expand |
+| Direction | Intended result | Design concerns |
 |---|---|---|
 | Colliders, triggers and queries | Reusable geometry queries and predictable interaction events | Shapes/transforms, filtering, event order, backend and edge-case behavior |
 | Basic 2D physics | Bodies, gravity and coherent scene lifecycle | Library/boundary, units, ECS synchronization and verification scenarios |
@@ -101,21 +106,9 @@ preserves the decisions and the earlier design suggestions.
 | Atmosphere and presentation | Coherent world composition, sound and camera behavior | Art/sound direction and the smallest reusable audio, camera and animation facilities |
 | Dynamic particles | A spawner marks its particles dynamic; static and dynamic particles share one pool, and only the dynamic ones feel gravity and colliders (each particle's look, set by its spawner, was delivered by PIXIE-TODO-047) | Per-kind payload, collider responses (bounce, stop, die), and how the dynamic part's cost is reported |
 
-**Particle data design note (owner discussion, 2026-10-26).** A particle is born complete: a
-`ParticleSpawner` creates almost all of them, and `ParticleSystem::Emit` (code and tools) shares the
-same field-filling function; whoever creates a particle sets its kind, which does not change during
-its life. After birth the system owns it, and the step and affectors only evolve it (age, velocity,
-death). PIXIE-TODO-047 delivered the 40-byte layout: RGBA8 color (4), size as a 16-bit half float
-(2), a flags byte (1), and one spare byte. The flags byte holds the dynamic bit and the
-shape (2 bits for 4 shapes, up to 7 bits for 128), so with 4 shapes 13 bits remain free; 48 bytes
-would be needed only for data that does not fit, such as a float size, rotation, or a second color.
-Data for mutually exclusive kinds of particle shares a fixed payload slot read through typed
-accessors (`std::bit_cast`), not a C++ `union`, whose inactive-member reads are undefined; the
-shader reads the slot as integers and decodes it by the flags. Data that only a few particles use,
-or that only the CPU reads (a dynamic particle's contacts or bounces), lives in a side table kept
-in step with the pool's removals, so its cost follows the particles that use it. Collision runs
-only for dynamic particles, so its cost scales with their number, not the pool's; it is reported
-separately in telemetry rather than capped.
+The [particle data design note](docs/particle-memory-layout.md#particle-data-design-note--2026-10-26)
+preserves the owner's layout/payload rationale and separates open designs from
+the delivered particle baseline.
 
 The owner requested detailed body-dynamics planning before proceeding to lighting
 and representative test rooms. The [physics requirements and proposed design](docs/rigid-body-physics-requirements.md)
@@ -196,8 +189,16 @@ retains OpenGL 4.5. The OpenGL 4.3 VMware test is recorded under
 
 ## Active delivery phases
 
-The following accepted outcomes and criteria moved from the execution queue
-on 2026-11-06. Their scope is unchanged; each has one active owner here.
+These blocks own accepted outcomes and criteria; TODO owns execution state.
+Their scope is unchanged by the documentation reorganization.
+
+| Phase | Outcome |
+|---|---|
+| [053](#pixie-roadmap-053) | Reviewed Inspector fields and interactions |
+| [054](#pixie-roadmap-054) | Field chaining and manual edit locks |
+| [055](#pixie-roadmap-055) | Entity input and C++ component authoring |
+| [056](#pixie-roadmap-056) | Coherent Editor and C++ authoring loop |
+| [060](#pixie-roadmap-060) | Independent SDK, runtime and Editor delivery |
 
 ### PIXIE-ROADMAP-053
 
@@ -269,6 +270,18 @@ acceptance limits; documentation migration does not close it.
 dependencies and task decomposition remain there. This phase retains its existing
 acceptance limits; documentation migration does not close it.
 
+### PIXIE-ROADMAP-061
+
+**Outcome:** Native 2D entity parenting and hierarchy authoring in the independent Editor.
+
+**Rationale and source:** the owner promoted [PIXIE-PROPOSAL-023](docs/proposals/native-entity-parenting.md) on 2026-11-07 after the Weapons-Lab composition exposed the need for persistent parent links, relative poses and separately editable entities.
+
+**Accepted scope:** runtime relationships and pose evaluation, authored scenes and snapshots, a compatible SDK and Editor hierarchy UI. Preserve the meaning of flat world-space transforms and existing scene formats. Game-specific fault rules remain in the game. The [D09 freeze](#d09-glfw-distribution) applies.
+
+**Acceptance criteria:** the simple three-level fixture passes runtime, authored persistence, SDK, Editor history/rebuild and standalone export checks before Weapons-Lab is used for consumer acceptance. Each surface records its own evidence. Flat projects retain existing poses, and unsupported readers refuse scenes that require parenting.
+
+**Work:** [PIXIE-TODO-061](TODO.md#pixie-todo-061--native-entity-parenting).
+
 ## Active guardrails
 
 - **2D first.** Accepted 2026-10-09.
@@ -283,8 +296,9 @@ acceptance limits; documentation migration does not close it.
 - **C++20, without modules.** Accepted 2026-10-10. Rationale in the
   [inception record](docs/archive/inception-2026-10-09.md#recommendations-not-yet-accepted).
   Moving to C++26 is to be evaluated later; it is an intention, not a plan.
-- **CMake builds the native side.** Accepted 2026-10-10. The C# editor keeps
-  its own solution.
+- **CMake builds the native side.** Accepted 2026-10-10. The independent C#
+  Editor owns its project and build; the workspace solution aggregates entry
+  points without replacing either project's build ownership.
 - **Object model: an EC-style API over ECS storage.** Game logic is written as
   C++ `Behaviour` classes with `Update()`; components are data-only structs in
   contiguous storage, iterated by engine systems. There is one runtime, and no

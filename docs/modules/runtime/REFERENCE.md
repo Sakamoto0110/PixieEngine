@@ -52,6 +52,7 @@ All under `runtime/include/pixie/runtime/`:
 | `InputControl.hpp` | Entity KeyboardControl/MouseControl with enabled-aware queries and callback opt-in |
 | `Random.hpp` | `Random`, the seeded generator |
 | `Transform2D.hpp` | `Transform2D` and `PreviousTransform2D` |
+| `Parenting2D.hpp` | Parent links, local/world pose edits and hierarchical render interpolation |
 | `Velocity2D.hpp` | `Velocity2D` |
 | `Acceleration2D.hpp` | `Acceleration2D` |
 | `SpatialGrid.hpp` | `SpatialGrid`, radius queries over points |
@@ -384,6 +385,17 @@ the three anchors carries a tooltip. Fields are reached
 through accessor functions generated from member pointers rather than byte offsets, so a
 component need not be standard layout. Empty tag types cannot be described.
 
+`Derived()` and `RuntimeOnly()` keep a field visible to tools and read-only.
+Scene and fragment writers omit both categories, including fields inside a
+record. Readers ignore values for those known fields in older files.
+`ReadOnly()` alone retains authored storage.
+
+A project can lock an existing field for a specific entity through
+`IsAuthoringFieldLocked`. `RefreshAuthoringPreview` updates generated
+geometry after authored edits, before the next Edit render, save or Play.
+`AuthoringCircle` can supply a read-only world-space circle for a selected
+entity. These hooks default to no project-specific policy or preview.
+
 A type marked with `Scenario()` holds a scenario: the values a scene is built from rather than live
 state. A tool offers to rebuild the scene after editing one.
 
@@ -398,6 +410,41 @@ for registry ownership, preserving generation and Open code.
 
 A Behaviour can be described like any component (`types.Add<Spinner>("Spinner").Field<...>`); it is
 then saved in scenes and added back as a Behaviour.
+
+## 2D parenting
+
+`SetParent2D` attaches an entity to a live entity in the same
+World and scope. Both need `Transform2D`. The default `KeepWorld` preserves
+the evaluated pose. `KeepLocal` preserves the child's authored local pose and
+uses its current world pose as local on first attachment. Pass an empty parent
+to detach. `Parent2D` and `Children2D` expose live links. Direct children are
+returned in live entity-handle order. `SetParents2D` reparents the roots of
+the selection as one operation. Selected descendants retain their existing
+links beneath selected ancestors. A failure rejects the whole batch.
+
+`LocalTransform2D` reads the authoritative pose. `SetLocalTransform2D` edits
+it and refreshes evaluated world poses immediately. `SetWorldTransform2D`
+converts a world-space edit into local space for an attached entity. Structural and pose
+edits run between steps, including through `World::Defer`. An empty error
+string means success. Rejection preserves the graph and poses. Parents require
+finite transforms and positive uniform scale. The current slice admits visual
+children without independent movement or collider components.
+
+The attached entity's `Transform2D` is the evaluated world pose. An explicit
+local-pose edit is the supported write route. The World refreshes attached
+poses before PreUpdate, before Physics, before PostUpdate and after deferred
+work. It detects a direct write to a child's world pose and reports an error
+before replacing it. Scope changes that would separate linked entities are
+refused. Destroying a parent detaches surviving direct children with their
+world poses preserved. Their own branches stay attached to them.
+
+`InterpolatedTransform2D` samples the root and local poses before composing
+them for rendering and viewport bounds. Reparent, detach and
+`World::ResetInterpolation` reset the affected branch. Assign a scene ID to
+an authored child and its authored parent before attachment. Runtime-only
+children remain transient. Authored links use the version 3 scene family
+described below. The Editor authoring contract is in
+[Proposal 023](../../proposals/native-entity-parenting.md).
 
 ## Scenes
 
@@ -429,7 +476,7 @@ check without component callbacks, not concurrent-writer protection. The public
 `WriteScene`; there is no public raw scene-text overload. Generic `SaveTextFile` remains
 a lower-level text operation.
 
-Legacy version 1 example (`kSceneFormat` still identifies the format; `kSceneVersion` is now 2):
+Legacy version 1 example (`kSceneFormat` identifies the format; `kSceneVersion` is 3):
 
 ```json
 {
@@ -481,6 +528,24 @@ nothing. Then, per value:
 
 Particle pools' contents, affectors, systems, and anything else without a descriptor are not
 saved; project code builds them.
+
+### Version 3 parenting scenes
+
+A version 3 scene uses the version 1 component admission rules and the same
+flat entity inventory. An attached entity has `parent2D` with its parent's
+stable scene ID. Its `Transform2D` position, rotation and scale are its local
+pose. Roots store their world pose. The loader resolves links after all
+entities are constructed, independent of document order. Missing parents,
+cycles and incomplete poses fail admission. World and Scene scope catalogs
+and canonical presentation stay in the version 2 family.
+
+The writer selects version 3 for authored parenting and retains it after a
+version 3 scene is loaded. Saving across this version boundary requires a new
+destination. Existing files keep their version on a normal save. An older
+reader rejects version 3 before interpreting child transforms. A version 3
+fragment remaps a parent copied in the same set. An external parent must be
+present in the destination by stable ID. The fragment reader refuses a
+missing parent.
 
 ### Entity snapshots
 
@@ -743,8 +808,10 @@ folder of `PROJECT_DIR`, or else the first folder above the executable that hold
 ## Drawing
 
 `SubmitShapes(world, renderer, alpha)` submits each entity with `Transform2D` and `Shape` to a
-`ShapeRenderer`, at the transform interpolated `alpha` of the way from `PreviousTransform2D`:
-position and scale linearly, rotation the short way around (`Interpolate` in `Transform2D.hpp`).
+`ShapeRenderer`, using `InterpolatedTransform2D` for the requested `alpha`.
+For flat entities, position and scale interpolate linearly and rotation takes
+the short way around from `PreviousTransform2D`. For attached entities, the
+same interpolation is applied in the pose space of each node before composition.
 The caller flushes the renderer with its camera. It needs the GL context current, as the renderer
 does.
 
