@@ -80,6 +80,7 @@ add_executable(runtime-tests
     runtime/CompoundAuthoringTests.cpp
     runtime/CollisionLayersTests.cpp
     runtime/OrderIndependenceTests.cpp
+    runtime/ParentingTests.cpp
     runtime/ParticleTests.cpp
     runtime/ParticlePhysicsTests.cpp
     runtime/PathTests.cpp
@@ -103,7 +104,8 @@ target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(runtime-tests PRIVATE Pixie::Runtime nlohmann_json::nlohmann_json)
 target_compile_definitions(runtime-tests PRIVATE
     "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\""
-    "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\"")
+    "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\""
+    "PIXIE_TEST_PARENTING_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/native-parenting/scenes/main.scene\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 

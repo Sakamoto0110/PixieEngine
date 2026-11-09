@@ -13,8 +13,15 @@
 namespace pixie {
 
 class ComponentTypes;
+class Entity;
 class ScreenCanvas;
 class World;
+
+struct AuthoringCircle2D {
+    pxPoint center;
+    double radius = 0.0;             // world units
+    double worldUnitsPerMeter = 1.0;
+};
 
 // A game's code as the engine sees it: how to build its World, what to do with the host's view and
 // input before each step, what to draw on top and on the screen, and which of its components a tool may inspect. The
@@ -54,6 +61,12 @@ public:
     // Draws the game's interface over everything else, in pixels of the view (see ScreenCanvas): in
     // its player and in an editor's viewport, in play and in edit alike.
     virtual void DrawScreen(World& /*world*/, ScreenCanvas& /*screen*/) {}
+
+    // Updates derived previews after authored edits, outside a simulation step.
+    virtual void RefreshAuthoringPreview(World& /*world*/) {}
+    virtual bool IsAuthoringFieldLocked(const Entity& /*entity*/, std::string_view /*type*/,
+                                        std::string_view /*field*/) const { return false; }
+    virtual bool AuthoringCircle(const Entity& /*entity*/, AuthoringCircle2D& /*circle*/) const { return false; }
 };
 
 // Every game library defines this: the project with its default settings. The C API's library for

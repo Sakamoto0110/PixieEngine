@@ -21,6 +21,7 @@
 #include "pixie/runtime/Text.hpp"
 #include "pixie/runtime/TextDrawing.hpp"
 #include "pixie/runtime/Transform2D.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
@@ -162,13 +163,19 @@ std::string ComponentAdditionError(PixieSession* s, uint32_t entity, int32_t typ
         return std::format("version 2 authored components require a declarative contract: {}", descriptor.name);
     if (s->session.GetWorld().Presentation() && descriptor.name == "LightingSettings2D")
         return "canonical presentation owns lighting; legacy component addition is refused";
+    if (pixie::Parent2D(s->session.GetWorld().Wrap(ToEntity(entity)))) {
+        const auto& name = descriptor.name;
+        if (name == "Velocity2D" || name == "Acceleration2D" || name == "RigidBody2D" ||
+            name == "CharacterMotor2D" || name == "Collider2D" || name == "CompoundCollider2D") {
+            return "detach the child before adding an independent movement or collider component";
+        }
+    }
     return descriptor.AdditionError(s->session.GetWorld(), ToEntity(entity));
 }
 
 // Where the last render drew the entity: between the previous step and this one.
-pixie::Transform2D DrawnTransform(PixieSession* s, entt::entity id, const pixie::Transform2D& transform) {
-    const auto* previous = s->session.GetWorld().Registry().try_get<pixie::PreviousTransform2D>(id);
-    return previous != nullptr ? pixie::Interpolate(previous->value, transform, s->session.Alpha()) : transform;
+pixie::Transform2D DrawnTransform(PixieSession* s, entt::entity id, const pixie::Transform2D&) {
+    return pixie::InterpolatedTransform2D(s->session.GetWorld().Wrap(id), s->session.Alpha());
 }
 
 // Creates a session for the game, with the project in `folder` open when it is not null.
@@ -1235,6 +1242,60 @@ PixieResult pixie_entity_scene_id(PixieSession* s, uint32_t entity, uint64_t* id
     return PIXIE_OK;
 }
 
+PixieResult pixie_entity_parent_2d(PixieSession* s, uint32_t entity, uint32_t* parent) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!parent || s->ownerThread != std::this_thread::get_id()) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "parent query requires an output and the session owner thread");
+    }
+    return Guard([&] {
+        const auto child = s->session.GetWorld().Wrap(ToEntity(entity));
+        if (!child) return Fail(PIXIE_ERROR_NOT_FOUND, "entity is no longer alive");
+        const auto target = pixie::Parent2D(child);
+        *parent = target ? target.Number() : UINT32_MAX;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_entities_set_parent_2d(PixieSession* s, const uint32_t* entities, int32_t count,
+                                       uint32_t parent, int32_t keepLocal, int32_t* changed) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!entities || count <= 0 || !changed || (keepLocal != 0 && keepLocal != 1) ||
+        s->ownerThread != std::this_thread::get_id()) {
+        return Fail(PIXIE_ERROR_ARGUMENT, "invalid hierarchy edit or session thread");
+    }
+    return Guard([&] {
+        *changed = 0;
+        auto& world = s->session.GetWorld();
+        if (!s->session.HasProject() || s->session.Mode() != pixie::SessionMode::Edit ||
+            pixie::SceneFormatVersion(world) != pixie::kParentingSceneVersion) {
+            return Fail(PIXIE_ERROR_ARGUMENT, "hierarchy authoring requires a version 3 project scene in Edit mode");
+        }
+        if (static_cast<std::size_t>(count) > world.EntityCount())
+            return Fail(PIXIE_ERROR_ARGUMENT, "hierarchy selection exceeds the number of live entities");
+        const bool detach = parent == UINT32_MAX;
+        if (!detach && !InScene(s, parent))
+            return Fail(PIXIE_ERROR_ARGUMENT, "select an authored entity as the parent");
+        std::vector<pixie::Entity> selection;
+        selection.reserve(static_cast<std::size_t>(count));
+        for (int32_t index = 0; index < count; ++index) {
+            if (!InScene(s, entities[index]))
+                return Fail(PIXIE_ERROR_ARGUMENT, "hierarchy edits require authored children");
+            selection.push_back(world.Wrap(ToEntity(entities[index])));
+        }
+        bool didChange = false;
+        const auto mode = keepLocal ? pixie::ReparentMode2D::KeepLocal : pixie::ReparentMode2D::KeepWorld;
+        const auto target = detach ? pixie::Entity{} : world.Wrap(ToEntity(parent));
+        if (auto error = pixie::SetParents2D(selection, target, mode, &didChange); !error.empty())
+            return Fail(PIXIE_ERROR_ARGUMENT, std::move(error));
+        if (didChange) {
+            s->session.BeginAuthoredMutation();
+            s->session.MarkChanged();
+            *changed = 1;
+        }
+        return PIXIE_OK;
+    });
+}
+
 PixieResult pixie_entity_find(PixieSession* s, uint64_t id, uint32_t* entity) {
     PIXIE_REQUIRE_SESSION(s);
     if (entity == nullptr) {
@@ -1452,6 +1513,12 @@ PixieResult pixie_component_remove(PixieSession* s, uint32_t entity, int32_t typ
         if (descriptor->find(s->session.GetWorld().Registry(), ToEntity(entity)) == nullptr) {
             return Fail(PIXIE_ERROR_NOT_FOUND, std::format("entity {} is gone or has no {}", entity, descriptor->name));
         }
+        if (descriptor->type == entt::type_hash<pixie::Transform2D>::value()) {
+            const auto selected = s->session.GetWorld().Wrap(ToEntity(entity));
+            if (pixie::Parent2D(selected) || !pixie::Children2D(selected).empty()) {
+                return Fail(PIXIE_ERROR_ARGUMENT, "detach hierarchy links before removing Transform2D");
+            }
+        }
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
@@ -1496,7 +1563,9 @@ PixieResult pixie_field_info(PixieSession* s, int32_t type, int32_t field, Pixie
     info->kind = static_cast<int32_t>(descriptor->kind);
     info->editor = static_cast<int32_t>(m.editor);
     info->flags = (m.readOnly ? PIXIE_FIELD_READ_ONLY : 0u) | (m.hasRange ? PIXIE_FIELD_HAS_RANGE : 0u) |
-                  (m.hasUnit ? PIXIE_FIELD_HAS_UNIT : 0u);
+                  (m.hasUnit ? PIXIE_FIELD_HAS_UNIT : 0u) |
+                  (m.storage == pixie::FieldStorage::Derived ? PIXIE_FIELD_DERIVED : 0u) |
+                  (m.storage == pixie::FieldStorage::Runtime ? PIXIE_FIELD_RUNTIME : 0u);
     info->order = m.order;
     info->scrubAxis = static_cast<int32_t>(m.scrubAxis);
     info->enumCount = static_cast<int32_t>(descriptor->enumNames.size());
@@ -1535,6 +1604,54 @@ PixieResult pixie_field_text(PixieSession* s, int32_t type, int32_t field, int32
     default:
         return Fail(PIXIE_ERROR_ARGUMENT, std::format("no field text {}", which));
     }
+}
+
+PixieResult pixie_field_group(PixieSession* s, int32_t type, int32_t field, char* buffer, int32_t capacity) {
+    PIXIE_REQUIRE_SESSION(s);
+    const auto* descriptor = FieldAt(s, type, field);
+    if (!descriptor) return Fail(PIXIE_ERROR_ARGUMENT, "no such field");
+    return Copy(descriptor->metadata.group, buffer, capacity);
+}
+
+static bool AuthoringLocked(PixieSession* s, uint32_t entity, int32_t type, const pixie::FieldDescriptor& field) {
+    return field.metadata.storage != pixie::FieldStorage::Authored ||
+        s->session.GetProject().IsAuthoringFieldLocked(s->session.GetWorld().Wrap(ToEntity(entity)),
+                                                       TypeAt(s, type)->name, field.name);
+}
+
+PixieResult pixie_field_authoring_lock(PixieSession* s, uint32_t entity, int32_t type, int32_t field, int32_t* locked) {
+    PIXIE_REQUIRE_SESSION(s);
+    const auto* descriptor = FieldAt(s, type, field);
+    if (!descriptor || !locked) return Fail(PIXIE_ERROR_ARGUMENT, "field and lock output are required");
+    return Guard([&] {
+        if (!s->session.GetWorld().Registry().valid(ToEntity(entity)))
+            return Fail(PIXIE_ERROR_NOT_FOUND, "the entity is gone");
+        *locked = AuthoringLocked(s, entity, type, *descriptor) ? 1 : 0;
+        return PIXIE_OK;
+    });
+}
+
+PixieResult pixie_authoring_circle(PixieSession* s, uint32_t entity, double* x, double* y, double* radius, double* diameter_m) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!x || !y || !radius || !diameter_m) return Fail(PIXIE_ERROR_ARGUMENT, "circle outputs are required");
+    return Guard([&] {
+        *x = *y = *radius = *diameter_m = 0.0;
+        auto target = s->session.GetWorld().Wrap(ToEntity(entity));
+        pixie::AuthoringCircle2D circle;
+        if (s->session.Mode() != pixie::SessionMode::Edit || !target.IsAlive() ||
+            !s->session.GetProject().AuthoringCircle(target, circle)) return PIXIE_OK;
+        if (!std::isfinite(circle.center.x) || !std::isfinite(circle.center.y) ||
+            !std::isfinite(circle.radius) || circle.radius <= 0.0 ||
+            !std::isfinite(circle.worldUnitsPerMeter) || circle.worldUnitsPerMeter <= 0.0)
+            return Fail(PIXIE_ERROR_ARGUMENT, "invalid authoring circle");
+        const double diameter = 2.0 * (circle.radius / circle.worldUnitsPerMeter);
+        if (!std::isfinite(diameter)) return Fail(PIXIE_ERROR_ARGUMENT, "invalid authoring circle diameter");
+        *x = circle.center.x;
+        *y = circle.center.y;
+        *radius = circle.radius;
+        *diameter_m = diameter;
+        return PIXIE_OK;
+    });
 }
 
 int32_t pixie_field_enum_count(PixieSession* s, int32_t type, int32_t field) {
@@ -1596,6 +1713,7 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
         if (component == nullptr) {
             return result;
         }
+        if (AuthoringLocked(s, entity, type, *descriptor)) return Fail(PIXIE_ERROR_ARGUMENT, "field is controlled by the project");
         const auto nativeType = TypeAt(s, type)->type;
         auto& world = s->session.GetWorld();
         if (nativeType == entt::type_hash<pixie::CameraComponent2D>::value() &&
@@ -1632,8 +1750,21 @@ PixieResult pixie_field_set(PixieSession* s, uint32_t entity, int32_t type, int3
                 return Fail(PIXIE_ERROR_ARGUMENT, error);
             }
         }
-        if (InScene(s, entity)) s->session.BeginAuthoredMutation();
-        descriptor->write(component, pixie::FieldValue{value->x, value->y, value->z, value->w});
+        const auto target = world.Wrap(ToEntity(entity));
+        const pixie::FieldValue fieldValue{value->x, value->y, value->z, value->w};
+        if (nativeType == entt::type_hash<pixie::Transform2D>::value() &&
+            (pixie::Parent2D(target) || !pixie::Children2D(target).empty())) {
+            auto pose = *static_cast<const pixie::Transform2D*>(component);
+            descriptor->write(&pose, fieldValue);
+            if (const auto error = pixie::SetWorldTransform2D(target, pose); !error.empty()) {
+                return Fail(PIXIE_ERROR_ARGUMENT, error);
+            }
+            world.ResetInterpolation(target);
+            if (InScene(s, entity)) s->session.BeginAuthoredMutation();
+        } else {
+            if (InScene(s, entity)) s->session.BeginAuthoredMutation();
+            descriptor->write(component, fieldValue);
+        }
         if (InScene(s, entity)) {
             s->session.MarkChanged();
         }
@@ -1681,6 +1812,7 @@ PixieResult pixie_field_set_text(PixieSession* s, uint32_t entity, int32_t type,
         if (component == nullptr) {
             return result;
         }
+        if (AuthoringLocked(s, entity, type, *descriptor)) return Fail(PIXIE_ERROR_ARGUMENT, "field is controlled by the project");
         if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         descriptor->writeText(component, text);
         if (InScene(s, entity)) {
@@ -1734,6 +1866,7 @@ PixieResult pixie_field_set_points(PixieSession* s, uint32_t entity, int32_t typ
         if (component == nullptr) {
             return result;
         }
+        if (AuthoringLocked(s, entity, type, *descriptor)) return Fail(PIXIE_ERROR_ARGUMENT, "field is controlled by the project");
         std::vector<pxPoint> points;
         points.reserve(static_cast<std::size_t>(count));
         for (int32_t i = 0; i < count; ++i) {
@@ -1772,7 +1905,8 @@ PixieResult pixie_record_edit(PixieSession* s, uint32_t entity, int32_t type, in
         if (index < 0 || (remove != 0 && remove != 1) || static_cast<std::size_t>(index) > count
             || (remove && static_cast<std::size_t>(index) == count) || (!remove && count >= 256))
             return Fail(PIXIE_ERROR_ARGUMENT, "record edit index or count is out of range");
-        if (access.list->metadata.readOnly) return Fail(PIXIE_ERROR_ARGUMENT, "record list is read-only");
+        if (access.list->metadata.readOnly || AuthoringLocked(s, entity, type, *access.list))
+            return Fail(PIXIE_ERROR_ARGUMENT, "record list is read-only");
         if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         if (remove) access.list->eraseRecord(access.owner, static_cast<std::size_t>(index));
         else access.list->insertRecord(access.owner, static_cast<std::size_t>(index));
@@ -1802,7 +1936,8 @@ PixieResult pixie_record_set(PixieSession* s, uint32_t entity, int32_t type, int
         RecordAccess access;
         const auto result = RecordOf(s, entity, type, list, index, field, access);
         if (result != PIXIE_OK) return result;
-        if (!access.field->write || access.field->metadata.readOnly || access.list->metadata.readOnly)
+        if (!access.field->write || access.field->metadata.readOnly || access.list->metadata.readOnly ||
+            AuthoringLocked(s, entity, type, *access.list))
             return Fail(PIXIE_ERROR_ARGUMENT, "record field is not writable numeric data");
         if (const auto checked = CheckEnumValue(*access.field, value->x); checked != PIXIE_OK) return checked;
         if (InScene(s, entity)) s->session.BeginAuthoredMutation();
@@ -1834,7 +1969,8 @@ PixieResult pixie_record_set_points(PixieSession* s, uint32_t entity, int32_t ty
         RecordAccess access;
         const auto result = RecordOf(s, entity, type, list, index, field, access);
         if (result != PIXIE_OK) return result;
-        if (!access.field->writePoints || access.field->metadata.readOnly || access.list->metadata.readOnly)
+        if (!access.field->writePoints || access.field->metadata.readOnly || access.list->metadata.readOnly ||
+            AuthoringLocked(s, entity, type, *access.list))
             return Fail(PIXIE_ERROR_ARGUMENT, "record points are not writable");
         std::vector<pxPoint> points;
         for (int32_t i = 0; i < count; ++i) points.emplace_back(xy[2*i], xy[2*i+1]);
@@ -1866,7 +2002,8 @@ PixieResult pixie_record_set_text(PixieSession* s, uint32_t entity, int32_t type
         RecordAccess access;
         const auto result = RecordOf(s, entity, type, list, index, field, access);
         if (result != PIXIE_OK) return result;
-        if (!access.field->writeText || access.field->metadata.readOnly || access.list->metadata.readOnly)
+        if (!access.field->writeText || access.field->metadata.readOnly || access.list->metadata.readOnly ||
+            AuthoringLocked(s, entity, type, *access.list))
             return Fail(PIXIE_ERROR_ARGUMENT, "record text is not writable");
         if (InScene(s, entity)) s->session.BeginAuthoredMutation();
         access.field->writeText(access.item, text);

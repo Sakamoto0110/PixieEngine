@@ -86,6 +86,8 @@ public enum PixieFieldFlags : uint
     ReadOnly = 1,
     HasRange = 2,
     HasUnit = 4,
+    Derived = 8,
+    Runtime = 16,
 }
 
 public enum PixieFieldText
@@ -319,6 +321,16 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_field_text")]
     internal static partial PixieResult FieldText(nint session, int type, int field, int which, byte* buffer, int capacity);
 
+    [LibraryImport(Library, EntryPoint = "pixie_field_group")]
+    internal static partial PixieResult FieldGroup(nint session, int type, int field, byte* buffer, int capacity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_authoring_lock")]
+    internal static partial PixieResult FieldAuthoringLock(nint session, uint entity, int type, int field, out int locked);
+
+    [LibraryImport(Library, EntryPoint = "pixie_authoring_circle")]
+    internal static partial PixieResult AuthoringCircle(nint session, uint entity, out double x, out double y,
+        out double radius, out double diameterMetres);
+
     [LibraryImport(Library, EntryPoint = "pixie_field_enum_name")]
     internal static partial PixieResult FieldEnumName(nint session, int type, int field, int value, byte* buffer, int capacity);
 
@@ -424,6 +436,13 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_entity_find")]
     internal static partial PixieResult EntityFind(nint session, ulong id, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_parent_2d")]
+    internal static partial PixieResult EntityParent2D(nint session, uint entity, out uint parent);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entities_set_parent_2d")]
+    internal static partial PixieResult EntitiesSetParent2D(nint session, uint* entities, int count, uint parent,
+                                                             int keepLocal, out int changed);
 
     [LibraryImport(Library, EntryPoint = "pixie_entities_validate", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult EntitiesValidate(nint session, string snapshot, int ids, ulong* replacing, int count);

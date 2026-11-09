@@ -18,6 +18,7 @@ add_library(pixie_runtime OBJECT
     src/ParticleStep.cpp
     src/ParticlePhysics2D.cpp
     src/PathDrawing.cpp
+    src/Parenting2D.cpp
     src/ProjectApp.cpp
     src/ProjectFile.cpp
     src/ProjectSession.cpp

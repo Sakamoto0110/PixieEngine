@@ -34,6 +34,39 @@
 
 using namespace pixie;
 
+TEST(InspectionOnlyFieldsIgnoreLegacyValuesAndStayOutOfSceneSaves) {
+    struct Data {
+        double authored = 1.0;
+        double readOnly = 2.0;
+        double derived = 3.0;
+        double runtime = 4.0;
+    };
+    ComponentTypes types;
+    types.Add<Data>("Data")
+        .Field<&Data::authored>("authored")
+        .Field<&Data::readOnly>("readOnly").ReadOnly()
+        .Field<&Data::derived>("derived").Derived()
+        .Field<&Data::runtime>("runtime").RuntimeOnly();
+    const std::string text = R"({"format":"pixie-scene","version":1,"seed":1,"entities":[{"id":"0000000000000001","components":{"Data":{"v":1,"authored":10,"readOnly":20,"derived":30,"runtime":40,"unknown":50}}}]})";
+    World world;
+    CHECK(ReadScene(world, types, text).ok);
+    const auto view = world.Registry().view<Data>();
+    CHECK(view.size() == 1);
+    auto& data = view.get<Data>(view.front());
+    CHECK(data.authored == 10.0);
+    CHECK(data.readOnly == 20.0);
+    CHECK(data.derived == 3.0);
+    CHECK(data.runtime == 4.0);
+    data.derived = 30.0;
+    data.runtime = 40.0;
+    const auto saved = nlohmann::json::parse(WriteScene(world, types))["entities"][0]["components"]["Data"];
+    CHECK(saved["authored"] == 10.0);
+    CHECK(saved["readOnly"] == 20.0);
+    CHECK(saved["unknown"] == 50.0);
+    CHECK(!saved.contains("derived"));
+    CHECK(!saved.contains("runtime"));
+}
+
 TEST(DeclarativeProjectDataRoundTripsV2WhileUnsupportedTypesRefusePureAdmission) {
     struct Data { double value; int count; };
     struct LegacyData { double value; };
@@ -1202,7 +1235,7 @@ TEST(VersionTwoSaveCannotImplicitlyConvertExistingVersionOneFile) {
     CHECK(SaveSceneFile(recovered, types, path).ok);
     CHECK(nlohmann::json::parse(bytes())["sceneScopes"][0]["id"] == "00000000000000aa");
     for (const auto& invalid : {std::string("{broken"),
-            std::string(R"({"format":"pixie-scene","version":3,"entities":[]})")}) {
+            std::string(R"({"format":"pixie-scene","version":4,"entities":[]})")}) {
         CHECK(SaveTextFile(invalid, path).ok);
         CHECK(!SaveSceneFile(recovered, types, path).ok && bytes() == invalid);
     }

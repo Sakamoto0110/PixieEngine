@@ -147,6 +147,8 @@ typedef enum PixieEditorKind {
 #define PIXIE_FIELD_READ_ONLY 1u
 #define PIXIE_FIELD_HAS_RANGE 2u
 #define PIXIE_FIELD_HAS_UNIT 4u
+#define PIXIE_FIELD_DERIVED 8u
+#define PIXIE_FIELD_RUNTIME 16u
 
 /* How a tool shows and edits a field. Range, step, and scrub are in the displayed unit: shown =
  * held * unitFactor + unitOffset. */
@@ -460,6 +462,14 @@ PIXIE_API PixieResult pixie_entity_set_name(PixieSession* session, uint32_t enti
 PIXIE_API PixieResult pixie_entity_scene_id(PixieSession* session, uint32_t entity, uint64_t* id);
 PIXIE_API PixieResult pixie_entity_find(PixieSession* session, uint64_t id, uint32_t* entity);
 
+/* Optional parenting extension. UINT32_MAX denotes a root or a detach target.
+ * The edit applies to authored selections in a version 3 scene in Edit mode.
+ * keep_local is 0 (keep world pose) or 1 (keep local pose). */
+PIXIE_API PixieResult pixie_entity_parent_2d(PixieSession* session, uint32_t entity, uint32_t* parent);
+PIXIE_API PixieResult pixie_entities_set_parent_2d(PixieSession* session, const uint32_t* entities,
+                                                int32_t count, uint32_t parent, int32_t keep_local,
+                                                int32_t* changed);
+
 /* Snapshots: scene entities as text in the scene's format (format "pixie-entities"), to bring them
  * back or copy them. pixie_entities_snapshot writes `count` entities into `buffer` with a NUL and
  * sets `length` to the text's full length; a null buffer with capacity 0 asks for the length, and a
@@ -539,6 +549,14 @@ PIXIE_API PixieResult pixie_field_info(PixieSession* session, int32_t type, int3
                                        PixieFieldInfo* info);
 PIXIE_API PixieResult pixie_field_text(PixieSession* session, int32_t type, int32_t field,
                                        int32_t which, char* buffer, int32_t capacity);
+/* Optional presentation extension. A slash-separated group path, or empty for a root field. */
+PIXIE_API PixieResult pixie_field_group(PixieSession* session, int32_t type, int32_t field,
+                                      char* buffer, int32_t capacity);
+/* Optional authoring extensions. A circle radius of zero means no guide for this selection. */
+PIXIE_API PixieResult pixie_field_authoring_lock(PixieSession* session, uint32_t entity,
+                                                int32_t type, int32_t field, int32_t* locked);
+PIXIE_API PixieResult pixie_authoring_circle(PixieSession* session, uint32_t entity,
+                                            double* x, double* y, double* radius, double* diameter_m);
 PIXIE_API int32_t pixie_field_enum_count(PixieSession* session, int32_t type, int32_t field);
 PIXIE_API PixieResult pixie_field_enum_name(PixieSession* session, int32_t type, int32_t field,
                                             int32_t value, char* buffer, int32_t capacity);
