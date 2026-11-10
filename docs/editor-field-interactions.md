@@ -10,34 +10,38 @@
 
 **Subject:** local editor adoption of numeric chains and manual edit locks
 
-**Surface:** guide
+**Surface:** portal
 
 **Boundary:** global
 
-**Authority role:** normative
+**Authority role:** portal
 
 **Mutation:** authored
 
-**Indexing:** include
+**Indexing:** pointer-only
 
-This guide moved to PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+**Canonical:** docs/editor-field-interactions.md
+
+**Canonical scope:** pixieeditor
+
+This portal preserves Engine links. [The canonical guide](../../PixieEditor/docs/editor-field-interactions.md) is owned by the independent Editor repository.
 
 ## Editing behavior
 
-See PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#editing-behavior).
 
 ## History and lifetime
 
-See PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#history-and-lifetime).
 
 ## Explicit local source mode
 
-See PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#explicit-local-source-mode).
 
 ## Selected package mode
 
-See PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#selected-package-mode).
 
 ## Qualification
 
-See PixieEditor's `docs/editor-field-interactions.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#qualification).

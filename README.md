@@ -1,5 +1,10 @@
 # PixieEngine
 
+Workspace contributors: start with the [Engine filesystem map](FILESYSTEM.md) for
+local ownership and the [Pixie workspace entry](../../.governance/workplaces/void-workplace/README.md)
+for applicable shared rules and cross-project navigation. These documentation routes
+do not make a workspace or sibling checkout a build/runtime dependency.
+
 [![CI](https://github.com/Sakamoto0110/PixieEngine/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/Sakamoto0110/PixieEngine/actions/workflows/ci.yml)
 
 A 2D-first game engine with a C++20 runtime on OpenGL 4.5 core. This repository

@@ -22,12 +22,12 @@
 
 ## Purpose
 
-This file is a child scheduler of [`TODO.md`](TODO.md). Each section breaks
-one promoted `TODO.md` entry into tasks, so that large entries, or entries made
-of many small tasks, do not pollute `TODO.md`.
+This file owns Engine task states and routes inherited workspace parents through
+[`TODO.md`](TODO.md). Sections may contribute to a workspace TODO rather than a
+new local parent. Compatibility sections contain links, not duplicate task states.
 
-- Every section names its parent in `Parent`, and the parent links back here
-  in `Breakdown`.
+- Current task sections name their canonical parent in `Parent`; the workspace
+  breakdown links to each project's current task owner.
 - Tasks decompose the parent's accepted scope and never extend it.
 - When the parent completes, remove its section through the
   [closure flow](docs/history/README.md). Retain only important details or links
@@ -40,7 +40,8 @@ and the section shape is in the
 
 ## Open breakdowns
 
-Pending decomposition and its necessary constraints live here. Historical
+Engine task states and compatibility routes live here. Shared block constraints
+are owned by the linked workspace. The 055/061 sections retain completed-task provenance. Historical
 execution records are discoverable through the [evidence index](docs/evidence/README.md).
 
 ## `PIXIE-TODO-055` — Entity input and C++ component authoring
@@ -54,158 +55,129 @@ independent review. No new implementation or test task is introduced here.
 
 ## `PIXIE-TODO-056` — Editor and C++ authoring consolidation
 
-**Parent:** [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation)
+**Parent:** [PIXIE-TODO-056](../../.governance/workplaces/void-workplace/TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation).
 
-**Promotion:** owner decision, 2026-11-02. Proposal 017 preserves the originating
-reasoning; this section owns execution ordering, task state and block boundaries.
-The task states below retain the recorded baseline. Documentation cleanup
-does not authorize execution or change acceptance.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-todo-056--editor-and-c-authoring-consolidation). Current shared context is required before execution.
 
 ### Block A — C++ code, input events and Behaviour authoring rework (P0.1; proposal 4.1/4.2)
 
-**Scope:** reusable native Behaviour types, event delivery, contextual templates,
-source navigation and separate create/attach/build operations in the existing project.
-**Boundaries:** no alternate scripting language, per-entity source copies, duplicate
-registration/build pipeline, compulsory input-controller attachment for callbacks,
-or incidental physics/World rewrite. Preserve edited C++/CMake, legacy scene behavior,
-fixed-step order, filtering/opt-out, unsaved handoff, exact targets and IntelliSense.
-Keep runtime code in Engine, editor composition in its C# host; shared generic
-Inspector changes require a bounded contract, not gameplay logic in the library.
-**Entry/exit:** start from 055's actual delivered candidate. Close with one normal
-editor C++ loop and owner UX review. Creating code must not force immediate build;
-new native types remain visibly pending until compiled. Hot reload without restart
-is not implicitly required. Keep instance enable/disable useful independently of wiring.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-a--c-code-input-events-and-behaviour-authoring-rework-p01-proposal-4142). Current shared context is required before execution.
 
 #### A.1 — C++ code creation, navigation and contextual templates
 
-- `PIXIE-TASK-225` — **Status:** open — Rework create/attach/edit/build presentation, coherent Behaviour grouping and source navigation; generate minimal selected callbacks and native public headers for the selection's common components, without modifying an existing Behaviour on attachment.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#a1--c-code-creation-navigation-and-contextual-templates). Current shared context is required before execution.
+
+<a id="pixie-task-225"></a>
+- [PIXIE-TASK-225](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-225) — transferred; this location has no mutable status.
 
 #### A.2 — Input events and callbacks without controller prerequisites
 
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#a2--input-events-and-callbacks-without-controller-prerequisites). Current shared context is required before execution.
+
+<a id="pixie-task-226"></a>
 - `PIXIE-TASK-226` — **Status:** open — Remove KeyboardControl/MouseControl as event-unlocking prerequisites; define enabled/filtering/unused-handler delivery and explicit compatibility for saved scenes without hardcoded gameplay actions or unbounded event fan-out.
 
 #### A.3 — End-to-end authoring verification and first example
 
-- `PIXIE-TASK-227` — **Status:** open — Qualify contextual Get/TryGet, code preservation, pending build/attachment and normal Debug/Release use; provide the first working example and independently review the slice before owner UX acceptance.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#a3--end-to-end-authoring-verification-and-first-example). Current shared context is required before execution.
+
+<a id="pixie-task-227"></a>
+- [PIXIE-TASK-227](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-227) — transferred; this location has no mutable status.
 
 ### Block B — Predictable viewport gestures (P0.2; proposal 5)
 
-**Scope:** middle-click/pan, focus/capture, coordinate conversion, resize/DPI.
-**Boundaries:** first measure camera AND entity transforms. Do not assume World
-is the cause, change gameplay input semantics incidentally, or redesign toolbars.
-**Entry/exit:** independent of A and C; close with inert stationary middle-click,
-camera-only deliberate pan, clean cancellation and a regression reproducing the symptom.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-b--predictable-viewport-gestures-p02-proposal-5). Current shared context is required before execution.
 
-- `PIXIE-TASK-228` — **Status:** open — Reproduce the reported middle-click jump with native camera/transform readback, correct its demonstrated cause and qualify focus, drag threshold, resize and capture transitions.
+<a id="pixie-task-228"></a>
+- [PIXIE-TASK-228](../PixieEditor/TASKLIST.md#pixie-task-228) — transferred; this location has no mutable status.
 
 ### Block C — World/Scene integration handoff (P0.3; proposal 7)
 
-**Scope:** interface agreement for identity, authored/effective properties, scene
-context, Play/Stop/Reset, dirty state and rebuilding consumers.
-**Boundaries:** proposal 016 and its execution/review blueprints own the separate
-backend experiment. No streaming policy, second managed resolver, or backend work
-inside this editor block. Its completion does not accept Luna's implementation.
-**Entry/exit:** use a frozen backend contract/candidate once available; do not make
-local authoring or camera corrections wait for it. Record independent backend acceptance.
-
-The completed PIXIE-TASK-229 handoff is recorded in the
-[authoring evidence](docs/evidence/authoring-2026-11-06.md#world-and-scene-handoff).
-No active backend implementation task is scheduled by this block.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-c--worldscene-integration-handoff-p03-proposal-7). Current shared context is required before execution.
 
 ### Block D — Field inventory and meaningful Inspector (P1.1; proposal 6.1)
 
-**Scope:** inventory, units, defaults, active/inactive conditions, geometry/layers,
-displayed dimensions, chain/lock meaning and field ownership.
-**Boundaries:** retain 053's owner review of inventory and target rules before
-implementation. No changing physics from drawable edits, dropping inactive/unknown
-data, or teaching PixieInspector domain rules through type-name checks. Preserve 054.
-**Entry/exit:** produce one decision per inventoried field and an explicit mapping
-to 053; agree the implementation owner once, with no competing mutable checklist.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-d--field-inventory-and-meaningful-inspector-p11-proposal-61). Current shared context is required before execution.
 
-- `PIXIE-TASK-230` — **Status:** open — Prepare/reconcile the field inventory under 053, obtain target-rule review, then qualify the agreed bounded changes with history, multi-selection, cancellation, persistence and native readback.
+<a id="pixie-task-230"></a>
+- [PIXIE-TASK-230](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-230) — transferred; this location has no mutable status.
 
 ### Block E — Presets, Session and viewport controls (P1.2; proposal 6.2)
 
-**Scope:** explain entity presets and their resulting bundles; make Session state
-and editing/game input controls understandable at practical widths and DPI.
-**Boundaries:** presets are not new ECS object kinds. A motor starter must not
-silently promise playable movement without visible game code. Toolbar placement
-is a prototype for owner review, not an already accepted permanent layout.
-**Entry/exit:** use the clarified authoring and field contracts; close with the
-owner-reviewed prototype and deliberate, documented action/state semantics.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-e--presets-session-and-viewport-controls-p12-proposal-62). Current shared context is required before execution.
 
-Preserve the [accepted visual prototype](docs/evidence/authoring-2026-11-06.md#viewport-session-and-entities-prototype).
-
-- `PIXIE-TASK-231` — **Status:** in-progress — Reconcile the remaining preset, Session and viewport-control scope while preserving the accepted Viewport, Session and Entities prototype. Authoring and Inspector-field gates remain separate.
+<a id="pixie-task-231"></a>
+- [PIXIE-TASK-231](../PixieEditor/TASKLIST.md#pixie-task-231) — transferred; this location has no mutable status.
 
 ### Block F — Later diagnostics and resource workflows (P2; proposal 8)
 
-**Scope:** advanced telemetry, editor asset manager and runtime resource manager.
-**Boundaries:** keep editor browsing/import/assignment separate from runtime
-loading/cache/lifetime; reuse existing telemetry. No manager is a prerequisite
-for A/B. This is an accepted later front, not permission to invent a broad framework.
-**Entry/exit:** defer until the core loop is accepted; first formalize identity,
-lifetimes, missing-resource behavior and reload boundaries, then expand numbered
-tasks here under this parent before implementation. No externally published API
-or cross-repository modification without its own necessary contract review.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-f--later-diagnostics-and-resource-workflows-p2-proposal-8). Current shared context is required before execution.
 
-- `PIXIE-TASK-232` — **Status:** open — After the earlier usability gates, formalize and decompose the later diagnostics/asset/resource scope, implement its accepted slices and record bounded acceptance, or obtain an explicit deferral/disposition before parent closure.
+<a id="pixie-task-232"></a>
+- [PIXIE-TASK-232](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-232) — transferred; this location has no mutable status.
 
 ### Block G — Integrated acceptance and documentation (proposal 9)
 
-**Scope:** one end-to-end owner exercise and evidence tying the slices together.
-**Boundaries:** no blind repetition of every matrix for each UI/doc edit. Record
-baseline/candidate hashes, actual commands/configurations and limits; producer
-self-tests do not replace independent review or owner UX acceptance. Do not
-archive unrelated entries, change project-wide documentation governance, or
-claim streaming/assets/other platforms from the bounded World snapshot experiment.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#block-g--integrated-acceptance-and-documentation-proposal-9). Current shared context is required before execution.
 
-- `PIXIE-TASK-233` — **Status:** open — Run the proposal's integrated exercise on normal editor outputs, reconcile each slice's independent evidence and owner UX decision, update guides and retain explicit dispositions for unfinished/deferred scope.
+<a id="pixie-task-233"></a>
+- [PIXIE-TASK-233](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-233) — transferred; this location has no mutable status.
 
 ## `PIXIE-TODO-060` — Engine SDK, game runtime and Editor separation
 
-**Parent:** [PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery)
+**Parent:** [PIXIE-TODO-060](../../.governance/workplaces/void-workplace/TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
 
-The SDK and standalone Editor implementation and local cutover exist. The
-[roadmap](ROADMAP.md#pixie-roadmap-060) owns the accepted scope. This list retains
-only the baseline's pending dispositions, without changing acceptance or
-scheduling new runs. Read the [recorded gate table](docs/evidence/sdk-editor-separation-2026-11-06.md#execution-results-and-gate-dispositions)
-for the exact evidence limits, and the [decision record](docs/evidence/sdk-editor-separation-2026-11-06.md#preservation-and-decision-prerequisites)
-for the accepted product boundaries.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation). Current shared context is required before execution.
 
 ### B0 — Contract readiness and coordinated extraction
 
-- `PIXIE-TASK-242` — **Status:** in-progress — Reconcile actual HEAD and dirty work with completed 018; prepare D01-D12/D14 outcomes for owner decisions at their deadlines, select optional blocks, freeze C01-C12 interfaces/product profiles and exact unit/path/artifact ledgers for dispatch. Pass G0 per affected unit; reject duplicate ownership or an unresolved prerequisite. Preserve unrelated player/export/proposal work.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#b0--contract-readiness-and-coordinated-extraction). Current shared context is required before execution.
+
+<a id="pixie-task-242"></a>
+- [PIXIE-TASK-242](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-242) — transferred; this location has no mutable status.
 
 ### K01 — Native SDK and consumer support, one agent
 
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#k01--native-sdk-and-consumer-support-one-agent). Current shared context is required before execution.
+
+<a id="pixie-task-243"></a>
 - `PIXIE-TASK-243` — **Status:** in-progress — B4: define and implement selected compatibility identity and low-level interop delivery, keeping Editor session/history policy in B5. Preserve ABI28/contract1 candidate checks, token/receipt layouts, module leases and teardown. G2 rejects incompatible ABI/config/profile and unsupported authored types without treating C ABI equality as C++ compatibility or promising rollback of external effects.
 
+<a id="pixie-task-244"></a>
 - `PIXIE-TASK-244` — **Status:** in-progress — B1: produce the selected relocatable SDK/profile manifest, public targets/headers, player/module inputs, compiled math, dependency closure, CPU/toolchain/CRT identity, notices and provenance. Pass G1 with B9 through an external consumer and unavailable producer checkout, including World/Scene/presentation headers and missing-dependency negatives; package mode neither rebuilds Engine nor silently falls back to its sources.
 
+<a id="pixie-task-245"></a>
 - `PIXIE-TASK-245` — **Status:** in-progress — B2: consume the qualified SDK and frozen B4 contract for game/player support, CMake helpers, templates, registry markers/schema and bootstrap. G2 covers new, recognized legacy, registered and unfamiliar custom projects, code/no-code inputs and mismatch/refusal cases; preserve edited user code/CMake, hashes/preimages, explicit contract1 admission and v1 scene-conversion safeguards.
 
 ### K02 — Export and Editor authoring, one agent
 
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#k02--export-and-editor-authoring-one-agent). Current shared context is required before execution.
+
+<a id="pixie-task-246"></a>
 - `PIXIE-TASK-246` — **Status:** in-progress — B3: deliver the native SDK-aware exporter, accepted CLI/product policy, selected-runtime/descriptor/manifest identity and nonadjacent dependency resolution. Pass G3 with code/no-code runtime-only launch, asset/native/CRT closure, complete v2 scopes/presentation/seed/opaque data and unchanged v1 policy. Detect missing DLLs, mixed identities and development payload contamination without producer-machine paths.
 
-- `PIXIE-TASK-247` — **Status:** in-progress — B5: make Editor an independent SDK consumer with explicit selection/discovery, portable project requirements, cache/profile continuity, selected Inspector adoption, authoring/export capabilities and owned native graphics assets. G4 exercises two SDKs, mismatch/relocation, create/open/Add code, full dirty v2 rebuild/reopen, exact targets, camera/Environment, Play/Stop, history and committed recovery. Verify the proposal 022 GLFW version and graphics smoke requirements. D09 shared-binary implementation and detailed provider qualification remain frozen. Preserve 018 in admitted package/local Inspector modes and record visual regression evidence for changed surfaces.
+<a id="pixie-task-247"></a>
+- [PIXIE-TASK-247](../PixieEditor/TASKLIST.md#pixie-task-247) — transferred; this location has no mutable status.
 
 ### B6/B7/B8 — Standalone adapters and conditional dependencies
 
-- `PIXIE-TASK-248` — **Status:** in-progress — B6: adapt native/editor development protocols and local fixtures to frozen ABI/host/artifact inputs. Pass G5 with cold external-code consumers, shared GUI/script/channel admission, stale-edit rejection and committed recovery, positive allowed operations and negative capability/artifact contamination cases. Package fixtures must not recreate an Engine ancestor to hide a source dependency; B5 retains export UI and application hooks.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#b6b7b8--standalone-adapters-and-conditional-dependencies). Current shared context is required before execution.
 
-- `PIXIE-TASK-249` — **Status:** open — B7: qualify the D08-selected immutable local Inspector core/view package pair and extra feature baseline after whole-block assignment and exact clearance. Supply package-only G4 evidence without requiring sibling Inspector sources or remote publication. B5 owns Editor feature conditions, icons, semantic mapping and grouped-history adoption. Broader core/view behavior changes need a path or contract amendment.
+<a id="pixie-task-248"></a>
+- [PIXIE-TASK-248](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-248) — transferred; this location has no mutable status.
+
+<a id="pixie-task-249"></a>
+- [PIXIE-TASK-249](../PixieInspector/TASKLIST.md#pixie-task-249) — transferred; this location has no mutable status.
 
 ### K03 — External evidence and release preparation, one agent
 
-- `PIXIE-TASK-251` — **Status:** in-progress — B9: prepare isolated external consumer fixtures and acceptance inputs for G1-G5, using exact SDK/profile/toolchain/package identities and preserving affected 018 regressions. Verify available upstream artifacts incrementally; source paths must be unavailable or covered by an explicitly accepted access-verification method. Read-only live checkouts do not prove independence; never rename/delete the owner's repositories to simulate absence.
+[Inherited workspace block](../../.governance/workplaces/void-workplace/TASKLIST.md#k03--external-evidence-and-release-preparation-one-agent). Current shared context is required before execution.
 
-- `PIXIE-TASK-256` — **Status:** in-progress — B10 with B9 verification: the exact local candidates and Engine-to-Editor handoff passed. The recorded remaining G6 disposition concerns a verification-only hosted run and Windows x64 native provenance. This is retained planning state, not authorization to rerun qualification; D09 remains frozen.
+<a id="pixie-task-251"></a>
+- [PIXIE-TASK-251](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-251) — transferred; this location has no mutable status.
 
-The completed cutover, release preparation, reconciliation and guide work
-(252–255), and the excluded B8 task 250, are indexed in the
-[recorded dispositions](docs/evidence/sdk-editor-separation-2026-11-06.md#delivered-and-excluded-work).
+<a id="pixie-task-256"></a>
+- [PIXIE-TASK-256](../../.governance/workplaces/void-workplace/TASKLIST.md#pixie-task-256) — transferred; this location has no mutable status.
 
 #### D09 — Accepted GLFW distribution policy
 

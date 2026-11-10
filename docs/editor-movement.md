@@ -10,42 +10,46 @@
 
 **Subject:** authoring collision/character components, session lifecycle and in-game laboratory boundaries
 
-**Surface:** guide
+**Surface:** portal
 
 **Boundary:** runtime
 
-**Authority role:** non-normative
+**Authority role:** portal
 
 **Mutation:** authored
 
-**Indexing:** include
+**Indexing:** pointer-only
 
-This guide moved to PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+**Canonical:** docs/editor-movement.md
+
+**Canonical scope:** pixieeditor
+
+This portal preserves Engine links. [The canonical guide](../../PixieEditor/docs/editor-movement.md) is owned by the independent Editor repository.
 
 ## Using the editor
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#using-the-editor).
 
 ## Physics debug views
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#physics-debug-views).
 
 ## Viewport collider handles
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#viewport-collider-handles).
 
 ## Compound bodies
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#compound-bodies).
 
 ## Native lifecycle and ownership
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#native-lifecycle-and-ownership).
 
 ## Named collision layers
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#named-collision-layers).
 
 ## An editor inside the game
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](../../PixieEditor/docs/editor-movement.md#an-editor-inside-the-game).
