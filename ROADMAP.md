@@ -189,8 +189,8 @@ retains OpenGL 4.5. The OpenGL 4.3 VMware test is recorded under
 
 ## Active delivery phases
 
-These blocks own accepted outcomes and criteria; TODO owns execution state.
-Their scope is unchanged by the documentation reorganization.
+These compatibility routes lead to workspace-owned outcomes and accepted work.
+Engine technical contracts and the guardrails below retain their local ownership.
 
 | Phase | Outcome |
 |---|---|
@@ -202,85 +202,39 @@ Their scope is unchanged by the documentation reorganization.
 
 ### PIXIE-ROADMAP-053
 
-**Outcome:** Inspector fields, options and interactions overhaul
-
-**Rationale and source:** owner promotion on 2026-10-31: review and overhaul all the Inspector fields and options, and how they interact. Promoted deliberately vague; the owner marked it expansion required.
-
-**Accepted scope:** every field and option the editor's Inspector shows for engine components and settings, and the interactions between them, such as options that enable, disable, hide or override other fields, and fields that have no effect in a given mode. The review covers labels, units, ranges, defaults, tooltips and widget choice. The overhaul applies the decisions from that review. The expansion defines the inventory, the target rules and the order of work, and where changes land: engine metadata, the editor or PixieInspector.
-
-**Acceptance criteria:** to be defined by the expansion. At minimum, every reviewed field and option has a recorded decision, and the agreed changes are covered by Inspector qualification over the development channel.
-
-**Work:** [PIXIE-TODO-053](TODO.md#pixie-todo-053--inspector-fields-options-and-interactions-overhaul). Execution status,
-dependencies and task decomposition remain there. This phase retains its existing
-acceptance limits; documentation migration does not close it.
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-053).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-053) is historical context only.
 
 ### PIXIE-ROADMAP-054
 
-**Outcome:** Field chaining and manual edit locks
-
-**Rationale and source:** owner authorization on 2026-11-01, including chaining Shape and Collider dimensions on the same selected objects.
-
-**Accepted scope:** selection-scoped numeric chains and direct-edit locks through PixieInspector's generic API; per-bind total-delta scrubbing and absolute view-value entry; cross-component displayed dimensions; grouped native history, cancellation and lifecycle invalidation. Local source adoption is opt-in; the default published dependency stays unchanged.
-
-**Acceptance criteria:** isolated Debug/Release builds, native-backed regression evidence for propagation, locks, history and lifecycle, default-package compatibility, publish refusal in local mode, documented limits, and a delivery handoff to the originating chat. Owner visual acceptance is recorded separately.
-
-**Work:** [PIXIE-TODO-054](TODO.md#pixie-todo-054--field-chaining-and-manual-edit-locks). Execution status,
-dependencies and task decomposition remain there. This phase retains its existing
-acceptance limits; documentation migration does not close it.
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-054).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-054) is historical context only.
 
 ### PIXIE-ROADMAP-055
 
-**Outcome:** Entity input controls and C++ component authoring
-
-**Rationale and source:** owner authorization on 2026-11-01: generic entity KeyboardControl/MouseControl and C++ components created through Add component, with Open code and normal-build adoption; design and explicit legacy adapter reviewed by the coordinating owner chat.
-
-**Accepted scope:** ordered raw device events and enabled-aware entity queries/callbacks through Behaviour; explicit KeyboardControl2D compatibility adapter; preserving C++ generation, registration/source metadata, CMake integration, VS Code opening, rebuild/reopen and stable selection/unsaved state. No gameplay/action mapping in the generic controls.
-
-**Acceptance criteria:** runtime lifecycle/order/fixed-step/capture regressions; generated multi-component C++ code compiles and persists through scene/editor/player; failure/preservation fixtures for code/CMake paths; normal editor Debug/Release builds expose the feature; proportional native/editor validation and independent review.
-
-**Work:** [PIXIE-TODO-055](TODO.md#pixie-todo-055--entity-input-controls-and-c-component-authoring). Execution status,
-dependencies and task decomposition remain there. This phase retains its existing
-acceptance limits; documentation migration does not close it.
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-055).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-055) is historical context only.
 
 ### PIXIE-ROADMAP-056
 
-**Outcome:** Editor and C++ authoring consolidation
-
-**Rationale and source:** owner promotion on 2026-11-02 of [PIXIE-PROPOSAL-017](docs/proposals/editor-authoring-consolidation.md), including the subsequent section 4.1 rework, selection-aware headers, and removal of extra controller prerequisites for Behaviour events.
-
-**Accepted scope:** consolidate the delivered C++ workflow into usable create/attach/edit/build operations, minimal contextual templates and discoverable grouped Behaviours; provide callbacks without attaching KeyboardControl/MouseControl merely to unlock events; reproduce/correct viewport gesture defects; inventory Inspector fields and clarify presets; evaluate Session/viewport presentation; coordinate the separate World/Scene experiment; retain later diagnostics and editor-asset/runtime-resource manager work as gated blocks. Documentation is delivered with each slice.
-
-**Acceptance criteria:** all numbered child tasks are done or explicitly dropped with reasons; one real normal-editor exercise demonstrates create/attach/code/IntelliSense/build/play/save/reopen, contextual component access, visible build/attachment state and predictable camera gestures; reviewed field/preset decisions and UI prototype receive owner acceptance; each implemented slice has candidate hashes, relevant regressions, independent review, normal Debug/Release adoption and a concise guide. Deferred manager/telemetry blocks must either receive their bounded designs and qualification or an explicit disposition before parent closure; no blanket completion while they remain open.
-
-**Work:** [PIXIE-TODO-056](TODO.md#pixie-todo-056--editor-and-c-authoring-consolidation). Execution status,
-dependencies and task decomposition remain there. This phase retains its existing
-acceptance limits; documentation migration does not close it.
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-056).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-056) is historical context only.
 
 ### PIXIE-ROADMAP-060
 
-**Outcome:** Separate Engine SDK, game runtime and Editor delivery
-
-**Rationale and source:** owner decision on 2026-11-04: "promote proposal 021" (translated from Portuguese); [PIXIE-PROPOSAL-021](docs/proposals/engine-sdk-editor-separation.md), consolidated on the same date.
-
-**Accepted scope:** independently consumable and relocatable Engine SDK; qualified authoring/shipping runtime profiles; installed-package game support and generation; compatible native/module/managed interop; SDK selection and full authoring-state continuity; native export with runtime-only closure; extraction of Editor into its own local project/repository; bounded automation, external-consumer qualification, coherent product documentation and independent release-candidate pipelines. Adopt proposal contracts C01-C12 as acceptance targets and blocks B0-B11 as bounded ownership units. B7 Inspector and B8 Lib remain conditional on D08/D04; preserve their independent ownership, versions and releases. Separately owned projects may live outside Engine, without a sibling-layout requirement. Preserve completed proposal 018 / PIXIE-TODO-057 and unrelated active work.
-
-**Acceptance criteria:** every child task is done or dropped with a reason; G0-G6 pass for exact accepted SDK/runtime/Editor artifacts and their supported tuples. External consumers build/run with producer checkouts unavailable and no silent source fallback; code/no-code exports contain only qualified runtime dependencies and preserve authored data; the independent Editor preserves the selected authoring/Inspector baseline, unsaved rebuild/reopen and mismatch/recovery behavior across two SDKs; allowed automation and artifact exclusions are qualified; current documentation has one owner per contract and working references; independent release candidates pass provenance, payload and pipeline rehearsal without publication. Existing 018 evidence remains bounded regression input; newly separated artifacts require their own applicable runtime/visual evidence. Completion does not wait for VAW.
-
-**Work:** [PIXIE-TODO-060](TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery). Execution status,
-dependencies and task decomposition remain there. This phase retains its existing
-acceptance limits; documentation migration does not close it.
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-060).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-060) is historical context only.
 
 ### PIXIE-ROADMAP-061
 
-**Outcome:** Native 2D entity parenting and hierarchy authoring in the independent Editor.
-
-**Rationale and source:** the owner promoted [PIXIE-PROPOSAL-023](docs/proposals/native-entity-parenting.md) on 2026-11-07 after the Weapons-Lab composition exposed the need for persistent parent links, relative poses and separately editable entities.
-
-**Accepted scope:** runtime relationships and pose evaluation, authored scenes and snapshots, a compatible SDK and Editor hierarchy UI. Preserve the meaning of flat world-space transforms and existing scene formats. Game-specific fault rules remain in the game. The [D09 freeze](#d09-glfw-distribution) applies.
-
-**Acceptance criteria:** the simple three-level fixture passes runtime, authored persistence, SDK, Editor history/rebuild and standalone export checks before Weapons-Lab is used for consumer acceptance. Each surface records its own evidence. Flat projects retain existing poses, and unsupported readers refuse scenes that require parenting.
-
-**Work:** [PIXIE-TODO-061](TODO.md#pixie-todo-061--native-entity-parenting).
+Current owner: [workspace ROADMAP entry](../../.governance/workplaces/void-workplace/ROADMAP.md#pixie-roadmap-061).
+This compatibility location carries no mutable status or acceptance criteria.
+[Pinned pre-transfer reference](docs/workspace-reference.md#pixie-roadmap-061) is historical context only.
 
 ## Active guardrails
 

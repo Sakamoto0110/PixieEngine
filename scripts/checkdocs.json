@@ -10,9 +10,35 @@
     "docs/README.md",
     "docs/governance/documentation-policy.md",
     "docs/history/README.md",
-    "docs/history/consumer-integration-2026-11-06.md"
+    "docs/history/consumer-integration-2026-11-06.md",
+    "FILESYSTEM.md"
   ],
   "metadataSchema": "docs/schemas/documentation-schema.json",
   "closureDirectory": "docs/history",
-  "closureIndex": "docs/history/README.md"
+  "closureIndex": "docs/history/README.md",
+  "scopeId": "pixieengine",
+  "identityManifest": "../../.governance/workplaces/void-workplace/docs/governance/registry.json",
+  "scopes": [
+    {
+      "path": "../../.governance",
+      "optional": true,
+      "id": "void-workplace"
+    },
+    {
+      "path": "../PixieEditor",
+      "optional": true,
+      "id": "pixieeditor"
+    },
+    {
+      "path": "../PixieInspector",
+      "optional": true,
+      "id": "pixieinspector"
+    },
+    {
+      "path": "../PixieLib",
+      "optional": true,
+      "id": "pixielib"
+    }
+  ],
+  "identityBaseline": "../../.governance/workplaces/void-workplace/docs/governance/registry.b0-b5.json"
 }

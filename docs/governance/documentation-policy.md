@@ -41,6 +41,19 @@ it requires no VAW checkout. See the
 
 ## Authority
 
+The [Pixie workspace policy](../../../../.governance/workplaces/void-workplace/docs/governance/documentation-policy.md)
+is the adopted parent for shared constraints and coordination. Its applicable rules
+take precedence over local workflow rules; product contracts, implemented behavior,
+build wiring and measured evidence retain the owners below. A consumed peer contract
+is authoritative for the dependency it defines, not for unrelated Engine decisions.
+An unavailable parent is unresolved context, not a waiver. The
+[filesystem map](../../FILESYSTEM.md) is the short entry route.
+
+The approved continuation transfers shared coordination parents 053-056, 060 and
+061 to the workspace, with direct compatibility routes and pinned nonauthoritative
+project excerpts. Project task ownership is explicit; technical contracts and
+branch/release procedures remain local, and D09 remains frozen at its Engine owner.
+
 Every fact has exactly one owner. Other documents may summarize a fact and link
 to its owner; they must not maintain a competing mutable copy.
 
@@ -70,7 +83,7 @@ to its owner; they must not maintain a competing mutable copy.
 | Open questions and answers before promotion | `.local/` (unversioned; never authority) |
 | VAW coordination records: workflow state, checkpoints, premises, validation | `.local/vaw/` (unversioned; never authority; they point to the owners above) |
 
-Generated output is never authority and is never versioned: `build/`, `bin/`, and
+Generated build output is never authored authority and is never versioned: `build/`, `bin/`, and
 `build/PixieEngine.slnx`, which the configure step writes. Change their source (the CMake files)
 instead.
 
@@ -89,8 +102,9 @@ for the facts it owns, in this order:
 6. Tests, samples, scenarios, and recorded verification demonstrate bounded
    claims.
 7. History and archive records preserve outcomes, chronology and rationale at their baselines.
-8. Proposals, findings, `.local/`, and the documents of other repositories are
-   non-normative leads.
+8. Unpromoted proposals, findings and unpromoted local notes are non-normative
+   leads. Adopted parent governance and explicitly consumed peer contracts retain
+   their scoped authority; unrelated peer documents do not govern this repository.
 
 ## Scheduling: `TODO.md` and `TASKLIST.md`
 
@@ -134,14 +148,18 @@ lists only what the engine and its samples consume.
 
 ## Unversioned working documentation: `.local/`
 
-`.local/` holds working documents that are deliberately not versioned and meant
-for quick use, such as `.local/decisions/open-questions.md`. Everything in it is
-safe to delete at any time. Questions are numbered so the owner can
+`.local/` holds working notes, execution state, retained evidence and recovery
+material that are deliberately not versioned. Ignored does not mean disposable:
+referenced evidence and recovery material require an explicit retention decision
+before cleanup. Scratch notes include `.local/decisions/open-questions.md`.
+Questions are numbered so the owner can
 answer by number. After an answer, an item is either promoted, expanded into
 `TODO.md`, recorded in `ROADMAP.md`, turned into a proposal, or discarded.
 
-`.local/` is never authority, and versioned documents never link into it,
-because a clone does not contain it. An answer that shapes code, structure, or
+Local notes are never independent authored authority, and portable versioned
+documents do not depend on local artifact links because a clone does not contain
+them. A verified runtime policy copy refers to its versioned authored owner; it
+does not establish a second policy. An answer that shapes code, structure, or
 direction must be promoted to a versioned owner; an unpromoted answer is not a
 repository fact.
 
@@ -306,10 +324,11 @@ Document IDs and record IDs are stable and never renumbered or reused.
 
 Versioned and `.local/` documentation is written in English, except the body of
 an imported record. Code and code comments are in English. Documents must be
-understandable without a private prompt, a conversation, an external workspace,
-or knowledge of which person or tool wrote them. External procedures, including
-agent tooling, may add emphasis but do not own a format, path, authority rule,
-or acceptance criterion here.
+understandable without a private prompt, conversation or knowledge of the writer.
+Technical contracts remain readable in a standalone checkout. Adopted workspace
+governance is an explicit parent; unavailable inherited context is identified rather
+than silently waived. Unadopted external procedures and agent tooling do not change
+formats, paths, authority or acceptance criteria.
 
 ## Stop rules
 
@@ -368,3 +387,10 @@ contracts, evidence and this local policy retain their own responsibilities.
 
 Verifier replacement baseline: `94d3412f512fa785adfb2e664c465f90d70198f4`. The generic source
 commit and digest are pinned in `scripts/checkdocs.source.json`.
+
+The isolated documentation pilot replaces that snapshot with the exact reviewed
+candidate checker. Its receipt names an uncommitted source baseline and digest,
+not a published tool version. `./checkdocs.ps1` declares optional parent/peer scopes;
+missing ones are reported as not validated. `./checkdocs.ps1 -Workspace` requires
+the complete declared set and validates qualified identities, direct aliases and
+catalog source digests. This is structural evidence, not live VAW activation.

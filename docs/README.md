@@ -24,6 +24,11 @@ Choose a route by the question you need to answer. The
 [documentation policy](governance/documentation-policy.md#authority) names the
 owner of each kind of fact; evidence records describe specific executed baselines.
 
+For workspace work, use the [filesystem map](../FILESYSTEM.md) and
+[workspace entry](../../../.governance/workplaces/void-workplace/README.md).
+The [flattened catalog](../../../.governance/workplaces/void-workplace/docs/catalog/README.md)
+routes across scopes without transferring technical ownership or active work.
+
 ## Build and use
 
 | Guide | Contents |

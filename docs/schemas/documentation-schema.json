@@ -53,6 +53,7 @@
     "boundaryPattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)*$",
     "documentIdPattern": "^[A-Z][A-Z0-9-]*$",
     "canonicalPathStyle": "repository-relative-forward-slashes",
+    "canonicalScopeField": "Canonical scope is optional. When present, Canonical resolves from that explicitly declared checker scope root; otherwise existing repository-relative semantics apply.",
     "conditionalRules": [
       "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
       "Current technical references do not carry a historical Reference date.",
