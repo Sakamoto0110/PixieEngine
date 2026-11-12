@@ -181,11 +181,11 @@ independent review. No new implementation or test task is introduced here.
 
 #### D09 — Accepted GLFW distribution policy
 
-The owner selected the same GLFW binary for the Editor and SDK packages on
-Windows x64. Implementation and qualification of the shared binary are deferred
-outside the current separation scope. The later qualification will verify the
-loaded provider and OpenGL context creation, rendering and teardown. The policy
-decision records no new test result.
+The Windows x64 Editor uses the SDK's GLFW for the selected profile and
+configuration. The public Editor candidate carries authoring/Release GLFW.
+See the [D09 evidence](docs/evidence/d09-shared-glfw-2026-11-12.md) for
+the package comparison, the observed loaded providers and the OpenGL 4.5
+lifecycle. The combined G6 disposition stays with TASK-256.
 
 ## `PIXIE-TODO-061` — Native entity parenting
 

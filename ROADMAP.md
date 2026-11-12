@@ -310,17 +310,18 @@ This compatibility location carries no mutable status or acceptance criteria.
   the agent workplace tooling is reliable enough to host it. Accepted
   2026-10-09.
 
-## Freezes
+## Native dependency distribution
 
 ### D09 GLFW distribution
 
 The [accepted D09 policy](TASKLIST.md#d09--accepted-glfw-distribution-policy)
-selects the same GLFW binary for the Windows x64 Editor and SDK packages.
-Shared-binary implementation and detailed provider qualification remain frozen
-until the owner explicitly authorizes resumption. The
-[extraction plan](docs/proposals/standalone-editor-extraction.md#62-inspector-lib-and-graphical-assets)
-requires matching native GLFW versions and a graphics smoke check at the
-current OpenGL baseline.
+requires Windows x64 Editor builds and their matching SDK profile and
+configuration to use byte-identical GLFW binaries. The owner authorized
+implementation and qualification on 2026-11-12. The shared provider passed
+[local OpenGL 4.5 qualification](docs/evidence/d09-shared-glfw-2026-11-12.md)
+for public authoring in Release and Debug and private development in Debug.
+D09 closed locally after the Editor's SDK picker switched from the packaged
+Release provider to the selected SDK's Debug provider and reopened the project.
 
 ## Explicit non-goals
 
