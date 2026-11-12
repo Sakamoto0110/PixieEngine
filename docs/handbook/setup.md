@@ -15,6 +15,12 @@
 
 ## Obtain the inputs
 
+C++ authoring requires the public SDK. It supplies headers, import libraries,
+CMake support, authoring profiles and, when declared, paired export tooling.
+The Runtime-only ZIP supplies the `shipping/Release` generic player and DLLs
+to run an existing saved no-code project. Hand players the complete exported
+game folder when distributing your game.
+
 You need the complete Editor application directory and a compatible **public
 SDK** directory. Before the first public release, obtain those artifacts and
 their compatibility information from the maintainer. A public release URL and
@@ -66,7 +72,7 @@ checks the usual system location. A packaged application may supply a local
 copy instead; file presence alone does not prove architecture or successful
 loading. The successful Editor launch is the consumer smoke check. The
 application's `eng/native/win-x64/release-provenance.json` records this import;
-its `docs/development.md` describes the packaging boundary. A maintainer must
+the [Editor development guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/development.md#rehearse-the-windows-x64-release) describes the packaging boundary. A maintainer must
 supply prerequisites with a clean-machine handoff; this guide does not claim
 the SDK installs them. The local handbook session used an already runnable
 application and did not test installing prerequisites on a clean machine.
@@ -98,11 +104,10 @@ an SDK. The Editor remembers the chosen local path in its user settings.
 
 ### When a path works in one application but not another
 
-A path reported by an assistant's file tools may be redirected within that
-application's Windows environment. Before handing it to another assistant or
-launching the Editor independently, confirm the **Editor itself** can select
-that SDK and show its identity summary. A ZIP checksum or a file-tool read
-does not establish that another process can access the same path.
+An SDK folder may be visible to one tool and redirected or inaccessible to the
+Editor process. Confirm that the **Editor itself** can select the SDK and show
+its identity summary. For an assistant-led handoff, also record the verified
+physical path in the [handoff inputs](assistant-handoff.md#handoff-inputs).
 
 If the remembered path fails, obtain the installation's accessible physical
 path and select it through **Choose SDK**. Match its `sdk.json` SHA-256/SDK ID
@@ -135,6 +140,9 @@ addition to its human-readable version. Rebuild game code against the selected
 SDK. Never mix headers/import libraries from one installation with a DLL from
 another. Use a fresh build directory when changing SDK/profile/configuration.
 The Editor manages its own identity-specific code caches.
+
+Continue with the [Editor walkthrough](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/handbook.md#1-choose-the-sdk-and-create-a-project)
+to create and save a project, add C++ code, Play/Stop and export.
 
 ## Optional explicit launch
 

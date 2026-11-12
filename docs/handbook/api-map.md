@@ -30,6 +30,7 @@ advanced services without making them necessary for ordinary game code.
 | Pose and simple motion | `pixie/runtime/Transform2D.hpp`, `Velocity2D.hpp`, `Acceleration2D.hpp` | Position/rotation/scale, one built-in motion integrator |
 | Input | `pixie/platform/Input.hpp`, `pixie/runtime/InputControl.hpp` | Key/MouseButton, held/edge polling, events, KeyboardControl/MouseControl |
 | Time and reproducible randomness | `pixie/core/FrameTime.hpp`, `pixie/runtime/Random.hpp` | delta in seconds; World::GetRandom owns per-World generator |
+| Parenting | `pixie/runtime/Parenting2D.hpp` | SetParent2D, SetParents2D, Parent2D, SetLocalTransform2D and hierarchy constraints |
 | Authored identities/content | `pixie/runtime/Scene.hpp`, `ProjectFile.hpp` | SceneId, AddToScene, scene read/write, project manifest |
 | Player save location | `pixie/runtime/UserData.hpp` | UserDataFolder; your game defines its save format |
 
@@ -79,6 +80,7 @@ score, object removal or cosmetic feedback.
 
 | Task | Header / surface | Responsibility |
 |---|---|---|
+| Replace a World and resolve a new entity handle | `pixie/runtime/ProjectSession.hpp`, `Scene.hpp` | WorldRevision, SceneId and the [identity contract](../modules/runtime/REFERENCE.md#entity-identity-and-lifetime) |
 | Host a Project | `pixie/runtime/ProjectSession.hpp`, `ProjectApp.hpp` | Session lifecycle and host integration |
 | Native player loop | `pixie/app/App.hpp`, `Run.hpp`, `RunConfig.hpp`, `RunOptions.hpp` | Window/input/run composition; generated player normally supplies this |
 | Logs and timings | `pixie/core/Log.hpp`, `Telemetry.hpp` | Log messages and CPU metrics; not a GPU timing guarantee |

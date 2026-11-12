@@ -41,13 +41,15 @@ generic `pixie-player --project <folder>` still runs a scene-only project.
 
 In a development-enabled engine, `pixie_module_load(path)` selects a game
 factory for subsequent sessions. A null path resets that selection to the
-scene-only project. A missing/unloadable image returns an I/O error; a missing
-factory/version entry or incompatible API version returns an argument error.
-A failed load does not replace the current selection. Each created session
-retains its module until its ProjectSession, World, descriptors, callbacks and
-game objects are destroyed. Changing or clearing the default module does not
-invalidate an existing session. Hosts must destroy sessions before releasing
-their remaining library/context ownership.
+scene-only project. The default is shared by sessions in that engine
+instance. Serialize selection changes and session creation on the host side.
+Image load failure returns `PIXIE_ERROR_IO`. A missing factory, mismatched C API
+version, or absent, malformed or incompatible SDK identity returns
+`PIXIE_ERROR_ARGUMENT`. The engine publishes the selection only after those
+checks succeed. Each created session holds its own module lease until its
+ProjectSession, World, descriptors, callbacks and game objects are destroyed.
+Existing sessions keep their lease across default changes. Destroy sessions
+with their GL context current before releasing the engine library or context.
 
 Module loading is development-only, not a player export mechanism. Ordinary
 game players link their game directly. App-local runtime packaging and
@@ -55,6 +57,55 @@ development-free export/MCP barriers remain separately qualified under
 [PIXIE-TODO-051](../../archive/todo-051-shared-engine-export-mcp-2026-11-01.md#pixie-todo-051--shared-engine-game-export-and-local-mcp-development-channel).
 See the [qualification matrix](../../shared-engine-export-validation.md) for
 configuration-specific evidence and pending delivery gates.
+
+## SDK identity and profiles
+
+Start by querying `pixie_api_version`, `pixie_sdk_identity` and
+`pixie_capabilities` before session or GL creation. The installed header owns
+`PIXIE_CAPI_VERSION` (currently 28). SDK identity schema 1 carries a typed
+native compatibility tuple independently of the C ABI number, product version,
+scene format and the optional cooperative candidate-authoring opt-in.
+
+`pixie_sdk_identity(nullptr, 0)` in C++ (or `pixie_sdk_identity(NULL, 0)`
+in C) measures the immutable UTF-8 JSON in bytes, excluding NUL. Allocate
+the returned length plus one. A short positive buffer gets a NUL-terminated
+prefix and the full length is still returned. Invalid arguments return -1
+and set the calling thread's error text.
+
+| SDK distribution | Profile and native configuration | Capability mask |
+| --- | --- | --- |
+| Public | `authoring/Debug`, `authoring/Release` | 5, module loading and candidate authoring |
+| Public | `shipping/Release` | 4, candidate authoring |
+| Local-private | `local-development/Debug`, `local-development/Release` | 7, module loading, native automation and candidate authoring |
+
+The source header guards `pixie_module_load` with `PIXIE_DEVELOPMENT`
+and `pixie_dev_dispatch` with `PIXIE_DEV_CHANNEL`. The installed CMake
+target supplies the profile definitions. Public SDK assembly omits the
+private dispatch declaration, managed import and player channel options.
+Test the runtime capabilities and availability of optional symbols before
+invoking them. Candidate-authoring capability indicates the Engine
+implements the operation. Each session and proposed document still
+require admission.
+
+`sdkId` binds the sorted relative producer-input paths and raw SHA-256 hashes
+plus compiler, Windows SDK and compiler flag inputs. `sdkBuildId` further
+binds the profile/distribution, configuration and actual toolchain/CRT tuple.
+The current SDK contract is Windows x64 MSVC, C++20 and AVX2/FMA/F16C, with
+the matching Windows SDK, STL, iterator debug level and shared CRT
+(`/MDd` Debug, `/MD` Release). Producer-input comments can change the identity.
+The catalog SHA-256 and profile manifest/file hashes pin the installed bytes.
+Verify the supplied catalog against its trusted receipt and use a fresh cache
+for a different selection. See the [installed SDK guide](../../development.md#installed-sdk-and-local-rehearsal).
+
+Module admission checks `pixie_game_api_version`, `pixie_game_create` and
+`pixie_game_sdk_identity` after OS image loading and before any Project
+factory call. The engine compares all 23 typed native tuple fields from
+`kNativeMatchFields`, including both SDK IDs and the dependency inventory
+digest. OS image initializers may already have executed, so this is a
+cooperative compatibility check for trusted native code. A separate
+`pixie_game_candidate_contract` opt-in gates fresh candidate reconstruction.
+A module can supply an ordinary project without opting into candidate edits.
+See [Projects and modes](#projects-and-modes).
 
 ## Optional 2D parenting functions
 
@@ -69,20 +120,30 @@ With `keep_local` set to one, the operation preserves local pose.
 The write checks the selection and new parent before changing any links.
 Only the selected branch roots are reparented. The `changed` output
 distinguishes an accepted no-op from a change. Rejection leaves the graph
-and poses intact.
+and poses intact. The v3 parenting family is unscoped. V2 Scene scope and
+canonical presentation documents retain their own format. The explicit
+v1-to-v2 conversion and v2 candidate edit APIs serve that scoped authoring
+path. See [version 3 parenting scenes](../runtime/REFERENCE.md#version-3-parenting-scenes).
 
 ## Rules for every function
 
-- The OpenGL 4.5 core context the session was created with must be current on the calling thread.
-  A session is used from one thread at a time.
-- No exception crosses the boundary. Functions return a `PixieResult`; on failure,
-  `pixie_last_error` gives the reason as text, per thread. It returns the full length, which may
-  exceed the buffer.
-- Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
-  string, and the call returns `PIXIE_ERROR_BUFFER`.
-- Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (28), raised when a function's meaning or a
-  struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
+- Use sessions on their host thread and keep the session's OpenGL 4.5 core context
+  current for GL operations, including creation, rendering, image access and destruction.
+  Candidate authoring and private World dispatch explicitly enforce owner-thread admission.
+  Identity, version, capabilities and project creation can run before a session exists.
+- Operations returning `PixieResult` report failure through the result code. Capture
+  `pixie_last_error` on the same thread before another failing call can replace it. It returns
+  the UTF-8 byte length excluding NUL. Successful calls can leave prior error text intact.
+  Scalar queries have their own documented sentinel behavior.
+- Ordinary string copies use a caller-owned UTF-8 buffer with a terminating NUL.
+  A short buffer receives a truncated string and returns `PIXIE_ERROR_BUFFER`. Check each
+  measured query for its capacity-zero and returned-length convention.
+- Result-returning operations generally use `PIXIE_ERROR_ARGUMENT` for invalid sessions,
+  indices and required outputs. An absent or destroyed entity typically yields
+  `PIXIE_ERROR_NOT_FOUND`. Re-resolve runtime handles after a World replacement, using
+  persistent entity Scene IDs where available.
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (28). The history of this ABI begins with
+  the shared layout and entry-point contract. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
   version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines,
@@ -108,14 +169,18 @@ and poses intact.
   argument with a three-field session/storage/authored `PixieSceneEditToken`. Rebuild modules
   and players. Version 26 adds read-only project scene-format and entity membership queries,
   plus token-checked explicit conversion/save of the current fallback project's start scene.
-  Version27 adds explicitly contracted development-module candidate authoring with fresh
-  matching Project/descriptors/World reconstruction; modules must be rebuilt.
+  Version 27 adds explicitly contracted development-module candidate authoring with fresh
+  matching Project/descriptors/World reconstruction. Version 28 adds candidate fragment preparation,
+  presentation snapshots and viewport camera operations. Detect optional exports separately.
   The local MCP bridge and its qualification client derive their exact expected
   C API version from this header at build time; protocol version remains separate.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
 ## Development-only World dispatch
+
+This facility belongs to the local-private profile. Both public SDK
+profiles omit it.
 
 With `PIXIE_DEV_CHANNEL`, `pixie_dev_dispatch` executes one owner-thread
 JSON-RPC request over an existing session. It does not create a listener,
@@ -226,10 +291,12 @@ disabled or invalid rigid bodies return `PIXIE_ERROR_NOT_FOUND` without writing
 the output; movement diagnostics explain invalid configuration. Null session or
 output returns `PIXIE_ERROR_ARGUMENT`. Results are copied, never serialized.
 
-`pixie_session_create(width, height, seed, &session)` loads the GL functions for the current
-context (`pixie::LoadGl`), creates the game's `Project` through `pixie::CreateProject`, and starts a
-`ProjectSession` with a view of `width` x `height` pixels and the World seeded with `seed`. It
-returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be made.
+`pixie_session_create(width, height, seed, &session)` loads GL for the host's current
+context (`pixie::LoadGl`). It uses the selected development module's factory, or the
+Engine's scene-only Project by default. It starts a `ProjectSession` with a view of
+`width` x `height` pixels and the World seeded with `seed`. It publishes the session pointer
+only on success. It returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be
+made, and `PIXIE_ERROR_INTERNAL` if the selected module factory returns null.
 `pixie_session_destroy` releases the session and its GL objects; the same context must be current.
 
 | Function | Effect |
@@ -237,7 +304,7 @@ returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be made.
 | `pixie_session_resize` | Sets the view size; the next render matches it |
 | `pixie_session_advance(seconds)` | Adds wall time and runs the fixed steps it makes due (60 per second), unless paused; one call counts for 0.25 s at most |
 | `pixie_session_step` | Runs one fixed step now, paused or not |
-| `pixie_session_set_paused` | Pauses or resumes; resuming drops the leftover fraction of a step |
+| `pixie_session_set_paused` | Sets pause or resume and discards fractional accumulated time |
 | `pixie_session_set_time_scale` | Simulated seconds per wall second given to advance, from 0.01 to 8 (clamped); not positive is an argument error |
 | `pixie_session_reset` | Rebuilds the World from the game with the same seed, after the game reads back its scenario; with a project open, from the scene's entities as they are now; steps start over |
 | `pixie_session_stats` | Steps, simulated seconds, last step's wall time, entity count, paused, time scale |
@@ -309,7 +376,7 @@ A project is a folder with one `<Name>.pixie` file and its scenes
   additions retain their behavior. Raw registry changes,
   captured references and arbitrary custom callback effects are not universally tracked.
   `pixie_project_edit_scene` requires all three expected token fields and a complete v2 document bounded to
-  128 MiB. Existing duplicate settings authorities refuse new candidate mutation while legacy
+  128 MiB. It rejects v3 candidate input. Use the optional parenting calls for v3 hierarchy edits. Existing duplicate settings authorities refuse new candidate mutation while legacy
   reads remain available. The isolated candidate receives normal v2 structural/component
   admission and strict movement-service validation before publication; reflected values retain
   the reader's existing warning/default behavior, so this is not universal strict field-schema
@@ -373,13 +440,23 @@ with the original token. All host handles must then be rebound through recovery.
 `pixie_entities_restore` and development `world.restore` refuse v2 before destructive work;
 preflight alone does not grant permission to destroy a live entity first.
 
-ABI28 also exposes owned `pixie_presentation_snapshot` reads, viewport camera choice/resolution,
-and explicit free-camera navigation reads/writes. Camera references are entity SceneIds, separate
-from Scene scope IDs. Explicit entity, selected Scene default, World default and free-session
-fallback are resolved natively. Missing/disabled references retain selection intent and produce
-a non-blocking diagnostic. All drawing, coordinates, picking and gizmos use that resolution.
-Presentation migration/settings edits are complete candidate documents; canonical and legacy
-lighting representations cannot coexist. Environment, view and renderer values have one writer.
+ABI 28 also exposes `pixie_presentation_snapshot`, a copied JSON catalog limited to 16 MiB.
+Capacity zero measures UTF-8 bytes excluding NUL. Its persistent references remain distinct
+from live runtime handles.
+
+`pixie_viewport_camera_set/get` manage session-only camera intent. Kind 0 selects the free
+camera with both IDs zero. Kind 1 selects defaults, with entity ID zero and an optional
+Scene scope ID. Kind 2 requires a nonzero entity Scene ID and accepts an optional Scene
+scope ID for fallback. `pixie_viewport_camera_resolve` reports the resolved center in world
+units, zoom in pixels per world unit, and source (0 free, 1 entity, 2 Scene default,
+3 World default). Capacity zero measures diagnostic bytes excluding NUL. Missing or
+disabled references retain intent and produce a diagnostic. Drawing, coordinates, picking
+and gizmos use the resolved camera. `pixie_viewport_free_camera_get/set` access the separate
+navigation state with finite coordinates and zoom in [0.0001, 10000].
+
+Presentation migration and settings edits are complete candidate documents. Canonical and
+legacy lighting representations cannot coexist. Environment, view and renderer values have
+one writer.
 
 ## Rendering
 
@@ -572,8 +649,10 @@ diagnostics even in scenes without geometry.
 
 ## Non-goals
 
-No Name editing, no choice of scene other than the start scene, and no fields of nested structs
-(such as a particle pool's style) yet.
+The project opens the start-scene document. Logical Scene scopes inside it are
+enumerated through the Scene scope calls. Field access follows registered descriptors,
+including supported typed record lists. Arbitrary nested C++ structs are outside that
+surface. Entity names can be edited via `pixie_entity_set_name`.
 
 ## Validation
 
@@ -624,11 +703,11 @@ drawn, and stop back to the same number of entities, with no step and nothing un
 it for each sample as `<sample>-project`, on the sample's folder.
 
 The test `project-code` (`tests/project-code/ProjectCodeTest.cmake`) makes a project named "Code
-Test" with code from the templates, refuses to add code twice, configures and builds it as a
-project of its own against this engine (with the same generator and configuration), checks that its
-`bin/<config>/` holds the player, one C API library, and not the generic one, and runs `capi-test`
-on that library with `--project` and `--expect-type Spinner`. It builds the engine again, so it
-takes a minute or two.
+Test" with code from the templates and verifies that Add code refuses a second run. It builds
+against the explicitly chosen source tree or installed authoring SDK and checks that
+`bin/<config>/` contains its player, shared engine and exactly one development module.
+It runs `capi-test` with `--project`, `--expect-type Spinner` and the selected module, then
+launches the generated player with a finite run time.
 
 ## Scene movement diagnostics
 

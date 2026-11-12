@@ -193,6 +193,7 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
     }
     const auto publishing = std::chrono::steady_clock::now();
     // No handle into the old World remains valid after this point. A failed read never reaches it.
+    // Publish only after the read, project Build and requested movement admission succeed.
     input_.EndUpdate();
     world_.swap(candidate);
     authoringPreviewDirty_ = false;

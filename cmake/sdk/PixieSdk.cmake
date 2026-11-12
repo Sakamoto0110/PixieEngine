@@ -1,6 +1,7 @@
 include_guard(GLOBAL)
 
-# Exact native identity input. Artifact hashes are recorded separately after install.
+# SDK ID binds raw producer bytes and the toolchain inputs. Build ID adds the selected
+# profile, configuration and probed native tuple. Install records payload hashes separately.
 function(pixie_sdk_prepare)
     if(NOT WIN32 OR NOT MSVC OR NOT CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" OR
        NOT CMAKE_SIZEOF_VOID_P EQUAL 8)
@@ -56,6 +57,7 @@ function(pixie_sdk_prepare)
     if(PIXIE_DEV_CHANNEL)
         list(APPEND sdk_patterns devchannel/src/* devchannel/include/* devchannel/CMakeLists.txt)
     endif()
+    # These are producer inputs even when a file change affects comments alone.
     set(sdk_inputs CMakeLists.txt version.json external/CMakeLists.txt
         external/pixielib/cpp/CMakeLists.txt external/glfw/CMakeLists.txt external/box2d/CMakeLists.txt
         capi/bindings/dotnet/PixieCapi.cs tools/NativeApiVersion.cs tools/NativeApiVersion.props)

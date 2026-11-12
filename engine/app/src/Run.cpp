@@ -219,6 +219,7 @@ int Run(App& app, const RunConfig& config) {
             config.advanceFrame(frameDelta);
         } else
 #endif
+        // Each fixed update consumes the current transients. A frame with no step keeps them.
         stepper.Advance(advanceDelta, [&](const FrameTime& time) {
             {
                 const TelemetryScope measure(telemetry,updateMetric);
@@ -249,6 +250,7 @@ int Run(App& app, const RunConfig& config) {
 #endif
                 app.Render(renderTime, input.game);
 #ifdef PIXIE_DEVELOPMENT
+                // Host captures can complete before App draws the debug overlay.
                 if (config.afterRender) config.afterRender(size);
 #endif
             }

@@ -8,7 +8,8 @@
 # It writes CMakeLists.txt and src/<Id>Project.{hpp,cpp}, where <Id> is the project's name as a C++
 # identifier ("my game" is MyGame), read from the folder's .pixie file. It refuses a folder that is not
 # a project, or that already has a CMakeLists.txt, and writes nothing then. The editor's Add code runs
-# it, and so does a test, so both make the same code.
+# it, and so does a test, so both make the same code. The generated registry owns a
+# separate manifest, and package adoption can record a missing portable SDK requirement.
 
 cmake_minimum_required(VERSION 3.25)
 
@@ -76,7 +77,8 @@ else()
     message(FATAL_ERROR "PIXIE_ENGINE_MODE must be PACKAGE or explicit SOURCE")
 endif()
 
-# Preflight every destination before the first write. Existing source is never overwritten.
+# Check every owned destination before the first write. This protects existing source;
+# the later file writes are separate and can fail partway on filesystem errors.
 set(destinations CMakeLists.txt src/${PIXIE_ID}Project.hpp src/${PIXIE_ID}Project.cpp
     src/PixieComponents.generated.hpp src/PixieComponents.generated.cpp
     .pixie-code/Components.cmake .pixie-code/manifest.json)

@@ -26,10 +26,14 @@ game code through a versioned factory. The engine runs the game's `Project` in a
 context, takes the host's input, and lists entities, component types, and fields, which it reads
 and writes through the runtime's field descriptors.
 
-Start with `capi/include/pixie_capi.h`. A host creates its own OpenGL 4.5 core context, makes it
-current, loads `pixie.dll`, selects a development module when needed, and calls
-`pixie_session_create`; each frame it feeds input, calls `pixie_session_advance` with the frame's
-wall time and `pixie_session_render`, and displays the returned texture.
+Use `include/pixie_capi.h` from the selected SDK (source declaration
+`capi/include/pixie_capi.h`). Load `pixie.dll` and check the ABI, SDK
+identity and capabilities. A host with module-loading support can select a
+compatible development game module. To create a session, make the host's
+OpenGL 4.5 core context current and call `pixie_session_create`. Each frame,
+feed input, call `pixie_session_advance` with elapsed seconds, then
+`pixie_session_render` and display the returned texture. The session owns
+the texture. Destroy the session with the same context current.
 
 The C API session path never creates a player window: the host owns the window
 and context. Each session retains its selected module until its game-owned
@@ -37,5 +41,6 @@ objects are destroyed. Changing the default module does not change existing
 sessions. The same engine DLL also contains the native player facilities;
 their presence does not transfer context ownership from a C API host.
 
-- [Manifest](MANIFEST.md): build target, dependencies, and routes.
-- [Technical reference](REFERENCE.md): the contract.
+- [Manifest](MANIFEST.md) for the build target, dependencies and source routes.
+- [Technical reference](REFERENCE.md#sdk-identity-and-profiles) for SDK profiles,
+  module admission and the session/field contracts.

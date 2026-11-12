@@ -93,6 +93,7 @@ public:
 
     // `text` laid out at `pixelSize`: lines from the top-left, the first baseline at the atlas's
     // ascent, each line aligned within the widest (whose width Measure gives) by `align`.
+    /// The glyph pointers borrow from the cached atlas owned by this font's data.
     PIXIE_RENDER_API std::vector<PlacedGlyph> Layout(std::string_view text, int pixelSize, TextAlign align = TextAlign::Left);
     // The size of `text` at `pixelSize`, in pixels: the widest line's advance, and the lines' height.
     // Empty text measures zero.

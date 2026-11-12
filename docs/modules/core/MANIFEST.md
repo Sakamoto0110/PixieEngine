@@ -52,6 +52,7 @@
 
 ## Routes
 
-- [Introduction](README.md) and [technical reference](REFERENCE.md).
+- [Introduction](README.md) and [time, telemetry and cpu image contracts](REFERENCE.md).
 - CMake owns the internal pixie_core object target and Pixie::Core consumer facade. The artifact field describes distribution inside the shared engine, not a separate DLL per module.
+- Contributor checks are in `tests/engine/FixedStepperTests.cpp` and `tests/engine/TelemetryTests.cpp`.
 - [Qualification matrix](../../shared-engine-export-validation.md) separates executed evidence from pending native configurations, exports and MCP work. Windows is the qualified execution environment so far; Linux remains unqualified.

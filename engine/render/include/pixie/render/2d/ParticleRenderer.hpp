@@ -40,6 +40,7 @@ class ParticleRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
     PIXIE_RENDER_API bool Create();
+    /// Releases GPU resources while the context is current.
     PIXIE_RENDER_API void Destroy();
 
     // `alpha` interpolates from Particle::previous to Particle::position, as FrameTime::alpha does.

@@ -20,13 +20,21 @@
 
 **Indexing:** include
 
-Platform owns the player window, context creation/currentness/presentation, input data and frame limiting. It may depend on Core and GLFW; it must not include or link the Render implementation.
+Platform owns the player window, context activation and presentation, device input and frame limiting. The internal object target depends on Core and GLFW. Render independently owns GL loading, viewport commands and GPU resources. App owns player input routing and debug-console policy.
 
-Surface carries context activation and framebuffer size. Window implements the GLFW-backed surface and owns the session it creates; an explicitly supplied GLFW handle is borrowed. HostSurface borrows an already-current host context and stores the requested viewport size. It never creates, switches or destroys that host context. The host must satisfy current-context/thread requirements before every native rendering operation.
+Headers use `pixie/platform/`. Exported out-of-line symbols use `PIXIE_PLATFORM_API`. Native consumers share a single GLFW process instance with the engine. The Windows build uses `glfw3.dll`.
 
-GL loading, viewport GL commands, render targets and GPU resources belong to Render. Window creation/presentation uses GLFW, not renderer calls. Window creation accepts initial visibility, defaulting to visible; a hidden host sets the GLFW visibility hint before creation rather than hiding a flashed visible window. App owns game/debug input policy; forwarding callbacks does not move DebugConsole into Platform. FrameLimiter stays an internal implementation used through Window.
+## Window and host contexts
 
-Headers live in `pixie/platform/`; exported out-of-line symbols use `PIXIE_PLATFORM_API`. GLFW must have one shared process instance across the engine and native consumers; the current build uses glfw3.dll on Windows.
+`Surface` gives a host two operations: make its context available and report physical framebuffer size. For the GLFW-backed `Window`, `Create` takes window dimensions in GLFW screen coordinates, requests OpenGL 4.5 core and sets the visibility hint before creating the window. The default is visible. An owning window destroys its handle and terminates the GLFW session on destruction. The constructor taking `GLFWwindow*` borrows an existing handle and leaves ownership and GLFW lifetime with the host. `Handle()` is a borrowed callback/presentation integration handle.
+
+Use the GLFW event thread for window creation and event dispatch. Make the context current on the rendering thread before GL operations, including `SetVsync` and presentation. `Close` sets the close flag. `PollEvents` dispatches pending events, while `WaitEvents` can wait with a timeout in seconds. `GetFramebufferSize` reports physical pixels independently of logical window dimensions. Release Render resources before releasing the context.
+
+`HostSurface` stores the requested viewport dimensions and `Resize` updates that value only. The host creates, makes current and destroys its own context. `HostSurface::MakeCurrent` leaves the active context as supplied by the host. The host must keep the correct context current for each native GL operation, including teardown. An embedded C API session follows that ownership model.
+
+## Frame limiting
+
+`SetFrameRateCap` takes frames per second. Zero disables the wait, and positive finite rates set a fresh deadline. `WaitForFrame` uses the private `FrameLimiter` schedule and is separate from the swap interval. The limiter waits near the deadline, yields for the final interval and resynchronizes after a long stall. A frame cap controls presentation pacing. Fixed update frequency belongs to the step driver.
 
 ## Development local transport
 
@@ -53,8 +61,8 @@ The [qualification matrix](../../shared-engine-export-validation.md) records bou
 
 ## Ordered device input
 
-Input retains an ordered sequence of key/button/cursor/scroll events until
-EndUpdate, alongside its existing state queries. Actions, modifiers and key
-scan codes are host data; no game mapping belongs here. The
-[entity input guide](../../entity-input-and-code-components.md#device-contract)
-owns the callback/polling/capture contract and compatibility limits.
+`Input` stores held state, per-update transients and an ordered event stream. Feed it on the same owner thread that reads it. The `Key`, `MouseButton`, `InputAction` and `InputModifiers` values match GLFW; the scan code is host data. The bool overloads synthesize transitions and derive modifiers from held keys. The action overloads preserve supplied modifiers, reject duplicate edges and accept key repeat only for a held key. Mouse buttons have no repeat action.
+
+Feed cursor coordinates in physical framebuffer pixels from the top-left with Y down. A movement event carries its delta from the preceding cursor position. A button or scroll event snapshots the most recent cursor position. Scroll offsets are accumulated as supplied (positive Y is away from the user). Polling queries describe the final accumulated state, so a press and release can both be true for a control no longer down. `Events()` borrows an ordered span valid only until the host mutates `Input`. Do not mutate during dispatch.
+
+Call `EndUpdate` after a fixed update consumes the state. It clears events, scroll and edges, advances the cursor-motion baseline and keeps held controls. Transients persist across frames that run no updates. On focus loss or a modal input handoff, `ReleaseAll` discards pending presses, movement and scroll and exposes cancellation releases. The current cursor position is retained. Repeated cancellation before consumption keeps one pending release per affected control. For game callbacks, polling and capture compatibility, see the [entity input guide](../../entity-input-and-code-components.md#device-contract).

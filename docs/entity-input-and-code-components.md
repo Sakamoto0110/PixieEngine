@@ -89,25 +89,45 @@ KeyboardControl, so game C++ must supply meaningful commands. New generic
 controls never imply a platformer or an action map. Games may remove the
 legacy component after implementing their own consumer code.
 
-The C API/module ABI is **20** for the ordered event ABI, explicit source
-metadata, and changed public C++ Behaviour/descriptor/input layouts. Rebuild
-game modules and players against this engine. Incompatible development
-modules are refused with a rebuild diagnostic; old binaries must not be run
-against the new shared engine. Scene component names and format do not change.
+ABI 20 originally introduced ordered device events, explicit type-source
+metadata and changes to the C++ Behaviour, descriptor and input layouts.
+That delivery preserved scene component names and format. For current builds,
+read `PIXIE_CAPI_VERSION` in the selected SDK's `include/pixie_capi.h` and
+the [SDK identity and module admission contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles).
+Rebuild game modules and players for the selected SDK/profile/toolchain.
+Incompatible development modules are refused with a rebuild diagnostic.
 
 ## Create and edit a component
 
-The Editor UI, rebuild handoff and IDE workflow are documented in
-PixieEditor's `docs/code-authoring.md`. See the [Editor migration guide](../editor/README.md).
+See the standalone [PixieEditor code-authoring guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/code-authoring.md)
+for the Editor UI, rebuild handoff and VS Code workflow. The
+[Editor walkthrough on creating and editing a component](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/handbook.md#4-create-and-edit-your-own-component)
+covers what survives a rebuild and reopen. The reopened Editor starts a
+fresh undo history. The [Editor migration guide](../editor/README.md)
+records the extraction.
 
-The Engine SDK provides the C++ templates and CMake generation contract.
-Names are ASCII C++ identifiers of at most 64 characters, starting with a letter.
-The generated registry calls each component's Describe. The owned registry,
-header and source list are tracked by hash in `.pixie-code/manifest.json`.
-Project CMake uses `pixie_project_components()` to attach those sources to its
-game library. Generated changes preserve the user's component source and the
-CMake text outside the managed block. Conflicts are refused and replaced owned
-files have preimages in `.pixie-code/backups/`.
+The selected Engine SDK supplies the C++ templates and CMake generation
+helpers. Installed `PixieAddCode.cmake` creates the initial project files and
+registry after checking the destinations. The Editor owns the later Add
+component workflow and reuses the SDK templates. Names are ASCII C++
+identifiers of at most 64 characters, starting with a letter. The generated
+registry calls each component's `Describe`. In the standard registered
+layout, `src/PixieComponents.generated.hpp` declares the registry and
+`src/PixieComponents.generated.cpp` implements it. The source list is
+`.pixie-code/Components.cmake`. The generator tracks all three files by hash
+in `.pixie-code/manifest.json`. Project CMake uses
+`pixie_project_components()` to attach the listed sources to its game library.
+Preserving generation retains user component sources and CMake text outside
+the managed block. It refuses conflicts and retains
+preimages of replaced owned files under `.pixie-code/backups/`.
+
+The separate `.pixie-code/sdk.json` records the portable SDK requirement
+(SDK ID, authoring profile, platform/architecture, compiler version and CPU
+features). Keep machine-specific paths and build-cache pins outside this file.
+Package-mode generators validate an existing requirement. Initial adoption
+requires explicit `PIXIE_PROJECT_ADOPT_SDK=ON`. The helper creates a missing
+requirement only with its owned generated outputs. Existing incompatible
+requirements require a separate explicit adoption workflow.
 
 ## Adopt an existing custom C++ project
 
@@ -131,17 +151,24 @@ pixie_project_components()
 # END PIXIE COMPONENT SOURCES (managed)
 ```
 
-Initialize only the new registry files, explicitly naming the project ID:
+Initialize the registry from the selected authoring SDK, explicitly
+naming the project ID. The example also authorizes writing a missing SDK
+requirement.
 
 ```powershell
+$sdk = 'C:/path/to/selected-sdk'
 cmake -DPIXIE_PROJECT_DIR=C:/path/to/game -DPIXIE_PROJECT_ID=MyGame `
-  -P C:/path/to/PixieEngine/cmake/PixieInitComponents.cmake
+  "-DPIXIE_SDK_ROOT=$sdk" -DPIXIE_SDK_PROFILE=authoring -DPIXIE_PROJECT_ADOPT_SDK=ON `
+  -P "$sdk/cmake/PixieInitComponents.cmake"
 ```
 
-That command refuses existing registry files and does not modify the owner's
-C++ implementation or CMake. Rebuild and use Add component normally. A custom
-multi-game build must own its explicit wiring; this automatic editor path
-expects one game library/module for the project.
+The helper refuses existing registry files and leaves the owner's C++ and
+CMake implementation intact. Source-checkout contributors can run the same
+script from the Engine tree with explicit `-DPIXIE_ENGINE_MODE=SOURCE`
+instead of the package-selection/adoption arguments. Rebuild and use Add
+component normally. A custom multi-game build must wire its registry
+explicitly. The automatic Editor path expects one game library/module for
+the project.
 
 ## Qualification boundaries
 

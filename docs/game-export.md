@@ -33,8 +33,8 @@ real `--do export` route exported sprites through the native CLI successfully;
 the current qualification and closure are recorded in the
 [qualification guide](shared-engine-export-validation.md). The owner-selected
 light-lab code project also exported, verified and ran in an isolated output folder.
-This is bounded Windows distribution evidence, not a universal platform guarantee
-or external publication.
+These historical results cover the Windows distribution paths exercised by that
+baseline. Publication and other platforms have separate acceptance criteria.
 
 `tools/export/` owns the native command and verifier; CMake owns shipping
 configuration and product metadata. Qualification currently covers Windows
@@ -42,30 +42,81 @@ PE64 only. ELF/native export on another platform is not qualified.
 
 ## Command and build separation
 
+Use the exporter at `tools/export/Release/pixie-export.exe` in the selected
+[public Engine SDK](development.md#installed-sdk-and-local-rehearsal). Keep it
+beside its paired DLLs inside that SDK. Every mode requires `--sdk <root>`.
+The root must contain `sdk.json`, its declared exporter and the matching
+`shipping/Release` tuple. `--identity` reports the selected SDK and exporter
+identities before a project is opened.
+
+Check the composed SDK's `sdk.json` for `features.pairedExport: true` and a
+`tools.exporter` descriptor for that shipping tuple. Profile manifests keep
+`pairedExportAvailable: false` from individual unit assembly. The release
+producer stages the paired tool after composition and records it in the
+root catalog. The exporter checks that descriptor and the selected tool
+and runtime files against the shipping tuple.
+
 ```text
-pixie-export <project> <out>
-pixie-export --verify <manifest.json> <out>
-pixie-export --from-manifest <manifest.json> <out>
+pixie-export --sdk <root> --identity
+pixie-export --sdk <root> [--work <directory>] <project> <out>
+pixie-export --sdk <root> --verify <manifest.json> <out>
+pixie-export --sdk <root> --from-manifest <manifest.json> <out>
 ```
 
-The normal command prepares Release products beneath the project's
-`build/pixie-export`, with a separate native output root. It requires
-`PIXIE_DEVELOPMENT=OFF`, `PIXIE_DEV_CHANNEL=OFF` and tools/tests/sample builds
-disabled for that product. It does not collect whatever happens to be in the
-development `bin/Release`. Old ignored per-game C API libraries are not inputs.
+Use a saved project folder containing its `.pixie` document. A scene-only
+export uses the selected SDK's generic player and app-local runtime and
+requires no native build. The exporter validates `.pixie-code/sdk.json` when
+present. A project with a `CMakeLists.txt` requires that file to declare
+a compatible portable public authoring requirement. It also
+requires consumer CMake and the matching Windows x64 MSVC/Windows SDK
+toolchain. CMake is found in absolute directories on `PATH` or at the
+absolute `cmake.exe` path supplied by `PIXIE_EXPORT_CMAKE`.
 
-The player uses its local project before any development source-folder
-fallback; a shipping player must not rely on an absolute project path on the
-build machine. The code project is linked directly into its player, while a
-no-code project uses the generic player. No game module belongs in an export.
+Code export configures a separate installed-package `shipping/Release`
+build with `PIXIE_DEVELOPMENT=OFF` and `PIXIE_DEV_CHANNEL=OFF`. The SDK owns the
+prebuilt engine and dependency closure. A fresh configure must declare exactly
+one shipping player target. The exporter builds that target and takes its
+executable from the owned `bin/Release` under the work root. Development
+build outputs and game-module DLLs are excluded from the file plan.
+
+### Work directory and diagnostics
+
+The default work directory is
+`<project>/.local/pixie-export/shipping/<sdk.json SHA-256>`. Supply
+`--work <directory>` only for a normal export, for example to shorten paths or
+use a separate cache. Use a dedicated work directory outside the destination.
+The exporter takes an exclusive work-directory lock. For code projects,
+`build/pixie-export-owner.json` binds the build and binary directories to the
+project path, selected SDK root/catalog/build ID, shipping role, Release
+configuration and CMake path/hash. An unowned populated build, unowned binary
+directory or mismatched owner record requires a fresh work directory.
+The tool archives prior product declarations under
+`build/previous-export-products/` before each code configure.
+
+Read the command's stdout/stderr for configure/build failures and paths. The
+fresh code product declaration is in `build/pixie-export/Release/` under the
+work root. A scene-only export writes `pixie-export/Release/no-code.json`
+under the work root. Both flows write `export-manifest.json` there and print
+its path after copying and verification.
+
+### Launch the exported player
+
+Launch the executable from the exported folder or pass `--project <folder>`
+explicitly. Without that option, the player checks beside the executable
+and then its ancestors for a `.pixie` file. The compile-time source-folder
+fallback is limited to applicable development builds. A code export links
+game code directly into its player. Scene-only exports use `pixie-player.exe`.
 
 ## Concrete file plan
 
 `cmake/PixieExportProduct.cmake` records product paths/configuration. The native
-tool freezes a versioned `pixie-export` manifest: each entry has a source,
-relative destination, role and SHA-256, with one player and the shared engine.
-That working manifest remains in build storage; its absolute build paths are
-not copied into the portable game folder as a runtime dependency.
+tool freezes a versioned `pixie-export` manifest with SDK and shipping
+provenance. Each entry records its source, relative destination, role and
+SHA-256. The plan includes one player and one shared engine. Keep the
+manifest in the work directory. The portable folder contains the manifest's
+payloads, while `--verify` and `--from-manifest` use the working manifest and
+matching SDK. Replaying a manifest requires the original source files to
+remain accessible with matching hashes.
 
 Inputs are the player, shared engine, native dependency closure, release
 Visual C++ runtime bundle, project document, scenes and assets. Native imports,
@@ -93,14 +144,16 @@ did not install a third-party DLL into System32 to test that distinction.
 
 ## Delivery boundaries
 
-The editor Export command invokes the same native implementation. Its real
-`--do export` route completed a sprites export and waited for the job before
-timed exit. Static inspection connects the File menu and command route to the
-same ExportPanel/ProjectExportJob; no interactive menu gesture is claimed by
-that command test. MCP and deterministic capture are separate pending
-increments; their later code must be included in exclusion tests before any
-shipping/publish/remote-release guarantee is stated. Save-over-channel remains
-disabled, and no golden reference image has been approved.
+The Editor's **Export game** dialog invokes the native exporter for a
+saved project in Edit mode. Its **Build log** shows recent stdout and stderr. The historical `--do export` test
+completed a sprites export and waited for the job before timed exit. Static
+inspection linked the File menu and command route to the same
+`ExportPanel`/`ProjectExportJob`. The test exercised the command route.
+The current public shipping profile excludes the development channel. See
+the [profile and host contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles)
+for development transport, capture and save boundaries. The historical
+export run did not approve a golden reference image. Publication and other
+host/transport qualification use their own receipts.
 
 See the [qualification matrix](shared-engine-export-validation.md) for actual
 results, working-tree/code revision, failures, sensitivity/restoration and gaps.

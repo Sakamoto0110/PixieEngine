@@ -12,31 +12,33 @@ namespace pixie {
 class World;
 class Behaviour;
 
-// A handle to one entity of a World: the EC-style way to reach its components. It is a value (a
-// World pointer and an EnTT entity) and stays valid to copy after the entity is gone; IsAlive
-// says whether it still names a live entity.
-//
-// The template members are defined in World.hpp; include that to use them.
+/// Non-owning handle combining a World pointer with an EnTT identity. While that World lives,
+/// IsAlive distinguishes a removed entity from a live one. Discard all handles when their World
+/// is destroyed or replaced. Include World.hpp to use the component templates.
 class Entity {
 public:
     Entity() = default;
+    /// Constructs an unchecked handle. The ID must come from the supplied World to use its components.
     Entity(World* world, entt::entity id) : world_(world), id_(id) {}
 
+    /// Borrows the owning World. Requires a non-null handle and a live World.
     World& GetWorld() const { return *world_; }
     entt::entity Id() const { return id_; }
-    // The entity as a 32-bit number (index and version), for logs and the C API.
+    /// Runtime number (EnTT index and version) for logs and interop. Persist SceneId for authored identity.
     std::uint32_t Number() const { return static_cast<std::uint32_t>(id_); }
 
+    /// Checks a null or removed entity while its World, if any, is still alive.
     PIXIE_RUNTIME_API bool IsAlive() const;
     explicit operator bool() const { return IsAlive(); }
 
-    // Adds a component, or replaces the one of the same type, and returns it; returns nothing for
-    // an empty (tag) type, which EnTT stores without instances.
+    /// Adds or replaces T on a live entity. Returns a borrowed component reference or void for an
+    /// empty tag. Structural edits can invalidate borrowed storage.
     template<typename T, typename... Args>
     decltype(auto) Add(Args&&... args) const;
+    /// Borrows an existing T. Requires a live entity with a stored component of that type.
     template<typename T>
     T& Get() const;
-    // Null when the entity has no T.
+    /// Borrows a stored T from a live entity, or returns null when the component is absent.
     template<typename T>
     T* TryGet() const;
     template<typename T>
@@ -44,11 +46,12 @@ public:
     template<typename T>
     void Remove() const;
 
-    // Adds a Behaviour, a component whose Update runs every step; see Behaviour.hpp.
+    /// Registers B for updates, adds or replaces the component and binds Self to this live entity.
+    /// Remove a started B explicitly when its Stop hook must run before adding a new instance.
     template<std::derived_from<Behaviour> B, typename... Args>
     B& AddBehaviour(Args&&... args) const;
 
-    // Destroys the entity, at the end of the step when called during one.
+    /// Requests destruction from the owning World. Requires a non-null handle to a live World.
     PIXIE_RUNTIME_API void Destroy() const;
 
     friend bool operator==(const Entity&, const Entity&) = default;

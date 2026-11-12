@@ -19,9 +19,10 @@
 2. Use **Code > Build and reopen** if game code changed. Inspect the result.
 3. Open **File > Export game...**. Choose a **new or empty output folder outside
    the game project**, for example `C:\Games\Exports\MyGame-r1`.
-4. Run Export and wait for the panel's completion/log. A code game is compiled
-   for the selected SDK's paired shipping runtime. Export is a local operation;
-   it does not create a GitHub release or upload the game.
+4. Click **Export** and expand **Build log** for diagnostics. The Editor
+   passes the selected SDK to its declared exporter. A project with code is
+   compiled for the SDK's paired shipping runtime. Export writes to the local
+   destination.
 5. Open the resulting folder, run its game executable and exercise the controls.
    Keep the executable, native dependencies and packaged assets together.
 6. Check the assets and their accompanying license/notice files as described
@@ -59,7 +60,9 @@ third-party asset, retain the supplied license/notice text in the project and
 carry the appropriate accompanying files into **each new export** before
 distribution. Check their presence in the final folder alongside the asset;
 keep the runtime's staged notices too. Record any manual copies in the consumer
-report. This is output preparation, not a reason to edit the SDK or its inventory.
+report. Run exact-manifest verification before adding files manually. If an
+exact check must cover the final folder, include the notices in the planned
+asset inventory. Keep the SDK and its inventory intact.
 
 Do not put test logs, handbooks or custom assets inside the installed SDK. Its
 inventory is validated; extra files can invalidate the package just as missing
@@ -93,7 +96,7 @@ preserves evidence that the report alone cannot replace.
 | Code compile fails | Read the first compiler error, file and line; check exact MSVC/Windows SDK/CMake availability and generated registry ownership |
 | Copied source appears unchanged after build | Timestamp-based build tools may see copied old timestamps as up to date. Save the changed source in the code editor, then Build and reopen |
 | C++ component absent | Generate it through Add component, register Describe via the generated registry, compile and reopen; source files alone cannot change a loaded DLL |
-| Open code launches the wrong app | It uses the OS file association/fallback. Open the displayed project source in your allowed external code editor |
+| Open code cannot find VS Code or reports an IDE setup issue | Check the VS Code installation and PATH, then read the Editor's setup diagnostic. You can open user-owned source manually. [Editor code authoring](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/code-authoring.md) |
 | Controls do nothing | Check that game code binds that control; Play, choose Game input, focus/hover the viewport as required; attach enabled generic KeyboardControl/MouseControl for Behaviour callbacks/polling helpers |
 | Only synthetic keyboard input fails | Compare a bound key manually when possible. Record the automation result separately; do not infer an Editor keyboard defect from it |
 | Object does not move | Check required Velocity2D for the sample, speed/enabled, and whether a motor/body owns motion instead |
@@ -116,9 +119,8 @@ Preserve the exact diagnostic before attempting recovery.
 
 ## Optional diagnostic command line
 
-These commands describe the exporter for technical diagnosis. **They do not
-replace the mandatory Computer Use export in the Claude handoff.** Use the
-executable path declared by `sdk.json` (the inspected SDK declares
+For terminal diagnosis, use the executable path declared by `sdk.json`
+(the inspected SDK declares
 `tools/export/Release/pixie-export.exe`):
 
 ```text
@@ -128,9 +130,15 @@ pixie-export --sdk <sdk-root> --verify <manifest.json> <output-dir>
 pixie-export --sdk <sdk-root> --from-manifest <manifest.json> <output-dir>
 ```
 
-Do not omit `--sdk` based on an older example. Manifest/build diagnostics belong
-in the chosen work/output folders, not the SDK. Preserve error text and the
-identity of the package used when asking the maintainer for help.
+Every mode requires `--sdk`. Ordinary export uses the project-local
+`.local/pixie-export/shipping/<catalog SHA-256>` by default and writes
+`export-manifest.json` in the work directory. Use `--work` only with ordinary
+export. A code cache must match its project, SDK, role and CMake identity.
+Use a fresh work directory if ownership differs. Keep work and output outside
+the SDK. Record the exact error, work path and SDK identity. The Editor can
+supply a different work path for a code export.
+
+[Native export command and build separation](../game-export.md#command-and-build-separation)
 
 ## What to report at handoff
 
@@ -138,7 +146,7 @@ Save `CONSUMER-REPORT.md` in the game folder using the
 [report template](consumer-report-template.md). Include:
 
 - Project folder, selected SDK version/profile/identity, Editor executable.
-- What was actually done through Computer Use, including Save/reopen and export.
+- Editor routes used for Save/reopen and export. Identify Computer Use when following the [assistant handoff](assistant-handoff.md#computer-use-workflow).
 - C++ build result and which source examples were used or changed.
 - Observed input, motion, visual effects and Stop behavior, separately from compilation.
 - Export folder and whether its executable was launched and exercised.

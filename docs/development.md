@@ -123,8 +123,34 @@ python -B "$sdk\tools\sdk\verify_sdk.py" "$sdk"
 ```
 
 Use `--complete` when the supplied artifact is a complete distribution. The
-verifier checks the package inventory and profile metadata. The
-[installed consumer fixture](../tests/sdk-consumers/CMakeLists.txt) separately
+verifier checks the package inventory and profile metadata. For a C++ game,
+select the public SDK's `authoring/Debug` or `authoring/Release` tuple.
+Export selects the same SDK's `shipping/Release` tuple. The separate
+Runtime ZIP contains the generic player and DLLs for running a saved no-code
+project. C++ builds, development modules, and the paired exporter require
+the SDK. See the [profile and identity contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles)
+and [native export command](game-export.md#command-and-build-separation).
+
+### Installed CMake helpers
+
+Supply an absolute `PIXIE_SDK_ROOT`, explicit `PIXIE_SDK_PROFILE` and
+`CMAKE_BUILD_TYPE` (single-config) or `CMAKE_CONFIGURATION_TYPES` (multi-config).
+Use a new build directory when changing the selected SDK, profile, or
+configuration set. The package verifies the catalog and the exact admitted
+payloads before exposing `Pixie::Shared` and the `Pixie::Core`, `Pixie::Platform`,
+`Pixie::Render`, `Pixie::App`, `Pixie::Runtime` and `Pixie::Engine` entry targets.
+`pixie_stage_runtime(<target>)` stages the selected configuration's engine DLL
+and declared native dependencies beside an existing consumer target.
+
+Installed `cmake/PixieProject.cmake` resolves the package and admits the
+project's portable SDK requirement. `pixie_game` builds `<name>-game` and a
+directly linked player, plus `<name>-module` when the profile supports module
+loading. `pixie_project_components()` attaches the generated source list to the
+single game library in that directory. See
+[code generation and adoption](entity-input-and-code-components.md#create-and-edit-a-component)
+and [shipping products](game-export.md#work-directory-and-diagnostics).
+
+The [installed consumer fixture](../tests/sdk-consumers/CMakeLists.txt) separately
 configures against the explicit SDK root, profile, build configuration and
 identity pins. Give it a fresh build directory and the matching toolchain.
 Package mode resolves the SDK's CMake package without an Engine source build.
@@ -181,9 +207,10 @@ provenance and runtime manifest. Its generic player runs an existing no-code
 project folder. A code export supplies its own game executable.
 Both ZIPs are re-extracted and verified before `assets/` receives the checksums
 and release receipt. Debug authoring requires the matching developer CRT.
-The standalone PixieEditor checkout's `docs/development.md` describes the
-consumer rehearsal. It takes the Engine workflow artifact and the trusted SDK
-archive and catalog hashes, with the locked Inspector pair as a separate input.
+The standalone [PixieEditor development guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/development.md)
+describes the consumer rehearsal. It takes the Engine workflow artifact and
+the trusted SDK archive and catalog hashes, with the locked Inspector pair
+as a separate input.
 
 After the [manual release workflow](../.github/workflows/publish.yml) is present
 on the default branch, dispatch it to run Engine CI and upload the verified
@@ -199,15 +226,14 @@ Archive verification and identity checks are distinct from G6 acceptance.
 
 | Contract | Authority and stable identity | Consumer reference and check |
 | --- | --- | --- |
-| SDK compatibility, native bindings, runtime and export | PixieEngine owns [ABI28](modules/capi/REFERENCE.md), `sdk.json`, profile manifests and the release receipt. The catalog SHA-256 and profile build IDs bind the installed inputs. | The Editor takes the installed SDK and catalog hash. The SDK verifier and both candidate rehearsals check the identities and inventory. |
-| Editor application, SDK selection and release | PixieEditor owns its README, `docs/development.md`, `version.json`, selected-package lock and native provenance manifest. Its candidate binds these inputs through `editor.json` and the ZIP digest. | The Engine guide names the standalone guide by project and path. Editor links, locked restore and publish checks cover its own checkout. |
+| SDK compatibility, native bindings, runtime and export | PixieEngine owns the [C API ABI and SDK identity contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles), `sdk.json`, profile manifests and the release receipt. The catalog SHA-256 and profile build IDs bind the installed inputs. | The Editor takes the installed SDK and catalog hash. The SDK verifier and both candidate rehearsals check the identities and inventory. |
+| Editor application, SDK selection and release | PixieEditor owns its README, `docs/development.md`, `version.json`, selected-package lock and native provenance manifest. Its candidate binds these inputs through `editor.json` and the ZIP digest. | The pinned standalone guide is linked above. Editor links, locked restore and publish checks cover its own checkout. |
 | Inspector packages and contained Lib | PixieInspector and PixieLib each own their repository README, dependency record and product version. The Editor records its selected package identities and content hashes in its lock. Engine owns the inventory and notices for the native Lib snapshot it ships. | The rehearsal verifies the Inspector pair against the Editor lock. The installed SDK verifier checks the contained native inventory. |
 
-Keep relative links within their owning repository. Use project and path for
-the local Editor guide while it has no remote, and use package or catalog
-identities at product boundaries. The Engine documentation validator checks
-its own links and scheduler. The standalone guide links are checked against
-the Editor root.
+Keep relative links within their owning repository. Use the peer project's
+published guide and package or catalog identities at product boundaries.
+The Engine documentation validator checks its own links and scheduler.
+Check Editor guide links against the Editor's owning checkout.
 
 ## Checks before a commit
 

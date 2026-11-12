@@ -288,6 +288,7 @@ def verify(root: Path, *, complete: bool = False, query: bool = False) -> dict:
             if distribution == "public" and ("pixie_dev_dispatch" in exports or b"--dev-channel" in path.read_bytes() or b"PIXIE_DEVELOPMENT_CHANNEL_V1" in path.read_bytes()):
                 raise ValueError(f"Local automation native image in public SDK: {record['path']}")
         if query:
+            # Query each DLL in a fresh process so another loaded tuple cannot supply its identity.
             process = subprocess.run([sys.executable, __file__, "--identity-only", str(payload_path(root, profile["runtime"]["path"]))], capture_output=True, text=True)
             if process.returncode:
                 raise ValueError(f"Selected SDK runtime cannot load/query: {process.stderr.strip()}")

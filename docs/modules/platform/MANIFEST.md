@@ -52,6 +52,8 @@
 
 ## Routes
 
-- [Introduction](README.md) and [technical reference](REFERENCE.md).
+- [Introduction](README.md) and [window, host context and input contracts](REFERENCE.md).
 - CMake owns the internal pixie_platform object target and Pixie::Platform consumer facade. The artifact field describes distribution inside the shared engine, not a separate DLL per module.
+- `Window.hpp`, `HostSurface.hpp`, `Surface.hpp` and `Input.hpp` are SDK headers. `LocalCommandChannel.hpp` is installed only with the private `local-development` profile. `FrameLimiter` is an implementation detail in `engine/platform/src/`.
+- Contributor checks are in `tests/engine/InputTests.cpp` and, for private transport, `tests/devchannel/LocalChannelTests.cpp`.
 - [Qualification matrix](../../shared-engine-export-validation.md) separates executed evidence from pending native configurations, exports and MCP work. Windows is the qualified execution environment so far; Linux remains unqualified.

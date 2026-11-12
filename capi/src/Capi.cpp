@@ -1,7 +1,7 @@
 #include "pixie/runtime/ParticleStep.hpp"
-// The C API over a ProjectSession. Every exported function converts its arguments, runs inside
-// Guard (so no exception crosses into the caller), and reports failures through a result code and
-// the thread's last error.
+// C ABI adapter over ProjectSession and runtime descriptors. Guard translates exceptions from
+// allocating work or game callbacks. Scalar queries and simple argument checks have their own
+// return conventions. Failure text is local to the calling thread.
 
 #include "pixie_capi.h"
 #include "GameModules.hpp"
@@ -220,6 +220,7 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
 #ifdef PIXIE_DEVELOPMENT
     created->module = moduleLease;
 #endif
+    // Keep the provisional session and module lease local until both project open and GL start succeed.
     if (folder != nullptr && !created->session.OpenProject(FromUtf8(folder))) {
         return Fail(PIXIE_ERROR_IO, created->session.Error());
     }
@@ -336,6 +337,7 @@ PixieResult pixie_module_load(const char* path) {
             return Fail(PIXIE_ERROR_ARGUMENT, std::move(identityDiagnostic));
         const auto contract = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_candidate_contract"));
         module->candidateContract = contract ? contract() : 0;
+        // Existing sessions retain their own leases. Publish the default only after admission.
         loadedModule = std::move(module);
         return PIXIE_OK;
     });
@@ -773,6 +775,8 @@ void pixie_session_destroy(PixieSession* session) {
         return;
     }
     Guard([&] {
+        // Stop with the host context current. Member destruction then retires session storage
+        // before the last module lease can unload code used by descriptors and project objects.
         session->session.Stop();
         delete session;
         return PIXIE_OK;

@@ -84,8 +84,9 @@ public:
     // Why the last OpenProject, Play, StopPlaying, or Save failed.
     const std::string& Error() const { return error_; }
 
-    // Creates the renderers and builds the World for a viewport of `size` pixels.
+    /// Creates renderers with the current GL context and builds the World for size in pixels.
     PIXIE_RUNTIME_API bool Start(FramebufferSize size);
+    /// Discards World storage and releases GL resources. Call with the context current before teardown.
     PIXIE_RUNTIME_API void Stop();
 
     // Throws the World away and builds it again, with the same seed, after the project has captured
@@ -174,6 +175,8 @@ public:
     // The interpolation of the last Advance, for Render.
     PIXIE_RUNTIME_API double Alpha() const;
 
+    /// Borrows the active World. Requires a successful Start and a session that has yet to Stop.
+    /// Reacquire the World and all World-backed handles whenever WorldRevision changes.
     World& GetWorld() { return *world_; }
     // Changes whenever World storage is discarded/rebuilt; invalidates host caches/tokens
     // even when an allocator reuses the same address and entity handle numbers.
@@ -195,7 +198,9 @@ public:
     PIXIE_RUNTIME_API ViewportCamera2D ResolveCameraForViewport(CameraSelection2D camera, FramebufferSize size) const;
     PIXIE_RUNTIME_API Entity PickViewport(CameraSelection2D camera, FramebufferSize size, pxPoint point, double tolerance = 0);
 
+    /// Borrows the Project. A factory-qualified rebuild can replace the Project and its descriptors.
     Project& GetProject() { return *project_; }
+    /// Borrows the catalog. Reacquire descriptor references after a factory-backed replacement.
     const ComponentTypes& Types() const { return types_; }
     // The images of the World's sprites, resolved against the project folder (the working
     // directory without a project).

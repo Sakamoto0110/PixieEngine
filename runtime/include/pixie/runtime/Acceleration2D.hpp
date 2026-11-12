@@ -4,9 +4,9 @@
 
 namespace pixie {
 
-// How fast an entity's Velocity2D changes, in world units per second squared. A Behaviour that
-// steers writes this, its own state, and leaves Velocity2D to the World: in PostUpdate the World
-// adds it to the velocity, then moves the transform by the new velocity. It persists until changed.
+/// Persistent linear acceleration in world units per second squared. A steering Behaviour can
+/// write it each tick. The built-in Physics system applies it to Velocity2D before integrating
+/// the transform. CharacterMotor2D and RigidBody2D entities skip this legacy pass.
 struct Acceleration2D {
     pxVec2 linear;
 };

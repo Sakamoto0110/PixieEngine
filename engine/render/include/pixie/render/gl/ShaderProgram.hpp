@@ -16,6 +16,7 @@ public:
     ShaderProgram(const ShaderProgram&) = delete;
     ShaderProgram& operator=(const ShaderProgram&) = delete;
     PIXIE_RENDER_API ShaderProgram(ShaderProgram&& other) noexcept;
+    /// Transfers the GL name. Destroy the destination program before move assignment.
     PIXIE_RENDER_API ShaderProgram& operator=(ShaderProgram&& other) noexcept;
     PIXIE_RENDER_API ~ShaderProgram();
 

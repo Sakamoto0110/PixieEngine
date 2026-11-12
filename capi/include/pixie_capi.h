@@ -1,18 +1,17 @@
-/*
+/**
  * The C API of PixieEngine: one shared engine whose interface is C only, so any
  * language that calls C (the C# editor through P/Invoke, tools, tests) can run the game, draw it
  * into a texture, feed it input, and read and write its components. A development host selects a
  * game module before creating a session; without one, projects use only their scenes.
  *
- * Rules for every function:
- * - The OpenGL 4.5 core context the session was created with must be current on the calling
- *   thread. A session is used from one thread.
- * - Nothing throws across this boundary: functions return a PixieResult, and on failure
- *   pixie_last_error describes it.
- * - Strings are UTF-8, copied into the caller's buffer with a terminating NUL. A buffer too small
- *   gets the truncated string and PIXIE_ERROR_BUFFER.
- * - Entities are 32-bit handles (index and version); a handle to a destroyed entity is reported as
- *   not found, never confused with a newer one.
+ * Use a session on its host thread. Keep the session's OpenGL 4.5 core context current for
+ * creation, rendering, image access and teardown. Identity queries need no session or context.
+ * Functions returning PixieResult report errors through the result and pixie_last_error.
+ * Read the error on the calling thread. A later failure can replace it.
+ * Strings use UTF-8 and caller-owned NUL-terminated buffers. Check each measured query for
+ * its length convention and each scalar query for its error sentinel.
+ * Entity handles are scoped to the current World. Re-resolve saved entity Scene IDs after
+ * storage replacement, even when an old numeric handle still appears live.
  */
 #ifndef PIXIE_CAPI_H
 #define PIXIE_CAPI_H
@@ -33,10 +32,10 @@
 extern "C" {
 #endif
 
-/* Raised when a function's meaning or a struct's layout changes. */
+/// C ABI revision. Compare it independently of the native SDK tuple and optional module contracts.
 #define PIXIE_CAPI_VERSION 28
 
-/* SDK identity is independent of C API layouts and cooperative module contract1. */
+/// Schema for the typed SDK compatibility tuple. Candidate authoring has a separate opt-in.
 #define PIXIE_SDK_IDENTITY_SCHEMA 1
 #define PIXIE_MODULE_IDENTITY_CONTRACT 1
 #define PIXIE_SDK_IDENTITY_MAX_LENGTH 65535
@@ -44,9 +43,7 @@ extern "C" {
 #define PIXIE_CAPABILITY_NATIVE_AUTOMATION UINT64_C(2)
 #define PIXIE_CAPABILITY_CANDIDATE_AUTHORING UINT64_C(4)
 
-/* Small presentation read surface. Returned JSON owns no native handles. Camera
- * choices: 0 free, 1 Scene/World defaults, 2 explicit entity; IDs are stable. */
-
+/// Opaque session owned by the caller from successful create/open through pixie_session_destroy.
 typedef struct PixieSession PixieSession;
 
 /* Version20: ordered device events. Action0=release,1=press,2=repeat (keys only).
@@ -101,8 +98,10 @@ PIXIE_API PixieResult pixie_dev_dispatch(PixieSession* session, const char* requ
 #endif
 
 #ifdef PIXIE_DEVELOPMENT
-/* Selects the development game module for subsequent sessions. Null restores the
- * scene-only project. Existing sessions retain their module until destruction. */
+/** Select the development module for subsequent sessions, or pass null for scene-only projects.
+ * Serialize selection changes and session creation. Loading the OS image may run initializers.
+ * The C ABI and SDK tuple are checked before any Project factory runs. On failure the prior
+ * selection remains active. Existing sessions retain their own module lease through teardown. */
 PIXIE_API PixieResult pixie_module_load(const char* path);
 #endif
 
@@ -239,21 +238,35 @@ PIXIE_API int32_t pixie_api_version(void);
  * a buffer and NUL-terminates even truncated output. Invalid arguments/oversize return
  * -1 and set pixie_last_error. Native facilities do not grant module/type admission. */
 PIXIE_API int32_t pixie_sdk_identity(char* buffer, int32_t capacity);
+/// Reports the PIXIE_CAPABILITY_* bits compiled into this DLL without a session or GL context.
 PIXIE_API uint64_t pixie_capabilities(void);
+/// Copies a presentation catalog with persistent IDs. Capacity 0 measures UTF-8 bytes excluding NUL.
 PIXIE_API PixieResult pixie_presentation_snapshot(PixieSession* session, char* buffer, int32_t capacity, int32_t* length);
+/** Select viewport camera intent for this session.
+ * Kind 0 is free (both IDs zero), 1 uses Scene/World defaults (entity zero),
+ * and 2 selects an explicit entity (nonzero entity Scene ID). The scene argument
+ * is an optional scope ID for kinds 1 and 2. The choice does not author the scene. */
 PIXIE_API PixieResult pixie_viewport_camera_set(PixieSession* session, int32_t kind, uint64_t entity, uint64_t scene);
+/// Copies the camera selection intent, which can refer to an unavailable camera or scope.
 PIXIE_API PixieResult pixie_viewport_camera_get(PixieSession* session, int32_t* kind, uint64_t* entity, uint64_t* scene);
+/** Copies the resolved center in world units and zoom in pixels per world unit.
+ * Source is 0 free, 1 entity, 2 Scene default or 3 World default.
+ * Capacity 0 measures diagnostic bytes excluding NUL. */
 PIXIE_API PixieResult pixie_viewport_camera_resolve(PixieSession* session, double* x, double* y, double* zoom,
     int32_t* source, char* diagnostic, int32_t capacity, int32_t* length);
+/// Reads the session's free camera independently of the resolved camera source.
 PIXIE_API PixieResult pixie_viewport_free_camera_get(PixieSession* session, double* x, double* y, double* zoom);
+/// Sets the free camera using finite world coordinates and zoom in [0.0001, 10000].
 PIXIE_API PixieResult pixie_viewport_free_camera_set(PixieSession* session, double x, double y, double zoom);
 
+/// Copies the session's PIXIE_PHYSICS_DEBUG_* presentation bits.
 PIXIE_API PixieResult pixie_physics_debug_get(PixieSession* session, uint32_t* flags);
+/// Sets presentation bits without editing the scene. Unknown bits return PIXIE_ERROR_ARGUMENT.
 PIXIE_API PixieResult pixie_physics_debug_set(PixieSession* session, uint32_t flags);
 /* PIXIE_LIGHTING_DEBUG_* bits; until set, light bounds show in Edit and nothing in Play. */
 PIXIE_API PixieResult pixie_lighting_debug_get(PixieSession* session, uint32_t* flags);
 PIXIE_API PixieResult pixie_lighting_debug_set(PixieSession* session, uint32_t flags);
-/* The last failure on this thread, as text. Returns the full length, which may exceed capacity. */
+/// Copies the last failure on this thread. Returns UTF-8 bytes excluding NUL, even if truncated.
 PIXIE_API int32_t pixie_last_error(char* buffer, int32_t capacity);
 /* Scene movement and particle-physics diagnostics from the latest sync/update. required includes the null
  * terminator. Query with null buffer/capacity 0; no simulation step is performed. */
@@ -276,11 +289,13 @@ PIXIE_API PixieResult pixie_session_create(int32_t width, int32_t height, uint64
 PIXIE_API void pixie_session_destroy(PixieSession* session);
 /* The project's name: the project file's when a project folder is open, else the game's. */
 PIXIE_API PixieResult pixie_project_name(PixieSession* session, char* buffer, int32_t capacity);
+/// Sets a positive view size in pixels. The next render uses that size.
 PIXIE_API PixieResult pixie_session_resize(PixieSession* session, int32_t width, int32_t height);
 /* Adds `seconds` of wall time and runs the fixed steps it makes due, unless paused. */
 PIXIE_API PixieResult pixie_session_advance(PixieSession* session, double seconds);
 /* Runs one fixed step now, paused or not. */
 PIXIE_API PixieResult pixie_session_step(PixieSession* session);
+/// Sets pause (nonzero) or resumes (zero) and clears fractional accumulated time.
 PIXIE_API PixieResult pixie_session_set_paused(PixieSession* session, int32_t paused);
 /* How fast simulated time runs against the wall time given to advance, from 0.01 to 8 (clamped). */
 PIXIE_API PixieResult pixie_session_set_time_scale(PixieSession* session, double scale);
@@ -318,9 +333,9 @@ PIXIE_API PixieResult pixie_project_snapshot(PixieSession* session, char* buffer
                                              int32_t* length);
 PIXIE_API PixieResult pixie_project_restore(PixieSession* session, const char* snapshot);
 
-/* Bounded serial authoring on the owner thread for an owned fallback or explicitly contracted module in Edit.
- * status refuses uncontracted factory/borrowed sessions; revision identifies current World storage.
- * edit requires that revision and a complete v2 document. Failure publishes no replacement;
+/** Bounded serial authoring on the owner thread for an owned fallback or explicitly contracted module in Edit.
+ * Status returns the current World storage revision and refuses uncontracted factory/borrowed sessions.
+ * Edit requires a matching three-field token and a complete v2 document. Failure publishes no replacement;
  * success commits irreversibly and returns a receipt without fallible postcommit callbacks.
  * The host must refuse unfinished gestures before calling, then invalidate bindings on success.
  * No file is written or converted. Timings are milliseconds; publication includes retired-state teardown.
@@ -348,9 +363,9 @@ PIXIE_API PixieResult pixie_entity_scene_scope(PixieSession* session, uint32_t e
  * Same admission/token contract as candidate editing; no World replacement or format undo. */
 PIXIE_API PixieResult pixie_project_convert_scene_v2(PixieSession* session, const PixieSceneEditToken* expected);
 
-/* Presentation-only Environment choice for the session's viewport. A selected Scene ID remains
- * selected when its scope definition is removed; resolution then reports World fallback. The
- * current Scene Environment inherits World lighting and does not install or edit settings. */
+/** Session-only viewport Environment selection. A removed scope remains selected while
+ * resolution falls back to World. Scene resolution can inherit World values or use an
+ * authored override. Selection never writes lighting settings. */
 typedef enum PixieEnvironmentSelectionKind {
     PIXIE_ENVIRONMENT_LEGACY_WORLD = 0,
     PIXIE_ENVIRONMENT_SCENE = 1
@@ -504,9 +519,9 @@ PIXIE_API int32_t pixie_type_count(PixieSession* session);
 PIXIE_API PixieResult pixie_type_find(PixieSession* session, const char* name, int32_t* type);
 PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char* buffer,
                                       int32_t capacity);
-/* PIXIE_TYPE_* flags of a component type. */
-/* Explicit project-relative user implementation, empty for engine-owned components. */
+/// Copies the descriptor's declared project-relative source path, or empty when unset.
 PIXIE_API PixieResult pixie_type_source(PixieSession* session, int32_t type, char* buffer, int32_t capacity, int32_t* length);
+/// Returns the PIXIE_TYPE_* flags of the descriptor, or zero for an invalid session or index.
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */
 PIXIE_API int32_t pixie_entity_has(PixieSession* session, uint32_t entity, int32_t type);
@@ -552,9 +567,11 @@ PIXIE_API PixieResult pixie_field_text(PixieSession* session, int32_t type, int3
 /* Optional presentation extension. A slash-separated group path, or empty for a root field. */
 PIXIE_API PixieResult pixie_field_group(PixieSession* session, int32_t type, int32_t field,
                                       char* buffer, int32_t capacity);
-/* Optional authoring extensions. A circle radius of zero means no guide for this selection. */
+/// Queries storage and project policy for a field on a live entity. This is not edit admission.
 PIXIE_API PixieResult pixie_field_authoring_lock(PixieSession* session, uint32_t entity,
                                                 int32_t type, int32_t field, int32_t* locked);
+/** Optional Edit-mode guide in world units, with diameter in meters.
+ * Successful radius zero means no guide. Invalid geometry returns PIXIE_ERROR_ARGUMENT. */
 PIXIE_API PixieResult pixie_authoring_circle(PixieSession* session, uint32_t entity,
                                             double* x, double* y, double* radius, double* diameter_m);
 PIXIE_API int32_t pixie_field_enum_count(PixieSession* session, int32_t type, int32_t field);

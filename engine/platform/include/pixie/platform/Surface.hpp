@@ -4,7 +4,7 @@
 
 namespace pixie {
 
-// A context supplied by a platform or host. Render consumes only the current context and size.
+/// Context activation and physical framebuffer dimensions supplied by the platform or host.
 class Surface {
 public:
     virtual ~Surface() = default;

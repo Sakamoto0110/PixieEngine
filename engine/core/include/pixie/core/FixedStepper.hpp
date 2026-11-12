@@ -17,6 +17,7 @@ public:
     // does not trigger a burst of catch-up steps.
     static constexpr double kMaxFrameDelta = 0.25;
 
+    /// Supply a finite positive update rate, in steps per second.
     explicit FixedStepper(double updateRate = 60.0) : step_(1.0 / updateRate) {}
 
     double StepSeconds() const { return step_; }
@@ -33,12 +34,12 @@ public:
         }
     }
 
-    // The FrameTime of a frame drawn now: alpha is how far it lies between the last two steps.
+    /// Reports leftover time divided by the fixed step. Passes frame delta and index through.
     FrameTime RenderTime(double frameDelta, std::uint64_t frameIndex) const {
         return FrameTime{frameDelta, accumulator_ / step_, simulated_, frameIndex};
     }
 
-    // Forgets the time left over, so the next Advance starts a fresh step.
+    /// Clears leftover time while retaining completed step count and simulated seconds.
     void Drop() { accumulator_ = 0.0; }
 
     std::uint64_t Steps() const { return steps_; }

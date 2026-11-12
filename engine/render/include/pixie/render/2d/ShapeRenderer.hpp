@@ -22,6 +22,7 @@ class ShapeRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
     PIXIE_RENDER_API bool Create();
+    /// Releases GPU resources while the context is current. Flush consumes the CPU queue.
     PIXIE_RENDER_API void Destroy();
 
     // Draws every instance in `instances` as `kind`, seen through `view`.

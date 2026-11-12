@@ -328,7 +328,7 @@ void World::Step(double delta, const Input& input) {
     detail::RefreshParenting2D(*this);
     detail::CaptureParenting2D(*this);
     RunSystems(SystemPhase::PreUpdate, time, input);
-    // A Behaviour class added during the step is updated from the next step on.
+    // Freeze the class count for this pass so a class registered during dispatch starts next tick.
     const std::size_t classes = behaviours_.size();
     {
         const TelemetryScope behaviours(telemetry_,behaviourMetric_);
@@ -352,6 +352,7 @@ void World::FinishStep() {
         Destroy(Wrap(id));
     }
     pendingDestroy_.clear();
+    // Once detached from the queue, a failing action leaves later actions in this batch unrun.
     auto actions = std::move(deferred_);
     deferred_.clear();
     for (auto& action : actions) {

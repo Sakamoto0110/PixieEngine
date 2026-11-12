@@ -20,6 +20,7 @@
 
 **Indexing:** include
 
-Render owns GL loading/wrappers, render targets, readback, View and the current 2D renderers. It depends on Core and graphics/image/font dependencies, never Platform or GLFW. It receives a current OpenGL 4.5 core context; context ownership, creation and presentation remain outside Render.
+Use Render to draw into an already-current OpenGL 4.5 core context. It owns the loader, GPU objects, framebuffers, readback and 2D draw passes. The caller owns context activation and presentation.
 
-Read the [manifest](MANIFEST.md) for source/build routes and the [technical reference](REFERENCE.md) for ownership and lifecycle. Public declarations remain in `engine/render/include/pixie/render/`.
+- [Technical reference](REFERENCE.md) for contracts and lifecycle.
+- [Manifest](MANIFEST.md) for targets, source and test routes.

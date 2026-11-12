@@ -27,7 +27,7 @@
 namespace pixie {
 struct PhysicsSettings2D;
 
-// When an engine system runs within a step. Behaviours run between the two.
+/// Selects a system's phase. Execution is PreUpdate, Behaviours, Physics, then PostUpdate.
 enum class SystemPhase {
     // Before the Behaviours: shared state they read (the previous transform, spatial queries).
     PreUpdate,
@@ -36,7 +36,7 @@ enum class SystemPhase {
     Physics, // After Behaviours, before every PostUpdate system.
 };
 
-// A system: a function over the whole World, run once per step in its phase.
+/// Runs shared work over a World once per completed pass through its registered phase.
 using System = std::function<void(World& world, const FrameTime& time, const Input& input)>;
 
 // A logical Scene scope identity, separate from an entity's persisted SceneId.
@@ -73,15 +73,11 @@ struct GravityResolution2D {
     explicit operator bool() const { return error.empty(); }
 };
 
-// The live simulation: entities and their components, stored contiguously per component type by
-// EnTT, with Behaviours for per-entity logic and systems for the shared work. A World owns its time
-// (steps and simulated seconds) and its random number generator; nothing in it is global.
-//
-// A step runs, in order: the PreUpdate systems, then every Behaviour (class by class), then the
-// PostUpdate systems, then the destructions and deferred actions requested during the step. The
-// World's own systems come first in their phase: in PreUpdate, copying each Transform2D into its
-// PreviousTransform2D; in Physics, integrating Velocity2D into Transform2D for entities without
-// CharacterMotor2D and RigidBody2D, whose physics service owns motion instead.
+/// Owns one live simulation, including ECS storage, step clock, RNG and logical Scene scopes.
+/// Step runs PreUpdate, Behaviours, Physics and PostUpdate, then queued destruction and deferred
+/// actions. Systems run in registration order within each phase. The built-in PreUpdate system
+/// records previous transforms. The built-in Physics integrator applies acceleration and velocity
+/// to eligible entities. An installed scene movement service owns body and motor motion.
 class World {
 public:
     PIXIE_RUNTIME_API explicit World(std::uint64_t seed = 0);
@@ -91,10 +87,10 @@ public:
 
     // A new entity, with a Name if `name` is not empty.
     PIXIE_RUNTIME_API Entity Create(std::string_view name = {});
-    // Destroys the entity; during a step, at the end of it.
+    /// Queues destruction during a step; otherwise destroys immediately. Ignores foreign or dead handles.
     PIXIE_RUNTIME_API void Destroy(Entity entity);
-    // Runs `action` at the end of the current step, or now when no step is running. Creating
-    // entities and adding or removing components during a step goes through here.
+    /// Runs action immediately outside the simulation phases. During a phase it queues the action
+    /// after pending destruction. Use this for structural edits that could invalidate active views.
     PIXIE_RUNTIME_API void Defer(std::function<void(World&)> action);
 
     // In-memory logical scopes. Catalog edits are accepted only between steps. IDs are supplied
@@ -119,20 +115,23 @@ public:
     // Refuses an occupied scope. Reassign its entities to another scope or World first.
     PIXIE_RUNTIME_API bool RemoveScope(ScopeId id);
     PIXIE_RUNTIME_API std::vector<SceneScope> Scopes() const;
-    // Zero means World-only. A transfer requested in a step becomes visible after that step,
-    // before the next tick. Invalid entities and unknown target scopes are rejected.
+    /// Zero denotes direct World membership. Rejects invalid entities, unknown scopes and transfers
+    /// of linked entities. A request during a phase queues a transfer for revalidation at finish.
     PIXIE_RUNTIME_API bool SetScope(Entity entity, ScopeId id);
+    /// Returns no value for dead or foreign entities and ScopeId{} for direct World membership.
     PIXIE_RUNTIME_API std::optional<ScopeId> ScopeOf(Entity entity) const;
 
     // Adds a system to a phase, after the ones already there. `name` labels it for tools.
     PIXIE_RUNTIME_API void AddSystem(SystemPhase phase, std::string name, System system);
 
-    // Advances the World by `delta` seconds.
+    /// Advances by delta seconds and borrows input for the call. Recursive Step throws, including
+    /// from deferred actions. On failure earlier writes may survive and the clock does not advance.
     PIXIE_RUNTIME_API void Step(double delta, const Input& input);
 
     // Steps completed, and simulated seconds they covered.
     std::uint64_t Steps() const { return steps_; }
     double Elapsed() const { return elapsed_; }
+    /// True in simulation phases. Deferred actions run with this flag cleared.
     bool IsStepping() const { return stepping_; }
 
     // Per-World CPU metrics, disabled initially and never serialized. Named systems and whole-step
@@ -146,11 +145,14 @@ public:
     PIXIE_RUNTIME_API void ResetInterpolation(Entity entity);
 
     PIXIE_RUNTIME_API std::size_t EntityCount() const;
+    /// Borrows the underlying EnTT registry. The caller owns the lifetime of any views it creates
+    /// and must respect World invariants when mutating storage directly.
     entt::registry& Registry() { return registry_; }
     const entt::registry& Registry() const { return registry_; }
+    /// Wraps an ID from this World without a liveness check.
     Entity Wrap(entt::entity id) { return Entity(this, id); }
 
-    // Calls fn(Entity, Components&...) for every entity that has all the components.
+    /// Calls fn(Entity, Components&...) for each match. Keep the iterated storage stable during fn.
     template<typename... Components, typename Fn>
     void Each(Fn&& fn) {
         registry_.view<Components...>().each([this, &fn](entt::entity id, Components&... components) {
@@ -226,6 +228,8 @@ void World::UpdateAll(World& world, const FrameTime& time, const Input& input) {
             behaviour.started_ = true;
             behaviour.Start();
         }
+        // Start may initialize input state. Recheck the matching control per event so a callback
+        // can disable further delivery within the same tick.
         const auto* keys = world.registry_.try_get<KeyboardControl>(id);
         const auto* mouse = world.registry_.try_get<MouseControl>(id);
         if ((keys && keys->enabled) || (mouse && mouse->enabled)) {

@@ -46,6 +46,7 @@ class PathRenderer {
 public:
     // Needs a current GL context; returns false if the shaders do not build.
     PIXIE_RENDER_API bool Create();
+    /// Releases GPU resources and queued path segments while the context is current.
     PIXIE_RENDER_API void Destroy();
 
     // Adds the segments of `points`: `width` wide, in `fillColor` up to `fill` (0 to 1) of its

@@ -1,4 +1,5 @@
-// The development module exports only this versioned factory and its game's code.
+// Installed game-module entry support. The loader queries the C ABI and compiled SDK tuple
+// before calling the factory. The host owns the returned Project and keeps the module leased.
 #include "pixie/runtime/Project.hpp"
 #include "pixie_capi.h"
 #include "pixie_sdk_build.h"

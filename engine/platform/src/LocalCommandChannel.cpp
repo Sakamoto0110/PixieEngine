@@ -208,6 +208,7 @@ void LocalCommandChannel::Drain(const Handler& handler) {
         if (impl_->stopping || impl_->inFlight || !impl_->pending || impl_->pending->claimed) return;
         item = impl_->pending; item->claimed = true; impl_->inFlight = item;
     }
+    // The worker waits on the item while the owner runs the handler without holding the mutex.
     try {
         auto response = handler(item->request, item->client);
         if (response) Complete(std::move(*response));

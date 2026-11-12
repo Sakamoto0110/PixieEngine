@@ -8,9 +8,9 @@
 
 namespace pixie {
 
-// Reads the color buffer of the framebuffer bound for reading and writes it as an RGBA PNG, top row
-// first. Call it after rendering and before the buffers swap. Returns false, after logging why, if
-// the file cannot be written.
+/// Reads origin-zero RGBA pixels from the current read framebuffer after drawing, before swapping.
+/// Uses client-memory pack state, sets pack alignment to 1 and writes opaque alpha, top row first.
+/// Logs and returns false for an empty framebuffer or a file-write failure.
 PIXIE_RENDER_API bool SaveFramebufferPng(const std::filesystem::path& path, FramebufferSize size);
 
 } // namespace pixie

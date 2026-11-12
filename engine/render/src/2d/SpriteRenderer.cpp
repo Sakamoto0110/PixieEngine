@@ -184,6 +184,7 @@ void SpriteRenderer::Submit(unsigned texture, SpriteFilter filter, int layer, co
 
 void SpriteRenderer::Flush(const View& view, int belowLayer) {
     lastDrawCalls_ = 0;
+    // Preserve painter order among sprites on the same layer, even across partial flushes.
     std::stable_sort(pending_.begin(), pending_.end(),
                      [](const Pending& a, const Pending& b) { return a.layer < b.layer; });
     const auto drawn = static_cast<std::size_t>(
