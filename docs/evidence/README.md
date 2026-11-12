@@ -33,6 +33,9 @@ a test. Completed roadmap outcomes belong in the [history index](../history/READ
 | Native parenting authoring | [Inspector hierarchy and code-bearing export](native-parenting-editor-2026-11-07.md) | Single-root Editor scene, structural history, unsaved C++ rebuild, paired shipping player |
 | Native parenting consumer | [Weapons-Lab r5 acceptance](native-parenting-weapons-lab-2026-11-07.md) | Copy of the current game, authored branch identity, Editor rebuild and shipping player |
 | SDK, Runtime and independent Editor | [021/022 execution and decisions](sdk-editor-separation-2026-11-06.md) | Accepted product decisions, scoped clearances, exact artifacts, milestones and gate limits |
+| Windows x64 GLFW distribution | [D09 shared provider](d09-shared-glfw-2026-11-12.md) | Editor ZIP provenance, SDK-profile parity and local OpenGL 4.5 lifecycle |
+| G6 hosted Editor | [Hosted candidate](g6-hosted-editor-2026-11-12.md) | Locked Inspector artifact, exact SDK handoff, ZIP verification and remaining native provenance |
+| G6 closure | [Pinned native Editor candidate](g6-pinned-native-2026-11-12.md) | Hosted rebuild, ABI and WOFF2 checks, exact Windows x64 candidates |
 | Authoring integration and UX | [Recorded authoring outcomes](authoring-2026-11-06.md) | Completed 055 tasks, 056 World/Scene handoff and accepted visual prototype |
 | Shared Engine and native export | [Existing qualification](../shared-engine-export-validation.md) | TODO-051 evidence and its limits |
 | Physics | [Existing qualification](../physics-qualification.md) | PHY-001–021 matrix and recorded acceptance |

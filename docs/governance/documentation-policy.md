@@ -52,7 +52,8 @@ An unavailable parent is unresolved context, not a waiver. The
 The approved continuation transfers shared coordination parents 053-056, 060 and
 061 to the workspace, with direct compatibility routes and pinned nonauthoritative
 project excerpts. Project task ownership is explicit; technical contracts and
-branch/release procedures remain local, and D09 remains frozen at its Engine owner.
+branch/release procedures remain local, and the Engine owns the
+[current D09 policy](../../ROADMAP.md#d09-glfw-distribution).
 
 Every fact has exactly one owner. Other documents may summarize a fact and link
 to its owner; they must not maintain a competing mutable copy.
