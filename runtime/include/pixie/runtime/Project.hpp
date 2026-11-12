@@ -39,7 +39,9 @@ public:
     // Adds the game's own component types; the runtime's are already there.
     virtual void Describe(ComponentTypes& /*types*/) const {}
 
-    // Fills a new, empty World. The camera's viewport is set; the project may move or zoom it.
+    /// Builds runtime state in a fresh World, after any authored scene has been read into it.
+    /// The camera's viewport is set and Build may move or zoom it. A factory-qualified authoring
+    /// candidate recreates derived/runtime state and treats supplied authored data as authoritative.
     virtual void Build(World& world, Camera2D& camera) = 0;
 
     // Runs before the World is thrown away to be built again: read back what the next Build should

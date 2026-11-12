@@ -698,6 +698,8 @@ std::string WorldDispatcher::Dispatch(std::string_view request) {
         Json response{{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"value", value}, {"session", impl_->nonce},
             {"sequence", impl_->sequence}, {"generation", impl_->generation}}}};
         auto output = response.dump();
+        // Serialization can exceed the response limit after a write. Preserve the mutation
+        // disposition in the error so callers can read back state without repeating it.
         if (output.size() >= static_cast<std::size_t>(kResponseCapacity))
             throw Failure(PIXIE_ERROR_BUFFER, "response exceeds 4 MiB; do not retry mutations", impl_->mutationStarted);
         return notification ? std::string{} : output;

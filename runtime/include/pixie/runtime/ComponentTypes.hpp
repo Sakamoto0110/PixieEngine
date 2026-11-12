@@ -753,8 +753,9 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
     return -1;
 }
 
-// Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
-// Acceleration2D, Shape, Sprite, Text, Path, Attractor, ParticleSystem, and ParticleSpawner.
+/// Registers the built-in Runtime descriptors and their scene admission flags. ProjectSession
+/// calls this before Project::Describe. These descriptors serve native tools, persistence and the
+/// C API; transient state and unregistered components have no corresponding authored fields.
 PIXIE_RUNTIME_API void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

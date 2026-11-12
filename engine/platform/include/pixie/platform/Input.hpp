@@ -90,17 +90,15 @@ struct MouseMoveEvent { pxPoint position; pxVec2 delta; InputModifiers modifiers
 struct MouseScrollEvent { pxVec2 offset; pxPoint position; InputModifiers modifiers; };
 using InputEvent = std::variant<KeyEvent, MouseButtonEvent, MouseMoveEvent, MouseScrollEvent>;
 
-// The state of the keyboard and the mouse, fed by a host's events and read by an App.
-//
-// A press or release is kept until the next fixed update has seen it, so one that happens between
-// two updates is not lost, and one that happens while several updates run in a frame is seen by the
-// first of them only. Scroll and cursor movement accumulate the same way.
+/// Keyboard and pointer state owned by the driving host thread.
+/// Edges, movement and scroll accumulate until the host consumes them with EndUpdate.
 class Input {
 public:
     static constexpr int kKeyCount = 512;
     static constexpr int kButtonCount = 8;
 
-    // Host side: report events as they arrive. Codes outside the known range are ignored.
+    /// Feed events in arrival order. Codes outside the storage range are ignored.
+    /// Bool overloads infer modifiers. Action overloads preserve host modifiers.
     PIXIE_PLATFORM_API void SetKey(int code, bool down);
     PIXIE_PLATFORM_API void SetKey(int code, InputAction action, InputModifiers modifiers, int scanCode = 0);
     PIXIE_PLATFORM_API void SetMouseButton(int button, bool down);
@@ -111,8 +109,8 @@ public:
     PIXIE_PLATFORM_API void AddScroll(pxVec2 offset);
     PIXIE_PLATFORM_API void AddScroll(pxVec2 offset, InputModifiers modifiers);
 
-    // Ordered transitions since EndUpdate. Polling queries describe the final accumulated state;
-    // event args preserve each intermediate transition. Hosts never mutate Input during dispatch.
+    /// Borrows ordered events until the host mutates Input. Do not mutate during dispatch.
+    /// Polling describes the final accumulated state; events preserve intermediate transitions.
     std::span<const InputEvent> Events() const { return events_; }
     InputModifiers Modifiers() const { return modifiers_; }
 

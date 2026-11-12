@@ -24,24 +24,24 @@
 
 **Canonical scope:** pixieeditor
 
-This portal preserves Engine links. [The canonical guide](../../PixieEditor/docs/editor-field-interactions.md) is owned by the independent Editor repository.
+This portal preserves Engine links. [The canonical guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md) is owned by the independent Editor repository.
 
 ## Editing behavior
 
-See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#editing-behavior).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md#editing-behavior).
 
 ## History and lifetime
 
-See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#history-and-lifetime).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md#history-and-lifetime).
 
 ## Explicit local source mode
 
-See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#explicit-local-source-mode).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md#explicit-local-source-mode).
 
 ## Selected package mode
 
-See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#selected-package-mode).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md#selected-package-mode).
 
 ## Qualification
 
-See [the canonical Editor section](../../PixieEditor/docs/editor-field-interactions.md#qualification).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-field-interactions.md#qualification).

@@ -20,6 +20,7 @@
 
 **Indexing:** include
 
-App composes Core timing/telemetry, Platform context/input/presentation and Render drawing. It owns App, Run, run configuration/options, the native debug console and overlay policy. Lower boundaries never depend on App.
+Use App to run a native player. `Run` composes Core timing, a Platform window and Render drawing, with fixed updates, interpolated frames and the player's debug overlay. Implement `App` to supply the game callbacks.
 
-Read the [manifest](MANIFEST.md) for source/build routes and the [technical reference](REFERENCE.md) for ownership and lifecycle. Public declarations remain in `engine/app/include/pixie/app/`.
+- [Technical reference](REFERENCE.md) for contracts and lifecycle.
+- [Manifest](MANIFEST.md) for targets, source and test routes.

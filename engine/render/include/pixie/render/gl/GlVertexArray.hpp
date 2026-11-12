@@ -16,6 +16,7 @@ public:
     GlVertexArray(const GlVertexArray&) = delete;
     GlVertexArray& operator=(const GlVertexArray&) = delete;
     PIXIE_RENDER_API GlVertexArray(GlVertexArray&& other) noexcept;
+    /// Transfers the GL name. Destroy the destination vertex array before move assignment.
     PIXIE_RENDER_API GlVertexArray& operator=(GlVertexArray&& other) noexcept;
     PIXIE_RENDER_API ~GlVertexArray();
 
@@ -25,8 +26,8 @@ public:
     // Reads binding point `binding` from `buffer`, one element of `stride` bytes per vertex, or per
     // instance when `perInstance` is set.
     PIXIE_RENDER_API void BindBuffer(GLuint binding, GLuint buffer, std::size_t stride, bool perInstance);
-    // Attribute `location` reads `components` values of `type` at `offset` within the element of
-    // `binding`. Integer types are normalized to [0, 1] when `normalized` is set.
+    /// Feeds float shader inputs from an attribute at a byte offset within the bound element.
+    /// GL normalizes fixed-point inputs according to the supplied type when requested.
     PIXIE_RENDER_API void Attribute(GLuint location, GLuint binding, GLint components, GLenum type,
                    std::size_t offset, bool normalized = false);
     // Attribute `location` reads `components` integers of `type` at `offset`, which the shader

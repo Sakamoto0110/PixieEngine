@@ -27,6 +27,7 @@ static int Main(int argc, char** argv) {
             else positional.push_back(argument);
         }
         if (root.empty() || (mode == "--identity" ? !positional.empty() : positional.size() != 2) || (work && mode != "export")) return usage();
+        // Every mode, including manifest verification and replay, is bound to the paired SDK.
         const auto sdk = pixie::packaging::ExportSdk::Load(pixie::packaging::FromUtf8(root));
         if (mode == "--identity") std::cout << sdk.ToolIdentity().dump(2) << '\n';
         else if (mode == "--verify") pixie::packaging::VerifyExport(sdk, pixie::packaging::FromUtf8(positional[0]), pixie::packaging::FromUtf8(positional[1]));

@@ -16,6 +16,7 @@ public:
     GlBuffer(const GlBuffer&) = delete;
     GlBuffer& operator=(const GlBuffer&) = delete;
     PIXIE_RENDER_API GlBuffer(GlBuffer&& other) noexcept;
+    /// Transfers the GL name. Destroy the destination buffer before move assignment.
     PIXIE_RENDER_API GlBuffer& operator=(GlBuffer&& other) noexcept;
     PIXIE_RENDER_API ~GlBuffer();
 

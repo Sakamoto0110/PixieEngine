@@ -31,24 +31,42 @@ routes across scopes without transferring technical ownership or active work.
 
 ## Build and use
 
+| Task | Start here |
+|---|---|
+| Pick the SDK for C++ or identify a Runtime-only distribution | [Obtain the inputs](handbook/setup.md#obtain-the-inputs) |
+| Save a first project, build code, Play/Stop and export | [First-game steps](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/handbook.md#1-choose-the-sdk-and-create-a-project) |
+| Follow Engine ownership from the host through drawing and delivery | [Architecture](architecture.md) |
+| Find an SDK symbol | [Public API map](handbook/api-map.md) |
+| Choose an assistant-led Editor walkthrough | [Assistant handoff](handbook/assistant-handoff.md#computer-use-workflow) |
+
 | Guide | Contents |
 |---|---|
-| [Consumer handbook](handbook/README.md) | First game with an installed SDK and independent Editor: setup, public API, examples, UI handoff and export |
+| [Consumer handbook](handbook/README.md) | First game with an installed SDK and independent Editor: setup, public API, examples and export |
 | [Development](development.md) | Build the native engine, consume an installed SDK, prepare releases and work in the shared solution |
-| [Game export](game-export.md) | Manifest export, shipping/build separation and dependency closure |
+| [Game export](game-export.md#command-and-build-separation) | Manifest export, shipping/build separation and dependency closure |
 | [Independent Editor](../editor/README.md) | Migration, checkout and build entry point; Editor-owned guides live with the Editor |
 | [Dependencies](../DEPENDENCIES.md) | Toolchains, packages, versions, ownership and candidates |
 | [Player controls](player-debug.md) | F3 metrics and F3+C VSync/frame-cap commands |
 | [Telemetry](telemetry.md) | Per-World CPU metrics, scoped timings, counters, CSV and native display |
 | [Deterministic capture](deterministic-capture.md) | Fixed-step capture, seed precedence and snapshot approval boundaries |
 | [Entity input and C++ components](entity-input-and-code-components.md) | Generic input, component creation, source association and preserving rebuilds |
-| [Scene movement authoring](editor-movement.md) | Components, Play/Stop, diagnostics and laboratory reuse |
+| [Scene movement authoring](editor-movement.md) | Components, Play/Stop, diagnostics and laboratory reuse. See the [v3 compound conversion limitation](editor-movement.md#compound-bodies) |
 | [Inspector field interactions](editor-field-interactions.md) | Route to the independent Editor's chain/lock/history guide |
 
 ## Native modules and API
 
 Each module's manifest routes its public headers, reference contract and evidence.
 Headers own the public API; the reference explains its contract.
+
+| Lookup | Owner |
+|---|---|
+| PreUpdate, Physics, PostUpdate and deferred work | [World step](modules/runtime/REFERENCE.md#the-step) |
+| Start, input, Update and Stop | [Behaviours](modules/runtime/REFERENCE.md#behaviours) |
+| World replacement and stable entity IDs | [Entity identity and lifetime](modules/runtime/REFERENCE.md#entity-identity-and-lifetime) |
+| Reflection and Inspector descriptors | [Reflection](modules/runtime/REFERENCE.md#reflection) |
+| Collision layers, colliders, bodies and motors | [Authored scene movement](modules/runtime/REFERENCE.md#authored-scene-movement) |
+| v1, v2 and v3 admission | [Scene families](modules/runtime/REFERENCE.md#scene-families) |
+| Window/context ownership and player teardown | [Host and player](architecture.md#host-and-player) |
 
 | Module | Responsibility |
 |---|---|
@@ -65,7 +83,7 @@ Headers own the public API; the reference explains its contract.
 |---|---|---|
 | Collision and movement | [Ownership, units and limits](collision-movement.md) | [Native movement room](../samples/movement/README.md), [no-code movement lab](../samples/movement-lab/README.md) |
 | Body dynamics | [Gravity, lifecycle and limits](body-dynamics.md) | [Physics lab](../samples/physics-lab/README.md), [compound lab](../samples/compound-lab/README.md) |
-| Body events | [Contact/sensor lifetimes and scene identities](body-events.md) | [Physics lab](../samples/physics-lab/README.md) |
+| Body events | [Contact/sensor lifetimes and scene identities](body-events.md#events-and-ownership) | [Physics lab](../samples/physics-lab/README.md) |
 | Character/body coupling | [Impulses, support carry and placement](character-body-coupling.md) | [Coupling lab](../samples/coupling-lab/README.md) |
 | Dynamic particles | [Gravity and bounded circle-sweep bounce](particle-dynamics.md) | [Sample tree](../samples/) |
 | Particle storage | [Layout, measurements and open design](particle-memory-layout.md) | [Sample tree](../samples/) |

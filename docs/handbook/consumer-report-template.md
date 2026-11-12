@@ -34,8 +34,8 @@ Scope/build: [requested revision and what is playable]
 
 ## Work performed
 
-- Actual Computer Use routes: [create/open, edit, history, code generation,
-  Build/reopen, Play/Stop, save/reopen, export; state what was actually done]
+- Editor routes used: [create/open, edit, history, code generation, Build/reopen,
+  Play/Stop, save/reopen, export; identify Computer Use for an assistant-led session]
 - External source/asset work: [files edited/copied and tools used]
 - Commands actually run: [or "Build/export used the UI; no terminal equivalent
   was executed"]

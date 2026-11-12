@@ -306,6 +306,7 @@ void ArchiveProductDeclarations(const fs::path& build) {
 
 Json BuildCodeProduct(const ExportSdk& sdk, const fs::path& project, const CodeBuild& code) {
     const auto& [cmake, build, bin, owner, requested] = code;
+    // Recheck under the work lease after the early read-only preflight.
     ValidateCodeCache(code);
     if (!fs::exists(FileAccessPath(owner))) {
         fs::create_directories(FileAccessPath(build));
@@ -509,6 +510,7 @@ void ExportProject(const ExportSdk& sdk, const fs::path& folder, const fs::path&
         Write(productPath, product);
     }
     NoReparse(project.folder);
+    // Plan from the saved project after the consumer build completes.
     const auto currentProject = pixie::OpenProjectFolder(project.folder);
     if (!currentProject.ok) throw std::runtime_error(currentProject.error);
     Plan plan(project.folder, sdk);

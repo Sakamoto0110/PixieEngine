@@ -117,13 +117,14 @@ Capture required values by value. Never capture a temporary event reference or
 ## Updates and input
 
 The World executes `PreUpdate`, Behaviours, `Physics`, `PostUpdate`, then
-deferred structural work. Use `FrameTime::delta` in seconds for per-second
+deferred structural work. See the [World step contract](../modules/runtime/REFERENCE.md#the-step) for parenting refreshes, deferred work and failure behavior.
+Use `FrameTime::delta` in seconds for per-second
 changes. Normal sessions use fixed simulation steps; drawing can happen at a
 different rate. Never multiply by render FPS to obtain game motion.
 
 A Behaviour has `Start`, `Update`, `Stop`, `OnKey`, `OnMouseButton`,
 `OnMouseMove`, and `OnMouseScroll`. `Start` runs once before its first callbacks
-and Update; it runs **inside** a step. `Stop` runs if Start ran, when removing
+and Update; it runs **inside** a step. The [Behaviour contract](../modules/runtime/REFERENCE.md#behaviours) covers instance order, device admission and removal. `Stop` runs if Start ran, when removing
 the Behaviour/entity or tearing down the World. A member named `enabled` in
 your Behaviour is your own flag: check it in your callbacks.
 
@@ -268,8 +269,14 @@ this baseline. Turning on a CMake option alone does not make them admissible.
 Conversion is an explicit **Convert and save** operation with a `.v1-backup`;
 ordinary save does not silently upgrade the format. Do not delete unknown
 components, switch off checks, or edit version numbers to force a refused
-scene to load. The existing scene, backup and diagnostic are the recovery
-inputs. Logical Scene membership is not entity parenting or automatic visibility.
+scene to load. The existing scene, backup and diagnostic are the recovery inputs. Logical Scene
+membership groups entities and policy independently of visibility and parenting.
+
+v3 stores authored parent links and attached child-local poses in the unscoped
+family. A change to v3 requires a new destination. v1 and v2 projects can
+continue in their existing formats. The [scene-family contract](../modules/runtime/REFERENCE.md#scene-families)
+covers admission and the [parenting contract](../modules/runtime/REFERENCE.md#2d-parenting)
+covers pose and component restrictions.
 
 For exact declarations see the SDK headers and
 [runtime reference](../modules/runtime/REFERENCE.md). Older delivery sections

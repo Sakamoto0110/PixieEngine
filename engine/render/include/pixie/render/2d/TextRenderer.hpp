@@ -28,8 +28,8 @@ public:
     TextRenderer& operator=(const TextRenderer&) = delete;
     PIXIE_RENDER_API ~TextRenderer();
 
-    // Text at exactly `pixelSize`, with every glyph on whole pixels, for a camera that maps one unit
-    // to one pixel, such as a screen layer's: crisp at any size.
+    /// Submits pixel-snapped text using the clamped Font atlas size, for a 1:1 screen camera.
+    /// Keep the generated texture alive until sprites have been flushed.
     PIXIE_RENDER_API void SubmitPixels(SpriteRenderer& sprites, Font& font, std::string_view text, pxPoint at, int pixelSize,
                       pxColorRgba color, int layer = 0);
     // Text `size` world units tall (its em size), for a camera of `zoom` pixels per unit. The atlas
@@ -44,7 +44,7 @@ public:
     // The smallest of 8, 12, 16, 24, 32, 48, 64, 96, 128, 192, and 256 not below `pixels`; 256 above.
     PIXIE_RENDER_API static int LadderSize(double pixels);
 
-    // Releases the textures of `font`, as when it is dropped.
+    /// Releases the textures for font after all sprite batches that borrow them are flushed.
     PIXIE_RENDER_API void Forget(const Font& font);
     // Releases every texture; they are uploaded again when next used.
     PIXIE_RENDER_API void Destroy();

@@ -34,6 +34,7 @@ HANDLE StandardHandle(DWORD standard, DWORD access) {
     if (result == INVALID_HANDLE_VALUE) throw std::runtime_error("could not prepare child standard handles");
     return result;
 }
+// Windows takes one command line. Escape quotes and trailing backslashes for argv parsing.
 std::wstring Quote(const std::wstring& value) {
     std::wstring result = L"\"";
     std::size_t slashes = 0;

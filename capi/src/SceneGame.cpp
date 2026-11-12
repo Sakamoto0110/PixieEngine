@@ -1,5 +1,5 @@
-// The game of the engine's generic C API library, pixie-scene-capi: a project whose World is only
-// its scene, which is how a project folder without code runs.
+// Project factory linked into the generic native player. It runs a saved scene-only project
+// using the shared engine. The C API creates its scene-only fallback independently.
 
 #include "pixie/runtime/SceneProject.hpp"
 

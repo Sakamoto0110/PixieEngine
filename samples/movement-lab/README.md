@@ -20,20 +20,23 @@
 
 **Indexing:** include
 
-Open this folder through the editor's File/Open project, or run:
+Choose **Open project** on the Editor start screen and select this folder, or run:
 
 ```text
 C:/tools/PixieEditor/PixieEditor.exe --sdk C:/sdk/public --project samples/movement-lab
 ```
 
-It uses the generic version-9 scene library, with no project C++ code. Four
+It uses the selected SDK's built-in authoring runtime without project C++ code. Four
 static Collider2D entities form the floor, ramp, wall and ceiling. The character
 has CharacterMotor2D and KeyboardControl2D. Shape components are placeholder art;
 Edit gizmos show actual collision geometry.
 
-Move/configure entities in Edit, Save, then Play. Focus the viewport for A/D or
-arrows and Space. Stop restores the pre-play authored scene. Collider/Character
-buttons and viewport creation menu entries add new objects as single undo steps.
+Move and configure entities in Editing, save, then Play. Select **Game input**
+and focus the viewport for A/D or arrows and Space. Stop restores the pre-play
+authored scene. **Entities > + Create** and the viewport creation menu add
+presets as single history steps. The sample's saved character uses the legacy
+KeyboardControl2D mapping. The current **Character motor starter** uses generic
+KeyboardControl and needs game code to supply motor commands.
 To experiment without changing this sample, copy the project folder first.
 
 The native equivalent runs through:

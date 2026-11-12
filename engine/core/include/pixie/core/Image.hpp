@@ -11,7 +11,7 @@
 
 namespace pixie {
 
-// An RGBA8 image in memory, four bytes per pixel, first row at the top.
+/// Owns tightly packed, top-row-first RGBA8 pixels. Alpha convention depends on the producer.
 struct Image {
     int width = 0;
     int height = 0;
@@ -26,8 +26,8 @@ PIXIE_CORE_API std::optional<Image> DecodePng(std::span<const std::uint8_t> byte
 // Reads and decodes the PNG file at `path`, as DecodePng does.
 PIXIE_CORE_API std::optional<Image> LoadPngFile(const std::filesystem::path& path, std::string& error);
 
-// Encodes `width` x `height` RGBA pixels with straight alpha, first row at the top, as a PNG. The
-// deflate blocks are stored, not compressed: the file is as large as the pixels.
+/// Encodes a complete, tightly packed RGBA8 span with straight alpha and the top row first.
+/// Supply positive dimensions and at least width * height * 4 bytes. Uses stored deflate blocks.
 PIXIE_CORE_API std::vector<std::uint8_t> EncodePng(int width, int height, std::span<const std::uint8_t> rgba);
 
 // Writes `bytes` to `path`; returns false when the file cannot be written.

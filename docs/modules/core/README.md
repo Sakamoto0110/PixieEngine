@@ -20,6 +20,7 @@
 
 **Indexing:** include
 
-Core owns logging, explicit frame time and fixed stepping, rate sampling, CPU telemetry, and CPU image decoding/encoding. It does not own a window, input routing, GL context, GPU resource or simulation World.
+Use Core for fixed-step timing, update and frame rates, CPU telemetry, logging and CPU image data. These utilities work independently of a player window or GL context.
 
-Read the [manifest](MANIFEST.md) for source/build routes and the [technical reference](REFERENCE.md) for ownership and lifecycle. Public declarations remain in `engine/core/include/pixie/core/`.
+- [Technical reference](REFERENCE.md) for contracts and lifecycle.
+- [Manifest](MANIFEST.md) for targets, source and test routes.

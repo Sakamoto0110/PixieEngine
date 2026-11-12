@@ -13,6 +13,7 @@
 struct PixieSession {
     // Exact fallback or explicitly contracted module factory; never inferred from a Project type.
     const bool candidateAuthoring = false;
+    // Candidate edits and development dispatch compare this ID before touching owned state.
     const std::thread::id ownerThread = std::this_thread::get_id();
 #ifdef PIXIE_DEVELOPMENT
     std::shared_ptr<PixieGameModule> module;

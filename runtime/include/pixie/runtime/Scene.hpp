@@ -25,8 +25,8 @@ struct SceneId {
     std::uint64_t value = 0;
 };
 
-// The scene file's format name and the newest version this engine can read and write.
-// A normal write retains the version of a loaded scene; new Worlds begin with version 1.
+/// Scene file format name. A new World starts with v1 semantics. Authored parenting selects
+/// v3 for output and a loaded v3 World retains v3. Scoped v2 has a separate admission contract.
 inline constexpr std::string_view kSceneFormat = "pixie-scene";
 inline constexpr int kParentingSceneVersion = 3;
 inline constexpr int kSceneVersion = kParentingSceneVersion;
@@ -38,8 +38,8 @@ inline constexpr std::string_view kEntitiesFormat = "pixie-entities";
 // making one does not change a simulation.
 PIXIE_RUNTIME_API std::uint64_t NewSceneId();
 
-// Gives the entity a SceneId if it has none, and returns its ID; 0 for a dead entity. Not during a
-// step.
+/// Assigns or returns the entity's SceneId, or returns zero for a dead entity. Call between
+/// steps. Assign identity before attaching a child: adding it to an attached child throws.
 PIXIE_RUNTIME_API std::uint64_t AddToScene(Entity entity);
 
 // An entity with a T: what a project finds of its scene while it builds. When there is none,
@@ -79,9 +79,9 @@ PIXIE_RUNTIME_API std::string ValidateSceneEditInput(const World& world, std::st
 // Pure admission before candidate factory/Describe/World construction. v1 retains its behavior.
 PIXIE_RUNTIME_API std::string SceneImportAdmissionError(const ComponentTypes& types, std::string_view text);
 
-// Adds a scene document's entities to `world` and reseeds the World's Random with the scene's seed.
-// Nothing is added when the document cannot be read, or when one of its IDs is repeated or already
-// in the World. Not during a step.
+/// Adds a scene document's entities to the World and reseeds its Random from a valid scene seed.
+/// Structural admission rejects unreadable documents and colliding IDs before insertion. Use
+/// between steps. Registry hooks and component callbacks can have effects beyond inserted entities.
 PIXIE_RUNTIME_API SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_view text);
 
 // Writes `text` to a file through a temporary file beside it (`<file>.saving`), which then replaces
@@ -151,9 +151,9 @@ struct FragmentMeta : SceneReport {
 // the document is not a set of entities this engine reads.
 PIXIE_RUNTIME_API FragmentMeta ReadFragmentMeta(std::string_view text);
 
-// Writes the World's scene through SaveTextFile. A v2 document cannot replace an existing v1
-// file: use explicit ConvertSceneFileV1ToV2 first. The destination envelope is inspected without
-// component callbacks; this is not a concurrent-writer compare-and-swap guarantee.
+/// Writes the admitted scene through SaveTextFile. To replace an existing v1 file with v2, use
+/// explicit ConvertSceneFileV1ToV2 first. A change to or from v3 requires a new destination.
+/// The destination envelope check runs without component callbacks or concurrent writer locking.
 PIXIE_RUNTIME_API SceneReport SaveSceneFile(World& world, const ComponentTypes& types, const std::filesystem::path& path);
 // Explicitly converts an existing v1 scene file from the current authored World. Validates a staged
 // v2 document, preserves the original at `<file>.v1-backup`, then replaces the file. Never called by

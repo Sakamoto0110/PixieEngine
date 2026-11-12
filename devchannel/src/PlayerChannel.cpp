@@ -189,6 +189,7 @@ double PlayerChannel::RenderAlpha() const {
 }
 void PlayerChannel::AfterRender(FramebufferSize size) {
     if (!impl_->capture) return;
+    // Claim the capture once. Complete the transport only after readback or a terminal error.
     auto capture = std::move(*impl_->capture); impl_->capture.reset();
     if (size.width <= 0 || size.height <= 0) {
         impl_->channel.Complete(capture.notification ? std::string{} : impl_->Fail(capture.response["id"],

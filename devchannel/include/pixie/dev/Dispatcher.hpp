@@ -23,15 +23,15 @@ namespace dev {
 inline constexpr std::size_t kMaxRequestBytes = 64 * 1024;
 inline constexpr int kResponseCapacity = 4 * 1024 * 1024;
 
-// Owner-thread JSON-RPC World adapter. The referenced session must outlive it.
-// This class neither starts nor stops the session and owns no OS listener.
+/// Private-profile JSON-RPC adapter over a borrowed session on its owner thread.
+/// The session must outlive the dispatcher. The host owns its lifecycle and transport.
 class WorldDispatcher {
 public:
     PIXIE_DEV_API explicit WorldDispatcher(ProjectSession& session);
     PIXIE_DEV_API ~WorldDispatcher();
     WorldDispatcher(const WorldDispatcher&) = delete;
     WorldDispatcher& operator=(const WorldDispatcher&) = delete;
-    // Empty text means a valid notification, which has no JSON-RPC response.
+    /// Runs one bounded request. Empty text means a notification with no response body.
     PIXIE_DEV_API std::string Dispatch(std::string_view request);
     // Consume immediately before a render attempt, never on a skipped frame.
     // A failed allocation/render cancels this override; the host must report capture failure.

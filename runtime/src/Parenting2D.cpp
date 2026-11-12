@@ -129,6 +129,7 @@ Transform2D InterpolateWorldPose(const entt::registry& registry, entt::entity id
 }
 
 std::string Commit(World& world, Links next, const Poses& rootEdits = {}) {
+    // Resolve the entire proposed graph before publishing either links or poses.
     Poses poses;
     if (auto error = Evaluate(world, next, poses, rootEdits); !error.empty()) return error;
     auto& context = world.Registry().ctx();

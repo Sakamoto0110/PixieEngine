@@ -2,8 +2,8 @@
 # third-party code). Every native target uses the shared C++ runtime (/MD or /MDd).
 
 # Code is generated for AVX2 on x86-64, with FMA and F16C: the particle loops and the compiler's
-# auto-vectorizer use 256-bit registers. The binaries then need a CPU with AVX2 (Intel since 2013,
-# AMD since 2015); turn this off to build for an older one.
+# auto-vectorizer use 256-bit registers. The admitted SDK identity requires all three
+# features. Disabling the option on a consuming target cannot change a prebuilt SDK.
 option(PIXIE_AVX2 "Generate AVX2, FMA and F16C code for x86-64" ON)
 
 function(pixie_target_defaults target)

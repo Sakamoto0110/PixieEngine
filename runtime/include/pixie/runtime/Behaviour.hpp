@@ -6,33 +6,33 @@
 
 namespace pixie {
 
-// Game logic written as a class, attached to an entity with Entity::AddBehaviour<T>(). A Behaviour
-// is a component: each Behaviour class has its own contiguous storage, and the World calls Update
-// on every instance of a class, class by class in the order the classes were first added, during
-// the Update phase of each step.
-//
-// - Start runs once, right before the first Update of the instance.
-// - Update runs every step. It should change only its own entity's state (its components), and
-//   read the rest of the World: the engine's PreUpdate and PostUpdate systems do the shared work
-//   (integration, spatial queries), so the result does not depend on update order.
-// - Stop runs when the entity or the Behaviour is removed, or the World ends, if Start ran.
-//
-// Behaviours are moved when their storage grows, so keep no pointers to them; keep Entity handles.
-// Creating entities or adding components during a step goes through World::Defer.
+/// Per-entity logic attached with Entity::AddBehaviour<T>(). World visits classes in registration
+/// order and instances in storage order, after PreUpdate and before Physics. Keep Entity handles
+/// while their World lives because storage can move Behaviour instances. Use World::Defer for
+/// structural changes during a step.
 class Behaviour {
 public:
     virtual ~Behaviour() = default;
 
+    /// Runs once on first visit, before device callbacks and Update.
     virtual void Start() {}
-    // Delivered in host event order after Start and before Update. The matching enabled
-    // KeyboardControl/MouseControl on Self is required. Input polling is the final tick state.
+    /// Key, button, move and scroll callbacks follow host event order for this instance. Delivery
+    /// requires the matching enabled KeyboardControl or MouseControl on Self. Input polling reads
+    /// the final tick state. The event and input are borrowed for the call.
     virtual void OnKey(const KeyEvent& /*event*/, const Input& /*input*/) {}
+    /// See OnKey for device callback ordering and lifetime.
     virtual void OnMouseButton(const MouseButtonEvent& /*event*/, const Input& /*input*/) {}
+    /// See OnKey for device callback ordering and lifetime.
     virtual void OnMouseMove(const MouseMoveEvent& /*event*/, const Input& /*input*/) {}
+    /// See OnKey for device callback ordering and lifetime.
     virtual void OnMouseScroll(const MouseScrollEvent& /*event*/, const Input& /*input*/) {}
+    /// Runs after device callbacks each tick. For order-independent logic, read shared snapshots
+    /// and write only Self's state. Put shared work in systems.
     virtual void Update(const FrameTime& /*time*/, const Input& /*input*/) {}
+    /// Runs on removal, entity destruction or World teardown for an instance that has started.
     virtual void Stop() {}
 
+    /// Returns the owning entity by value. Its handle requires the owning World to remain alive.
     Entity Self() const { return self_; }
     World& GetWorld() const { return self_.GetWorld(); }
 

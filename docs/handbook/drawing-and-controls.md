@@ -41,10 +41,11 @@ game font. Keep font licensing with the game, including the
 [exported folder](export-and-troubleshooting.md#assets-and-export-limits). Native text/sprite drawing is not
 an HTML or ImGui widget system.
 
-There is no automatic transform hierarchy in this baseline. For a visual object
-made from several pieces, keep their local offsets in game-owned data and derive
-their world poses from the common game pose. Entity names are labels, not unique
-references. Reacquire handles after reconstruction; see [lifetime](gameplay.md#world-entity-and-lifetime).
+Use [2D parenting](../modules/runtime/REFERENCE.md#2d-parenting) for supported
+hierarchy compositions. Authored links use v3 in the unscoped family. For a
+portable visual composition in a flat scene, keep offsets in game-owned data
+and derive world poses from a common pose. Use stable scene identity to resolve
+a new handle after reconstruction. [World, Entity and lifetime](gameplay.md#world-entity-and-lifetime)
 
 ## A lower control panel
 

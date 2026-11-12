@@ -8,20 +8,21 @@ namespace pixie {
 
 class Telemetry;
 
-// What pixie::Run drives. The GL context is current during every call. Time and input are passed
-// to each call; there is no global clock or input state.
+/// Native player callbacks driven by Run on the thread with the current GL context.
+/// Time and input are borrowed for each callback.
 class App {
 public:
     virtual ~App() = default;
 
-    // Called once, after the context exists. Returning false ends the run with an error.
+    /// Initializes after GL loading. The Window is borrowed through Stop.
+    /// Returning false leads to Stop for partial cleanup and an error result from Run.
     virtual bool Start(Window&) { return true; }
-    // Called at the fixed update rate; time.delta is the fixed step. Presses and releases since the
-    // previous update are visible here once.
+    /// Advances one fixed step. The first update to consume pending input sees its transients.
     virtual void Update(const FrameTime& time, const Input& input) = 0;
-    // Called once per frame; time.alpha interpolates between the last two updates.
+    /// Draws a frame with a positive framebuffer size. time.alpha interpolates previous/current state.
+    /// Input reflects any fixed updates already run for this frame.
     virtual void Render(const FrameTime& time, const Input& input) = 0;
-    // Called once, before the context is destroyed. Release GL objects here.
+    /// Releases GL objects while the context is current, including after a failed Start.
     virtual void Stop() {}
     // Optional non-owning view for native debug display/control; valid until the next App callback.
     // The collector stays owned by the app/session. Existing apps need not provide one.

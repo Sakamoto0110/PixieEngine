@@ -93,6 +93,8 @@ void Input::EndUpdate() {
 }
 
 void Input::ReleaseAll() {
+    // Replace pending input with cancellation releases. kCancelled retains a release if the
+    // host cancels again before a fixed update has consumed it.
     events_.clear();
     modifiers_ = InputModifiers::None;
     for (int key = 0; key < kKeyCount; ++key) {

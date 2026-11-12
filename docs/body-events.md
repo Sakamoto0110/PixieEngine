@@ -103,11 +103,12 @@ continue stepping. A later scene tick clears the published list, including when
 no remaining body requires a backend step. Edit synchronization never advances
 time or invents overlap begins.
 
-Gameplay Update reads the previous completed tick, before the next PostUpdate
-publication. Structural changes use World's normal deferral rules. Sensors only
-see actual physics shapes: the query-driven CharacterMotor2D capsule is not yet
-a sensor visitor. Player-trigger integration belongs to the pending motor/body
-coupling stage, together with pushing and platform support.
+Gameplay Update reads the previous completed tick. Physics publishes the new
+snapshot before PostUpdate, so a PostUpdate consumer can read this tick's
+events. Structural changes use World's normal deferral rules. Character motors
+use query-driven movement and a kinematic proxy. The proxy participates in
+backend contacts and queries, while public begin/end events exclude it.
+[Character proxies](character-body-coupling.md#character-proxies)
 
 ## Qualified cases and limits
 

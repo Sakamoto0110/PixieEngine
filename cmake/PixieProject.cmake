@@ -122,6 +122,7 @@ function(pixie_sdk_profile_identity profile output)
     set(${output} "${first_identity}" PARENT_SCOPE)
 endfunction()
 
+# Portable authoring intent excludes machine paths, catalog hashes and configuration build IDs.
 function(pixie_sdk_requirement output)
     if(NOT PIXIE_SDK_PROFILE MATCHES "^(authoring|local-development)$")
         message(FATAL_ERROR "Portable project adoption requires an admitted authoring profile")
@@ -163,6 +164,7 @@ function(pixie_validate_project_sdk directory)
             message(FATAL_ERROR "Authoring requires the exact admitted project/selected SDK profile")
         endif()
     elseif(PIXIE_PROJECT_BUILD_ROLE STREQUAL "shipping-export")
+        # Match the project's public authoring intent to the selected public shipping tuple.
         if(NOT PIXIE_SDK_PROFILE STREQUAL "shipping" OR NOT required_profile STREQUAL "authoring")
             message(FATAL_ERROR "Shipping export requires the public shipping tuple and a public authoring requirement; private fallback is forbidden")
         endif()

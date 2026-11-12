@@ -1,5 +1,7 @@
 # Explicit bootstrap for custom projects. The owner wires Describe and CMake themselves;
 # this command never searches for a homonymous C++ file or modifies their implementation.
+# Package mode validates an existing SDK requirement or explicitly adopts a missing one.
+# Source development must be selected explicitly.
 cmake_minimum_required(VERSION 3.25)
 if(NOT IS_DIRECTORY "${PIXIE_PROJECT_DIR}" OR NOT EXISTS "${PIXIE_PROJECT_DIR}/CMakeLists.txt")
     message(FATAL_ERROR "PIXIE_PROJECT_DIR must name an existing C++ project.")
