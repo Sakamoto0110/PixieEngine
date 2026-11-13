@@ -499,8 +499,7 @@ public:
     }
 
     // Field<&T::member, &Member::field>("name"): a field one level into a member, such as a style
-    // struct's color, saved and shown as the component's own. Values only: numbers, booleans,
-    // enums, points, vectors, rectangles, colors, and entities.
+    // struct's color, saved and shown as the component's own. Supports scalar fields and text.
     template<auto Outer, auto Inner>
     ComponentBuilder& Field(std::string name, std::vector<std::string> enumNames = {}) {
         using OuterTraits = detail::MemberTraits<decltype(Outer)>;
@@ -509,15 +508,24 @@ public:
         static_assert(std::is_base_of_v<typename OuterTraits::Class, T>, "the member must belong to T");
         static_assert(std::is_base_of_v<typename InnerTraits::Class, typename OuterTraits::Type>,
                       "the inner field must belong to the member's type");
-        static_assert(!std::is_same_v<Type, std::string> && !std::is_same_v<Type, std::vector<pxPoint>> &&
-                          !detail::RecordListTraits<Type>::value,
-                      "only values reach into a member");
+        static_assert(!std::is_same_v<Type, std::vector<pxPoint>> && !detail::RecordListTraits<Type>::value,
+                      "lists cannot reach into a member");
         FieldDescriptor field;
         field.name = std::move(name);
         field.kind = detail::KindOf<Type>();
         field.enumNames = std::move(enumNames);
-        field.read = &detail::ReadNested<Outer, Inner>;
-        field.write = &detail::WriteNested<Outer, Inner>;
+        if constexpr (std::is_same_v<Type, std::string>) {
+            using Class = typename OuterTraits::Class;
+            field.readText = [](const void* component) {
+                return (static_cast<const Class*>(component)->*Outer).*Inner;
+            };
+            field.writeText = [](void* component, std::string_view text) {
+                ((static_cast<Class*>(component)->*Outer).*Inner).assign(text);
+            };
+        } else {
+            field.read = &detail::ReadNested<Outer, Inner>;
+            field.write = &detail::WriteNested<Outer, Inner>;
+        }
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));

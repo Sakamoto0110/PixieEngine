@@ -5,6 +5,7 @@
 #include "pixie/runtime/LightingEnvironment2D.hpp"
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/SpriteDrawing.hpp"
+#include "pixie/runtime/SpriteImages.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/World.hpp"
 
@@ -305,20 +306,31 @@ std::vector<OutlineEdge> SpriteAlphaOutlines::Trace(int width, int height, std::
 }
 
 const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const Sprite& sprite, double threshold, pxVec2& pixelSize) {
-    const bool region = sprite.region.width > 0.0 && sprite.region.height > 0.0;
-    const std::string key = std::format("{}|{}|{}|{}|{}|{}", sprite.image, sprite.region.x, sprite.region.y,
-                                        sprite.region.width, sprite.region.height, threshold);
+    return Edges(SpriteSource{sprite.atlasFrame.IsSet() ? std::string_view{} : std::string_view(sprite.image),
+                              sprite.region, sprite.pivot}, threshold, pixelSize);
+}
+
+const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const SpriteSource& source, double threshold, pxVec2& pixelSize) {
+    if (source.image.empty()) {
+        static const std::vector<OutlineEdge> empty;
+        pixelSize = {};
+        return empty;
+    }
+    const bool region = source.region.width > 0.0 && source.region.height > 0.0;
+    const std::string key = std::format("{}|{}|{}|{}|{}|{}", source.image, source.region.x, source.region.y,
+                                        source.region.width, source.region.height, threshold);
     auto found = traced_.find(key);
     if (found == traced_.end()) {
         Traced traced;
         std::string error;
-        if (const std::optional<Image> image = LoadPngFile(folder_ / sprite.image, error)) {
+        const auto file = folder_ / std::filesystem::path(std::u8string(source.image.begin(), source.image.end()));
+        if (const std::optional<Image> image = LoadPngFile(file, error)) {
             int x0 = 0, y0 = 0, w = image->width, h = image->height;
             if (region) {
-                x0 = std::clamp(static_cast<int>(sprite.region.x), 0, image->width);
-                y0 = std::clamp(static_cast<int>(sprite.region.y), 0, image->height);
-                w = std::clamp(static_cast<int>(sprite.region.width), 0, image->width - x0);
-                h = std::clamp(static_cast<int>(sprite.region.height), 0, image->height - y0);
+                x0 = std::clamp(static_cast<int>(source.region.x), 0, image->width);
+                y0 = std::clamp(static_cast<int>(source.region.y), 0, image->height);
+                w = std::clamp(static_cast<int>(source.region.width), 0, image->width - x0);
+                h = std::clamp(static_cast<int>(source.region.height), 0, image->height - y0);
             }
             std::vector<std::uint8_t> part(static_cast<std::size_t>(w) * h * 4);
             for (int y = 0; y < h; ++y) {
@@ -326,7 +338,7 @@ const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const Sprite& sprite,
                             static_cast<std::ptrdiff_t>(w) * 4,
                             part.begin() + static_cast<std::ptrdiff_t>(y) * w * 4);
             }
-            traced.pixelSize = region ? pxVec2(sprite.region.width, sprite.region.height) : pxVec2(w, h);
+            traced.pixelSize = region ? pxVec2(source.region.width, source.region.height) : pxVec2(w, h);
             traced.edges = Trace(w, h, part, threshold);
         }
         found = traced_.emplace(key, std::move(traced)).first;
@@ -336,6 +348,11 @@ const std::vector<OutlineEdge>& SpriteAlphaOutlines::Edges(const Sprite& sprite,
 }
 
 void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges, SpriteAlphaOutlines* outlines) {
+    GatherOccluders(world, alpha, edges, outlines, nullptr);
+}
+
+void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges, SpriteAlphaOutlines* outlines,
+                     SpriteImages* images) {
     edges.clear();
     entt::registry& registry = world.Registry();
     auto occluders = registry.view<const Occluder2D, const Transform2D>();
@@ -347,17 +364,20 @@ void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edge
         const Transform2D drawn = InterpolatedTransform2D(world.Wrap(id), alpha);
         if (occluder.source == OccluderSource2D::SpriteAlpha) {
             const auto* sprite = registry.try_get<const Sprite>(id);
-            if (outlines == nullptr || sprite == nullptr) {
+            if (outlines == nullptr || sprite == nullptr || (images == nullptr && sprite->atlasFrame.IsSet())) {
                 continue;
             }
+            const SpriteSource source = images != nullptr ? images->Source(*sprite)
+                : SpriteSource{sprite->image, sprite->region, sprite->pivot};
             pxVec2 pixelSize;
             const std::vector<OutlineEdge>& outline =
-                outlines->Edges(*sprite, std::clamp(occluder.alphaThreshold, 0.0, 1.0), pixelSize);
+                outlines->Edges(source, std::clamp(occluder.alphaThreshold, 0.0, 1.0), pixelSize);
+            const SpriteGeometry geometry{pixelSize, source.pivot};
             // A mirrored sprite turns the outline's winding around.
             const bool mirrored = drawn.scale.x * drawn.scale.y < 0.0;
             for (const OutlineEdge& local : outline) {
-                const pxPoint a = SpritePoint(*sprite, drawn, pixelSize, mirrored ? local.b : local.a);
-                const pxPoint b = SpritePoint(*sprite, drawn, pixelSize, mirrored ? local.a : local.b);
+                const pxPoint a = SpritePoint(geometry, drawn, mirrored ? local.b : local.a);
+                const pxPoint b = SpritePoint(geometry, drawn, mirrored ? local.a : local.b);
                 OccluderEdge edge;
                 edge.ax = static_cast<float>(a.x);
                 edge.ay = static_cast<float>(a.y);

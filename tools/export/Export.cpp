@@ -2,8 +2,10 @@
 #include "PeImage.hpp"
 #include "Process.hpp"
 #include "Product.hpp"
+#include "pixie/core/Image.hpp"
 #include "pixie/runtime/ProjectFile.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/SpriteAtlas.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
 #include <cctype>
@@ -102,6 +104,33 @@ void Binary(const fs::path& path) {
         throw std::runtime_error("development code or game-module loader in " + Utf8(path));
 }
 bool IsBinary(const std::string& role) { return role == "player" || role == "library" || role == "runtime"; }
+
+SpriteAtlasFrameRef AtlasReference(const Json& sprite) {
+    if (!sprite.is_object()) return {};
+    return {sprite.value("atlas", std::string{}), sprite.value("frameId", std::string{})};
+}
+
+// Planning, replay and verification use the same atlas rules. The asset callback
+// supplies only validated paths. Cache by descriptor for scenes with repeated references.
+template<typename AssetPath>
+void RequireAtlas(const SpriteAtlasFrameRef& ref, std::map<std::string, SpriteAtlas>& atlases, AssetPath assetPath) {
+    if (!ref.IsValid())
+        throw std::runtime_error("invalid sprite atlas reference: " + ref.atlas + " (" + ref.frameId + ")");
+    auto found = atlases.find(ref.atlas);
+    if (found == atlases.end()) {
+        std::string problem;
+        auto atlas = SpriteAtlas::Load(assetPath(ref.atlas), problem);
+        if (!atlas) throw std::runtime_error("sprite atlas " + ref.atlas + ": " + problem);
+        const auto image = LoadPngFile(assetPath(atlas->Image()), problem);
+        if (!image) throw std::runtime_error("sprite atlas PNG " + atlas->Image() + ": " + problem);
+        if (image->width != atlas->ImageSize().width || image->height != atlas->ImageSize().height)
+            throw std::runtime_error("sprite atlas PNG " + atlas->Image() + " dimensions differ from " + ref.atlas);
+        found = atlases.emplace(ref.atlas, std::move(*atlas)).first;
+    }
+    if (!found->second.FindFrame(ref.frameId))
+        throw std::runtime_error("sprite atlas " + ref.atlas + ": frame " + ref.frameId + " is missing");
+}
+
 void CheckManifest(const Json& manifest) {
     if (manifest.at("format") != "pixie-export" || manifest.at("version") != 2 ||
         manifest.at("development") != false || manifest.at("dev_channel") != false)
@@ -150,12 +179,36 @@ void CheckManifest(const Json& manifest) {
 
 void Closure(const Json& manifest, const fs::path& output, bool sourcePaths) {
     std::set<std::string> files;
-    for (const auto& item : manifest.at("files")) files.insert(Lower(item.at("destination").get<std::string>()));
+    std::map<std::string, fs::path> assets;
+    const auto filePath = [&](const Json& item) {
+        return sourcePaths ? FromUtf8(item.at("source").get<std::string>())
+                           : output / Relative(item.at("destination").get<std::string>());
+    };
     for (const auto& item : manifest.at("files")) {
+        const auto destination = item.at("destination").get<std::string>();
+        files.insert(Lower(destination));
+        if (item.at("role") == "asset") assets.emplace(Lower(destination), filePath(item));
+    }
+    std::map<std::string, SpriteAtlas> atlases;
+    const auto assetPath = [&](const std::string& path) {
+        const auto found = assets.find(Lower(path));
+        if (found == assets.end()) throw std::runtime_error("export omits sprite atlas asset: " + path);
+        return FileAccessPath(found->second);
+    };
+    for (const auto& item : manifest.at("files")) {
+        if (item.at("role") == "scene") {
+            const auto scene = ReadScene(FileAccessPath(filePath(item)));
+            for (const auto& entity : scene.at("entities")) {
+                const auto components = entity.find("components");
+                if (components == entity.end()) continue;
+                if (const auto sprite = components->find("Sprite"); sprite != components->end()) {
+                    const auto ref = AtlasReference(*sprite);
+                    if (ref.IsSet()) RequireAtlas(ref, atlases, assetPath);
+                }
+            }
+        }
         if (!IsBinary(item.at("role").get<std::string>())) continue;
-        const auto binary = sourcePaths ? FromUtf8(item.at("source").get<std::string>())
-            : output / Relative(item.at("destination").get<std::string>());
-        for (const auto& name : InspectPe(binary).libraries)
+        for (const auto& name : InspectPe(filePath(item)).libraries)
             if (!files.contains(Lower(name)) && !IsWindowsLibrary(name))
                 throw std::runtime_error("export has an unresolved native import: " + name);
     }
@@ -396,6 +449,11 @@ public:
     void Scenes(const pixie::OpenedProject& project) {
         pixie::ComponentTypes types;
         pixie::DescribeRuntimeComponents(types);
+        std::map<std::string, SpriteAtlas> atlases;
+        const auto assetPath = [&](const std::string& path) {
+            Asset(path);
+            return FileAccessPath(project_ / Relative(path));
+        };
         std::set<fs::path> scenes{project.StartScenePath()};
         const auto directory = project_ / "scenes";
         if (fs::exists(directory)) {
@@ -410,9 +468,18 @@ public:
             Asset(Utf8(scene.lexically_relative(project_)), "scene");
             const auto data = ReadScene(scene);
             for (const auto& entity : data.at("entities")) {
-                for (const auto& [name, component] : entity.at("components").items()) {
+                const auto components = entity.find("components");
+                if (components == entity.end()) continue;
+                for (const auto& [name, component] : components->items()) {
                     const auto type = types.IndexOf(name);
                     if (type < 0) continue; // Game-owned assets are declared explicitly by pixie_game(ASSETS ...).
+                    if (name == "Sprite") {
+                        const auto ref = AtlasReference(component);
+                        if (ref.IsSet()) {
+                            RequireAtlas(ref, atlases, assetPath);
+                            continue; // The atlas supplies the active image dependency.
+                        }
+                    }
                     for (const auto& field : types.All()[static_cast<std::size_t>(type)].fields) {
                         if (!field.metadata.asset.empty() && component.contains(field.name)) {
                             const auto path = component.at(field.name).get<std::string>();

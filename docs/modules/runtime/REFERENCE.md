@@ -73,6 +73,7 @@ All under `runtime/include/pixie/runtime/`:
 | `ProjectApp.hpp` | `ProjectApp`, which runs a project in `pixie::Run`'s window |
 | `Shape.hpp` | `Shape`, an entity's look |
 | `Sprite.hpp` | `Sprite`, an entity's look as an image |
+| `SpriteAtlas.hpp` | `SpriteAtlas`, the atlas descriptor and frame reference contract |
 | `Path.hpp` | `Path`, a line through points with rounded corners and a fill |
 | `PathDrawing.hpp` | `SubmitPaths`, `PathLine`, and `PathContains` |
 | `Culling.hpp` | `PaddedView`, and `SpriteInView`, `TextInView`, `PathInView`, and `ShapeInView`: what drawing skips off screen |
@@ -919,7 +920,9 @@ bottom-right, and the entity turns around it; a negative scale mirrors the sprit
 to 1 across the drawn rectangle, Y down, as the logic gates' `gates.json` gives its anchors) into
 world units, following rotation and mirroring, and `SpriteLocal` turns a world point back (nothing
 for a sprite with no area). `SpriteCorners` gives the rectangle's corners in world units, and
-`SpriteContains` tests a point against it.
+`SpriteContains` tests a point against it. For an atlas-backed sprite, use
+`ResolveSpriteGeometry(sprite, images)` with the geometry overloads of these helpers. The overloads
+that take an authored `Sprite` and an explicit pixel size use its authored pivot.
 
 `SubmitSprites(world, renderer, images, alpha, texts)` submits each entity with a `Transform2D` and
 a `Sprite` to a `SpriteRenderer` (in the engine library), interpolated like shapes, and, with
@@ -942,6 +945,98 @@ program shows at once in the editor and the player. An image that cannot be read
 missing file, not a PNG) is drawn as a magenta checkerboard, and its problem is logged once each
 time it is read; `Size` is then empty and `Problem` says why. Reading needs no GL context; textures
 do.
+
+#### Sprite atlas contract
+
+`SpriteAtlas::Parse` validates a UTF-8 version 1 descriptor without opening files or using a
+graphics context. For example, `assets/actors.atlas.json` can contain this descriptor.
+
+```json
+{
+  "format": "pixie-sprite-atlas",
+  "version": 1,
+  "image": "assets/actors.png",
+  "imageSize": [256, 128],
+  "frames": [
+    {
+      "id": "1b681986317d465c9f01b3f303ff89fa",
+      "name": "Walk 1",
+      "rect": [16, 32, 32, 48],
+      "pivot": [0.5, 1.0]
+    }
+  ]
+}
+```
+
+- Both paths are relative to the project root. Use forward slashes and avoid empty segments,
+  `.`, `..` and Windows device names. Keep the path spelling used by the project. The descriptor
+  ends in `.atlas.json` and its image ends in `.png`.
+- `imageSize` contains positive signed 32-bit pixel dimensions. `rect` contains integer pixel
+  coordinates `[x, y, width, height]` from the image's top-left, with Y down and positive dimensions.
+  The whole rectangle must fit inside `imageSize`. `pivot` contains two normalized coordinates
+  in `[0, 1]` within that rectangle. The resource loader checks the decoded PNG dimensions
+  when it opens the image.
+- A frame reference is the pair `SpriteAtlasFrameRef{atlas, frameId}`. Generate a nonzero ID
+  once per new frame and encode it as 32 lowercase hexadecimal digits. IDs are unique within
+  their descriptor. Keep them through renaming, reordering, and repacking. A removed ID must
+  never be reused for a different frame. Names are nonempty display text and may repeat. Frame
+  order carries no identity. Renaming or moving a descriptor requires updating its path in
+  references.
+- An empty frame list is valid. `FindFrame` returns a pointer owned by the parsed descriptor,
+  or `nullptr` for a missing ID. Keep the original pair when reporting a missing frame so it can
+  be repaired. The parser rejects duplicate JSON members and nesting deeper than eight levels.
+
+A scene's `Sprite` component version 2 adds two string fields, `atlas` and `frameId`. If both are
+empty or absent, the sprite uses its direct `image`, `region`, and `pivot` fields, including when
+loading a version 1 component. When either atlas field is set, the pair selects the sprite source.
+The descriptor supplies the image, rectangle, and pivot. Saves and entity snapshots retain the
+authored fields, including an incomplete pair or a missing frame, so the reference can be repaired.
+The scene document version follows its existing rules.
+
+`SpriteImages` parses and caches descriptors per project session. Atlas and direct sprites share
+the PNG entry and GPU texture when they use the same path. Descriptor and PNG changes are picked up
+by the session's existing file polling. If the reference, descriptor, frame or PNG cannot be
+resolved, or the decoded dimensions differ from the declaration, the sprite draws a centered
+64-pixel checkerboard and logs the problem. Picking and viewport bounds use the same geometry.
+Project changes and graphics teardown release the descriptor cache along with the existing
+texture lifecycle. Normal maps for atlas-backed sprites use the same normalized UV rectangle and
+should use the same layout as the color atlas.
+
+The reflected fields use the existing C API text field contract. Use the matching Engine SDK
+when loading atlas-backed scenes in an Editor or player. Rebuild native C++ modules against that
+SDK because the `Sprite` and session resource cache layouts changed.
+
+#### Resource ownership and explicit refresh
+
+Each `ProjectSession` owns its project resource caches. `Images()` borrows the `SpriteImages` cache,
+which owns parsed descriptors, decoded PNGs pending upload, PNG textures and the checkerboard.
+`GetFonts()` borrows the `Fonts` cache, which owns the TTF bytes and rasterized glyphs. The
+session's `TextRenderer` owns the uploaded glyph textures. Its World and screen text share these
+font caches. Each cache uses the path spelling supplied by the caller as its key. Project changes
+and session stop clear both caches. World rebuilds within the open project reuse them.
+
+| Operation | Effect |
+| --- | --- |
+| `Images().Reload(png)` | Read the PNG immediately, regardless of its modification time. A subsequent draw uploads the replacement texture. Direct sprites and atlas frames using the same path see the replacement. |
+| `Images().ReloadAtlas(descriptor)` | Read the descriptor and its current PNG immediately and check their dimensions. Frame IDs are checked when requested by sprites. |
+| `Images().Release(png)` | Drop the PNG entry and its texture. The next use reads it again. |
+| `Images().ReleaseAtlas(descriptor)` | Drop the descriptor and its cached diagnostics. The PNG remains available to other atlas frames and direct sprites. |
+| `GetFonts().Reload(ttf)` | Read the TTF immediately and discard the previous font's glyphs and GPU textures at every size. Subsequent use rebuilds them on demand. |
+| `GetFonts().Release(ttf)` | Drop the font entry and its glyph textures. The next use reads it again. |
+| `ReleaseAll()` on either cache | Drop the cache's entries, diagnostics and associated textures while retaining its project folder. |
+
+A reload returns `false` if the current file cannot be used. It records the failed read, so the
+usual checkerboard or missing-font behavior applies. An individual release returns `true` if it
+evicted a cached entry, including a cached failure. Image changes also invalidate the session's
+cached sprite alpha outlines. Automatic timestamp polling still covers PNGs and descriptors.
+Font changes take effect after an explicit reload, eviction, or project reopen.
+
+Call these operations on the session thread between frames, with the owning GL context current
+and all submissions using the old textures flushed. Reacquire borrowed texture names, font
+pointers, glyphs and resolved atlas views after invalidation. A standalone `Fonts` cache can work
+with CPU data alone. If using it with a `TextRenderer`, bind it to that renderer and release
+its entries before the renderer or context is torn down. A standalone `SpriteImages` cache owns
+its textures and must release them before its context is torn down.
 
 ### Paths
 

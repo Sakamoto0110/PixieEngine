@@ -90,6 +90,7 @@ add_executable(runtime-tests
     runtime/RandomTests.cpp
     runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
+    runtime/SpriteAtlasTests.cpp
     runtime/SpriteTests.cpp
     runtime/TextTests.cpp
     runtime/UserDataTests.cpp
@@ -179,6 +180,8 @@ add_executable(lighting-tests runtime/LightingTests.cpp)
 set_target_properties(lighting-tests PROPERTIES FOLDER tests)
 target_include_directories(lighting-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(lighting-tests PRIVATE Pixie::Runtime glfw)
+target_compile_definitions(lighting-tests PRIVATE
+    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\"")
 pixie_target_defaults(lighting-tests)
 add_test(NAME lighting-tests COMMAND lighting-tests)
 

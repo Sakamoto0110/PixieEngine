@@ -202,10 +202,10 @@ public:
     Project& GetProject() { return *project_; }
     /// Borrows the catalog. Reacquire descriptor references after a factory-backed replacement.
     const ComponentTypes& Types() const { return types_; }
-    // The images of the World's sprites, resolved against the project folder (the working
-    // directory without a project).
+    // Session-owned images, resolved against the project folder (the working directory without
+    // a project). Reload and release between frames with this session's GL context current.
     SpriteImages& Images() { return images_; }
-    // The fonts of the screen layer's text, resolved as the images are.
+    // Session-owned World and screen fonts, with the same lifetime and context rules as images.
     Fonts& GetFonts() { return fonts_; }
 
     // Duration of the last step, in milliseconds.
@@ -235,15 +235,15 @@ private:
     ShapeRenderer shapes_;
     SpriteRenderer sprites_;
     PathRenderer paths_;
-    SpriteImages images_;
+    SpriteAlphaOutlines outlines_;
+    SpriteImages images_{outlines_};
     TextRenderer text_;
-    Fonts fonts_;
+    Fonts fonts_{text_};
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
     LightRenderer lighting_;
     std::vector<LightInstance> lights_;
     std::vector<OccluderEdge> occluders_;
-    SpriteAlphaOutlines outlines_;
     // Lighting telemetry, registered in a World's collector at its first lit frame.
     struct LightingMetrics {
         MetricHandle cpu, gpuLights, gpuShadows, gpuCombine;

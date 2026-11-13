@@ -66,8 +66,8 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
     if (started_ && !Build(true, text.str())) return false;
     images_.SetFolder(opened.folder);
     outlines_.SetFolder(opened.folder);
-    text_.Destroy();
     fonts_.SetFolder(opened.folder);
+    nextImageCheck_ = {};
     opened_ = std::move(opened);
     sceneText_ = text.str();
     playedFrom_.clear();
@@ -106,8 +106,10 @@ void ProjectSession::Stop() {
     ++worldRevision_;
     world_.reset();
     target_.Destroy();
-    images_.Destroy();
+    images_.ReleaseAll();
+    fonts_.ReleaseAll();
     text_.Destroy();
+    nextImageCheck_ = {};
     lighting_.Destroy();
     paths_.Destroy();
     sprites_.Destroy();
@@ -502,7 +504,7 @@ void ProjectSession::Render(double alpha) {
             shadowedDropped = CapShadowedLights(lights_, ShadowedLightCap(lighting->quality), view);
             sceneLights = lights_.size();
             particleDropped = GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
-            GatherOccluders(*world_, alpha, occluders_, &outlines_);
+            GatherOccluders(*world_, alpha, occluders_, &outlines_, &images_);
             LightingParameters parameters = MakeLightingParameters(*lighting);
             parameters.view = LightingDebugView(LightingDebug());
             lighting_.Finish(camera.MakeView(), parameters, lights_, occluders_);

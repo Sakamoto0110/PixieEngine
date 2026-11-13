@@ -45,8 +45,8 @@ entt::entity PickAt(World& world, pxPoint point, double tolerance, SpriteImages*
     ForEachDrawnInOrder(world, [&](const Drawn& drawn) {
         const bool covers =
             drawn.sprite != nullptr
-                ? sprites != nullptr && SpriteContains(*drawn.sprite, drawn.transform,
-                                                       SpritePixelSize(*drawn.sprite, *sprites), point, tolerance)
+                ? sprites != nullptr && SpriteContains(ResolveSpriteGeometry(*drawn.sprite, *sprites),
+                                                       drawn.transform, point, tolerance)
                 : fonts != nullptr && TextContains(*drawn.text, drawn.transform, TextBlock(*drawn.text, *fonts),
                                                    point, tolerance);
         if (covers) {

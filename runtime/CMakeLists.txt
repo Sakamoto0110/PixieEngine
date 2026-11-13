@@ -31,6 +31,7 @@ add_library(pixie_runtime OBJECT
     src/Presentation2D.cpp
     src/LightingDrawing.cpp
     src/ShapeDrawing.cpp
+    src/SpriteAtlas.cpp
     src/SpriteDrawing.cpp
     src/SpriteImages.cpp
     src/TextDrawing.cpp

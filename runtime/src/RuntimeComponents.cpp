@@ -92,6 +92,7 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Shape::visible>("visible")
         .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Sprite>("Sprite")
+        .Version(2)
         .Field<&Sprite::image>("image")
         .Asset("png")
         .Tooltip("The PNG drawn, relative to the project folder. One image pixel is one world unit, times "
@@ -114,7 +115,11 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Sprite::filter>("filter", {"Smooth", "Pixel"})
         .Tooltip("Smooth blends texels, and stays clean when drawn small; Pixel keeps pixel art crisp.")
         .Field<&Sprite::visible>("visible")
-        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
+        .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.")
+        .Field<&Sprite::atlasFrame, &SpriteAtlasFrameRef::atlas>("atlas")
+        .Tooltip("Project-relative .atlas.json descriptor. Clear both atlas fields to use the direct PNG.")
+        .Field<&Sprite::atlasFrame, &SpriteAtlasFrameRef::frameId>("frameId")
+        .Tooltip("Stable frame ID in the atlas. Its rectangle and pivot determine the drawn geometry.");
     types.Add<Text>("Text")
         .Field<&Text::text>("text")
         .Tooltip("What it says; a line break starts a new line.")

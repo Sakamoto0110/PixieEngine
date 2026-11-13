@@ -126,6 +126,10 @@ finding a third-party DLL in the development machine's System32 is not enough
 to classify it as a Windows dependency.
 
 Scene asset references are discovered through native built-in descriptors.
+An atlas-backed `Sprite` includes its `.atlas.json` descriptor and the descriptor's PNG.
+The exporter checks the referenced frame and decoded PNG dimensions before copying, and checks
+the atlas dependencies again during manifest replay and verification. The direct image field
+supplies the dependency for direct PNG sprites.
 Game-specific component assets and files opened directly by code need explicit
 `pixie_game(... ASSETS <project-relative-file>...)` declarations. There is no
 recursive copy of all project/source/build files. Extra code-owned assets do

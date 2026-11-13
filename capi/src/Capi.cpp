@@ -1080,7 +1080,7 @@ PixieResult pixie_entity_view_bounds(PixieSession* s, uint32_t entity, double* x
             return PIXIE_OK;
         }
         const auto corners =
-            pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()));
+            pixie::SpriteCorners(pixie::ResolveSpriteGeometry(*sprite, s->session.Images()), drawn);
         const pxPoint screen = camera.WorldToScreen(pxPoint::Lerp(corners[0], corners[2], 0.5));
         *x = screen.x;
         *y = screen.y;
@@ -1125,7 +1125,7 @@ PixieResult pixie_entity_view_quad(PixieSession* s, uint32_t entity, double* cor
         const pixie::Transform2D drawn = DrawnTransform(s, id, *transform);
         const auto world =
             sprite != nullptr
-                ? pixie::SpriteCorners(*sprite, drawn, pixie::SpritePixelSize(*sprite, s->session.Images()))
+                ? pixie::SpriteCorners(pixie::ResolveSpriteGeometry(*sprite, s->session.Images()), drawn)
                 : pixie::TextCorners(*text, drawn, pixie::TextBlock(*text, s->session.GetFonts()));
         for (std::size_t i = 0; i < world.size(); ++i) {
             const pxPoint view = s->session.ResolvedCamera().camera.WorldToScreen(world[i]);

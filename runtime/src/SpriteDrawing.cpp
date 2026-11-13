@@ -19,8 +19,15 @@ namespace pixie {
 
 namespace {
 
-bool HasRegion(const Sprite& sprite) {
-    return sprite.region.width > 0.0 && sprite.region.height > 0.0;
+bool HasRegion(const SpriteSource& source) {
+    return source.region.width > 0.0 && source.region.height > 0.0;
+}
+
+pxVec2 PixelSize(const SpriteSource& source, SpriteImages& images) {
+    if (HasRegion(source)) {
+        return {source.region.width, source.region.height};
+    }
+    return images.Size(source.image).value_or(pxVec2(SpriteImages::kMissingSize, SpriteImages::kMissingSize));
 }
 
 // The drawn rectangle in world units, before rotation, relative to the pivot: its top-left corner
@@ -30,9 +37,9 @@ struct LocalRect {
     pxVec2 size;
 };
 
-LocalRect Local(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize) {
-    const pxVec2 size = pixelSize * transform.scale;
-    return {-sprite.pivot * size, size};
+LocalRect Local(const SpriteGeometry& geometry, const Transform2D& transform) {
+    const pxVec2 size = geometry.pixelSize * transform.scale;
+    return {-geometry.pivot * size, size};
 }
 
 pxPoint ToWorld(const Transform2D& transform, pxVec2 local) {
@@ -43,24 +50,31 @@ pxPoint ToWorld(const Transform2D& transform, pxVec2 local) {
 
 } // namespace
 
+SpriteGeometry ResolveSpriteGeometry(const Sprite& sprite, SpriteImages& images) {
+    const auto source = images.Source(sprite);
+    return {PixelSize(source, images), source.pivot};
+}
+
 pxVec2 SpritePixelSize(const Sprite& sprite, SpriteImages& images) {
-    if (HasRegion(sprite)) {
-        return pxVec2(sprite.region.width, sprite.region.height);
-    }
-    if (const auto size = images.Size(sprite.image)) {
-        return *size;
-    }
-    return pxVec2(SpriteImages::kMissingSize, SpriteImages::kMissingSize);
+    return ResolveSpriteGeometry(sprite, images).pixelSize;
 }
 
 pxPoint SpritePoint(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint uv) {
-    const LocalRect rect = Local(sprite, transform, pixelSize);
+    return SpritePoint({pixelSize, sprite.pivot}, transform, uv);
+}
+
+pxPoint SpritePoint(const SpriteGeometry& geometry, const Transform2D& transform, pxPoint uv) {
+    const LocalRect rect = Local(geometry, transform);
     return ToWorld(transform, rect.topLeft + pxVec2(uv.x, uv.y) * rect.size);
 }
 
 std::optional<pxPoint> SpriteLocal(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize,
                                    pxPoint world) {
-    const LocalRect rect = Local(sprite, transform, pixelSize);
+    return SpriteLocal({pixelSize, sprite.pivot}, transform, world);
+}
+
+std::optional<pxPoint> SpriteLocal(const SpriteGeometry& geometry, const Transform2D& transform, pxPoint world) {
+    const LocalRect rect = Local(geometry, transform);
     if (rect.size.x == 0.0 || rect.size.y == 0.0) {
         return std::nullopt;
     }
@@ -74,15 +88,23 @@ std::optional<pxPoint> SpriteLocal(const Sprite& sprite, const Transform2D& tran
 }
 
 std::array<pxPoint, 4> SpriteCorners(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize) {
-    return {SpritePoint(sprite, transform, pixelSize, pxPoint(0.0, 0.0)),
-            SpritePoint(sprite, transform, pixelSize, pxPoint(1.0, 0.0)),
-            SpritePoint(sprite, transform, pixelSize, pxPoint(1.0, 1.0)),
-            SpritePoint(sprite, transform, pixelSize, pxPoint(0.0, 1.0))};
+    return SpriteCorners({pixelSize, sprite.pivot}, transform);
+}
+
+std::array<pxPoint, 4> SpriteCorners(const SpriteGeometry& geometry, const Transform2D& transform) {
+    return {SpritePoint(geometry, transform, pxPoint(0.0, 0.0)),
+            SpritePoint(geometry, transform, pxPoint(1.0, 0.0)),
+            SpritePoint(geometry, transform, pxPoint(1.0, 1.0)),
+            SpritePoint(geometry, transform, pxPoint(0.0, 1.0))};
 }
 
 bool SpriteContains(const Sprite& sprite, const Transform2D& transform, pxVec2 pixelSize, pxPoint point,
                     double tolerance) {
-    const LocalRect rect = Local(sprite, transform, pixelSize);
+    return SpriteContains({pixelSize, sprite.pivot}, transform, point, tolerance);
+}
+
+bool SpriteContains(const SpriteGeometry& geometry, const Transform2D& transform, pxPoint point, double tolerance) {
+    const LocalRect rect = Local(geometry, transform);
     // The point in the sprite's frame: moved to the pivot and turned back.
     const double dx = point.x - transform.position.x;
     const double dy = point.y - transform.position.y;
@@ -162,27 +184,32 @@ void Submit(World& world, SpriteRenderer& renderer, SpriteImages& images, double
             return;
         }
         const Sprite& sprite = *item.sprite;
-        if (view != nullptr && !SpriteInView(sprite, drawn, SpritePixelSize(sprite, images), *view)) {
+        const SpriteSource source = images.Source(sprite);
+        const pxVec2 pixelSize = PixelSize(source, images);
+        if (view != nullptr && !SpriteInView(sprite, drawn, pixelSize, *view)) {
             return;
         }
         // The normal pass draws a sprite's normal map in its place, when it has one.
         const auto* normalMap = pass == LightingPass::Normals ? registry.try_get<const NormalMap2D>(item.id) : nullptr;
-        const Texture& texture = images.TextureOf(normalMap != nullptr && !normalMap->image.empty() ? normalMap->image : sprite.image);
-        const pxVec2 size = SpritePixelSize(sprite, images) * drawn.scale;
+        const bool atlasMissing = sprite.atlasFrame.IsSet() && source.image.empty();
+        const auto image = normalMap != nullptr && !normalMap->image.empty() && !atlasMissing
+            ? std::string_view(normalMap->image) : source.image;
+        const Texture& texture = images.TextureOf(image);
+        const pxVec2 size = pixelSize * drawn.scale;
 
         SpriteInstance instance;
         instance.position = pxPointf(static_cast<float>(drawn.position.x), static_cast<float>(drawn.position.y));
         instance.rotation = static_cast<float>(drawn.rotation);
         instance.size = pxVec2f(size);
-        instance.pivot = pxVec2f(sprite.pivot);
+        instance.pivot = pxVec2f(source.pivot);
         // A region is in the image's pixels; the checkerboard of a missing image is drawn whole.
-        if (HasRegion(sprite) && images.Size(sprite.image)) {
-            const pxVec2 image = *images.Size(sprite.image);
-            const pxRect& r = sprite.region;
-            instance.uv = {static_cast<float>(r.x / image.x), static_cast<float>(r.y / image.y),
-                           static_cast<float>((r.x + r.width) / image.x), static_cast<float>((r.y + r.height) / image.y)};
+        if (const auto imageSize = HasRegion(source) ? images.Size(source.image) : std::nullopt) {
+            const pxRect& r = source.region;
+            instance.uv = {static_cast<float>(r.x / imageSize->x), static_cast<float>(r.y / imageSize->y),
+                           static_cast<float>((r.x + r.width) / imageSize->x), static_cast<float>((r.y + r.height) / imageSize->y)};
         }
         instance.color = pass == LightingPass::Color ? sprite.color : PassColor(registry, item.id, sprite.color.a, pass);
+        if (pass == LightingPass::Normals && atlasMissing) instance.color.g = 0;
         renderer.Submit(texture.Id(), sprite.filter, sprite.layer, instance);
     });
 }
