@@ -9,6 +9,7 @@ using ModelContextProtocol.Protocol;
 
 if (args.Contains("--dev-channel")) { await BridgeContractQualification.Host(args); return; }
 if (args.Length > 0 && args[0] == "--bridge-contract") { await BridgeContractQualification.Run(args[1..]); return; }
+if (args.Length > 0 && args[0] == "--test-build") { await TestBuildQualification.Run(args[1..]); return; }
 if (args.Length > 0 && args[0] == "--editor") { await EditorQualification.Run(args[1..]); return; }
 if (args.Length > 0 && args[0] == "--editor-code") { await EditorCodeQualification.Run(args[1..]); return; }
 if (args.Length > 0 && args[0] == "--editor-physics") { await EditorPhysicsQualification.Run(args[1..]); return; }

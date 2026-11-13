@@ -22,12 +22,14 @@ namespace dev {
 
 inline constexpr std::size_t kMaxRequestBytes = 64 * 1024;
 inline constexpr int kResponseCapacity = 4 * 1024 * 1024;
+class GameCommandProvider;
 
 /// Private-profile JSON-RPC adapter over a borrowed session on its owner thread.
 /// The session must outlive the dispatcher. The host owns its lifecycle and transport.
 class WorldDispatcher {
 public:
     PIXIE_DEV_API explicit WorldDispatcher(ProjectSession& session);
+    WorldDispatcher(ProjectSession& session, bool exposeGameCommands);
     PIXIE_DEV_API ~WorldDispatcher();
     WorldDispatcher(const WorldDispatcher&) = delete;
     WorldDispatcher& operator=(const WorldDispatcher&) = delete;

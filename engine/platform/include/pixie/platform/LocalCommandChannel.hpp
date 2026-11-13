@@ -23,6 +23,7 @@ public:
     // Call on the owner thread. A nullopt response keeps the item in flight until Complete.
     PIXIE_PLATFORM_API void Drain(const Handler& handler);
     PIXIE_PLATFORM_API void Complete(std::string response);
+    PIXIE_PLATFORM_API std::uint64_t ConnectedClient() const;
     PIXIE_PLATFORM_API std::string Error() const;
 private:
     struct Impl;

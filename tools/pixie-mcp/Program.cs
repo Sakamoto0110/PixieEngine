@@ -10,14 +10,19 @@ var options = new Dictionary<string, string>(StringComparer.Ordinal);
 for (var i = 0; i < args.Length; i += 2)
 {
     if (i + 1 >= args.Length || !new[] { "--host", "--project", "--captures", "--channel", "--kind", "--startup-timeout",
-        "--sdk", "--sdk-id", "--sdk-build-id", "--sdk-manifest-sha256", "--sdk-profile", "--native-configuration", "--editor-assembly" }.Contains(args[i]))
+        "--sdk", "--sdk-id", "--sdk-build-id", "--sdk-manifest-sha256", "--sdk-profile", "--native-configuration", "--editor-assembly",
+        "--test-build" }.Contains(args[i]))
         throw new ArgumentException("usage: PixieMcp --host <explicit exe> --project <folder> --captures <folder> --sdk <private SDK root> " +
             "[--kind player|editor] [--sdk-profile local-development] [--native-configuration Debug|Release] " +
             "[--sdk-id <sha256>] [--sdk-build-id <sha256>] [--sdk-manifest-sha256 <sha256>] " +
-            "[--editor-assembly <absolute editor.dll>] [--channel <name>] [--startup-timeout <seconds>]");
+            "[--editor-assembly <absolute editor.dll>] [--channel <name>] [--startup-timeout <seconds>] " +
+            "or PixieMcp --test-build <absolute pixie-test-build.json> --captures <folder> --sdk <private SDK root>");
     options.Add(args[i], args[i + 1]);
 }
-foreach (var required in new[] { "--host", "--project", "--captures" })
+var testBuild = options.ContainsKey("--test-build");
+if (testBuild && (options.ContainsKey("--host") || options.ContainsKey("--project") || !options.ContainsKey("--sdk")))
+    throw new ArgumentException("--test-build requires an explicit --sdk and supplies its own player and project.");
+foreach (var required in testBuild ? new[] { "--captures" } : new[] { "--host", "--project", "--captures" })
     if (!options.ContainsKey(required)) throw new ArgumentException($"Missing {required}");
 var name = options.GetValueOrDefault("--channel", $"mcp-{Guid.NewGuid():N}");
 if (name.Length is < 1 or > 64 || name.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_')) throw new ArgumentException("Invalid channel name.");
@@ -31,17 +36,31 @@ var startup = options.TryGetValue("--startup-timeout", out var seconds)
 
 // The MCP server answers its client at once; the host opens in the background and the first call waits for it.
 using var stopping = new CancellationTokenSource();
-var opening = EngineConnection.OpenAsync(options["--host"], options["--project"], options["--captures"], name, kind == "editor", startup,
+var opening = EngineConnection.OpenAsync(options.GetValueOrDefault("--host"), options.GetValueOrDefault("--project"), options["--captures"], name, kind == "editor", startup,
     stopping.Token, options, Environment.GetEnvironmentVariable("PIXIE_SDK_ROOT"));
 var availableTools = ToolCatalog.ForHost(kind == "editor");
 var builder = Host.CreateApplicationBuilder();
 builder.Logging.AddConsole(logging => logging.LogToStandardErrorThreshold = LogLevel.Trace);
 builder.Services.AddMcpServer().WithStdioServerTransport()
-    .WithListToolsHandler((_, _) => ValueTask.FromResult(new ListToolsResult { Tools = [.. availableTools] }))
+    .WithListToolsHandler(async (_, cancellationToken) =>
+    {
+        if (!testBuild) return new ListToolsResult { Tools = [.. availableTools] };
+        try
+        {
+            var connection = await opening.WaitAsync(cancellationToken);
+            return new ListToolsResult { Tools = [.. availableTools, .. await connection.ReadGameTools(cancellationToken)] };
+        }
+        catch (Exception e) when (!cancellationToken.IsCancellationRequested)
+        {
+            Console.Error.WriteLine($"Game command discovery unavailable: {e.Message}");
+            return new ListToolsResult { Tools = [.. availableTools] };
+        }
+    })
     .WithCallToolHandler(async (request, cancellationToken) =>
     {
         var tool = request.Params?.Name;
-        if (tool is null || !availableTools.Any(t => t.Name == tool))
+        if (tool is null || (!availableTools.Any(t => t.Name == tool) &&
+            !(testBuild && (tool.StartsWith("game.player.", StringComparison.Ordinal) || tool.StartsWith("game.dev.", StringComparison.Ordinal)))))
             return new CallToolResult { IsError = true, Content = [new TextContentBlock { Text = "Unknown or disabled development tool." }] };
         var arguments = request.Params?.Arguments;
         if (arguments is null || !arguments.TryGetValue("parameters", out var parameters) || parameters.ValueKind != System.Text.Json.JsonValueKind.Object)

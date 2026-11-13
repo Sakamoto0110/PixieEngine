@@ -1,4 +1,5 @@
 #include "pixie/dev/PlayerChannel.hpp"
+#include "pixie/dev/GameCommands.hpp"
 #include "pixie/platform/LocalCommandChannel.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
 #include "pixie/render/gl/Gl.hpp"
@@ -85,6 +86,7 @@ struct PlayerChannel::Impl {
     std::unique_ptr<WorldDispatcher> dispatcher;
     std::filesystem::path captureRoot;
     std::uint64_t client = 0;
+    std::uint64_t worldRevision = 0;
     std::uint64_t frame = 0;
     bool hello = false;
     bool running = false;
@@ -92,6 +94,11 @@ struct PlayerChannel::Impl {
     struct Capture { std::filesystem::path path; Json response; bool notification; };
     std::optional<Capture> capture;
     explicit Impl(ProjectSession& s) : session(s) {}
+    GameCommandProvider* Game() { return dynamic_cast<GameCommandProvider*>(&session.GetProject()); }
+    void ReleaseControls() {
+        if (session.GetTelemetry())
+            if (auto* game = Game()) game->ReleaseGameControls(session.GetWorld());
+    }
     Json Fail(const Json& id, PixieResult code, const std::string& message, bool possiblyApplied = false) {
         SetNativeError(code, message);
         return {{"jsonrpc", "2.0"}, {"id", id}, {"error", {{"code", -32000}, {"message", message},
@@ -99,7 +106,7 @@ struct PlayerChannel::Impl {
     }
     std::optional<std::string> Handle(std::string_view request, uint64_t connection) {
         if (!dispatcher || client != connection) {
-            dispatcher = std::make_unique<WorldDispatcher>(session);
+            dispatcher = std::make_unique<WorldDispatcher>(session, true);
             client = connection; hello = false;
         }
         Json input;
@@ -175,10 +182,23 @@ bool PlayerChannel::Start(std::string_view name, const std::filesystem::path& ca
 }
 void PlayerChannel::Stop() {
     impl_->channel.Stop(); // Cancels I/O/queued responses and joins before borrowed references die.
+    if (impl_->running) impl_->ReleaseControls();
     impl_->capture.reset(); impl_->dispatcher.reset();
     impl_->client = 0; impl_->hello = false; impl_->running = false;
 }
-void PlayerChannel::Advance(double seconds) { impl_->session.Advance(seconds); }
+void PlayerChannel::Advance(double seconds) {
+    const auto revision = impl_->session.WorldRevision();
+    if (impl_->worldRevision != revision || (impl_->client != 0 && impl_->channel.ConnectedClient() != impl_->client)) {
+        impl_->ReleaseControls();
+        if (impl_->channel.ConnectedClient() != impl_->client) {
+            impl_->client = 0;
+            impl_->hello = false;
+            impl_->dispatcher.reset();
+        }
+        impl_->worldRevision = revision;
+    }
+    impl_->session.Advance(seconds);
+}
 void PlayerChannel::Drain() {
     ++impl_->frame;
     impl_->channel.Drain([&](std::string_view request, uint64_t client) { return impl_->Handle(request, client); });

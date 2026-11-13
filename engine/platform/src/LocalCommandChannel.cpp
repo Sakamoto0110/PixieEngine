@@ -1,4 +1,5 @@
 #include "pixie/platform/LocalCommandChannel.hpp"
+#include <atomic>
 #include <algorithm>
 #include <array>
 #include <condition_variable>
@@ -44,6 +45,7 @@ struct LocalCommandChannel::Impl {
     bool stopping = false;
     std::string error;
     std::thread worker;
+    std::atomic<std::uint64_t> connectedClient{0};
     struct Pending {
         std::string request;
         std::string response;
@@ -111,6 +113,7 @@ struct LocalCommandChannel::Impl {
                 continue;
             }
             ++client;
+            connectedClient = client;
             std::string line;
             std::array<char, 4096> chunk{};
             bool healthy = true;
@@ -139,6 +142,7 @@ struct LocalCommandChannel::Impl {
                     if (!Write(std::move(item->response))) { healthy = false; break; }
                 }
             }
+            connectedClient = 0;
             DisconnectNamedPipe(pipe.value);
         }
     }
@@ -194,12 +198,15 @@ void LocalCommandChannel::Stop() {
     }
     impl_->changed.notify_all();
     if (impl_->worker.joinable()) impl_->worker.join();
+    impl_->connectedClient = 0;
     std::lock_guard lock(impl_->mutex);
     impl_->pending.reset(); impl_->inFlight.reset();
 #ifdef _WIN32
     if (impl_->pipe.value != INVALID_HANDLE_VALUE) { CloseHandle(impl_->pipe.value); impl_->pipe.value = INVALID_HANDLE_VALUE; }
 #endif
 }
+
+std::uint64_t LocalCommandChannel::ConnectedClient() const { return impl_->connectedClient.load(); }
 
 void LocalCommandChannel::Drain(const Handler& handler) {
     std::shared_ptr<Impl::Pending> item;

@@ -10,7 +10,7 @@ using ModelContextProtocol.Protocol;
 namespace PixieMcp;
 
 // An owned local host; no retry after a request has been sent.
-internal sealed class EngineConnection : IAsyncDisposable
+internal sealed partial class EngineConnection : IAsyncDisposable
 {
     private readonly NamedPipeClientStream pipe;
     private readonly Process process;
@@ -19,13 +19,15 @@ internal sealed class EngineConnection : IAsyncDisposable
     private readonly string captureRoot;
     private readonly SelectionContext selection;
     private readonly bool editor;
+    private readonly bool gameTools;
     private JsonObject operations = new();
     private bool poisoned;
     private long nextId;
-    private EngineConnection(Process process, HostJob job, NamedPipeClientStream pipe, string captureRoot, SelectionContext selection, bool editor)
-        => (this.process, this.job, this.pipe, this.captureRoot, this.selection, this.editor) = (process, job, pipe, captureRoot, selection, editor);
+    private EngineConnection(Process process, HostJob job, NamedPipeClientStream pipe, string captureRoot, SelectionContext selection, bool editor, bool gameTools)
+        => (this.process, this.job, this.pipe, this.captureRoot, this.selection, this.editor, this.gameTools) =
+            (process, job, pipe, captureRoot, selection, editor, gameTools);
 
-    public static async Task<EngineConnection> OpenAsync(string executable, string project, string captureDirectory,
+    public static async Task<EngineConnection> OpenAsync(string? executable, string? project, string captureDirectory,
         string channel, bool editor, TimeSpan startup, CancellationToken cancellationToken,
         IReadOnlyDictionary<string, string> options, string? processSdkRoot)
     {
@@ -34,6 +36,13 @@ internal sealed class EngineConnection : IAsyncDisposable
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The qualified transport is Windows named pipes.");
         if (!editor && options.ContainsKey("--editor-assembly")) throw new ArgumentException("--editor-assembly is only available for an explicit Editor host.");
         var selection = SelectionContext.Load(options, processSdkRoot);
+        var testBuild = options.GetValueOrDefault("--test-build");
+        if (testBuild is not null)
+        {
+            if (editor) throw new ArgumentException("--test-build requires a player host.");
+            (executable, project) = OpenTestBuild(testBuild, selection);
+        }
+        if (executable is null || project is null) throw new ArgumentException("Select a host and project, or a private test-build manifest.");
         var host = Path.GetFullPath(executable);
         CheckPath(host, "Host");
         if (!File.Exists(host)) throw new IOException("The explicit host artifact is absent.");
@@ -45,11 +54,17 @@ internal sealed class EngineConnection : IAsyncDisposable
                 throw new ArgumentException("--editor-assembly requires an explicit absolute existing assembly path.");
             CheckPath(assembly, "Editor assembly");
         }
-        if (!editor && (!string.Equals(host, selection.PlayerPath, StringComparison.OrdinalIgnoreCase) || SelectionContext.HashFile(host) != selection.PlayerHash))
+        if (!editor && testBuild is null && (!string.Equals(host, selection.PlayerPath, StringComparison.OrdinalIgnoreCase) || SelectionContext.HashFile(host) != selection.PlayerHash))
             throw new IOException("The explicit player is not the selected private SDK player artifact.");
         if (captureDirectory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
             throw new ArgumentException("Capture startup root cannot contain parent traversal.");
         var root = Path.GetFullPath(captureDirectory);
+        if (testBuild is not null)
+        {
+            var relativeCapture = Path.GetRelativePath(project, root);
+            if (!Path.IsPathRooted(relativeCapture) && relativeCapture.Split(Path.DirectorySeparatorChar)[0] != "..")
+                throw new ArgumentException("Choose a capture directory outside the verified test bundle.");
+        }
         CheckPath(root);
         Directory.CreateDirectory(root);
         CheckPath(root);
@@ -77,7 +92,7 @@ internal sealed class EngineConnection : IAsyncDisposable
         _ = RelayAsync(process.StandardError);
         var pipe = new NamedPipeClientStream(".", $"pixie-{channel}", PipeDirection.InOut,
             PipeOptions.Asynchronous | PipeOptions.CurrentUserOnly);
-        var connection = new EngineConnection(process, job, pipe, root, selection, editor);
+        var connection = new EngineConnection(process, job, pipe, root, selection, editor, testBuild is not null);
         try
         {
             // The editor opens the channel only after building a project's code, which can take minutes.
@@ -203,7 +218,10 @@ internal sealed class EngineConnection : IAsyncDisposable
                 if (!bytes.AsSpan(0, 8).SequenceEqual(new byte[] { 137, 80, 78, 71, 13, 10, 26, 10 })) throw new IOException("Capture is not PNG.");
                 content.Add(ImageContentBlock.FromBytes(bytes, "image/png"));
             }
-            return new CallToolResult { IsError = failed, Content = content };
+            var result = new CallToolResult { IsError = failed, Content = content };
+            if (!failed && method.StartsWith("game.", StringComparison.Ordinal))
+                result.StructuredContent = JsonSerializer.SerializeToElement(response["result"]?["value"]);
+            return result;
         }
         catch (Exception e) when (e is IOException or ArgumentException or OperationCanceledException or JsonException or InvalidOperationException or FormatException or OverflowException or KeyNotFoundException)
         {
@@ -219,6 +237,8 @@ internal sealed class EngineConnection : IAsyncDisposable
 
     private void RequireOperation(string method, JsonNode parameters)
     {
+        if (method.StartsWith("game.", StringComparison.Ordinal) && !gameTools)
+            throw new IOException("Game commands require an explicit private test bundle.");
         var capability = method.StartsWith("inspector.", StringComparison.Ordinal) ? "inspector" :
             method.StartsWith("editor.", StringComparison.Ordinal) ? "editor" : method == "world.capture" ? "capture" : "world";
         if (operations[capability]?.GetValue<bool>() != true) throw new IOException($"Host capability {capability} is unavailable.");
@@ -274,6 +294,10 @@ internal sealed class EngineConnection : IAsyncDisposable
         public string ManifestHash { get; }
         public string PlayerPath { get; }
         public string PlayerHash { get; }
+        public string Configuration => configuration;
+        public Dictionary<string, string> RuntimeHashes() =>
+            expected.GetProperty("nativeDependencies").EnumerateArray().Append(expected.GetProperty("runtime"))
+                .ToDictionary(item => Path.GetFileName(Text(item, "path")), item => Text(item, "sha256"), StringComparer.OrdinalIgnoreCase);
         private SelectionContext(string root, string configuration, string manifestHash, JsonElement identity, string player)
         {
             this.root = root; this.configuration = configuration; expected = identity.Clone();
@@ -432,7 +456,7 @@ internal sealed class EngineConnection : IAsyncDisposable
             CheckPath(path, "SDK"); return path;
         }
         public static string HashFile(string path) { using var stream = File.OpenRead(path); return Convert.ToHexStringLower(SHA256.HashData(stream)); }
-        private static byte[] ReadMetadata(string path)
+        public static byte[] ReadMetadata(string path)
         {
             using var file = File.OpenRead(path);
             if (file.Length > 16 * 1024 * 1024) throw new IOException("SDK metadata exceeds 16 MiB.");

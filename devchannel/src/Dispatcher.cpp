@@ -1,4 +1,5 @@
 #include "pixie/dev/Dispatcher.hpp"
+#include "pixie/dev/GameCommands.hpp"
 #include "Session.hpp"
 #include "DevError.hpp"
 #include "pixie/runtime/Scene.hpp"
@@ -143,6 +144,9 @@ struct WorldDispatcher::Impl {
     uint64_t generation = 0;
     uint64_t nextToken = 0;
     std::string nonce;
+    bool exposeGameCommands = false;
+    GameCommands commands;
+    std::optional<uint64_t> gameRevision;
     struct Snapshot {
         std::string text;
         std::vector<uint64_t> ids;
@@ -150,9 +154,17 @@ struct WorldDispatcher::Impl {
         uint64_t revision = 0;
     };
     std::unordered_map<std::string, Snapshot> snapshots;
-    explicit Impl(ProjectSession& session) : view(session) {
+    explicit Impl(ProjectSession& session, bool exposeGame) : view(session), exposeGameCommands(exposeGame) {
         static std::atomic<uint64_t> nextSession{0};
         nonce = std::format("session-{}", ++nextSession);
+    }
+    void RefreshGameCommands() {
+        const auto revision = view.session.WorldRevision();
+        if (!exposeGameCommands || gameRevision == revision) return;
+        GameCommands next;
+        if (auto* game = dynamic_cast<GameCommandProvider*>(&view.session.GetProject())) game->RegisterGameCommands(next);
+        commands = std::move(next);
+        gameRevision = revision;
     }
     PixieSession* S() { return &view; }
     uint32_t Find(uint64_t id) {
@@ -462,10 +474,35 @@ struct WorldDispatcher::Impl {
                 {"project", Text([&](char* b, int n) { return pixie_project_name(S(), b, n); })}, {"stats", Stats()},
                 {"engine", std::move(identity)},
                 {"capabilities", {{"world", true}, {"inspector", false}, {"capture", false}, {"transport", false}, {"save", false}}}};
+            RefreshGameCommands();
+            if (!commands.Empty()) value["game_commands"] = commands.Describe();
             hello = true;
             return value;
         }
         if (!hello) Reject("world.hello must be the first call");
+        if (method.starts_with("game.")) {
+            RefreshGameCommands();
+            const auto tick = view.session.GetWorld().Steps();
+            const GameCommands::Handler* handler = nullptr;
+            try {
+                if (method == "game.dev.describe" && !commands.Empty())
+                    return {{"tick", tick}, {"value", {{"commands", commands.Describe(p)}}}};
+                handler = commands.Find(method, p);
+            } catch (const std::invalid_argument& error) {
+                Reject(error.what(), PIXIE_ERROR_ARGUMENT, -32602);
+            }
+            if (!handler) Reject("unknown or unavailable game command", PIXIE_ERROR_NOT_FOUND, -32601);
+            mutationStarted = true;
+            try {
+                auto result = (*handler)(view.session, p);
+                if (!result.is_object()) throw std::runtime_error("game command handler returned a non-object result");
+                result["tick"] = view.session.GetWorld().Steps();
+                return result;
+            } catch (const CommandArgumentError& error) {
+                mutationStarted = false;
+                Reject(error.what(), PIXIE_ERROR_ARGUMENT, -32602);
+            }
+        }
         if (method == "world.prepare_capture") {
             nextRenderAlphaOne = true;
             return {{"alpha", 1.0}, {"pending_next_render", true}};
@@ -644,7 +681,8 @@ struct WorldDispatcher::Impl {
     }
 };
 
-WorldDispatcher::WorldDispatcher(ProjectSession& session) : impl_(std::make_unique<Impl>(session)) {}
+WorldDispatcher::WorldDispatcher(ProjectSession& session) : WorldDispatcher(session, false) {}
+WorldDispatcher::WorldDispatcher(ProjectSession& session, bool exposeGameCommands) : impl_(std::make_unique<Impl>(session, exposeGameCommands)) {}
 WorldDispatcher::~WorldDispatcher() = default;
 
 std::optional<double> WorldDispatcher::ConsumeRenderAlpha() {
@@ -693,7 +731,9 @@ std::string WorldDispatcher::Dispatch(std::string_view request) {
         if (!impl_->view.session.GetTelemetry()) Reject("session has not started");
         const auto method = String(input, "method");
         rpc = -32000;
-        if (!method.starts_with("world.")) { rpc = -32601; Reject("player dispatcher supports only world.*", PIXIE_ERROR_NOT_FOUND); }
+        if (!method.starts_with("world.") && !(impl_->exposeGameCommands && method.starts_with("game."))) {
+            rpc = -32601; Reject("method is unavailable on this dispatcher", PIXIE_ERROR_NOT_FOUND);
+        }
         auto value = impl_->Execute(method, params);
         Json response{{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"value", value}, {"session", impl_->nonce},
             {"sequence", impl_->sequence}, {"generation", impl_->generation}}}};
