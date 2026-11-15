@@ -149,6 +149,9 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
             if (!types_.SameSchema(candidateTypes)) throw std::runtime_error("candidate component schema changed");
         }
         candidate = std::make_unique<World>(settings_.seed);
+        for (const auto& action : (candidateProject ? candidateTypes : types_).TriggerActions()) {
+            candidate->Triggers().Subscribe(action.id, action.name, action.function, action.source);
+        }
         if (!sceneText.empty()) {
             const SceneReport report = ReadScene(*candidate, candidateProject ? candidateTypes : types_, sceneText);
             if (!report.ok) {

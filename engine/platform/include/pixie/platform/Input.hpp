@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pixie/platform/Export.hpp"
+#include "pixie/core/FramebufferSize.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxPoint.hpp>
@@ -88,7 +89,12 @@ struct MouseButtonEvent {
 };
 struct MouseMoveEvent { pxPoint position; pxVec2 delta; InputModifiers modifiers; };
 struct MouseScrollEvent { pxVec2 offset; pxPoint position; InputModifiers modifiers; };
-using InputEvent = std::variant<KeyEvent, MouseButtonEvent, MouseMoveEvent, MouseScrollEvent>;
+struct TextInputEvent { char32_t codepoint; };
+struct InputFocusEvent { bool focused; };
+struct FramebufferResizeEvent { FramebufferSize size; };
+struct JoystickConnectionEvent { int joystick; bool connected; };
+using InputEvent = std::variant<KeyEvent, MouseButtonEvent, MouseMoveEvent, MouseScrollEvent,
+    TextInputEvent, InputFocusEvent, FramebufferResizeEvent, JoystickConnectionEvent>;
 
 /// Keyboard and pointer state owned by the driving host thread.
 /// Edges, movement and scroll accumulate until the host consumes them with EndUpdate.
@@ -108,6 +114,11 @@ public:
     PIXIE_PLATFORM_API void SetCursor(pxPoint position, InputModifiers modifiers);
     PIXIE_PLATFORM_API void AddScroll(pxVec2 offset);
     PIXIE_PLATFORM_API void AddScroll(pxVec2 offset, InputModifiers modifiers);
+    PIXIE_PLATFORM_API void AddTextInput(char32_t codepoint);
+    /// Losing host focus cancels captured keyboard and pointer input before notifying listeners.
+    PIXIE_PLATFORM_API void SetFocus(bool focused);
+    PIXIE_PLATFORM_API void AddFramebufferResize(FramebufferSize size);
+    PIXIE_PLATFORM_API void AddJoystickConnection(int joystick, bool connected);
 
     /// Borrows ordered events until the host mutates Input. Do not mutate during dispatch.
     /// Polling describes the final accumulated state; events preserve intermediate transitions.

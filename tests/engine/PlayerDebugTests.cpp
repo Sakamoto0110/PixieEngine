@@ -178,3 +178,64 @@ TEST(NativePlayerTelemetryCommandsControlAppCollectionWithoutHidingDisplay) {
     CHECK(pixie::Run(app,config)==0);
     CHECK(app.phase==4);
 }
+
+TEST(NativePlayerForwardsGlfwLifecycleAndTextEventsInOrder) {
+    class EventPlayer final : public pixie::App {
+    public:
+        bool Start(pixie::Window& window) override {
+            window_ = &window;
+            const auto handle = window.Handle();
+            const auto focus = glfwSetWindowFocusCallback(handle, nullptr);
+            glfwSetWindowFocusCallback(handle, focus);
+            const auto resize = glfwSetFramebufferSizeCallback(handle, nullptr);
+            glfwSetFramebufferSizeCallback(handle, resize);
+            const auto joystick = glfwSetJoystickCallback(nullptr);
+            glfwSetJoystickCallback(joystick);
+            CHECK(focus && resize && joystick);
+            // A focus loss cancels pending game input but keeps resize and connection events.
+            Character(handle, 'x');
+            if (resize) resize(handle, 701, 503);
+            if (joystick) joystick(GLFW_JOYSTICK_LAST, GLFW_CONNECTED);
+            if (focus) focus(handle, GLFW_FALSE);
+            if (focus) focus(handle, GLFW_TRUE);
+            Character(handle, 0x03A9);
+            return true;
+        }
+
+        void Update(const pixie::FrameTime&, const pixie::Input& input) override {
+            int phase = 0;
+            for (const auto& event : input.Events()) {
+                if (const auto* text = std::get_if<pixie::TextInputEvent>(&event)) {
+                    CHECK(text->codepoint != U'x');
+                    if (phase == 4 && text->codepoint == U'\u03A9') ++phase;
+                }
+                if (const auto* resize = std::get_if<pixie::FramebufferResizeEvent>(&event);
+                    phase == 0 && resize && resize->size.width == 701 && resize->size.height == 503) ++phase;
+                if (const auto* joystick = std::get_if<pixie::JoystickConnectionEvent>(&event);
+                    phase == 1 && joystick && joystick->joystick == GLFW_JOYSTICK_LAST && joystick->connected) ++phase;
+                if (const auto* focus = std::get_if<pixie::InputFocusEvent>(&event)) {
+                    if ((phase == 2 && !focus->focused) || (phase == 3 && focus->focused)) ++phase;
+                }
+            }
+            delivered = phase == 5;
+            window_->Close();
+        }
+
+        void Render(const pixie::FrameTime&, const pixie::Input&) override {}
+        bool delivered = false;
+
+    private:
+        pixie::Window* window_ = nullptr;
+    } app;
+
+    pixie::RunConfig config;
+    config.title = "Native trigger event verification";
+    config.width = 400;
+    config.height = 300;
+    config.quitAfterSeconds = 3;
+#ifdef PIXIE_DEVELOPMENT
+    config.hidden = true;
+#endif
+    CHECK(pixie::Run(app, config) == 0);
+    CHECK(app.delivered);
+}

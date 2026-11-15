@@ -50,6 +50,7 @@ function(pixie_sdk_prepare)
         cmake/*.cmake cmake/sdk/*.in scripts/sdk/*.py templates/*
         tools/export/*.cpp tools/export/*.hpp tools/export/CMakeLists.txt
         external/pixielib/cpp/include/* external/pixielib/cpp/math/include/*
+        external/pixielib/cpp/events/include/*
         external/pixielib/cpp/math/src/* external/glm/glm/* external/entt/src/*
         external/glew/include/* external/glew/src/glew.c external/glfw/src/* external/glfw/include/*
         external/glfw/CMake/* external/stb/*.h external/nlohmann_json/single_include/*

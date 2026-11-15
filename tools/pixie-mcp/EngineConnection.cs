@@ -75,10 +75,16 @@ internal sealed partial class EngineConnection : IAsyncDisposable
             WorkingDirectory = Path.GetFullPath(project)
         };
         if (assembly is not null) info.ArgumentList.Add(assembly);
+        var interactiveEditor = editor && options.GetValueOrDefault("--editor-interactive") == "on";
         foreach (var argument in new[] { "--project", Path.GetFullPath(project), "--dev-channel", channel,
-            "--dev-capture-dir", root, "--dev-hidden", "on" }) info.ArgumentList.Add(argument);
+            "--dev-capture-dir", root, "--dev-hidden", interactiveEditor ? "off" : "on" }) info.ArgumentList.Add(argument);
         if (editor)
         {
+            if (interactiveEditor)
+            {
+                info.ArgumentList.Add("--dev-interactive");
+                info.ArgumentList.Add("on");
+            }
             foreach (var argument in selection.EditorArguments()) info.ArgumentList.Add(argument);
             info.ArgumentList.Add("--recent"); info.ArgumentList.Add("off");
         }
@@ -219,7 +225,7 @@ internal sealed partial class EngineConnection : IAsyncDisposable
                 content.Add(ImageContentBlock.FromBytes(bytes, "image/png"));
             }
             var result = new CallToolResult { IsError = failed, Content = content };
-            if (!failed && method.StartsWith("game.", StringComparison.Ordinal))
+            if (!failed && (method is "world.triggers" or "world.trigger_post" || method.StartsWith("game.", StringComparison.Ordinal)))
                 result.StructuredContent = JsonSerializer.SerializeToElement(response["result"]?["value"]);
             return result;
         }
