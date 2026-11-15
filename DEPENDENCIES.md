@@ -40,6 +40,14 @@ The capture writer used local Python 3.15 with Pillow 13.0.0, confirmed by the
 coordinator through that interpreter. The bundled documentation-check runtime
 has Pillow 12.3.0 and was not used for these capture executions.
 
+**Scoped local PixieLib build update, 2026-11-15:** the vendored CMake/test wiring
+mirrors the optional `PIXIE_EVENTS` selection from the current PixieLib source.
+It defaults to `ON`; standalone primitive/math consumers can disable it to avoid
+Threads discovery, while Engine continues to require Events. No event headers,
+runtime synchronization, installed SDKs or release baseline are changed by this
+build-selection fix. This note records the local patch, not a refresh of the
+broader vendored-version inventory below or new SDK qualification.
+
 Vendored third-party sources live under `external/<name>/`, unmodified from
 the release archive whose hash is recorded below. Where no hash is published
 (GitHub tag archives), the recorded hash is the one computed on download.

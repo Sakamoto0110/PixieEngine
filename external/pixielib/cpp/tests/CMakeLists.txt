@@ -8,12 +8,15 @@ add_executable(pixie_tests
     pxColorRgba.test.cpp
     pxColorHsl.test.cpp
     pxToString.test.cpp
-    pxCallback.test.cpp
-    pxEventHandler.test.cpp
-    pxSubscription.test.cpp
-    pxEvent.test.cpp
 )
-target_link_libraries(pixie_tests PRIVATE pixie::pixie pixie::events)
+target_link_libraries(pixie_tests PRIVATE pixie::pixie)
+
+if(PIXIE_EVENTS)
+    target_sources(pixie_tests PRIVATE pxCallback.test.cpp pxEventHandler.test.cpp
+        pxSubscription.test.cpp pxEvent.test.cpp)
+    target_link_libraries(pixie_tests PRIVATE pixie::events)
+    target_compile_definitions(pixie_tests PRIVATE PIXIE_TEST_EVENTS)
+endif()
 
 if(PIXIE_MATH)
     target_sources(pixie_tests PRIVATE pxVec.test.cpp pxMat.test.cpp pxSegment.test.cpp)
