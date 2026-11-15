@@ -28,6 +28,8 @@
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/ColliderEditing2D.hpp"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <cmath>
 #include <cstring>
@@ -794,6 +796,10 @@ PixieResult pixie_session_resize(PixieSession* s, int32_t width, int32_t height)
         return Fail(PIXIE_ERROR_ARGUMENT, "empty view");
     }
     return Guard([&] {
+        const auto previous = s->surface.GetFramebufferSize();
+        if (previous.width != width || previous.height != height) {
+            s->session.GetInput().AddFramebufferResize({width, height});
+        }
         s->surface.Resize({width, height});
         s->session.Resize(s->surface.GetFramebufferSize());
         return PIXIE_OK;
@@ -1447,6 +1453,21 @@ PixieResult pixie_type_source(PixieSession* s, int32_t type, char* buffer, int32
     if (!descriptor || !length) return Fail(PIXIE_ERROR_ARGUMENT, "invalid component type or source length output");
     *length = static_cast<int32_t>(descriptor->source.size()) + 1;
     return capacity == 0 ? PIXIE_OK : Copy(descriptor->source, buffer, capacity);
+}
+
+PixieResult pixie_trigger_action_sources_v2(PixieSession* s, char* buffer, int32_t capacity, int32_t* length) {
+    PIXIE_REQUIRE_SESSION(s);
+    if (!length || capacity < 0) return Fail(PIXIE_ERROR_ARGUMENT, "invalid trigger action source buffer");
+    return Guard([&] {
+        auto entries = nlohmann::json::array();
+        for (const auto& source : s->session.GetWorld().Triggers().ActionSources()) {
+            entries.push_back({{"id", source.reference.Encode()}, {"action", source.action}, {"file", source.file}, {"line", source.line}});
+        }
+        const auto text = entries.dump(-1, ' ', false, nlohmann::json::error_handler_t::replace);
+        if (text.size() >= 65536) return Fail(PIXIE_ERROR_BUFFER, "trigger action source catalog exceeds 64 KiB");
+        *length = static_cast<int32_t>(text.size()) + 1;
+        return capacity == 0 ? PIXIE_OK : Copy(text, buffer, capacity);
+    });
 }
 
 uint32_t pixie_type_flags(PixieSession* s, int32_t type) {

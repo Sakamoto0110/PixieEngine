@@ -35,6 +35,7 @@ add_library(pixie_runtime OBJECT
     src/SpriteDrawing.cpp
     src/SpriteImages.cpp
     src/TextDrawing.cpp
+    src/TriggerDispatcher.cpp
     src/SpatialGrid.cpp
     src/UserData.cpp
     src/World.cpp
@@ -47,7 +48,7 @@ set_target_properties(pixie_runtime PROPERTIES FOLDER engine)
 target_include_directories(pixie_runtime PUBLIC include)
 target_link_libraries(pixie_runtime PUBLIC pixie_app EnTT::EnTT)
 # Scenes and project files are read and written through nlohmann/json; no public header includes it.
-target_link_libraries(pixie_runtime PRIVATE nlohmann_json::nlohmann_json box2d)
+target_link_libraries(pixie_runtime PRIVATE nlohmann_json::nlohmann_json box2d pixie::events)
 # The user data folder is found through the shell's known folders on Windows.
 if(WIN32)
     target_link_libraries(pixie_runtime PRIVATE shell32 ole32)

@@ -2,9 +2,11 @@
 #include "pixie/dev/GameCommands.hpp"
 #include "Session.hpp"
 #include "DevError.hpp"
+#include "pixie/runtime/InputTriggers.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <charconv>
 #include <cmath>
@@ -64,6 +66,59 @@ int Integer(const Json& value, int minimum, int maximum) {
 bool Boolean(const Json& p, const char* name) {
     if (!p.contains(name) || !p[name].is_boolean()) Reject(std::format("{} must be boolean", name));
     return p[name].get<bool>();
+}
+int InputInteger(const Json& p, const char* name, int min, int max) {
+    if (!p.contains(name)) Reject(std::format("missing {}", name));
+    return Integer(p[name], min, max);
+}
+constexpr std::array<std::string_view, 8> kTriggerKinds{
+    "key", "mouse_button", "mouse_move", "scroll", "text", "focus", "framebuffer_resize", "joystick_connection"
+};
+constexpr std::array<std::string_view, 4> kTriggerEdges{"any", "release", "press", "repeat"};
+constexpr std::size_t kMaxPendingTriggers = 1024;
+
+template<std::size_t N>
+std::string_view TriggerName(const std::array<std::string_view, N>& names, std::size_t index) {
+    return index < names.size() ? names[index] : "unknown";
+}
+
+InputEvent TriggerEvent(const Json& p) {
+    const auto kind = String(p, "kind");
+    const auto found = std::find(kTriggerKinds.begin(), kTriggerKinds.end(), kind);
+    if (found == kTriggerKinds.end()) Reject("unknown trigger event kind");
+    const auto modifiers = [&] {
+        return p.contains("modifiers") ? static_cast<InputModifiers>(Integer(p["modifiers"], 0, 63)) : InputModifiers::None;
+    };
+    const auto position = [&] { return pxPoint(Number(p, "x"), Number(p, "y")); };
+    const auto delta = [&] { return pxVec2(Number(p, "dx"), Number(p, "dy")); };
+    const auto edge = [&](bool allowRepeat) {
+        const auto action = String(p, "edge");
+        if (action == "release") return InputAction::Release;
+        if (action == "press") return InputAction::Press;
+        if (allowRepeat && action == "repeat") return InputAction::Repeat;
+        Reject(allowRepeat ? "edge must be press, release, or repeat" : "edge must be press or release");
+    };
+    switch (static_cast<TriggerType>(found - kTriggerKinds.begin())) {
+    case TriggerType::Key:
+        return KeyEvent{static_cast<Key>(InputInteger(p, "code", 0, Input::kKeyCount - 1)), edge(true), modifiers(),
+            p.contains("scan_code") ? Integer(p["scan_code"], 0, (std::numeric_limits<int>::max)()) : 0};
+    case TriggerType::MouseButton:
+        return MouseButtonEvent{static_cast<MouseButton>(InputInteger(p, "code", 0, Input::kButtonCount - 1)),
+            edge(false), modifiers(), position()};
+    case TriggerType::MouseMove: return MouseMoveEvent{position(), delta(), modifiers()};
+    case TriggerType::Scroll: return MouseScrollEvent{delta(), position(), modifiers()};
+    case TriggerType::Text: {
+        const int code = InputInteger(p, "code", 0, 0x10FFFF);
+        if (code >= 0xD800 && code <= 0xDFFF) Reject("text code must be a Unicode scalar value");
+        return TextInputEvent{static_cast<char32_t>(code)};
+    }
+    case TriggerType::Focus: return InputFocusEvent{Boolean(p, "focused")};
+    case TriggerType::FramebufferResize:
+        return FramebufferResizeEvent{{InputInteger(p, "width", 0, 16384), InputInteger(p, "height", 0, 16384)}};
+    case TriggerType::JoystickConnection:
+        return JoystickConnectionEvent{InputInteger(p, "code", 0, 15), Boolean(p, "connected")};
+    }
+    Reject("unknown trigger event kind");
 }
 uint64_t ParseId(const Json& value) {
     if (!value.is_string()) Reject("entity id must be a 16 digit hexadecimal scene ID");
@@ -219,6 +274,40 @@ struct WorldDispatcher::Impl {
                 {"enums", enums}, {"asset", text(PIXIE_TEXT_ASSET)}, {"references", text(PIXIE_TEXT_REFERENCES)}});
         }
         return {{"name", TypeName(type)}, {"flags", pixie_type_flags(S(), type)}, {"fields", fields}};
+    }
+    Json Triggers(const Json& p) {
+        auto& world = view.session.GetWorld();
+        const int offset = p.contains("offset") ? Integer(p["offset"], 0, (std::numeric_limits<int>::max)()) : 0;
+        const int limit = p.contains("limit") ? Integer(p["limit"], 1, 256) : 64;
+        if (p.contains("action_catalog") && Boolean(p, "action_catalog")) {
+            const auto registrations = world.Triggers().ActionSources();
+            auto actions = Json::array();
+            auto next = static_cast<std::size_t>(offset);
+            for (; next < registrations.size() && actions.size() < static_cast<std::size_t>(limit); ++next) {
+                const auto& action = registrations[next];
+                actions.push_back({{"id", action.reference.Encode()}, {"name", action.action}});
+            }
+            return {{"actions", std::move(actions)}, {"total", registrations.size()},
+                {"next_offset", next < registrations.size() ? Json(next) : Json(nullptr)}};
+        }
+        const auto entity = p.contains("id") ? std::optional{Entity(p)} : std::nullopt;
+        auto bindings = Json::array();
+        std::size_t total = 0;
+        world.Each<const InputTriggers>([&](pixie::Entity source, const InputTriggers& component) {
+            if (entity && *entity != source.Number()) return;
+            for (std::size_t i = 0; i < component.bindings.size(); ++i) {
+                if (total++ < static_cast<std::size_t>(offset) || bindings.size() >= static_cast<std::size_t>(limit)) continue;
+                const auto& binding = component.bindings[i].value;
+                const auto* scene = source.TryGet<pixie::SceneId>();
+                bindings.push_back({{"id", scene ? Json(IdText(scene->value)) : Json(nullptr)}, {"index", i},
+                    {"kind", TriggerName(kTriggerKinds, static_cast<std::size_t>(binding.type))},
+                    {"edge", TriggerName(kTriggerEdges, static_cast<std::size_t>(binding.edge))}, {"code", binding.code},
+                    {"required_modifiers", binding.requiredModifiers}, {"enabled", binding.enabled},
+                    {"action", binding.action.Encode()}, {"action_registered", world.Triggers().HasAction(binding.action)}});
+            }
+        });
+        const auto next = static_cast<std::size_t>(offset) + bindings.size();
+        return {{"bindings", std::move(bindings)}, {"total", total}, {"next_offset", next < total ? Json(next) : Json(nullptr)}};
     }
     struct Address { uint32_t entity; int type; int field; int list = -1; int index = -1; int metaType; };
     Address Resolve(const Json& p) {
@@ -508,6 +597,15 @@ struct WorldDispatcher::Impl {
             return {{"alpha", 1.0}, {"pending_next_render", true}};
         }
         if (method == "world.stats") return Stats();
+        if (method == "world.triggers") return Triggers(p);
+        if (method == "world.trigger_post") {
+            if (view.session.Mode() != SessionMode::Play) Reject("enter Play before posting trigger events");
+            auto event = TriggerEvent(p);
+            if (!view.session.GetWorld().Triggers().TryPost(std::move(event), kMaxPendingTriggers))
+                Reject("trigger queue is full; advance the World before posting more events", PIXIE_ERROR_BUFFER);
+            mutationStarted = true;
+            return {{"queued_for_step", true}, {"tick", view.session.GetWorld().Steps()}};
+        }
         if (method == "world.lighting_debug") {
             // A view option, not a World change: {flags} sets it, and the reply says what is on.
             if (p.contains("flags")) {

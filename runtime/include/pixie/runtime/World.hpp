@@ -10,6 +10,7 @@
 #include "pixie/runtime/Entity.hpp"
 #include "pixie/runtime/Random.hpp"
 #include "pixie/runtime/Presentation2D.hpp"
+#include "pixie/runtime/TriggerDispatcher.hpp"
 #include <pixie/math/pxVec.hpp>
 
 #include <entt/entity/registry.hpp>
@@ -140,6 +141,7 @@ public:
     const Telemetry& GetTelemetry() const { return telemetry_; }
 
     Random& GetRandom() { return random_; }
+    TriggerDispatcher& Triggers() { return triggers_; }
 
     // Makes the previous transform equal the current one, so a jump is not drawn as motion.
     PIXIE_RUNTIME_API void ResetInterpolation(Entity entity);
@@ -200,6 +202,7 @@ private:
     std::map<ScopeId, SceneScope> scopes_;
     std::map<entt::entity, ScopeId> membership_;
     Random random_;
+    TriggerDispatcher triggers_;
     std::optional<WorldPresentation2D> presentation_;
     std::uint64_t steps_ = 0;
     double elapsed_ = 0.0;
@@ -239,7 +242,9 @@ void World::UpdateAll(World& world, const FrameTime& time, const Input& input) {
                     if constexpr (std::is_same_v<Event, KeyEvent>) {
                         const auto* control = world.registry_.try_get<KeyboardControl>(id);
                         if (control && control->enabled) behaviour.OnKey(args, input);
-                    } else {
+                    } else if constexpr (std::is_same_v<Event, MouseButtonEvent>
+                                         || std::is_same_v<Event, MouseMoveEvent>
+                                         || std::is_same_v<Event, MouseScrollEvent>) {
                         const auto* control = world.registry_.try_get<MouseControl>(id);
                         if (!control || !control->enabled) return;
                         if constexpr (std::is_same_v<Event, MouseButtonEvent>) behaviour.OnMouseButton(args, input);

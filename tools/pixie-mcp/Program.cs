@@ -11,11 +11,11 @@ for (var i = 0; i < args.Length; i += 2)
 {
     if (i + 1 >= args.Length || !new[] { "--host", "--project", "--captures", "--channel", "--kind", "--startup-timeout",
         "--sdk", "--sdk-id", "--sdk-build-id", "--sdk-manifest-sha256", "--sdk-profile", "--native-configuration", "--editor-assembly",
-        "--test-build" }.Contains(args[i]))
+        "--test-build", "--editor-interactive" }.Contains(args[i]))
         throw new ArgumentException("usage: PixieMcp --host <explicit exe> --project <folder> --captures <folder> --sdk <private SDK root> " +
             "[--kind player|editor] [--sdk-profile local-development] [--native-configuration Debug|Release] " +
             "[--sdk-id <sha256>] [--sdk-build-id <sha256>] [--sdk-manifest-sha256 <sha256>] " +
-            "[--editor-assembly <absolute editor.dll>] [--channel <name>] [--startup-timeout <seconds>] " +
+            "[--editor-assembly <absolute editor.dll>] [--editor-interactive on|off] [--channel <name>] [--startup-timeout <seconds>] " +
             "or PixieMcp --test-build <absolute pixie-test-build.json> --captures <folder> --sdk <private SDK root>");
     options.Add(args[i], args[i + 1]);
 }
@@ -28,6 +28,8 @@ var name = options.GetValueOrDefault("--channel", $"mcp-{Guid.NewGuid():N}");
 if (name.Length is < 1 or > 64 || name.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_')) throw new ArgumentException("Invalid channel name.");
 var kind = options.GetValueOrDefault("--kind", "player");
 if (kind is not ("player" or "editor")) throw new ArgumentException("kind must be player or editor");
+if (options.TryGetValue("--editor-interactive", out var interactive) && (kind != "editor" || interactive is not ("on" or "off")))
+    throw new ArgumentException("--editor-interactive takes on or off and requires --kind editor.");
 // A cold code project is built with the selected SDK before the editor opens its channel.
 var startup = options.TryGetValue("--startup-timeout", out var seconds)
     ? double.TryParse(seconds, NumberStyles.Float, CultureInfo.InvariantCulture, out var value) && value is > 0 and <= 86400

@@ -193,6 +193,16 @@ class DataComponentBuilder;
 // serialization is meant to read it. It holds no state of a World.
 class ComponentTypes {
 public:
+    struct TriggerAction {
+        TriggerActionId id;
+        std::string name;
+        TriggerDispatcher::Function function;
+        std::source_location source;
+    };
+    PIXIE_RUNTIME_API void AddTriggerAction(TriggerActionId id, std::string name, TriggerDispatcher::Function function,
+        std::source_location source = std::source_location::current());
+    const std::vector<TriggerAction>& TriggerActions() const { return triggerActions_; }
+
     template<typename T>
     ComponentBuilder<T> Add(std::string name);
     // Restricted v2 contract: trivial standard-layout data and direct scalar members.
@@ -209,6 +219,7 @@ public:
         types_.swap(other.types_);
         runtimeV2Import_.swap(other.runtimeV2Import_);
         dataV2Import_.swap(other.dataV2Import_);
+        triggerActions_.swap(other.triggerActions_);
     }
     // The index of the type named `name` in All(), or -1.
     int IndexOf(std::string_view name) const;
@@ -237,6 +248,7 @@ private:
     std::vector<ComponentDescriptor> types_;
     std::vector<bool> runtimeV2Import_;
     std::vector<bool> dataV2Import_;
+    std::vector<TriggerAction> triggerActions_;
 };
 
 // --- Implementation ------------------------------------------------------------------------------
@@ -448,6 +460,19 @@ class ComponentBuilder {
     template<typename> friend class DataComponentBuilder;
     ComponentBuilder(ComponentTypes& types, std::size_t index) : types_(types), index_(index) {}
 public:
+
+    ComponentBuilder& TextField(std::string name, std::string (*read)(const void*),
+        void (*write)(void*, std::string_view)) {
+        auto& fields = types_.types_[index_].fields;
+        FieldDescriptor field;
+        field.name = std::move(name);
+        field.kind = FieldKind::Text;
+        field.readText = read;
+        field.writeText = write;
+        field.metadata.order = static_cast<int>(fields.size());
+        fields.push_back(std::move(field));
+        return *this;
+    }
 
     // Field<&T::member>("name"); enumNames name an enum's values 0, 1, ...
     template<auto Member>

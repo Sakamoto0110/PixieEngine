@@ -4,6 +4,7 @@ target_include_directories(pixie_capi_objects PUBLIC include)
 target_compile_definitions(pixie_capi_objects PRIVATE GLEW_STATIC PIXIE_CAPI_BUILD PIXIE_CORE_BUILD
     PIXIE_PLATFORM_BUILD PIXIE_RENDER_BUILD PIXIE_APP_BUILD PIXIE_RUNTIME_BUILD)
 target_link_libraries(pixie_capi_objects PUBLIC pixie_runtime)
+target_link_libraries(pixie_capi_objects PRIVATE nlohmann_json::nlohmann_json)
 pixie_target_defaults(pixie_capi_objects)
 set_target_properties(pixie_capi_objects PROPERTIES POSITION_INDEPENDENT_CODE ON FOLDER engine)
 

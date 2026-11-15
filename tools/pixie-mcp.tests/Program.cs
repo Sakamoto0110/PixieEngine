@@ -104,7 +104,15 @@ try
     receipt[^1]!["protocol_version"] = client.NegotiatedProtocolVersion;
     var tools = await client.ListToolsAsync();
     Check(tools.Any(t => t.Name == "world.capture") && !tools.Any(t => t.Name == "world.save"), "official-mcp-client-discovery-without-save");
+    Check(tools.Any(t => t.Name == "world.triggers" && t.ProtocolTool.Annotations?.ReadOnlyHint == true) &&
+        tools.Any(t => t.Name == "world.trigger_post" && t.ProtocolTool.Annotations?.ReadOnlyHint == false), "official-mcp-client-trigger-discovery");
     Check((await Call(client, "world.pause", new { })).IsError != true, "official-mcp-client-pause");
+    var triggerList = await Call(client, "world.triggers", new { limit = 1 });
+    Check(triggerList.IsError != true && triggerList.StructuredContent?.GetProperty("bindings").ValueKind == JsonValueKind.Array,
+        "official-mcp-client-trigger-list");
+    var triggerPost = await Call(client, "world.trigger_post", new { kind = "key", code = 290, edge = "press" });
+    Check(triggerPost.IsError != true && triggerPost.StructuredContent?.GetProperty("queued_for_step").GetBoolean() == true,
+        "official-mcp-client-trigger-post");
     Check((await Call(client, "world.step", new { count = 3 })).IsError != true, "official-mcp-client-step");
     var image = await Call(client, "world.capture", new { name = "image-for-model" });
     Check(image.IsError != true && image.Content.OfType<ImageContentBlock>().Count() == 1, "official-mcp-client-image-content");

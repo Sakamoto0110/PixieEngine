@@ -521,6 +521,9 @@ PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char*
                                       int32_t capacity);
 /// Copies the descriptor's declared project-relative source path, or empty when unset.
 PIXIE_API PixieResult pixie_type_source(PixieSession* session, int32_t type, char* buffer, int32_t capacity, int32_t* length);
+/// Optional trigger action source catalog, as JSON records with id, action label, file and one-based line.
+/// Zero capacity measures the output including its NUL terminator.
+PIXIE_API PixieResult pixie_trigger_action_sources_v2(PixieSession* session, char* buffer, int32_t capacity, int32_t* length);
 /// Returns the PIXIE_TYPE_* flags of the descriptor, or zero for an invalid session or index.
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */

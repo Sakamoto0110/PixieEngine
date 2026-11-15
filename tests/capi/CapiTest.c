@@ -1210,6 +1210,25 @@ static void ExerciseProject(const char* folder, const char* expectedType) {
     CHECK(api.field_get(s, mover, velocity, linear, &read) == PIXIE_OK && read.x == 100.0);
     CHECK(api.component_add(s, mover, shape) == PIXIE_OK && api.component_remove(s, mover, shape) == PIXIE_OK);
 
+    /* The Inspector can add and edit a trigger using the regular reflected record API. */
+    int32_t triggers = -1, trigger = -1, itemType = -1, actionLength = -1;
+    CHECK(api.type_find(s, "InputTriggers", &triggers) == PIXIE_OK);
+    CHECK(api.type_find(s, "InputTrigger", &trigger) == PIXIE_OK);
+    const int32_t bindings = FindField(s, triggers, "bindings");
+    const int32_t actionField = FindField(s, trigger, "action");
+    const int32_t codeField = FindField(s, trigger, "code");
+    CHECK((api.type_flags(s, trigger) & PIXIE_TYPE_VALUE) != 0);
+    CHECK(api.component_add(s, mover, triggers) == PIXIE_OK);
+    CHECK(api.record_info(s, mover, triggers, bindings, &itemType, &count) == PIXIE_OK && itemType == trigger && count == 0);
+    CHECK(api.record_edit(s, mover, triggers, bindings, 0, 0) == PIXIE_OK);
+    const PixieValue f1 = {290, 0, 0, 0};
+    CHECK(api.record_set(s, mover, triggers, bindings, 0, codeField, &f1) == PIXIE_OK);
+    CHECK(api.record_get(s, mover, triggers, bindings, 0, codeField, &read) == PIXIE_OK && read.x == 290);
+    CHECK(api.record_set_text(s, mover, triggers, bindings, 0, actionField, "ToggleHUD") == PIXIE_OK);
+    CHECK(api.record_get_text(s, mover, triggers, bindings, 0, actionField, name, (int32_t)sizeof name, &actionLength) == PIXIE_OK &&
+          strcmp(name, "ToggleHUD") == 0);
+    CHECK(api.component_remove(s, mover, triggers) == PIXIE_OK);
+
     /* The project snapshot carries the complete authored document and rejects a failed replacement
      * without changing the published World. A successful replacement keeps the scene ID. */
     int32_t sceneLength = 0;

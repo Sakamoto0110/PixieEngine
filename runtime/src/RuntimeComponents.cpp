@@ -1,4 +1,5 @@
 #include "pixie/runtime/InputControl.hpp"
+#include "pixie/runtime/InputTriggers.hpp"
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Attractor.hpp"
 #include "pixie/runtime/AttractorAffector.hpp"
@@ -487,6 +488,23 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&MouseControl::enabled>("enabled").Tooltip("Receive generic mouse callbacks and enabled-aware viewport-pixel state queries. No movement or physics mapping.");
     types.Add<KeyboardControl2D>("KeyboardControl2D")
         .Field<&KeyboardControl2D::enabled>("enabled").Tooltip("Legacy WASD/arrows/Space character adapter retained for existing scenes. New game code should use KeyboardControl and supply its own commands.");
+    types.Add<TriggerDefinition>("InputTrigger").ValueType()
+        .Field<&TriggerDefinition::enabled>("enabled").Label("Enabled").Tooltip("Evaluate this trigger when an event arrives.")
+        .Field<&TriggerDefinition::type>("type", {"Key", "Mouse button", "Mouse move", "Scroll", "Text", "Focus", "Framebuffer resize", "Joystick connection"})
+        .Label("Event").Tooltip("Which input event can activate this trigger.")
+        .Field<&TriggerDefinition::code>("code").Label("Code").Range(-1, 0x10FFFF, 1)
+        .Tooltip("-1 matches any code. Use GLFW key codes (F1 is 290), mouse buttons (0 left, 1 right, 2 middle), Unicode code points for text, or a zero-based joystick slot.")
+        .Field<&TriggerDefinition::edge>("edge", {"Any", "Release", "Press", "Repeat"}).Label("Edge")
+        .Tooltip("Focus and joystick connection use Press for gain/connect and Release for loss/disconnect. Repeat applies to keys.")
+        .Field<&TriggerDefinition::requiredModifiers>("requiredModifiers").Label("Required modifiers").Range(0, 63, 1)
+        .Tooltip("Add the required bits: Shift 1, Ctrl 2, Alt 4, Super 8, Caps Lock 16, Num Lock 32. Zero accepts any modifiers. Applies to keyboard and pointer events.")
+        .TextField("action", [](const void* value) { return static_cast<const TriggerDefinition*>(value)->action.Encode(); },
+            [](void* value, std::string_view text) { static_cast<TriggerDefinition*>(value)->action = TriggerActionRef(text); })
+        .Label("Action")
+        .Tooltip("Case-sensitive action name registered by game code on this World.");
+    types.Add<InputTriggers>("InputTriggers")
+        .Field<&InputTriggers::bindings>("bindings").Label("Triggers")
+        .Tooltip("Evaluate these bindings in order for each input event during play.");
     RuntimeComponentRegistration::Admit(types, firstRuntimeType);
 }
 
