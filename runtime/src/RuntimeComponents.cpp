@@ -92,7 +92,7 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Shape::visible>("visible")
         .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.");
     types.Add<Sprite>("Sprite")
-        .Version(2)
+        .Version(3)
         .Field<&Sprite::image>("image")
         .Asset("png")
         .Tooltip("The PNG drawn, relative to the project folder. One image pixel is one world unit, times "
@@ -117,9 +117,14 @@ void DescribeRuntimeComponents(ComponentTypes& types) {
         .Field<&Sprite::visible>("visible")
         .Tooltip("Whether it is drawn and picked; a hidden one keeps its place and is still saved.")
         .Field<&Sprite::atlasFrame, &SpriteAtlasFrameRef::atlas>("atlas")
-        .Tooltip("Project-relative .atlas.json descriptor. Clear both atlas fields to use the direct PNG.")
+        .Tooltip("Project-relative .atlas.json descriptor.")
         .Field<&Sprite::atlasFrame, &SpriteAtlasFrameRef::frameId>("frameId")
-        .Tooltip("Stable frame ID in the atlas. Its rectangle and pivot determine the drawn geometry.");
+        .Tooltip("Stable frame ID in the atlas. Used for a still sprite or as an animation fallback.")
+        .Field<&Sprite::atlasFrame, &SpriteAtlasFrameRef::animation>("animation")
+        .Tooltip("Optional animation name in the atlas. It plays in a loop in Play mode.")
+        .Field<&Sprite::animationFps>("animationFps")
+        .Tooltip("Playback FPS for this sprite. Zero uses the atlas clip's FPS.")
+        .Range(0, SpriteAtlasAnimation::kMaxFps);
     types.Add<Text>("Text")
         .Field<&Text::text>("text")
         .Tooltip("What it says; a line break starts a new line.")

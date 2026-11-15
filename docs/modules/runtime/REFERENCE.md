@@ -986,12 +986,20 @@ graphics context. For example, `assets/actors.atlas.json` can contain this descr
   or `nullptr` for a missing ID. Keep the original pair when reporting a missing frame so it can
   be repaired. The parser rejects duplicate JSON members and nesting deeper than eight levels.
 
-A scene's `Sprite` component version 2 adds two string fields, `atlas` and `frameId`. If both are
-empty or absent, the sprite uses its direct `image`, `region`, and `pivot` fields, including when
-loading a version 1 component. When either atlas field is set, the pair selects the sprite source.
-The descriptor supplies the image, rectangle, and pivot. Saves and entity snapshots retain the
-authored fields, including an incomplete pair or a missing frame, so the reference can be repaired.
-The scene document version follows its existing rules.
+A scene's `Sprite` component version 2 adds `atlas` and `frameId`, and version 3 adds the optional
+`animation` name and `animationFps` override. A missing or zero override uses the clip's rate.
+Valid overrides are integers from 1 to 120. Empty atlas fields select the direct `image`, `region`,
+and `pivot` fields.
+An atlas reference selects a still frame or a named animation from the descriptor. The optional
+`animations` array in the v1 descriptor contains entries with a unique `name`, integer `fps`
+from 1 to 120, `loop: true`, and a nonempty list of ordered `frameIds` belonging to that atlas.
+Frame IDs can repeat to hold the same drawing for multiple steps.
+
+Play and the standalone player advance animations from the World's simulation time. Pausing
+holds the current frame and a fixed step advances simulation time. Edit mode shows the first
+frame. A missing animation name logs a diagnostic and uses the authored `frameId` as a fallback.
+Saves and entity snapshots retain the authored reference for repair. Reassign a sprite after
+renaming its animation. Scene document versions and older Sprite components remain supported.
 
 `SpriteImages` parses and caches descriptors per project session. Atlas and direct sprites share
 the PNG entry and GPU texture when they use the same path. Descriptor and PNG changes are picked up

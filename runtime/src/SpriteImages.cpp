@@ -72,10 +72,18 @@ SpriteSource SpriteImages::Source(const Sprite& sprite) {
     if (!entry.atlas) {
         return missing;
     }
-    const auto* frame = entry.atlas->FindFrame(ref.frameId);
+    std::string_view frameId = ref.frameId;
+    if (!ref.animation.empty()) {
+        if (const auto* animation = entry.atlas->FindAnimation(ref.animation)) {
+            frameId = animation->FrameAt(animationTime_, sprite.animationFps);
+        } else if (entry.missingAnimations.insert(ref.animation).second) {
+            LogWarning(std::format("Sprite atlas {}: animation {} is missing", ref.atlas, ref.animation));
+        }
+    }
+    const auto* frame = entry.atlas->FindFrame(frameId);
     if (frame == nullptr) {
-        if (entry.missingFrames.insert(ref.frameId).second) {
-            LogWarning(std::format("Sprite atlas {}: frame {} is missing", ref.atlas, ref.frameId));
+        if (entry.missingFrames.emplace(frameId).second) {
+            LogWarning(std::format("Sprite atlas {}: frame {} is missing", ref.atlas, frameId));
         }
         return missing;
     }
@@ -229,6 +237,7 @@ void SpriteImages::Read(std::string_view path, Entry& entry) {
 void SpriteImages::ReadAtlas(std::string_view path, AtlasEntry& entry) {
     entry.time = LastWrite(entry.file);
     entry.missingFrames.clear();
+    entry.missingAnimations.clear();
     entry.imageProblem.clear();
     std::string problem;
     entry.atlas = SpriteAtlas::Load(entry.file, problem);
