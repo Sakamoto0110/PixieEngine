@@ -118,3 +118,25 @@ TEST(SpriteAtlasLooksUpFramesByIdInALargeDescriptor) {
     const auto* last = atlas ? atlas->FindFrame("00000000000000000000000000000200") : nullptr;
     CHECK(last && last->name == "Frame 512");
 }
+
+TEST(SpriteAtlasAnimationUsesOrderedIdsAndLoopsAtAuthoredRate) {
+    auto document = Descriptor();
+    document["animations"] = Json::array({
+        {{"name", "Walk"}, {"fps", 10}, {"loop", true}, {"frameIds", {otherId, frameId, otherId}}}
+    });
+    std::string problem;
+    const auto atlas = SpriteAtlas::Parse(document.dump(), problem);
+    const auto* animation = atlas ? atlas->FindAnimation("Walk") : nullptr;
+    CHECK(animation);
+    if (!animation) return;
+    CHECK(animation->FrameAt(0) == otherId);
+    CHECK(animation->FrameAt(0.099) == otherId);
+    CHECK(animation->FrameAt(0.100) == frameId);
+    CHECK(animation->FrameAt(0.200) == otherId);
+    CHECK(animation->FrameAt(0.400) == frameId);
+    CHECK(animation->FrameAt(0.051, 20) == frameId);
+    CHECK(animation->FrameAt(0.051, 121) == otherId);
+    document["frames"].erase(0);
+    CHECK(!SpriteAtlas::Parse(document.dump(), problem));
+    CHECK(problem.find("missing frame") != std::string::npos);
+}

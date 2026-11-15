@@ -198,6 +198,7 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
     // Publish only after the read, project Build and requested movement admission succeed.
     input_.EndUpdate();
     world_.swap(candidate);
+    images_.SetAnimationTime(world_->Elapsed());
     authoringPreviewDirty_ = false;
     if (candidateProject) {
         types_.Swap(candidateTypes);
@@ -373,6 +374,7 @@ void ProjectSession::Update(double delta, const Input& input) {
     project_->BeforeStep(*world_, camera_, input);
     const auto start = std::chrono::steady_clock::now();
     world_->Step(delta, input);
+    images_.SetAnimationTime(world_->Elapsed());
     lastStepMilliseconds_ =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }

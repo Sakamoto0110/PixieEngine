@@ -29,8 +29,9 @@ struct Sprite {
     SpriteFilter filter = SpriteFilter::Smooth;
     // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
     bool visible = true;
-    // Either field being set selects the atlas source. Both empty select the direct PNG fields.
+    // An authored atlas reference selects a still frame or a looping animation.
     SpriteAtlasFrameRef atlasFrame;
+    int animationFps = 0; // Zero uses the atlas clip's FPS.
 };
 
 } // namespace pixie
