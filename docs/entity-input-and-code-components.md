@@ -77,6 +77,72 @@ can still be polled. Editor start/build screens never accumulate game input.
 The viewport admits events under its focus/hover/capture policy and transforms
 event-time pointer positions into its own pixel coordinates.
 
+## Input triggers
+
+Add `InputTriggers` to an entity in the Inspector and add a record to its
+**Triggers** list. For an F1 binding, choose **Key**, set **Code** to `290`,
+choose **Press** and open **Action code**. Select an existing C++ action or
+choose **Add C++ action** to generate and bind a new function. You can supply
+a C++ function name such as `ToggleHUD` or use the default name. The generator
+creates the editable implementation under `src/actions/`, updates the project
+registry, and builds the project with the new binding. The scene
+saves a persistent action ID. The function name and display label can change
+without changing that ID.
+
+```cpp
+void ToggleHUD(pixie::Entity source, const pixie::InputEvent&) {
+    auto& hud = source.Get<HudState>(); // This example assumes the trigger entity has HudState.
+    hud.visible = !hud.visible;
+}
+```
+
+The **Action code** panel previews the source and opens it at the declaration
+in VS Code. After editing, use **Code → Build and reload**. SDKs without in-place reload
+support offer **Build and reopen**. For hand-written
+registration, use `ComponentTypes::AddTriggerAction` in `Project::Describe`
+with an explicit, unique `TriggerActionId`, a label, and a C++ function pointer.
+Keep the ID stable across builds. Existing scenes with named bindings still
+resolve against legacy `World::Triggers().Subscribe(name, callback)` registrations.
+To convert one, choose a compiled action in the Inspector and save the scene.
+
+`HudState` is game-defined. The callback receives the entity that owns the
+binding and a borrowed typed event. Use the subscription ID with `Unsubscribe`
+to remove a dynamically subscribed callback during play. Actions run after `PreUpdate` and before
+Behaviour updates. Changes to authored bindings made by a callback take effect
+on the next step. A subscription removed before its turn is skipped. A
+subscription added during an action becomes eligible on the next invocation
+of that action. Register callbacks on the World thread.
+
+The player routes keyboard, mouse buttons, movement, scroll, Unicode text,
+window focus, framebuffer resize and joystick connection changes from GLFW.
+The embedded Editor routes its existing keyboard and pointer events and its
+viewport resize. The editor's focus-loss message cancels captured input. Use
+**Press** for focus gain or joystick connection and **Release** for focus
+loss or disconnection. For keyboard and pointer events, the required modifier
+mask specifies which bits must be present, so zero accepts every combination.
+
+While the World lives, a producer can use `World::Triggers().Post(event)` from
+another thread. The next eligible step dispatches the posted batch after the
+host events, on the simulation thread. Posting affects triggers only. Keep
+the World alive until its producers finish or marshal work to the host before
+looking up the current World.
+
+The private development MCP bridge exposes `world.triggers` and
+`world.trigger_post`. Use `world.triggers` with an optional scene `id`, `offset`
+and `limit` to read the bindings and see whether their actions are registered.
+Set `action_catalog` to `true` to list action IDs and their display names. Pass
+the chosen ID (for example, `action:1e0987302f67d3ba`) to the binding's `action` member.
+Use `world.add_component`, `world.record_insert`, `world.set` and
+`world.record_remove` to author `InputTriggers.bindings` through reflection.
+
+To exercise the F1 binding, call `world.trigger_post` in Play with
+`{"parameters":{"kind":"key","code":290,"edge":"press"}}`. The result
+confirms queue admission and reports the current tick. The callback runs when
+the World next steps. A paused session can consume the event with `world.step`.
+Each World accepts up to 1,024 pending events from MCP. A World rebuild discards
+its pending events. Posted events affect trigger matching and leave held input
+and device callbacks alone.
+
 ## Legacy compatibility
 
 Serialized `KeyboardControl2D` retains its name, enabled value, and old
