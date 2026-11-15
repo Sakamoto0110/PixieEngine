@@ -12,6 +12,7 @@
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/Scene.hpp"
+#include "pixie/runtime/SceneProject.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
@@ -33,6 +34,38 @@
 #include <vector>
 
 using namespace pixie;
+
+TEST(ViewportPanUsesOnlyMotionBetweenMiddleButtonEdges) {
+    Input input;
+    Camera2D camera;
+    camera.SetCenter(pxPoint(0.0, 0.0));
+    camera.SetZoom(1.0);
+    constexpr int middle = static_cast<int>(MouseButton::Middle);
+
+    input.SetCursor(pxPoint(-1.0, -1.0)); // Editor's cursor-outside sentinel.
+    input.EndUpdate();
+    input.SetCursor(pxPoint(200.0, 180.0)); // Synchronize at the press position.
+    input.SetMouseButton(middle, true);
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(0.0, 0.0));
+    input.EndUpdate();
+
+    input.SetCursor(pxPoint(212.0, 176.0));
+    input.SetMouseButton(middle, false);
+    input.SetCursor(pxPoint(250.0, 200.0));
+    input.SetMouseButton(middle, true);
+    input.SetCursor(pxPoint(253.0, 202.0));
+    input.SetMouseButton(middle, false);
+    input.SetCursor(pxPoint(-1.0, -1.0));
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(-15.0, 2.0));
+
+    input.SetMouseButton(middle, true);
+    input.SetCursor(pxPoint(200.0, 180.0));
+    input.ReleaseAll();
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(-15.0, 2.0));
+}
 
 TEST(InspectionOnlyFieldsIgnoreLegacyValuesAndStayOutOfSceneSaves) {
     struct Data {
