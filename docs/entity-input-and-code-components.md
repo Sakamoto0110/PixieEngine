@@ -85,7 +85,7 @@ choose **Press** and open **Action code**. Select an existing C++ action or
 choose **Add C++ action** to generate and bind a new function. You can supply
 a C++ function name such as `ToggleHUD` or use the default name. The generator
 creates the editable implementation under `src/actions/`, updates the project
-registry, and builds and reopens the Editor with the new binding. The scene
+registry, and builds the project with the new binding. The scene
 saves a persistent action ID. The function name and display label can change
 without changing that ID.
 
@@ -97,7 +97,8 @@ void ToggleHUD(pixie::Entity source, const pixie::InputEvent&) {
 ```
 
 The **Action code** panel previews the source and opens it at the declaration
-in VS Code. After editing, use **Code → Build and reopen**. For hand-written
+in VS Code. After editing, use **Code → Build and reload**. SDKs without in-place reload
+support offer **Build and reopen**. For hand-written
 registration, use `ComponentTypes::AddTriggerAction` in `Project::Describe`
 with an explicit, unique `TriggerActionId`, a label, and a C++ function pointer.
 Keep the ID stable across builds. Existing scenes with named bindings still

@@ -181,7 +181,11 @@ pixie::Transform2D DrawnTransform(PixieSession* s, entt::entity id, const pixie:
 }
 
 // Creates a session for the game, with the project in `folder` open when it is not null.
-PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folder, PixieSession** session) {
+PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folder, PixieSession** session
+#ifdef PIXIE_DEVELOPMENT
+    , std::shared_ptr<PixieGameModule> moduleLease = loadedModule
+#endif
+) {
     if (session == nullptr || width <= 0 || height <= 0) {
         return Fail(PIXIE_ERROR_ARGUMENT, "null output or empty view");
     }
@@ -193,9 +197,6 @@ PixieResult Open(int32_t width, int32_t height, uint64_t seed, const char* folde
     }
     pixie::SessionSettings settings;
     settings.seed = seed;
-#ifdef PIXIE_DEVELOPMENT
-    const auto moduleLease = loadedModule;
-#endif
     std::unique_ptr<pixie::Project> project;
     pixie::ProjectSession::ProjectFactory candidateFactory;
     bool candidateAuthoring = false;
@@ -281,6 +282,35 @@ void RecordChanged(PixieSession* s, uint32_t entity) {
     if (InScene(s, entity)) s->session.MarkChanged();
 }
 
+#ifdef PIXIE_DEVELOPMENT
+PixieResult LoadGameModule(const char* path, std::shared_ptr<PixieGameModule>& result) {
+    auto module = std::make_shared<PixieGameModule>();
+#ifdef _WIN32
+    const auto absolute = std::filesystem::absolute(FromUtf8(path));
+    module->handle = LoadLibraryExW(absolute.c_str(), nullptr,
+        LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
+#else
+    module->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
+#endif
+    if (!module->handle) return Fail(PIXIE_ERROR_IO, "game module could not be loaded");
+    const auto version = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_api_version"));
+    module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
+    if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
+        return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible; rebuild the project with this engine before opening it");
+    // OS loading may already execute image initializers. No Project callback is
+    // invoked before this independent C-only SDK/C++ tuple admission succeeds.
+    const auto identity = reinterpret_cast<const char* (*)()>(module->Symbol("pixie_game_sdk_identity"));
+    if (!identity) return Fail(PIXIE_ERROR_ARGUMENT, "game module has no SDK identity; rebuild with the selected SDK");
+    std::string identityDiagnostic;
+    if (!pixie::sdk::Compatible(identity(), identityDiagnostic))
+        return Fail(PIXIE_ERROR_ARGUMENT, std::move(identityDiagnostic));
+    const auto contract = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_candidate_contract"));
+    module->candidateContract = contract ? contract() : 0;
+    result = std::move(module);
+    return PIXIE_OK;
+}
+#endif
+
 } // namespace
 
 #ifdef PIXIE_DEV_CHANNEL
@@ -317,31 +347,19 @@ uint64_t pixie_capabilities(void) {
 PixieResult pixie_module_load(const char* path) {
     return Guard([&]() -> PixieResult {
         if (!path) { loadedModule.reset(); return PIXIE_OK; }
-        auto module = std::make_shared<PixieGameModule>();
-#ifdef _WIN32
-        const auto absolute = std::filesystem::absolute(FromUtf8(path));
-        module->handle = LoadLibraryExW(absolute.c_str(), nullptr,
-            LOAD_LIBRARY_SEARCH_DLL_LOAD_DIR | LOAD_LIBRARY_SEARCH_DEFAULT_DIRS);
-#else
-        module->handle = dlopen(path, RTLD_NOW | RTLD_LOCAL);
-#endif
-        if (!module->handle) return Fail(PIXIE_ERROR_IO, "game module could not be loaded");
-        const auto version = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_api_version"));
-        module->create = reinterpret_cast<pixie::Project* (*)()>(module->Symbol("pixie_game_create"));
-        if (!version || version() != PIXIE_CAPI_VERSION || !module->create)
-            return Fail(PIXIE_ERROR_ARGUMENT, "game module ABI version or factory is incompatible; rebuild the project with this engine before opening it");
-        // OS loading may already execute image initializers. No Project callback is
-        // invoked before this independent C-only SDK/C++ tuple admission succeeds.
-        const auto identity = reinterpret_cast<const char* (*)()>(module->Symbol("pixie_game_sdk_identity"));
-        if (!identity) return Fail(PIXIE_ERROR_ARGUMENT, "game module has no SDK identity; rebuild with the selected SDK");
-        std::string identityDiagnostic;
-        if (!pixie::sdk::Compatible(identity(), identityDiagnostic))
-            return Fail(PIXIE_ERROR_ARGUMENT, std::move(identityDiagnostic));
-        const auto contract = reinterpret_cast<int (*)()>(module->Symbol("pixie_game_candidate_contract"));
-        module->candidateContract = contract ? contract() : 0;
-        // Existing sessions retain their own leases. Publish the default only after admission.
-        loadedModule = std::move(module);
-        return PIXIE_OK;
+        return LoadGameModule(path, loadedModule);
+    });
+}
+
+PixieResult pixie_session_open_project_module(int32_t width, int32_t height, const char* folder,
+    const char* path, PixieSession** session) {
+    if (session) *session = nullptr;
+    if (!session || !folder || !*folder || !path || !*path || width <= 0 || height <= 0)
+        return Fail(PIXIE_ERROR_ARGUMENT, "project folder, module path, output and positive view size are required");
+    return Guard([&] {
+        std::shared_ptr<PixieGameModule> module;
+        if (const auto status = LoadGameModule(path, module); status != PIXIE_OK) return status;
+        return Open(width, height, 1, folder, session, std::move(module));
     });
 }
 #endif

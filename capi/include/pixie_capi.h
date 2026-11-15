@@ -103,6 +103,9 @@ PIXIE_API PixieResult pixie_dev_dispatch(PixieSession* session, const char* requ
  * The C ABI and SDK tuple are checked before any Project factory runs. On failure the prior
  * selection remains active. Existing sessions retain their own module lease through teardown. */
 PIXIE_API PixieResult pixie_module_load(const char* path);
+/// Opens a project using a module scoped to this session. Leaves the process default unchanged.
+PIXIE_API PixieResult pixie_session_open_project_module(int32_t width, int32_t height, const char* folder,
+    const char* path, PixieSession** session);
 #endif
 
 /* What a session does with time, for pixie_session_mode. */
