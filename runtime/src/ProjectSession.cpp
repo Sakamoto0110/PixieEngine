@@ -66,8 +66,8 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
     if (started_ && !Build(true, text.str())) return false;
     images_.SetFolder(opened.folder);
     outlines_.SetFolder(opened.folder);
-    text_.Destroy();
     fonts_.SetFolder(opened.folder);
+    nextImageCheck_ = {};
     opened_ = std::move(opened);
     sceneText_ = text.str();
     playedFrom_.clear();
@@ -106,8 +106,10 @@ void ProjectSession::Stop() {
     ++worldRevision_;
     world_.reset();
     target_.Destroy();
-    images_.Destroy();
+    images_.ReleaseAll();
+    fonts_.ReleaseAll();
     text_.Destroy();
+    nextImageCheck_ = {};
     lighting_.Destroy();
     paths_.Destroy();
     sprites_.Destroy();
@@ -147,6 +149,9 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
             if (!types_.SameSchema(candidateTypes)) throw std::runtime_error("candidate component schema changed");
         }
         candidate = std::make_unique<World>(settings_.seed);
+        for (const auto& action : (candidateProject ? candidateTypes : types_).TriggerActions()) {
+            candidate->Triggers().Subscribe(action.id, action.name, action.function, action.source);
+        }
         if (!sceneText.empty()) {
             const SceneReport report = ReadScene(*candidate, candidateProject ? candidateTypes : types_, sceneText);
             if (!report.ok) {
@@ -193,8 +198,11 @@ bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBu
     }
     const auto publishing = std::chrono::steady_clock::now();
     // No handle into the old World remains valid after this point. A failed read never reaches it.
+    // Publish only after the read, project Build and requested movement admission succeed.
     input_.EndUpdate();
     world_.swap(candidate);
+    images_.SetAnimationTime(world_->Elapsed());
+    authoringPreviewDirty_ = false;
     if (candidateProject) {
         types_.Swap(candidateTypes);
         project_.swap(candidateProject);
@@ -262,6 +270,7 @@ bool ProjectSession::Play() {
     }
     std::string nextPlayedFrom;
     try {
+        RefreshAuthoringPreview();
         nextPlayedFrom = WriteScene(*world_, types_);
     } catch (const std::runtime_error& error) {
         error_ = error.what();
@@ -302,6 +311,7 @@ bool ProjectSession::Save() {
     std::vector<std::string> warnings;
     std::string text;
     try {
+        RefreshAuthoringPreview();
         text = mode_ == SessionMode::Play ? playedFrom_ : WriteScene(*world_, types_, &warnings);
     } catch (const std::runtime_error& error) {
         error_ = error.what();
@@ -321,7 +331,14 @@ bool ProjectSession::Save() {
 void ProjectSession::MarkChanged() {
     if (opened_ && mode_ == SessionMode::Edit) {
         unsaved_ = true;
+        authoringPreviewDirty_ = true;
     }
+}
+
+void ProjectSession::RefreshAuthoringPreview() {
+    if (!authoringPreviewDirty_ || mode_ != SessionMode::Edit) return;
+    project_->RefreshAuthoringPreview(*world_);
+    authoringPreviewDirty_ = false;
 }
 
 bool ProjectSession::ConvertStartSceneToV2() {
@@ -360,6 +377,7 @@ void ProjectSession::Update(double delta, const Input& input) {
     project_->BeforeStep(*world_, camera_, input);
     const auto start = std::chrono::steady_clock::now();
     world_->Step(delta, input);
+    images_.SetAnimationTime(world_->Elapsed());
     lastStepMilliseconds_ =
         std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - start).count();
 }
@@ -408,6 +426,7 @@ constexpr double kCullPadding = 32.0;
 } // namespace
 
 void ProjectSession::Render(double alpha) {
+    RefreshAuthoringPreview();
     const Camera2D camera = ResolvedCamera().camera;
     const pxColorRgba background = project_->Background();
     const ViewportEnvironment2D environment = ResolveViewportEnvironment2D(*world_, environmentSelection_);
@@ -490,7 +509,7 @@ void ProjectSession::Render(double alpha) {
             shadowedDropped = CapShadowedLights(lights_, ShadowedLightCap(lighting->quality), view);
             sceneLights = lights_.size();
             particleDropped = GatherParticleLights(*world_, alpha, &view, lighting->maxParticleLights, lights_);
-            GatherOccluders(*world_, alpha, occluders_, &outlines_);
+            GatherOccluders(*world_, alpha, occluders_, &outlines_, &images_);
             LightingParameters parameters = MakeLightingParameters(*lighting);
             parameters.view = LightingDebugView(LightingDebug());
             lighting_.Finish(camera.MakeView(), parameters, lights_, occluders_);

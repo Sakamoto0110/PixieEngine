@@ -15,6 +15,7 @@
 #include <cmath>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
 #include <numbers>
 #include <string>
 #include <vector>
@@ -75,6 +76,14 @@ Sprite Sized(double width, double height, int layer = 0) {
     sprite.region = pxRect(0.0, 0.0, width, height);
     sprite.layer = layer;
     return sprite;
+}
+
+Entity FindSceneEntity(World& world, std::uint64_t id) {
+    Entity found;
+    world.Each<const SceneId>([&](Entity entity, const SceneId& sceneId) {
+        if (sceneId.value == id) found = entity;
+    });
+    return found;
 }
 
 } // namespace
@@ -138,6 +147,101 @@ TEST(ATextFieldGoesThroughASceneAndASnapshot) {
     const std::vector<Entity> chosen{e};
     const EntitiesReport copy = ReadEntities(world, types, WriteEntities(world, types, chosen), SceneIds::New);
     CHECK(copy.ok && copy.entities.size() == 1 && copy.entities[0].Get<Sprite>().image == sprite.image);
+}
+
+TEST(AtlasSpriteReopensWithTheRepackedFrameAndKeepsAMissingReference) {
+    TemporaryFolder folder("pixie-atlas-sprite-reopen");
+    const auto types = Types();
+    const auto scene = folder.path / "main.scene";
+    const auto descriptor = folder.path / "sprites.atlas.json";
+    const auto image = folder.path / "sprites.png";
+    constexpr auto frameId = "1b681986317d465c9f01b3f303ff89fa";
+    const auto writeImage = [&](int width) {
+        const auto png = FlatPng(width, 32, {255, 0, 0, 255});
+        std::ofstream output(image, std::ios::binary);
+        output.write(reinterpret_cast<const char*>(png.data()), png.size());
+    };
+    const auto writeAtlas = [&](std::string_view frames) {
+        std::ofstream(descriptor) << R"({"format":"pixie-sprite-atlas","version":1,"image":"sprites.png",)"
+                                    R"("imageSize":[64,32],"frames":)" << frames << "}";
+    };
+    writeImage(64);
+    writeAtlas(R"([{"id":"1b681986317d465c9f01b3f303ff89fa","name":"Original","rect":[0,0,24,16],"pivot":[0,1]}])");
+
+    World authored;
+    Sprite sprite;
+    sprite.image = "old.png";
+    sprite.region = {1, 2, 3, 4};
+    sprite.atlasFrame = {"sprites.atlas.json", frameId};
+    const auto entity = SpriteAt(authored, {100, 100}, sprite);
+    const auto id = AddToScene(entity);
+    CHECK(SaveSceneFile(authored, types, scene).ok);
+
+    SpriteImages images;
+    images.SetFolder(folder.path);
+    CHECK(images.Source(sprite).region.width == 24);
+    writeAtlas(R"([{"id":"1b681986317d465c9f01b3f303ff89fa","name":"Renamed","rect":[32,4,28,20],"pivot":[0,1]}])");
+    using namespace std::chrono_literals;
+    std::filesystem::last_write_time(descriptor, std::filesystem::last_write_time(descriptor) + 2s);
+    CHECK(images.CheckForChanges() == 1);
+
+    World reopened;
+    CHECK(LoadSceneFile(reopened, types, scene).ok);
+    const Entity restored = FindSceneEntity(reopened, id);
+    CHECK(restored && restored.Has<Sprite>());
+    if (!restored || !restored.Has<Sprite>()) return;
+    const auto& saved = restored.Get<Sprite>();
+    CHECK(saved.atlasFrame.atlas == "sprites.atlas.json" && saved.atlasFrame.frameId == frameId);
+    CHECK(saved.image == "old.png" && saved.region.width == 3);
+    const auto source = images.Source(saved);
+    CHECK(source.image == "sprites.png" && source.region.x == 32 && source.region.y == 4);
+    const auto geometry = ResolveSpriteGeometry(saved, images);
+    CHECK(geometry.pixelSize == pxVec2(28, 20) && geometry.pivot == pxVec2(0, 1));
+    CHECK(Near(SpriteCorners(geometry, restored.Get<Transform2D>())[0], pxPoint(100, 80)));
+    CHECK(PickAt(reopened, {124, 84}, 0.0, &images) == restored.Id());
+    CHECK(PickAt(reopened, {96, 105}, 0.0, &images) == entt::null);
+
+    writeImage(32);
+    std::filesystem::last_write_time(image, std::filesystem::last_write_time(image) + 2s);
+    CHECK(images.CheckForChanges() == 1);
+    CHECK(images.Source(saved).image.empty());
+    writeImage(64);
+    std::filesystem::last_write_time(image, std::filesystem::last_write_time(image) + 4s);
+    CHECK(images.CheckForChanges() == 1);
+    CHECK(images.Source(saved).image == "sprites.png");
+    writeAtlas("[]");
+    std::filesystem::last_write_time(descriptor, std::filesystem::last_write_time(descriptor) + 4s);
+    CHECK(images.CheckForChanges() == 1);
+    const auto missing = ResolveSpriteGeometry(saved, images);
+    CHECK(missing.pixelSize == pxVec2(64, 64) && missing.pivot == pxVec2(0.5, 0.5));
+    CHECK(saved.atlasFrame.frameId == frameId);
+    CHECK(SaveSceneFile(reopened, types, scene).ok);
+    World savedAgain;
+    CHECK(LoadSceneFile(savedAgain, types, scene).ok);
+    const Entity unresolved = FindSceneEntity(savedAgain, id);
+    CHECK(unresolved && unresolved.Get<Sprite>().atlasFrame.frameId == frameId);
+}
+
+TEST(LegacySpriteWithoutAtlasFieldsKeepsItsImageRegionAndPivot) {
+    const auto types = Types();
+    World world;
+    const auto report = ReadScene(world, types, R"({
+        "format":"pixie-scene","version":1,"seed":1,"entities":[{
+            "id":"0000000000000001","components":{"Sprite":{
+                "v":1,"image":"legacy.png","region":[4,8,16,24],"pivot":[0.25,1],"filter":"Pixel"
+            }}
+        }]
+    })");
+    CHECK(report.ok && report.warnings.empty());
+    const Entity entity = FindSceneEntity(world, 1);
+    CHECK(entity && entity.Has<Sprite>());
+    if (!entity || !entity.Has<Sprite>()) return;
+    const auto& sprite = entity.Get<Sprite>();
+    SpriteImages images;
+    CHECK(!sprite.atlasFrame.IsSet() && images.Source(sprite).image == "legacy.png");
+    CHECK(sprite.region.x == 4 && sprite.region.y == 8 && sprite.filter == SpriteFilter::Pixel);
+    const auto geometry = ResolveSpriteGeometry(sprite, images);
+    CHECK(geometry.pixelSize == pxVec2(16, 24) && geometry.pivot == pxVec2(0.25, 1));
 }
 
 TEST(ATextFieldThatIsNotTextIsLeftAtItsDefault) {

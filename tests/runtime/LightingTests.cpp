@@ -241,6 +241,193 @@ TEST(ProjectSessionEnvironmentSelectionBelongsToOpenedProject) {
     std::filesystem::remove_all(root);
 }
 
+TEST(ProjectSessionSavesAndReopensAtlasSpritesAtReducedZoom) {
+    const auto folder = std::filesystem::temp_directory_path() /
+        ("pixie-atlas-session-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto project = pixie::CreateProjectFolder(folder);
+    CHECK(project.ok);
+    if (!project.ok) return;
+    std::vector<std::uint8_t> rgba(64 * 32 * 4, 255);
+    for (std::size_t i = 0; i < rgba.size(); i += 4) {
+        const bool leftHalf = (i / 4) % 64 < 32;
+        rgba[i] = leftHalf ? 0 : 255;
+        rgba[i + 1] = 0;
+        rgba[i + 2] = leftHalf ? 255 : 0;
+    }
+    CHECK(pixie::WriteFileBytes(folder / "sheet.png", pixie::EncodePng(64, 32, rgba)));
+    std::ofstream(folder / "sheet.atlas.json") <<
+        R"({"format":"pixie-sprite-atlas","version":1,"image":"sheet.png","imageSize":[64,32],)"
+        R"("frames":[{"id":"1b681986317d465c9f01b3f303ff89fa","name":"Red","rect":[36,4,24,24],"pivot":[0,1]}]})";
+    {
+        Lab lab({9, 11, 19});
+        CHECK(lab.session->OpenProject(folder));
+        pixie::Sprite sprite;
+        sprite.atlasFrame = {"sheet.atlas.json", "1b681986317d465c9f01b3f303ff89fa"};
+        sprite.filter = pixie::SpriteFilter::Pixel;
+        const auto pixel = lab.Add({-60, 20});
+        pixel.Add<pixie::Sprite>(sprite);
+        pixie::AddToScene(pixel);
+        sprite.filter = pixie::SpriteFilter::Smooth;
+        const auto smooth = lab.Add({60, 20});
+        smooth.Add<pixie::Sprite>(sprite);
+        pixie::AddToScene(smooth);
+        CHECK(lab.session->Save());
+    }
+    {
+        Lab lab({9, 11, 19});
+        CHECK(lab.session->OpenProject(folder));
+        lab.session->GetCamera().SetZoom(0.5);
+        const auto pixels = lab.Render();
+        for (const int x : {34, 94}) {
+            CHECK(Channel(pixels, x, 62) == 255);
+            CHECK(Channel(pixels, x + 11, 73) == 255);
+            CHECK(Channel(pixels, x, 62, 2) == 0);
+            CHECK(Channel(pixels, x - 1, 62) == 9);
+            CHECK(Channel(pixels, x, 74) == 9);
+            CHECK(lab.session->PickViewport({}, {kSide, kSide}, {x + 0.5, 62.5}));
+            CHECK(!lab.session->PickViewport({}, {kSide, kSide}, {x - 0.5, 62.5}));
+        }
+    }
+    std::filesystem::remove_all(folder);
+}
+
+TEST(ResourceReloadAndReleaseDiscardGpuObjectsAndKeepSharedDependencies) {
+    const auto folder = std::filesystem::temp_directory_path() /
+        ("pixie-resource-lifetime-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    std::filesystem::create_directories(folder);
+    const auto imageFile = folder / "sheet.png";
+    const auto atlasFile = folder / "sheet.atlas.json";
+    const auto fontFile = folder / "test.ttf";
+    const auto otherFile = folder / "other.ttf";
+    const auto writePng = [&](std::uint8_t alpha) {
+        std::vector<std::uint8_t> rgba(32 * 16 * 4, alpha);
+        CHECK(pixie::WriteFileBytes(imageFile, pixie::EncodePng(32, 16, rgba)));
+    };
+    const auto writeAtlas = [&](int x) {
+        std::ofstream(atlasFile) <<
+            R"({"format":"pixie-sprite-atlas","version":1,"image":"sheet.png","imageSize":[32,16],)"
+            R"("frames":[{"id":"1b681986317d465c9f01b3f303ff89fa","name":"Frame","rect":[)"
+            << x << R"(,0,16,16],"pivot":[0,1]}]})";
+    };
+    writePng(255);
+    writeAtlas(0);
+    std::filesystem::copy_file(PIXIE_TEST_FONT, fontFile);
+    std::filesystem::copy_file(PIXIE_TEST_FONT, otherFile);
+    {
+        pixie::SpriteAlphaOutlines outlines;
+        pixie::SpriteImages images(outlines);
+        pixie::TextRenderer renderer;
+        pixie::Fonts fonts(renderer);
+        images.SetFolder(folder);
+        outlines.SetFolder(folder);
+        fonts.SetFolder(folder);
+
+        pixie::Sprite sprite;
+        sprite.atlasFrame = {"sheet.atlas.json", "1b681986317d465c9f01b3f303ff89fa"};
+        auto source = images.Source(sprite);
+        const auto firstTexture = images.TextureOf(source.image).Id();
+        CHECK(firstTexture != 0 && firstTexture == images.TextureOf("sheet.png").Id());
+        pxVec2 pixelSize;
+        CHECK(outlines.Edges(source, 0.5, pixelSize).size() == 4);
+        const auto imageTime = std::filesystem::last_write_time(imageFile);
+        writePng(0);
+        std::filesystem::last_write_time(imageFile, imageTime);
+        CHECK(images.CheckForChanges() == 0);
+        CHECK(images.Reload("sheet.png") && !glIsTexture(firstTexture));
+        source = images.Source(sprite);
+        CHECK(outlines.Edges(source, 0.5, pixelSize).empty());
+        const auto sharedTexture = images.TextureOf(source.image).Id();
+        CHECK(images.ReleaseAtlas("sheet.atlas.json"));
+        CHECK(!images.ReleaseAtlas("sheet.atlas.json") && glIsTexture(sharedTexture));
+        CHECK(images.Source(sprite).region.x == 0);
+
+        const auto atlasTime = std::filesystem::last_write_time(atlasFile);
+        writeAtlas(16);
+        writePng(255);
+        std::filesystem::last_write_time(atlasFile, atlasTime);
+        std::filesystem::last_write_time(imageFile, imageTime);
+        CHECK(images.CheckForChanges() == 0);
+        CHECK(images.ReloadAtlas("sheet.atlas.json") && !glIsTexture(sharedTexture));
+        CHECK(images.Source(sprite).region.x == 16);
+        const auto reloaded = images.TextureOf("sheet.png").Id();
+        CHECK(images.Release("sheet.png") && !glIsTexture(reloaded));
+        CHECK(!images.Release("sheet.png") && images.Source(sprite).image == "sheet.png");
+        const auto checkerboard = images.TextureOf("missing.png").Id();
+        images.ReleaseAll();
+        CHECK(!glIsTexture(checkerboard) && images.Folder() == folder);
+        CHECK(!images.ReleaseAtlas("sheet.atlas.json") && !images.Release("missing.png"));
+
+        auto* font = fonts.Find("test.ttf");
+        auto* other = fonts.Find("other.ttf");
+        CHECK(font && other);
+        if (font && other) {
+            const auto id = font->Id();
+            const auto small = renderer.AtlasTexture(*font, 16);
+            const auto large = renderer.AtlasTexture(*font, 32);
+            const auto otherTexture = renderer.AtlasTexture(*other, 16);
+            CHECK(glIsTexture(small) && glIsTexture(large) && glIsTexture(otherTexture));
+            const auto fontTime = std::filesystem::last_write_time(fontFile);
+            std::ofstream(fontFile, std::ios::binary | std::ios::trunc).close();
+            std::filesystem::last_write_time(fontFile, fontTime);
+            CHECK(!fonts.Reload("test.ttf"));
+            CHECK(!glIsTexture(small) && !glIsTexture(large) && glIsTexture(otherTexture));
+            CHECK(!fonts.Find("test.ttf") && !fonts.Problem("test.ttf").empty());
+            std::filesystem::copy_file(PIXIE_TEST_FONT, fontFile, std::filesystem::copy_options::overwrite_existing);
+            CHECK(fonts.Reload("test.ttf"));
+            font = fonts.Find("test.ttf");
+            CHECK(font && font->Id() != id);
+            if (font) {
+                const auto replacement = renderer.AtlasTexture(*font, 16);
+                CHECK(glIsTexture(replacement));
+                CHECK(fonts.Release("test.ttf") && !glIsTexture(replacement));
+                CHECK(!fonts.Release("test.ttf") && glIsTexture(otherTexture));
+                CHECK(fonts.Find("test.ttf") && fonts.Problem("test.ttf").empty());
+            }
+            fonts.ReleaseAll();
+            CHECK(!glIsTexture(otherTexture) && fonts.Folder() == folder);
+            CHECK(!fonts.Release("other.ttf"));
+        }
+        renderer.Destroy();
+    }
+    std::filesystem::remove_all(folder);
+}
+
+TEST(ProjectSessionReleasesResourceCachesOnProjectChangeAndStop) {
+    const auto root = std::filesystem::temp_directory_path() /
+        ("pixie-resource-projects-" + std::to_string(std::chrono::steady_clock::now().time_since_epoch().count()));
+    const auto first = pixie::CreateProjectFolder(root / "first");
+    const auto second = pixie::CreateProjectFolder(root / "second");
+    CHECK(first.ok && second.ok);
+    if (!first.ok || !second.ok) return;
+    for (const auto& folder : {first.folder, second.folder}) {
+        const std::vector<std::uint8_t> pixels(16 * 16 * 4, 255);
+        CHECK(pixie::WriteFileBytes(folder / "sprite.png", pixie::EncodePng(16, 16, pixels)));
+        std::filesystem::copy_file(PIXIE_TEST_FONT, folder / "font.ttf");
+    }
+    {
+        Lab lab;
+        CHECK(lab.session->OpenProject(first.folder));
+        auto& images = lab.session->Images();
+        auto& fonts = lab.session->GetFonts();
+        const auto firstTexture = images.TextureOf("sprite.png").Id();
+        const auto* firstFont = fonts.Find("font.ttf");
+        CHECK(glIsTexture(firstTexture) && firstFont);
+        const auto firstFontId = firstFont ? firstFont->Id() : 0;
+
+        CHECK(lab.session->OpenProject(second.folder));
+        CHECK(!glIsTexture(firstTexture));
+        CHECK(!images.Release("sprite.png") && !fonts.Release("font.ttf"));
+        const auto secondTexture = images.TextureOf("sprite.png").Id();
+        const auto* secondFont = fonts.Find("font.ttf");
+        CHECK(glIsTexture(secondTexture) && secondFont && secondFont->Id() != firstFontId);
+
+        lab.session->Stop();
+        CHECK(!glIsTexture(secondTexture));
+        CHECK(!images.Release("sprite.png") && !fonts.Release("font.ttf"));
+    }
+    std::filesystem::remove_all(root);
+}
+
 TEST(ProjectSessionKeepsPublishedWorldWhenCandidateBuildThrows) {
     Lab lab;
     pixie::World* published = &lab.World();

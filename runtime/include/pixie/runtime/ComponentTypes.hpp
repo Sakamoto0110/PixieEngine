@@ -67,6 +67,7 @@ enum class FieldEditor : std::uint8_t { Auto, Number, Slider, Toggle, Choice, Co
 
 // Which way dragging a field's label changes it.
 enum class ScrubAxis : std::uint8_t { Horizontal, Vertical };
+enum class FieldStorage : std::uint8_t { Authored, Derived, Runtime };
 
 // How a tool shows and edits a field: the vocabulary of PixieInspector's node options. Range, step,
 // and scrub are in the displayed unit, the one a person reads and types.
@@ -100,6 +101,9 @@ struct FieldMetadata {
     // For a Text field that names a file: the file's kind, as its extension without the dot
     // ("png"); the path is relative to the project folder. Empty for plain text.
     std::string asset;
+    // Presentation only. Slash-separated group labels, independent of the saved field name.
+    std::string group;
+    FieldStorage storage = FieldStorage::Authored;
 };
 
 // One reflected field: a name, a kind, how to read and write it in a component instance, and how a
@@ -189,6 +193,16 @@ class DataComponentBuilder;
 // serialization is meant to read it. It holds no state of a World.
 class ComponentTypes {
 public:
+    struct TriggerAction {
+        TriggerActionId id;
+        std::string name;
+        TriggerDispatcher::Function function;
+        std::source_location source;
+    };
+    PIXIE_RUNTIME_API void AddTriggerAction(TriggerActionId id, std::string name, TriggerDispatcher::Function function,
+        std::source_location source = std::source_location::current());
+    const std::vector<TriggerAction>& TriggerActions() const { return triggerActions_; }
+
     template<typename T>
     ComponentBuilder<T> Add(std::string name);
     // Restricted v2 contract: trivial standard-layout data and direct scalar members.
@@ -205,6 +219,7 @@ public:
         types_.swap(other.types_);
         runtimeV2Import_.swap(other.runtimeV2Import_);
         dataV2Import_.swap(other.dataV2Import_);
+        triggerActions_.swap(other.triggerActions_);
     }
     // The index of the type named `name` in All(), or -1.
     int IndexOf(std::string_view name) const;
@@ -233,6 +248,7 @@ private:
     std::vector<ComponentDescriptor> types_;
     std::vector<bool> runtimeV2Import_;
     std::vector<bool> dataV2Import_;
+    std::vector<TriggerAction> triggerActions_;
 };
 
 // --- Implementation ------------------------------------------------------------------------------
@@ -445,6 +461,19 @@ class ComponentBuilder {
     ComponentBuilder(ComponentTypes& types, std::size_t index) : types_(types), index_(index) {}
 public:
 
+    ComponentBuilder& TextField(std::string name, std::string (*read)(const void*),
+        void (*write)(void*, std::string_view)) {
+        auto& fields = types_.types_[index_].fields;
+        FieldDescriptor field;
+        field.name = std::move(name);
+        field.kind = FieldKind::Text;
+        field.readText = read;
+        field.writeText = write;
+        field.metadata.order = static_cast<int>(fields.size());
+        fields.push_back(std::move(field));
+        return *this;
+    }
+
     // Field<&T::member>("name"); enumNames name an enum's values 0, 1, ...
     template<auto Member>
     ComponentBuilder& Field(std::string name, std::vector<std::string> enumNames = {}) {
@@ -495,8 +524,7 @@ public:
     }
 
     // Field<&T::member, &Member::field>("name"): a field one level into a member, such as a style
-    // struct's color, saved and shown as the component's own. Values only: numbers, booleans,
-    // enums, points, vectors, rectangles, colors, and entities.
+    // struct's color, saved and shown as the component's own. Supports scalar fields and text.
     template<auto Outer, auto Inner>
     ComponentBuilder& Field(std::string name, std::vector<std::string> enumNames = {}) {
         using OuterTraits = detail::MemberTraits<decltype(Outer)>;
@@ -505,15 +533,24 @@ public:
         static_assert(std::is_base_of_v<typename OuterTraits::Class, T>, "the member must belong to T");
         static_assert(std::is_base_of_v<typename InnerTraits::Class, typename OuterTraits::Type>,
                       "the inner field must belong to the member's type");
-        static_assert(!std::is_same_v<Type, std::string> && !std::is_same_v<Type, std::vector<pxPoint>> &&
-                          !detail::RecordListTraits<Type>::value,
-                      "only values reach into a member");
+        static_assert(!std::is_same_v<Type, std::vector<pxPoint>> && !detail::RecordListTraits<Type>::value,
+                      "lists cannot reach into a member");
         FieldDescriptor field;
         field.name = std::move(name);
         field.kind = detail::KindOf<Type>();
         field.enumNames = std::move(enumNames);
-        field.read = &detail::ReadNested<Outer, Inner>;
-        field.write = &detail::WriteNested<Outer, Inner>;
+        if constexpr (std::is_same_v<Type, std::string>) {
+            using Class = typename OuterTraits::Class;
+            field.readText = [](const void* component) {
+                return (static_cast<const Class*>(component)->*Outer).*Inner;
+            };
+            field.writeText = [](void* component, std::string_view text) {
+                ((static_cast<Class*>(component)->*Outer).*Inner).assign(text);
+            };
+        } else {
+            field.read = &detail::ReadNested<Outer, Inner>;
+            field.write = &detail::WriteNested<Outer, Inner>;
+        }
         auto& fields = types_.types_[index_].fields;
         field.metadata.order = static_cast<int>(fields.size());
         fields.push_back(std::move(field));
@@ -572,6 +609,9 @@ public:
     ComponentBuilder& Label(std::string text) {
         return Last([&](FieldMetadata& m) { m.label = std::move(text); });
     }
+    ComponentBuilder& Group(std::string path) {
+        return Last([&](FieldMetadata& m) { m.group = std::move(path); });
+    }
     ComponentBuilder& Tooltip(std::string text) {
         return Last([&](FieldMetadata& m) { m.tooltip = std::move(text); });
     }
@@ -583,6 +623,12 @@ public:
     }
     ComponentBuilder& ReadOnly() {
         return Last([](FieldMetadata& m) { m.readOnly = true; });
+    }
+    ComponentBuilder& Derived() {
+        return Last([](FieldMetadata& m) { m.readOnly = true; m.storage = FieldStorage::Derived; });
+    }
+    ComponentBuilder& RuntimeOnly() {
+        return Last([](FieldMetadata& m) { m.readOnly = true; m.storage = FieldStorage::Runtime; });
     }
     ComponentBuilder& Editor(FieldEditor editor) {
         return Last([&](FieldMetadata& m) { m.editor = editor; });
@@ -740,8 +786,9 @@ inline int ComponentTypes::IndexOf(std::string_view name) const {
     return -1;
 }
 
-// Describes the runtime's own components, with their metadata: Transform2D, Velocity2D,
-// Acceleration2D, Shape, Sprite, Text, Path, Attractor, ParticleSystem, and ParticleSpawner.
+/// Registers the built-in Runtime descriptors and their scene admission flags. ProjectSession
+/// calls this before Project::Describe. These descriptors serve native tools, persistence and the
+/// C API; transient state and unregistered components have no corresponding authored fields.
 PIXIE_RUNTIME_API void DescribeRuntimeComponents(ComponentTypes& types);
 
 } // namespace pixie

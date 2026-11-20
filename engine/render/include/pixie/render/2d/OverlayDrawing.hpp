@@ -17,7 +17,9 @@ struct OverlayVertex {
     std::array<unsigned char, 4> color;
 };
 
+/// Sets up caller-owned GL resources. Keep the context current through their teardown.
 PIXIE_RENDER_API bool CreateOverlayDrawing(ShaderProgram& program, GlBuffer& buffer, GlVertexArray& array);
+/// Draws top-left pixel-space triangles to default draw framebuffer zero and restores changed state.
 PIXIE_RENDER_API void DrawOverlay(std::span<const OverlayVertex> vertices, FramebufferSize size,
                  GlBuffer& buffer, const GlVertexArray& array, const ShaderProgram& program);
 

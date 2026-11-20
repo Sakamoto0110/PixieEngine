@@ -7,6 +7,7 @@ namespace PixieEditor.Native;
 // The shared engine C API (capi/include/pixie_capi.h), through source-generated P/Invoke.
 // GameLibrary resolves its location and selects a development module before session creation.
 
+/// <summary>Native operation status. Read the native error text on the calling thread after failure.</summary>
 public enum PixieResult
 {
     Ok = 0,
@@ -18,6 +19,7 @@ public enum PixieResult
     ErrorIo = 6,
 }
 
+/// <summary>Session mode. Edit mode keeps the authored scene without advancing game steps.</summary>
 public enum PixieMode
 {
     Play = 0,
@@ -27,6 +29,7 @@ public enum PixieMode
 public enum PixieEnvironmentSelectionKind { LegacyWorld = 0, Scene = 1 }
 public enum PixieEnvironmentResolutionKind { LegacyWorld = 0, SceneInheritedWorld = 1, RemovedSceneFallback = 2, SceneOverride = 3 }
 public enum PixieEnvironmentLightingState { Absent = 0, Disabled = 1, Configured = 2 }
+/// <summary>Committed World revision and native preparation and publication timings in milliseconds.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieSceneEditReceipt
 {
@@ -34,6 +37,7 @@ public struct PixieSceneEditReceipt
     public double PreparationMilliseconds;
     public double PublicationMilliseconds;
 }
+/// <summary>Freshness observation combining the session identity, World revision and authored revision.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieSceneEditToken : IEquatable<PixieSceneEditToken>
 {
@@ -45,7 +49,9 @@ public struct PixieSceneEditToken : IEquatable<PixieSceneEditToken>
     public override readonly bool Equals(object? other) => other is PixieSceneEditToken token && Equals(token);
     public override readonly int GetHashCode() => HashCode.Combine(SessionIdentity, WorldRevision, AuthoredRevision);
 }
+/// <summary>Copied logical Scene identity and display name. The ID belongs to the scope domain.</summary>
 public readonly record struct PixieSceneScope(ulong Id, string Name);
+/// <summary>Resolved session presentation choice and copied diagnostic text.</summary>
 public readonly record struct PixieViewportEnvironment(
     PixieEnvironmentResolutionKind Resolution, PixieEnvironmentLightingState Lighting, string Diagnostic);
 
@@ -86,6 +92,8 @@ public enum PixieFieldFlags : uint
     ReadOnly = 1,
     HasRange = 2,
     HasUnit = 4,
+    Derived = 8,
+    Runtime = 16,
 }
 
 public enum PixieFieldText
@@ -99,7 +107,7 @@ public enum PixieFieldText
     Asset = 6,
 }
 
-// How a tool shows and edits a field (pixie_capi.h, PixieFieldInfo; 72 bytes).
+// Layout mirror of the ordered input event. Cursor coordinates use viewport pixels.
 [StructLayout(LayoutKind.Sequential)]
 internal struct PixieInputEvent
 {
@@ -108,6 +116,7 @@ internal struct PixieInputEvent
     public double X, Y;
 }
 
+/// <summary>72-byte native metadata for editing a field. Range, step and scrub use displayed units.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieFieldInfo
 {
@@ -125,6 +134,7 @@ public struct PixieFieldInfo
     public double UnitOffset;
 }
 
+/// <summary>Numeric field payload interpreted using the descriptor's field kind.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieValue
 {
@@ -134,6 +144,7 @@ public struct PixieValue
     public double W;
 }
 
+/// <summary>Session counters, simulated elapsed seconds and the most recent step's wall time.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieStats
 {
@@ -145,6 +156,7 @@ public struct PixieStats
     public double TimeScale;
 }
 
+/// <summary>Effective body mass in kg, area in square meters, and local center and inertia in world units.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieBodyMass2D
 {
@@ -155,6 +167,7 @@ public struct PixieBodyMass2D
     public double Inertia;
 }
 
+/// <summary>World-space geometry handles. Read capability flags before offering rotation or height tools.</summary>
 [StructLayout(LayoutKind.Sequential)]
 public struct PixieColliderHandles2D
 {
@@ -196,17 +209,23 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_body_mass_2d")]
     internal static partial PixieResult BodyMass2D(nint session, uint entity, out PixieBodyMass2D mass);
 
+    /// <summary>Copies presentation JSON. Zero capacity measures UTF-8 bytes excluding the terminator.</summary>
     [LibraryImport(Library, EntryPoint = "pixie_presentation_snapshot")]
     public static unsafe partial PixieResult PresentationSnapshot(nint session, byte* buffer, int capacity, out int length);
+    /// <summary>Sets session camera intent using an entity Scene ID and an optional logical Scene scope ID.</summary>
     [LibraryImport(Library, EntryPoint = "pixie_viewport_camera_set")]
     public static partial PixieResult ViewportCameraSet(nint session, int kind, ulong entity, ulong scene);
+    /// <summary>Reads camera selection intent independently of fallback resolution.</summary>
     [LibraryImport(Library, EntryPoint = "pixie_viewport_camera_get")]
     public static partial PixieResult ViewportCameraGet(nint session, out int kind, out ulong entity, out ulong scene);
+    /// <summary>Reads the resolved world center, pixels-per-world-unit zoom, source and diagnostic.</summary>
     [LibraryImport(Library, EntryPoint = "pixie_viewport_camera_resolve")]
     public static unsafe partial PixieResult ViewportCameraResolve(nint session, out double x, out double y, out double zoom,
         out int source, byte* diagnostic, int capacity, out int length);
+    /// <summary>Reads the independent free-camera navigation state.</summary>
     [LibraryImport(Library, EntryPoint = "pixie_viewport_free_camera_get")]
     public static partial PixieResult FreeCameraGet(nint session, out double x, out double y, out double zoom);
+    /// <summary>Updates the free camera using finite coordinates and zoom in [0.0001, 10000].</summary>
     [LibraryImport(Library, EntryPoint = "pixie_viewport_free_camera_set")]
     public static partial PixieResult FreeCameraSet(nint session, double x, double y, double zoom);
 
@@ -319,6 +338,16 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_field_text")]
     internal static partial PixieResult FieldText(nint session, int type, int field, int which, byte* buffer, int capacity);
 
+    [LibraryImport(Library, EntryPoint = "pixie_field_group")]
+    internal static partial PixieResult FieldGroup(nint session, int type, int field, byte* buffer, int capacity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_field_authoring_lock")]
+    internal static partial PixieResult FieldAuthoringLock(nint session, uint entity, int type, int field, out int locked);
+
+    [LibraryImport(Library, EntryPoint = "pixie_authoring_circle")]
+    internal static partial PixieResult AuthoringCircle(nint session, uint entity, out double x, out double y,
+        out double radius, out double diameterMetres);
+
     [LibraryImport(Library, EntryPoint = "pixie_field_enum_name")]
     internal static partial PixieResult FieldEnumName(nint session, int type, int field, int value, byte* buffer, int capacity);
 
@@ -424,6 +453,13 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_entity_find")]
     internal static partial PixieResult EntityFind(nint session, ulong id, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_parent_2d")]
+    internal static partial PixieResult EntityParent2D(nint session, uint entity, out uint parent);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entities_set_parent_2d")]
+    internal static partial PixieResult EntitiesSetParent2D(nint session, uint* entities, int count, uint parent,
+                                                             int keepLocal, out int changed);
 
     [LibraryImport(Library, EntryPoint = "pixie_entities_validate", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult EntitiesValidate(nint session, string snapshot, int ids, ulong* replacing, int count);

@@ -80,6 +80,7 @@ add_executable(runtime-tests
     runtime/CompoundAuthoringTests.cpp
     runtime/CollisionLayersTests.cpp
     runtime/OrderIndependenceTests.cpp
+    runtime/ParentingTests.cpp
     runtime/ParticleTests.cpp
     runtime/ParticlePhysicsTests.cpp
     runtime/PathTests.cpp
@@ -89,6 +90,7 @@ add_executable(runtime-tests
     runtime/RandomTests.cpp
     runtime/SceneTests.cpp
     runtime/SpatialGridTests.cpp
+    runtime/SpriteAtlasTests.cpp
     runtime/SpriteTests.cpp
     runtime/TextTests.cpp
     runtime/UserDataTests.cpp
@@ -103,7 +105,8 @@ target_include_directories(runtime-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(runtime-tests PRIVATE Pixie::Runtime nlohmann_json::nlohmann_json)
 target_compile_definitions(runtime-tests PRIVATE
     "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\""
-    "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\"")
+    "PIXIE_TEST_MOVEMENT_V1_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/movement-lab-v1.scene\""
+    "PIXIE_TEST_PARENTING_SCENE=\"${CMAKE_CURRENT_SOURCE_DIR}/runtime/fixtures/native-parenting/scenes/main.scene\"")
 pixie_target_defaults(runtime-tests)
 add_test(NAME runtime-tests COMMAND runtime-tests)
 
@@ -177,6 +180,8 @@ add_executable(lighting-tests runtime/LightingTests.cpp)
 set_target_properties(lighting-tests PROPERTIES FOLDER tests)
 target_include_directories(lighting-tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(lighting-tests PRIVATE Pixie::Runtime glfw)
+target_compile_definitions(lighting-tests PRIVATE
+    "PIXIE_TEST_FONT=\"${PROJECT_SOURCE_DIR}/samples/particles/fonts/inter-regular.ttf\"")
 pixie_target_defaults(lighting-tests)
 add_test(NAME lighting-tests COMMAND lighting-tests)
 

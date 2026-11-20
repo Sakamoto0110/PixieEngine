@@ -1,0 +1,16 @@
+cmake_minimum_required(VERSION 3.25)
+project(InstalledParenting LANGUAGES CXX)
+
+set(CMAKE_CXX_STANDARD 20)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>DLL")
+if(NOT IS_ABSOLUTE "${PIXIE_SDK_ROOT}" OR NOT EXISTS "${PIXIE_SDK_ROOT}/sdk.json")
+    message(FATAL_ERROR "Select an absolute installed Pixie SDK root")
+endif()
+set(PixieEngine_DIR "${PIXIE_SDK_ROOT}/lib/cmake/PixieEngine")
+find_package(PixieEngine CONFIG REQUIRED PATHS "${PixieEngine_DIR}" NO_DEFAULT_PATH)
+
+add_executable(pixie-installed-parenting InstalledParenting.cpp)
+target_compile_options(pixie-installed-parenting PRIVATE /W4 /WX /arch:AVX2)
+target_link_libraries(pixie-installed-parenting PRIVATE Pixie::Runtime)
+pixie_stage_runtime(pixie-installed-parenting)

@@ -1,6 +1,7 @@
 #include "pixie/runtime/PathDrawing.hpp"
 
 #include "pixie/runtime/Culling.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 
 #include "pixie/runtime/Path.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -44,12 +45,13 @@ bool PathContains(const Path& path, const Transform2D& transform, pxPoint point,
 
 void SubmitPaths(World& world, PathRenderer& renderer, double alpha, const pxRect* view) {
     entt::registry& registry = world.Registry();
-    for (auto [id, current, path] : registry.view<const Transform2D, const Path>().each()) {
+    auto paths = registry.view<const Transform2D, const Path>();
+    for (const auto id : paths) {
+        const auto& path = paths.get<const Path>(id);
         if (!path.visible) {
             continue;
         }
-        const auto* previous = registry.try_get<const PreviousTransform2D>(id);
-        const Transform2D drawn = previous != nullptr ? Interpolate(previous->value, current, alpha) : current;
+        const Transform2D drawn = InterpolatedTransform2D(world.Wrap(id), alpha);
         if (view != nullptr && !PathInView(path, drawn, *view)) {
             continue;
         }

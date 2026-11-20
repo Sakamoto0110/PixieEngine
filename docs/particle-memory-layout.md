@@ -106,9 +106,27 @@ Why each choice:
 
 Do not use a C++ `union` to give the same bytes different meanings: reading an
 inactive member is undefined behavior. The design note in
-[ROADMAP.md](../ROADMAP.md#accepted-direction-expansion-required) proposes a fixed
+[the recorded owner discussion](#particle-data-design-note--2026-10-26) proposes a fixed
 payload slot read through `std::bit_cast` accessors, its meaning chosen by flag
 bits, which the shader decodes the same way.
+
+### Particle data design note — 2026-10-26
+
+**Particle data design note (owner discussion, 2026-10-26).** A particle is born complete: a
+`ParticleSpawner` creates almost all of them, and `ParticleSystem::Emit` (code and tools) shares the
+same field-filling function; whoever creates a particle sets its kind, which does not change during
+its life. After birth the system owns it, and the step and affectors only evolve it (age, velocity,
+death). PIXIE-TODO-047 delivered the 40-byte layout: RGBA8 color (4), size as a 16-bit half float
+(2), a flags byte (1), and one spare byte. The flags byte holds the dynamic bit and the
+shape (2 bits for 4 shapes, up to 7 bits for 128), so with 4 shapes 13 bits remain free; 48 bytes
+would be needed only for data that does not fit, such as a float size, rotation, or a second color.
+Data for mutually exclusive kinds of particle shares a fixed payload slot read through typed
+accessors (`std::bit_cast`), not a C++ `union`, whose inactive-member reads are undefined; the
+shader reads the slot as integers and decodes it by the flags. Data that only a few particles use,
+or that only the CPU reads (a dynamic particle's contacts or bounces), lives in a side table kept
+in step with the pool's removals, so its cost follows the particles that use it. Collision runs
+only for dynamic particles, so its cost scales with their number, not the pool's; it is reported
+separately in telemetry rather than capped.
 
 ## 4. How a pool is processed
 

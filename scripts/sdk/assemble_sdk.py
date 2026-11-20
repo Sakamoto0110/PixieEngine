@@ -142,6 +142,7 @@ def finalize(root: Path, identity_file: Path) -> None:
     verify(root)
 
 
+# Each unit declares one profile/configuration. Shared payload paths must match byte for byte.
 def compose(units: list[Path], output: Path, complete: bool) -> None:
     if output.exists():
         raise ValueError("SDK composition requires a new output directory; existing candidates are immutable")

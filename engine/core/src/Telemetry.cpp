@@ -110,6 +110,7 @@ TelemetryScope::TelemetryScope(Telemetry& telemetry,MetricHandle timing) {
 }
 
 TelemetryScope::~TelemetryScope() {
+    // A reset or enable-state transition abandons samples that straddle the boundary.
     if (telemetry_ && telemetry_->Enabled() && telemetry_->epoch_ == epoch_) {
         const auto end = telemetry_->clock_();
         telemetry_->RecordTiming(timing_,std::chrono::duration<double,std::milli>(end-start_).count());

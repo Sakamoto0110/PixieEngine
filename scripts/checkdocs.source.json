@@ -1,0 +1,8 @@
+{
+  "sourceRepository": "https://github.com/Sakamoto0110/void-agent-workplace",
+  "sourcePath": "scripts/checkdocs.ps1",
+  "sourceState": "uncommitted-documentation-migration-candidate",
+  "sourceBaseCommit": "9a9cc2fa529328d8b8db6f6ebb97cab5ae287a1e",
+  "sha256": "9dd9cf14d01ecc699e1393face60bbc78a44875697ba758479e6101083bbab00",
+  "updatePolicy": "Exact generic VAW candidate snapshot; focused legacy/scoped fixtures passed. Base commit plus digest identifies uncommitted bytes and is not a published source commit. No consumer-specific edits."
+}

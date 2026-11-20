@@ -1,10 +1,12 @@
 #include "pixie/runtime/Scene.hpp"
 #include "SceneSave.hpp"
 #include "PresentationJson.hpp"
+#include "Parenting2DInternal.hpp"
 
 #include "pixie/runtime/ComponentTypes.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/World.hpp"
 
@@ -283,12 +285,15 @@ Json EncodeField(const FieldDescriptor& field, void* component, const ComponentT
             Json item = Json::object();
             item["v"] = itemType.version;
             for (const auto& child : itemType.fields)
-                item[child.name] = EncodeField(child, field.recordAt(component, i), types, registry,
-                    std::format("{}.{}[{}]", where, field.name, i), warnings, depth + 1);
+                if (child.metadata.storage == FieldStorage::Authored)
+                    item[child.name] = EncodeField(child, field.recordAt(component, i), types, registry,
+                        std::format("{}.{}[{}]", where, field.name, i), warnings, depth + 1);
             const auto kept = ParseKept(field.recordExtras(component, i));
             if (kept.contains("v") && kept["v"].is_number_integer() && kept["v"].get<std::int64_t>() > itemType.version)
                 item["v"] = kept["v"];
             Merge(item, kept);
+            for (const auto& child : itemType.fields)
+                if (child.metadata.storage != FieldStorage::Authored) item.erase(child.name);
             records.push_back(std::move(item));
         }
         return records;
@@ -298,6 +303,7 @@ Json EncodeField(const FieldDescriptor& field, void* component, const ComponentT
 
 std::string DecodeField(const FieldDescriptor& field, const Json& saved, void* component,
                         const ComponentTypes& types, const SceneLookup& ids, int depth = 0) {
+    if (field.metadata.storage != FieldStorage::Authored) return {};
     if (depth > 8) return "record nesting exceeds 8 levels";
     if (field.kind == FieldKind::Text) {
         if (!saved.is_string()) return "expected text";
@@ -427,14 +433,18 @@ std::uint64_t AddToScene(Entity entity) {
     if (const SceneId* id = entity.TryGet<SceneId>()) {
         return id->value;
     }
+    if (Parent2D(entity)) throw std::logic_error("assign the scene identity before attaching an authored child");
     return entity.Add<SceneId>(SceneId{NewSceneId()}).value;
 }
 
 namespace {
 
 // One scene entity as the scene format writes it.
-Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::entity id,
-                 std::vector<std::string>* warnings) {
+Json WriteEntity(World& world, const ComponentTypes& types, entt::entity id,
+                 std::vector<std::string>* warnings, int version) {
+    const auto child = world.Wrap(id);
+    const auto parent = Parent2D(child);
+    auto& registry = world.Registry();
     const std::string hex = HexId(registry.get<SceneId>(id).value);
     Json entity = Json::object();
     entity["id"] = hex;
@@ -464,15 +474,34 @@ Json WriteEntity(entt::registry& registry, const ComponentTypes& types, entt::en
         fields["v"] = type.version;
         const std::string where = std::format("{} of entity {}", type.name, hex);
         for (const FieldDescriptor& field : type.fields) {
-            fields[field.name] = EncodeField(field, component, types, registry, where, warnings);
+            if (field.metadata.storage == FieldStorage::Authored)
+                fields[field.name] = EncodeField(field, component, types, registry, where, warnings);
         }
         if (extras.contains("fields") && extras["fields"].is_object() && extras["fields"].contains(type.name)) {
             Merge(fields, extras["fields"][type.name]);
         }
+        for (const auto& field : type.fields)
+            if (field.metadata.storage != FieldStorage::Authored) fields.erase(field.name);
         components[type.name] = std::move(fields);
     }
     if (extras.contains("components")) {
         Merge(components, extras["components"]);
+    }
+    if (version == kParentingSceneVersion && entity.contains("parent2D")) {
+        throw std::runtime_error("legacy entity data conflicts with the parenting field parent2D");
+    }
+    if (parent) {
+        const auto* parentId = parent.TryGet<SceneId>();
+        const auto local = LocalTransform2D(child);
+        if (version != kParentingSceneVersion || !parentId || parentId->value == 0 || !local ||
+            !components.contains("Transform2D")) {
+            throw std::runtime_error("authored parenting requires a version 3 document, a stable parent and Transform2D");
+        }
+        entity["parent2D"] = HexId(parentId->value);
+        auto& transform = components["Transform2D"];
+        transform["position"] = Json::array({local->position.x, local->position.y});
+        transform["rotation"] = local->rotation;
+        transform["scale"] = Json::array({local->scale.x, local->scale.y});
     }
     entity["components"] = std::move(components);
     return entity;
@@ -909,12 +938,99 @@ std::string CheckFragmentScopes(const Json& document, const World& world,
     return {};
 }
 
+struct ParentRecord {
+    std::size_t child;
+    std::uint64_t parent;
+};
+
+bool HasAuthoredPose(const Json& entry) {
+    const auto components = entry.find("components");
+    if (components == entry.end() || !components->is_object()) return false;
+    const auto pose = components->find("Transform2D");
+    if (pose == components->end() || !pose->is_object()) return false;
+    const auto finite = [](const Json& value) { return value.is_number() && std::isfinite(value.get<double>()); };
+    const auto pair = [&](const char* name) {
+        const auto field = pose->find(name);
+        return field != pose->end() && field->is_array() && field->size() == 2 &&
+            finite((*field)[0]) && finite((*field)[1]);
+    };
+    const auto rotation = pose->find("rotation");
+    return rotation != pose->end() && finite(*rotation) && pair("position") && pair("scale");
+}
+
+std::string CheckParenting(const Json& list, const std::vector<std::uint64_t>& listed,
+                           const std::unordered_map<std::uint64_t, entt::entity>* external,
+                           std::vector<ParentRecord>& links) {
+    std::unordered_map<std::uint64_t, std::size_t> indices;
+    for (std::size_t i = 0; i < listed.size(); ++i) indices.emplace(listed[i], i);
+    const auto end = listed.size();
+    std::vector<std::size_t> parents(end, end);
+    for (std::size_t i = 0; i < end; ++i) {
+        const auto value = list[i].find("parent2D");
+        if (value == list[i].end()) continue;
+        std::uint64_t parent = 0;
+        if (!ParseHexId(*value, parent) || !HasAuthoredPose(list[i])) {
+            return std::format("entity {} needs a valid parent2D identity and a complete Transform2D", HexId(listed[i]));
+        }
+        const auto target = indices.find(parent);
+        if (target != indices.end()) {
+            if (!HasAuthoredPose(list[target->second])) {
+                return std::format("parent {} needs a complete Transform2D", HexId(parent));
+            }
+            parents[i] = target->second;
+        } else if (!external || !external->contains(parent)) {
+            return std::format("entity {} names absent parent {}", HexId(listed[i]), HexId(parent));
+        }
+        links.push_back({i, parent});
+    }
+    std::vector<unsigned char> state(end, 0);
+    for (std::size_t i = 0; i < end; ++i) {
+        auto next = i;
+        while (next != end && state[next] == 0) {
+            state[next] = 1;
+            next = parents[next];
+        }
+        if (next != end && state[next] == 1) return std::format("parenting cycle at entity {}", HexId(listed[next]));
+        next = i;
+        while (next != end && state[next] == 1) {
+            state[next] = 2;
+            next = parents[next];
+        }
+    }
+    return {};
+}
+
+void ApplyParenting(World& world, const std::vector<ParentRecord>& records,
+                    const std::vector<std::uint64_t>& listed, const std::vector<Entity>& created) {
+    if (records.empty()) return;
+    std::unordered_map<std::uint64_t, Entity> imported;
+    for (std::size_t i = 0; i < listed.size(); ++i) imported.emplace(listed[i], created[i]);
+    const auto& scene = SceneEntities(world.Registry());
+    std::vector<detail::AuthoredParentLink2D> links;
+    for (const auto& [child, parent] : records) {
+        const auto target = imported.find(parent);
+        links.push_back({created[child], target != imported.end() ? target->second : world.Wrap(scene.at(parent))});
+    }
+    if (const auto error = detail::RestoreParenting2D(world, links); !error.empty()) throw std::runtime_error(error);
+}
+
+int OutputSceneVersion(World& world) {
+    const int version = SceneFormatVersion(world);
+    if (version == 1) {
+        for (const auto id : world.Registry().view<const SceneId>()) {
+            if (Parent2D(world.Wrap(id))) return kParentingSceneVersion;
+        }
+    }
+    return version;
+}
+
 struct PreparedEntities {
     Json document;
     std::vector<std::uint64_t> listed;
     std::vector<SceneScope> scopesToAdd;
     std::vector<ScopeId> memberships;
     std::unordered_map<std::uint64_t, std::string> keptScopes;
+    std::vector<ParentRecord> parents;
 };
 
 // Pure preparation: no SceneIndex installation, ID generation, component callbacks or writes.
@@ -952,6 +1068,15 @@ std::string PrepareEntities(const World& world, const ComponentTypes& types, std
         return problem;
     if (std::string problem = CheckFragmentSettings(world, list, excluded); !problem.empty()) return problem;
     const auto* destination = world.Registry().ctx().find<detail::SceneDocumentExtras>();
+    if (version == kParentingSceneVersion) {
+        if ((destination && destination->version == 2) || world.Presentation() || !world.Scopes().empty() ||
+            document.contains("sceneScopes") || document.contains("presentation")) {
+            return "parenting fragments require the unscoped scene family";
+        }
+        if (auto problem = CheckParenting(list, prepared.listed, currentIds, prepared.parents); !problem.empty()) {
+            return problem;
+        }
+    }
     if (version == 1 && destination != nullptr && destination->version == 2) {
         for (const Json& entity : list) {
             if (entity.contains("sceneScope")) return "version 1 fragment sceneScope data conflicts with version 2 membership";
@@ -1078,7 +1203,7 @@ void UpgradeComponent(const ComponentDescriptor& type, void* component, int save
 std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const Json& list,
                                 const std::vector<std::uint64_t>& listed, const std::vector<std::uint64_t>& assigned,
                                 const std::unordered_map<std::uint64_t, entt::entity>& sceneEntities,
-                                SceneReport& report) {
+                                SceneReport& report, bool parenting) {
     std::vector<Entity> created;
     created.reserve(list.size());
     std::unordered_map<std::uint64_t, entt::entity> listedEntities;
@@ -1105,7 +1230,8 @@ std::vector<Entity> AddEntities(World& world, const ComponentTypes& types, const
         Json keptFields = Json::object();
         for (auto it = entry.begin(); it != entry.end(); ++it) {
             const std::string& key = it.key();
-            if (key == "id" || key == "components" || (key == "name" && it.value().is_string())) {
+            if (key == "id" || key == "components" || (key == "parent2D" && parenting) ||
+                (key == "name" && it.value().is_string())) {
                 continue;
             }
             keptEntity[key] = it.value();
@@ -1186,7 +1312,7 @@ static std::string WriteSceneVersion(World& world, const ComponentTypes& types,
     entt::registry& registry = world.Registry();
     const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>();
     const std::vector<SceneScope> scopes = world.Scopes();
-    if (version == 1 && (world.Presentation() || !scopes.empty())) {
+    if (version != 2 && (world.Presentation() || !scopes.empty())) {
         throw std::runtime_error("scene scopes require an explicit version 2 conversion");
     }
     // A v2 document must remain importable under this registry. Check storage
@@ -1227,7 +1353,7 @@ static std::string WriteSceneVersion(World& world, const ComponentTypes& types,
 
     Json entities = Json::array();
     for (const entt::entity id : members) {
-        Json entry = WriteEntity(registry, types, id, warnings);
+        Json entry = WriteEntity(world, types, id, warnings, version);
         if (version == 2) {
             const ScopeId membership = world.ScopeOf(world.Wrap(id)).value_or(ScopeId{});
             if (membership.value == 0) entry.erase("sceneScope");
@@ -1240,8 +1366,7 @@ static std::string WriteSceneVersion(World& world, const ComponentTypes& types,
 }
 
 std::string WriteScene(World& world, const ComponentTypes& types, std::vector<std::string>* warnings) {
-    const auto* kept = world.Registry().ctx().find<detail::SceneDocumentExtras>();
-    return WriteSceneVersion(world, types, warnings, kept != nullptr ? kept->version : 1);
+    return WriteSceneVersion(world, types, warnings, OutputSceneVersion(world));
 }
 
 std::string ValidateV2SceneSnapshot(const World& world, const ComponentTypes& types) {
@@ -1292,6 +1417,18 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
     if (std::string problem = CheckEntities(list, ids, true, listed); !problem.empty()) {
         return Failed(std::move(problem));
     }
+    std::vector<ParentRecord> parents;
+    if (version == kParentingSceneVersion) {
+        if (SceneFormatVersion(world) == 2 || world.Presentation() || !world.Scopes().empty() ||
+            document.contains("sceneScopes") || document.contains("presentation")) {
+            return Failed("version 3 parenting scenes use the unscoped scene family");
+        }
+        if (auto problem = CheckParenting(list, listed, nullptr, parents); !problem.empty()) {
+            return Failed(std::move(problem));
+        }
+    } else if (OutputSceneVersion(world) == kParentingSceneVersion) {
+        return Failed("read a flat or scoped scene into a separate World");
+    }
 
     std::vector<SceneScope> scopes;
     std::vector<ScopeId> memberships;
@@ -1331,7 +1468,9 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
                 throw std::runtime_error("could not create validated scene scope");
             }
         }
-        const std::vector<Entity> created = AddEntities(world, types, list, listed, listed, ids, report);
+        const std::vector<Entity> created = AddEntities(world, types, list, listed, listed, ids, report,
+                                                       version == kParentingSceneVersion);
+        ApplyParenting(world, parents, listed, created);
         if (presentation && !world.SetPresentation(presentation)) throw std::runtime_error("could not apply canonical presentation");
         for (const SceneScope& scope : scopes) {
             if (!world.SetScopeEnvironment(scope.id, scope.environment) || !world.SetScopeCamera(scope.id, scope.camera)) throw std::runtime_error("could not apply Scene presentation");
@@ -1359,10 +1498,10 @@ SceneReport ReadScene(World& world, const ComponentTypes& types, std::string_vie
         try { apply(); }
         catch (const std::exception& failure) {
             const std::string reason = failure.what();
-            return Failed(std::format("version 2 scene application failed: {}{}", reason,
+            return Failed(std::format("version {} scene application failed: {}{}", version, reason,
                                       before.Restore() ? "" : "; rollback failed"));
         } catch (...) {
-            return Failed(std::format("version 2 scene application failed: unknown exception{}",
+            return Failed(std::format("version {} scene application failed: unknown exception{}", version,
                                       before.Restore() ? "" : "; rollback failed"));
         }
     }
@@ -1378,7 +1517,7 @@ std::string WriteEntities(World& world, const ComponentTypes& types, std::span<c
                           std::string_view meta, std::vector<std::string>* warnings) {
     entt::registry& registry = world.Registry();
     const auto* kept = registry.ctx().find<detail::SceneDocumentExtras>();
-    const int version = kept != nullptr ? kept->version : 1;
+    const int version = OutputSceneVersion(world);
     if (version == 2) {
         std::set<std::string> unsupported;
         for (const Entity entity : entities) {
@@ -1416,7 +1555,7 @@ std::string WriteEntities(World& world, const ComponentTypes& types, std::span<c
             continue;
         }
         if (written.insert(entity.Id()).second) {
-            Json entry = WriteEntity(registry, types, entity.Id(), warnings);
+            Json entry = WriteEntity(world, types, entity.Id(), warnings, version);
             if (version == 2) {
                 const ScopeId membership = world.ScopeOf(entity).value_or(ScopeId{});
                 if (membership.value == 0) entry.erase("sceneScope");
@@ -1564,7 +1703,9 @@ EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::stri
                 throw std::runtime_error("could not create validated fragment scope");
             }
         }
-        report.entities = AddEntities(world, types, list, listed, assigned, ids, report);
+        report.entities = AddEntities(world, types, list, listed, assigned, ids, report,
+                                     version == kParentingSceneVersion);
+        ApplyParenting(world, prepared.parents, listed, report.entities);
         for (const SceneScope& scope : scopesToAdd) {
             if (!world.SetScopeEnvironment(scope.id, scope.environment) || !world.SetScopeCamera(scope.id, scope.camera)) throw std::runtime_error("could not apply imported Scene presentation");
             if (scope.gravity && !world.SetScopeGravity(scope.id, *scope.gravity)) {
@@ -1588,11 +1729,11 @@ EntitiesReport ReadEntities(World& world, const ComponentTypes& types, std::stri
         catch (const std::exception& failure) {
             const std::string reason = failure.what();
             report.entities.clear();
-            return fail(std::format("version 2 fragment application failed: {}{}", reason,
+            return fail(std::format("version {} fragment application failed: {}{}", version, reason,
                                     before.Restore() ? "" : "; rollback failed"));
         } catch (...) {
             report.entities.clear();
-            return fail(std::format("version 2 fragment application failed: unknown exception{}",
+            return fail(std::format("version {} fragment application failed: unknown exception{}", version,
                                     before.Restore() ? "" : "; rollback failed"));
         }
     }
@@ -1661,7 +1802,8 @@ SceneReport detail::SaveSceneText(std::string_view text, const std::filesystem::
     std::string error;
     const Json candidate = ParseDocument(text, kSceneFormat, "scene", error);
     if (!error.empty()) return Failed(std::move(error));
-    if (candidate["version"] == 2) {
+    {
+        const int version = candidate["version"].get<int>();
         std::error_code fileError;
         const bool exists = std::filesystem::exists(path, fileError);
         if (fileError) return Failed(std::format("could not inspect {}: {}", PathText(path), fileError.message()));
@@ -1672,8 +1814,12 @@ SceneReport detail::SaveSceneText(std::string_view text, const std::filesystem::
             source << in.rdbuf();
             if (in.bad()) return Failed(std::format("could not read {}", PathText(path)));
             const Json previous = ParseDocument(source.str(), kSceneFormat, "saved scene", error);
-            if (!error.empty()) return Failed(std::move(error));
-            if (previous["version"] == 1) {
+            if (!error.empty() && version != 1) return Failed(std::move(error));
+            if (error.empty() && previous["version"] != version &&
+                (previous["version"] == kParentingSceneVersion || version == kParentingSceneVersion)) {
+                return Failed("changing the parenting scene version requires a new destination");
+            }
+            if (version == 2 && previous["version"] == 1) {
                 return Failed("saving a version 2 snapshot over a version 1 scene requires explicit "
                               "ConvertSceneFileV1ToV2 conversion with a recoverable backup");
             }

@@ -25,6 +25,8 @@
 namespace pixie {
 
 class World;
+class SpriteImages;
+struct SpriteSource;
 
 // The scene's LightingSettings2D (one per scene); null when it has none, which leaves it unlit.
 PIXIE_RUNTIME_API const LightingSettings2D* FindLightingSettings(World& world);
@@ -75,6 +77,7 @@ public:
     // The outline of `sprite`'s image (its region, when it has one) where alpha reaches
     // `threshold`, and the drawn size in image pixels.
     PIXIE_RUNTIME_API const std::vector<OutlineEdge>& Edges(const Sprite& sprite, double threshold, pxVec2& pixelSize);
+    PIXIE_RUNTIME_API const std::vector<OutlineEdge>& Edges(const SpriteSource& source, double threshold, pxVec2& pixelSize);
 
     // The outline of an RGBA image of `width` x `height`, first row at the top, on a grid of at most
     // `cells` cells a side: the edges between solid and empty cells, merged along rows and columns.
@@ -92,9 +95,11 @@ private:
 
 // Replaces `edges` with the edges of every enabled Occluder2D of an entity with a Transform2D,
 // interpolated `alpha` of the way from its previous transform to its current one. SpriteAlpha
-// occluders need `outlines`; without it they cast nothing.
+// occluders need `outlines`. Atlas-backed outlines also need the session's `images`.
 PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges,
                                        SpriteAlphaOutlines* outlines = nullptr);
+PIXIE_RUNTIME_API void GatherOccluders(World& world, double alpha, std::vector<OccluderEdge>& edges,
+                                       SpriteAlphaOutlines* outlines, SpriteImages* images);
 
 // Appends a light splat for each live particle of every pool whose ParticleLight2D illuminates,
 // interpolated `alpha` of the way between steps: unshadowed point lights of the particle's color,

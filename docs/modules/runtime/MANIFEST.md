@@ -59,12 +59,20 @@
 - Authored scene movement and laboratory boundaries: [`editor-movement.md`](../../editor-movement.md).
 - Body dynamics and world settings: [`body-dynamics.md`](../../body-dynamics.md).
 - Contact/sensor events and qualification: [`body-events.md`](../../body-events.md).
-- Build: internal `pixie_runtime` object target in `runtime/CMakeLists.txt`,
-  compiled with the lower App/Render/Platform/Core dependencies. The public
-  `Pixie::Runtime` facade links the root shared engine, containing Runtime
-  rather than a separate runtime DLL. Headers and templates remain consumable
-  by directly linked game code and development modules.
-- Tests: `runtime-tests`, from `tests/runtime/`, run through CTest.
+- Build through the internal `pixie_runtime` object target in
+  [`runtime/CMakeLists.txt`](../../../runtime/CMakeLists.txt). It uses the lower
+  App, Render, Platform and Core boundaries. Link game code through `Pixie::Runtime`,
+  which links the root shared engine containing Runtime.
+- SDK declarations are installed from `runtime/include/pixie/runtime` under
+  `include/pixie/runtime`. Runtime’s C++ surface serves directly linked game code
+  and admitted development modules. The Runtime distribution payload and SDK
+  profile rules belong to the [installed SDK guide](../../development.md#installed-sdk-and-local-rehearsal).
+- Implementation lives in `runtime/src`. `Parenting2DInternal.hpp`,
+  `PresentationJson.hpp` and `SceneSave.hpp` are private implementation headers.
+  Box2D and the JSON codec stay behind Runtime’s API.
+- Tests are registered as `runtime-tests` in [`tests/CMakeLists.txt`](../../../tests/CMakeLists.txt)
+  with sources in `tests/runtime/`. The [validation section](REFERENCE.md#validation) also routes
+  the C API scene checks and renderer coverage.
 - Origin: [PIXIE-PROPOSAL-004](../../proposals/scene-model-and-anchors.md), part 1, and the
   `runtime` boundary of [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md);
   built by PIXIE-TODO-006 (see the [archive](../../archive/README.md)).

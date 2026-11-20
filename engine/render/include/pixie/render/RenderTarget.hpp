@@ -25,16 +25,15 @@ public:
     RenderTarget& operator=(const RenderTarget&) = delete;
     PIXIE_RENDER_API ~RenderTarget();
 
-    // Creates or recreates the framebuffer at `size`; returns false, after logging, if it is
-    // incomplete.
+    /// Replaces the framebuffer at size. A nonpositive size or incomplete target leaves it empty.
     PIXIE_RENDER_API bool Create(FramebufferSize size);
-    // Recreates the framebuffer only if `size` differs from the current one.
+    /// Reuses a valid same-size target. Recreating invalidates previously borrowed GL names.
     PIXIE_RENDER_API bool Resize(FramebufferSize size);
     PIXIE_RENDER_API void Destroy();
 
     // Draws into the target from now on, with the viewport covering it.
     PIXIE_RENDER_API void Bind() const;
-    // Draws into the window's framebuffer again.
+    /// Binds framebuffer zero for reading and drawing, leaving the viewport unchanged.
     PIXIE_RENDER_API static void BindDefault();
 
     GLuint ColorTexture() const { return texture_; }

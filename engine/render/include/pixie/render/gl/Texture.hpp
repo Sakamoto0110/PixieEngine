@@ -19,10 +19,12 @@ public:
     Texture(const Texture&) = delete;
     Texture& operator=(const Texture&) = delete;
     PIXIE_RENDER_API Texture(Texture&& other) noexcept;
+    /// Transfers the GL name. Destroy the destination texture before move assignment.
     PIXIE_RENDER_API Texture& operator=(Texture&& other) noexcept;
     PIXIE_RENDER_API ~Texture();
 
-    // Creates or recreates the texture from `image`; returns false for an empty image.
+    /// Replaces the texture from a complete, tightly packed RGBA8 image in client memory.
+    /// Returns false for nonpositive dimensions or empty pixels.
     PIXIE_RENDER_API bool Create(const Image& image);
     PIXIE_RENDER_API void Destroy();
 

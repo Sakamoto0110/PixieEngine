@@ -2,6 +2,7 @@
 
 #include "pixie/runtime/Culling.hpp"
 #include "pixie/runtime/LightingDrawing.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -14,11 +15,12 @@ namespace {
 void Submit(World& world, ShapeRenderer& renderer, double alpha, const pxRect* view, LightingPass pass) {
     entt::registry& registry = world.Registry();
     auto entities = registry.view<const Transform2D, const PreviousTransform2D, const Shape>();
-    for (auto [id, current, previous, shape] : entities.each()) {
+    for (const auto id : entities) {
+        const auto& shape = entities.get<const Shape>(id);
         if (!shape.visible) {
             continue;
         }
-        const Transform2D drawn = Interpolate(previous.value, current, alpha);
+        const Transform2D drawn = InterpolatedTransform2D(world.Wrap(id), alpha);
         if (view != nullptr && !ShapeInView(shape, drawn, *view)) {
             continue;
         }

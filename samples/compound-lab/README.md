@@ -41,8 +41,10 @@ solid shapes contribute their masses separately; there is no mass union calculat
 The orange Path is authored visual data, independent of physics. Editing collider
 geometry updates the blue outlines and actual collision; it does not redraw the
 Path automatically. Edit the Path too when changing this sample's visible contour.
-In a new project, **Physics... > Compound box** creates a ready dynamic compound.
-**Make compound** converts an existing Collider2D while retaining its body and data.
+In a new project, **Entities > + Create > Compound box** creates a ready dynamic compound.
+**Make compound** replaces an existing Collider2D while retaining its body
+and drawable data. See the [v3 hierarchy limitation](../../docs/editor-movement.md#compound-bodies)
+before using this operation on a parent.
 
 This room does not qualify character pushing/carrying, crushing or accepted game
 feel. See the [workflow](../../docs/editor-movement.md) and

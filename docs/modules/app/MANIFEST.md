@@ -52,6 +52,8 @@
 
 ## Routes
 
-- [Introduction](README.md) and [technical reference](REFERENCE.md).
+- [Introduction](README.md) and [player loop, teardown and configuration](REFERENCE.md).
 - CMake owns the internal pixie_app object target and Pixie::App consumer facade. The artifact field describes distribution inside the shared engine, not a separate DLL per module.
+- SDK extension points live under `pixie/app/`. `DebugConsole` and `DebugOverlay` are internal App implementation types.
+- Contributor routes include `samples/hello-gl`, `tests/engine/PlayerDebugTests.cpp`, `tests/engine/DebugConsoleTests.cpp`, `tests/engine/DebugOverlayTests.cpp` and `tests/engine/DeterministicCaptureTests.cpp`.
 - [Qualification matrix](../../shared-engine-export-validation.md) separates executed evidence from pending native configurations, exports and MCP work. Windows is the qualified execution environment so far; Linux remains unqualified.

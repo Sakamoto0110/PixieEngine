@@ -1,6 +1,7 @@
 #pragma once
 
 #include "pixie/render/2d/SpriteRenderer.hpp"
+#include "pixie/runtime/SpriteAtlas.hpp"
 
 #include <pixie/math/pxVec.hpp>
 #include <pixie/pxColorRgba.hpp>
@@ -28,6 +29,9 @@ struct Sprite {
     SpriteFilter filter = SpriteFilter::Smooth;
     // Whether it is drawn and picked; hidden, it keeps its place and is still saved.
     bool visible = true;
+    // An authored atlas reference selects a still frame or a looping animation.
+    SpriteAtlasFrameRef atlasFrame;
+    int animationFps = 0; // Zero uses the atlas clip's FPS.
 };
 
 } // namespace pixie

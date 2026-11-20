@@ -34,4 +34,5 @@ accepted scope; they never extend it.
 ```
 
 Task statuses are `open`, `in-progress`, `done`, and `dropped`. When the parent
-completes, move the whole section to `docs/archive/`.
+completes, remove its section. Preserve important details through the roadmap
+closure and link evidence; Git retains the full breakdown.

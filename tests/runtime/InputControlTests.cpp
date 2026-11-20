@@ -1,9 +1,11 @@
 #include "Check.hpp"
 #include "pixie/runtime/World.hpp"
 #include "pixie/runtime/ComponentTypes.hpp"
+#include "pixie/runtime/InputTriggers.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include <stdexcept>
 #include <string>
+#include <thread>
 #include <vector>
 
 using namespace pixie;
@@ -128,4 +130,102 @@ TEST(WorldRejectsReentryFromDeferredActionsAsWellAsInputCallbacks) {
     });
     Input input; world.Step(0.1, input);
     CHECK(rejected); CHECK(world.Steps() == 1); CHECK(!world.IsStepping());
+}
+
+TEST(AuthoredInputTriggersRoundTripAndDispatchMatchingEventsInOrder) {
+    ComponentTypes types;
+    DescribeRuntimeComponents(types);
+    const auto& triggerType = types.All().at(static_cast<std::size_t>(types.IndexOf("InputTrigger")));
+    const auto& componentType = types.All().at(static_cast<std::size_t>(types.IndexOf("InputTriggers")));
+    CHECK(triggerType.valueType);
+    CHECK(componentType.fields.at(0).kind == FieldKind::RecordList);
+    CHECK(componentType.fields.at(0).recordType == triggerType.type);
+
+    World authored;
+    constexpr TriggerActionId toggle{0x1e0987302f67d3ba};
+    auto entity = SceneEntityWith<InputTriggers>(authored, "controls");
+    entity.Get<InputTriggers>().bindings = {
+        {{TriggerType::Key, true, static_cast<int>(Key::F1), TriggerEdge::Press, 2, toggle}, {}},
+        {{TriggerType::MouseButton, true, 1, TriggerEdge::Release, 0, "ToggleHUD"}, {}},
+        {{TriggerType::Scroll, false, -1, TriggerEdge::Any, 0, "ToggleHUD"}, {}},
+    };
+
+    World world;
+    const auto saved = WriteScene(authored, types);
+    CHECK(saved.find("action:1e0987302f67d3ba") != std::string::npos);
+    CHECK(ReadScene(world, types, saved).ok);
+    std::vector<InputEvent> received;
+    CHECK(world.Triggers().Subscribe(toggle, "RenamedAction", [&](Entity source, const InputEvent& event) {
+        CHECK(source.Has<InputTriggers>() && std::holds_alternative<KeyEvent>(event));
+        received.push_back(event);
+    }) != 0);
+    CHECK(world.Triggers().Subscribe(TriggerActionId{123}, "RenamedAction", [](Entity, const InputEvent&) { CHECK(false); }) != 0);
+    CHECK(world.Triggers().Subscribe("ToggleHUD", [&](Entity source, const InputEvent& event) {
+        CHECK(source.Has<InputTriggers>());
+        received.push_back(event);
+    }) != 0);
+    Input input;
+    input.SetKey(static_cast<int>(Key::F1), InputAction::Press, InputModifiers::None);
+    input.SetKey(static_cast<int>(Key::F1), InputAction::Release, InputModifiers::None);
+    input.SetKey(static_cast<int>(Key::F1), InputAction::Press, InputModifiers::Control | InputModifiers::Shift, 59);
+    input.SetKey(static_cast<int>(Key::F1), InputAction::Repeat, InputModifiers::Control);
+    input.SetCursor(pxPoint(11, 12));
+    input.SetMouseButton(1, true);
+    input.AddScroll(pxVec2(0, 1));
+    input.SetMouseButton(1, false);
+    world.Step(0.1, input);
+    CHECK(received.size() == 2);
+    if (received.size() == 2) {
+        const auto* key = std::get_if<KeyEvent>(&received[0]);
+        const auto* button = std::get_if<MouseButtonEvent>(&received[1]);
+        CHECK(key && key->Pressed() && key->scanCode == 59);
+        CHECK(button && button->Released() && button->position == pxPoint(11, 12));
+    }
+    input.EndUpdate();
+    world.Step(0.1, input);
+    CHECK(received.size() == 2);
+}
+
+TEST(InputTriggerSubscriptionsCanChangeDuringDispatchAndPostFromWorkers) {
+    World world;
+    auto entity = world.Create();
+    entity.Add<InputTriggers>().bindings = {
+        {{TriggerType::Text, true, -1, TriggerEdge::Any, 0, "Text"}, {}},
+    };
+    const auto owner = std::this_thread::get_id();
+    std::vector<char32_t> received;
+    auto& dispatcher = world.Triggers();
+    TriggerDispatcher::SubscriptionId first = 0;
+    TriggerDispatcher::SubscriptionId removed = 0;
+    first = dispatcher.Subscribe("Text", [&](Entity, const InputEvent& event) {
+        CHECK(std::this_thread::get_id() == owner);
+        CHECK(dispatcher.Unsubscribe(removed));
+        CHECK(dispatcher.Unsubscribe(first));
+        received.push_back(std::get<TextInputEvent>(event).codepoint);
+        CHECK(dispatcher.Subscribe("Text", [&](Entity, const InputEvent& next) {
+            CHECK(std::this_thread::get_id() == owner);
+            received.push_back(std::get<TextInputEvent>(next).codepoint);
+        }) != 0);
+        dispatcher.Post(TextInputEvent{U'Z'});
+    });
+    constexpr auto lastRegistrationLine = __LINE__ + 1;
+    removed = dispatcher.Subscribe("Text", [](Entity, const InputEvent&) { CHECK(false); });
+    const auto sources = dispatcher.ActionSources();
+    CHECK(sources.size() == 2 && sources.back().action == "Text" &&
+          std::string_view(sources.back().file).ends_with("InputControlTests.cpp") && sources.back().line == lastRegistrationLine);
+
+    std::thread left([&] { dispatcher.Post(TextInputEvent{U'A'}); });
+    std::thread right([&] { dispatcher.Post(TextInputEvent{U'B'}); });
+    left.join();
+    right.join();
+    CHECK(received.empty());
+    Input input;
+    input.AddTextInput(U'H');
+    world.Step(0.1, input);
+    CHECK(received == (std::vector<char32_t>{U'H', U'A', U'B'}) ||
+          received == (std::vector<char32_t>{U'H', U'B', U'A'}));
+    input.EndUpdate();
+    world.Step(0.1, input);
+    CHECK(received.size() == 4 && received.back() == U'Z');
+    CHECK(dispatcher.ActionSources().size() == 1);
 }

@@ -2,7 +2,7 @@
 
 namespace pixie {
 
-// Dimensions in physical framebuffer pixels, independent of a window or rendering API.
+/// Dimensions in physical framebuffer pixels. A zero extent can denote an unavailable framebuffer.
 struct FramebufferSize {
     int width = 0;
     int height = 0;

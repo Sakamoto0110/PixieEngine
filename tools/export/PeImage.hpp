@@ -9,8 +9,9 @@ struct PeImage {
     std::vector<std::string> exports;
     bool developmentMarker = false;
 };
-// Reads import, delay-import and export tables without loading or executing an image.
+/// Reads PE64 imports, delay imports, exports and forwarders without loading the image.
 PeImage InspectPe(const std::filesystem::path& path);
 std::string Digest(const std::filesystem::path& path);
+/// Checks the explicit Windows system-library policy before app-local closure checks.
 bool IsWindowsLibrary(const std::string& name);
 }

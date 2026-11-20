@@ -12,6 +12,7 @@
 #include "pixie/runtime/ParticleSystem.hpp"
 #include "pixie/runtime/RigidBody2D.hpp"
 #include "pixie/runtime/Scene.hpp"
+#include "pixie/runtime/SceneProject.hpp"
 #include "pixie/runtime/Shape.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
@@ -33,6 +34,71 @@
 #include <vector>
 
 using namespace pixie;
+
+TEST(ViewportPanUsesOnlyMotionBetweenMiddleButtonEdges) {
+    Input input;
+    Camera2D camera;
+    camera.SetCenter(pxPoint(0.0, 0.0));
+    camera.SetZoom(1.0);
+    constexpr int middle = static_cast<int>(MouseButton::Middle);
+
+    input.SetCursor(pxPoint(-1.0, -1.0)); // Editor's cursor-outside sentinel.
+    input.EndUpdate();
+    input.SetCursor(pxPoint(200.0, 180.0)); // Synchronize at the press position.
+    input.SetMouseButton(middle, true);
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(0.0, 0.0));
+    input.EndUpdate();
+
+    input.SetCursor(pxPoint(212.0, 176.0));
+    input.SetMouseButton(middle, false);
+    input.SetCursor(pxPoint(250.0, 200.0));
+    input.SetMouseButton(middle, true);
+    input.SetCursor(pxPoint(253.0, 202.0));
+    input.SetMouseButton(middle, false);
+    input.SetCursor(pxPoint(-1.0, -1.0));
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(-15.0, 2.0));
+
+    input.SetMouseButton(middle, true);
+    input.SetCursor(pxPoint(200.0, 180.0));
+    input.ReleaseAll();
+    PanAndZoom(camera, input);
+    CHECK(camera.Center() == pxPoint(-15.0, 2.0));
+}
+
+TEST(InspectionOnlyFieldsIgnoreLegacyValuesAndStayOutOfSceneSaves) {
+    struct Data {
+        double authored = 1.0;
+        double readOnly = 2.0;
+        double derived = 3.0;
+        double runtime = 4.0;
+    };
+    ComponentTypes types;
+    types.Add<Data>("Data")
+        .Field<&Data::authored>("authored")
+        .Field<&Data::readOnly>("readOnly").ReadOnly()
+        .Field<&Data::derived>("derived").Derived()
+        .Field<&Data::runtime>("runtime").RuntimeOnly();
+    const std::string text = R"({"format":"pixie-scene","version":1,"seed":1,"entities":[{"id":"0000000000000001","components":{"Data":{"v":1,"authored":10,"readOnly":20,"derived":30,"runtime":40,"unknown":50}}}]})";
+    World world;
+    CHECK(ReadScene(world, types, text).ok);
+    const auto view = world.Registry().view<Data>();
+    CHECK(view.size() == 1);
+    auto& data = view.get<Data>(view.front());
+    CHECK(data.authored == 10.0);
+    CHECK(data.readOnly == 20.0);
+    CHECK(data.derived == 3.0);
+    CHECK(data.runtime == 4.0);
+    data.derived = 30.0;
+    data.runtime = 40.0;
+    const auto saved = nlohmann::json::parse(WriteScene(world, types))["entities"][0]["components"]["Data"];
+    CHECK(saved["authored"] == 10.0);
+    CHECK(saved["readOnly"] == 20.0);
+    CHECK(saved["unknown"] == 50.0);
+    CHECK(!saved.contains("derived"));
+    CHECK(!saved.contains("runtime"));
+}
 
 TEST(DeclarativeProjectDataRoundTripsV2WhileUnsupportedTypesRefusePureAdmission) {
     struct Data { double value; int count; };
@@ -1202,7 +1268,7 @@ TEST(VersionTwoSaveCannotImplicitlyConvertExistingVersionOneFile) {
     CHECK(SaveSceneFile(recovered, types, path).ok);
     CHECK(nlohmann::json::parse(bytes())["sceneScopes"][0]["id"] == "00000000000000aa");
     for (const auto& invalid : {std::string("{broken"),
-            std::string(R"({"format":"pixie-scene","version":3,"entities":[]})")}) {
+            std::string(R"({"format":"pixie-scene","version":4,"entities":[]})")}) {
         CHECK(SaveTextFile(invalid, path).ok);
         CHECK(!SaveSceneFile(recovered, types, path).ok && bytes() == invalid);
     }

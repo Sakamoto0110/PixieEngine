@@ -43,7 +43,7 @@ succeeded but their hashes and contents differed. The underlying filesystem
 mechanism was not established; changing the default registry was unnecessary.
 
 The owner requested a working correction. A dedicated registry was registered at
-`C:\Users\Sakamoto\dev\Void Agent Workplace\.local\bindings\pixieengine.json`,
+`<vaw-workplace>/.local/bindings/pixieengine.json`,
 next to the existing machine-local profiles. The development procedure now passes
 that exact path through `-BindingsPath` for resolution and skill discovery.
 It retains the existing `pixieengine`/1 profile, the seven routes, and VAW

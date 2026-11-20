@@ -19,9 +19,9 @@ struct RunOption {
     std::function<bool(std::string_view)> parse;
 };
 
-// Parses the options every player takes (--ups, --fps, --vsync, --telemetry, --quit-after, --screenshot) into
-// `config`, and the player's own `extra` ones. On an unknown option or a bad value, prints the
-// usage to stderr and returns false; the player then exits with code 2.
+/// Parses common option/value pairs and gives matching extra options precedence.
+/// On a missing or invalid value or unknown option, writes usage to stderr and returns false.
+/// Earlier assignments and option callback effects remain. Player callers usually return 2.
 PIXIE_APP_API bool ParseRunOptions(int argc, char** argv, std::string_view program, RunConfig& config,
                      std::span<const RunOption> extra = {});
 

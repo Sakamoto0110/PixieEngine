@@ -57,10 +57,10 @@ public:
     PIXIE_RENDER_API bool Create();
     PIXIE_RENDER_API void Destroy();
 
+    /// Copies the instance. Keep the borrowed texture name valid until this entry is flushed.
     PIXIE_RENDER_API void Submit(unsigned texture, SpriteFilter filter, int layer, const SpriteInstance& instance);
-    // Draws what was submitted since the last flush on layers below `belowLayer`, seen through
-    // `view`, and forgets it; the rest stays for a later flush. With no limit, draws everything.
-    // Something else can be drawn between two flushes, such as paths over backgrounds.
+    /// Draws and consumes only layers strictly below belowLayer, including with the default INT_MAX.
+    /// Other layers remain queued. A different renderer can draw between two flushes.
     PIXIE_RENDER_API void Flush(const View& view, int belowLayer = INT_MAX);
 
     // Which lit-frame target flushes draw for (LightingPass): in the receiver and emission passes each

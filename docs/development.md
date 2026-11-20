@@ -87,6 +87,28 @@ cmake --build --preset vs2026-release
 PixieEditor builds in its own repository with an installed Engine SDK.
 The [migration guide](../editor/README.md) points to its build, publish and qualification entry points.
 
+### Build and rehearsal storage
+
+For an iteration on the Engine DLL, build the affected target and configuration
+in the existing CMake tree. The command
+`cmake --build --preset vs2026-release --target pixie_shared` builds the Release
+DLL and its dependencies. Build the
+specific sample or test target when the change needs it. Use the full presets
+when the commit or qualification checks require them. A game consuming an
+installed SDK uses the Editor's project build and needs no Engine checkout build.
+
+Reuse an incremental tree while the generator, toolchain and SDK inputs are
+compatible. A multi-config tree can hold both Debug and Release. Give a run its
+own tree when isolation, a different SDK or a clean qualification check requires
+one. Keep rerun instructions, identities, relevant logs and receipts as
+the durable evidence. Retain the exact verified archive when the result depends
+on those binary bytes. Treat extraction trees, staged copies and object files as
+working outputs once their checks finish and any required evidence is recorded.
+Before retaining another full copy, record what it is needed for and when that
+need ends. Reuse the same verified package across local runs where the test
+permits it. Keep installed SDKs, active caches and evidence needed by open work
+separate from scratch outputs.
+
 ## Installed SDK and local rehearsal
 
 Start with the supplied SDK root containing `sdk.json`. Select a declared
@@ -101,8 +123,34 @@ python -B "$sdk\tools\sdk\verify_sdk.py" "$sdk"
 ```
 
 Use `--complete` when the supplied artifact is a complete distribution. The
-verifier checks the package inventory and profile metadata. The
-[installed consumer fixture](../tests/sdk-consumers/CMakeLists.txt) separately
+verifier checks the package inventory and profile metadata. For a C++ game,
+select the public SDK's `authoring/Debug` or `authoring/Release` tuple.
+Export selects the same SDK's `shipping/Release` tuple. The separate
+Runtime ZIP contains the generic player and DLLs for running a saved no-code
+project. C++ builds, development modules, and the paired exporter require
+the SDK. See the [profile and identity contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles)
+and [native export command](game-export.md#command-and-build-separation).
+
+### Installed CMake helpers
+
+Supply an absolute `PIXIE_SDK_ROOT`, explicit `PIXIE_SDK_PROFILE` and
+`CMAKE_BUILD_TYPE` (single-config) or `CMAKE_CONFIGURATION_TYPES` (multi-config).
+Use a new build directory when changing the selected SDK, profile, or
+configuration set. The package verifies the catalog and the exact admitted
+payloads before exposing `Pixie::Shared` and the `Pixie::Core`, `Pixie::Platform`,
+`Pixie::Render`, `Pixie::App`, `Pixie::Runtime` and `Pixie::Engine` entry targets.
+`pixie_stage_runtime(<target>)` stages the selected configuration's engine DLL
+and declared native dependencies beside an existing consumer target.
+
+Installed `cmake/PixieProject.cmake` resolves the package and admits the
+project's portable SDK requirement. `pixie_game` builds `<name>-game` and a
+directly linked player, plus `<name>-module` when the profile supports module
+loading. `pixie_project_components()` attaches the generated source list to the
+single game library in that directory. See
+[code generation and adoption](entity-input-and-code-components.md#create-and-edit-a-component)
+and [shipping products](game-export.md#work-directory-and-diagnostics).
+
+The [installed consumer fixture](../tests/sdk-consumers/CMakeLists.txt) separately
 configures against the explicit SDK root, profile, build configuration and
 identity pins. Give it a fresh build directory and the matching toolchain.
 Package mode resolves the SDK's CMake package without an Engine source build.
@@ -159,9 +207,10 @@ provenance and runtime manifest. Its generic player runs an existing no-code
 project folder. A code export supplies its own game executable.
 Both ZIPs are re-extracted and verified before `assets/` receives the checksums
 and release receipt. Debug authoring requires the matching developer CRT.
-The standalone PixieEditor checkout's `docs/development.md` describes the
-consumer rehearsal. It takes the Engine workflow artifact and the trusted SDK
-archive and catalog hashes, with the locked Inspector pair as a separate input.
+The standalone [PixieEditor development guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/development.md)
+describes the consumer rehearsal. It takes the Engine workflow artifact and
+the trusted SDK archive and catalog hashes, with the locked Inspector pair
+as a separate input.
 
 After the [manual release workflow](../.github/workflows/publish.yml) is present
 on the default branch, dispatch it to run Engine CI and upload the verified
@@ -177,15 +226,14 @@ Archive verification and identity checks are distinct from G6 acceptance.
 
 | Contract | Authority and stable identity | Consumer reference and check |
 | --- | --- | --- |
-| SDK compatibility, native bindings, runtime and export | PixieEngine owns [ABI28](modules/capi/REFERENCE.md), `sdk.json`, profile manifests and the release receipt. The catalog SHA-256 and profile build IDs bind the installed inputs. | The Editor takes the installed SDK and catalog hash. The SDK verifier and both candidate rehearsals check the identities and inventory. |
-| Editor application, SDK selection and release | PixieEditor owns its README, `docs/development.md`, `version.json`, selected-package lock and native provenance manifest. Its candidate binds these inputs through `editor.json` and the ZIP digest. | The Engine guide names the standalone guide by project and path. Editor links, locked restore and publish checks cover its own checkout. |
+| SDK compatibility, native bindings, runtime and export | PixieEngine owns the [C API ABI and SDK identity contract](modules/capi/REFERENCE.md#sdk-identity-and-profiles), `sdk.json`, profile manifests and the release receipt. The catalog SHA-256 and profile build IDs bind the installed inputs. | The Editor takes the installed SDK and catalog hash. The SDK verifier and both candidate rehearsals check the identities and inventory. |
+| Editor application, SDK selection and release | PixieEditor owns its README, `docs/development.md`, `version.json`, selected-package lock and native provenance manifest. Its candidate binds these inputs through `editor.json` and the ZIP digest. | The pinned standalone guide is linked above. Editor links, locked restore and publish checks cover its own checkout. |
 | Inspector packages and contained Lib | PixieInspector and PixieLib each own their repository README, dependency record and product version. The Editor records its selected package identities and content hashes in its lock. Engine owns the inventory and notices for the native Lib snapshot it ships. | The rehearsal verifies the Inspector pair against the Editor lock. The installed SDK verifier checks the contained native inventory. |
 
-Keep relative links within their owning repository. Use project and path for
-the local Editor guide while it has no remote, and use package or catalog
-identities at product boundaries. The Engine documentation validator checks
-its own links and scheduler. The standalone guide links are checked against
-the Editor root.
+Keep relative links within their owning repository. Use the peer project's
+published guide and package or catalog identities at product boundaries.
+The Engine documentation validator checks its own links and scheduler.
+Check Editor guide links against the Editor's owning checkout.
 
 ## Checks before a commit
 
@@ -211,7 +259,7 @@ the Editor root.
   the [explicit-input MCP qualification](../editor/README.md#local-development-mcp-channel)
   for each affected SDK configuration. The driver verifies and runs declared
   artifacts and fixtures outside CTest.
-- **Documentation:** `python scripts/check_docs.py` reports no problem, and
+- **Documentation:** `pwsh -File ./checkdocs.ps1` reports no problem, and
   the policy's [self-review](governance/documentation-policy.md#self-review)
   passes for what the script does not check. The script checks relative links
   and anchors, metadata fields and their vocabulary, the cross-links and task
@@ -223,7 +271,7 @@ the Editor root.
 GitHub Actions runs `.github/workflows/ci.yml` on every push to `main`, on pull
 requests, and by hand:
 
-- **Documentation** (Linux): `python scripts/check_docs.py`.
+- **Documentation** (Linux): `pwsh -File ./checkdocs.ps1`.
 - **Engine** (Windows): the `ci` preset, Ninja Multi-Config with the compiler of
   the Visual Studio the runner has (the workflow finds it with `vswhere`, enters
   its developer environment, and logs its version), built in Debug and Release
@@ -253,60 +301,28 @@ Third-party code lives unmodified under `external/<name>/`, built by
 
 ## Void Agent Workplace
 
-On the owner's machine, this repository lives inside a Void Agent Workplace
-checkout, in its Pixie family of managed projects (`projects/Pixie/`, beside
-PixieInspector and PixieLib), and is bound to the VAW profile `pixieengine`,
-revision 3. The checkout is on the local branch `codex/pixie-workplace`
-(commit `bb1c8b3`, VAW 0.3.0.0), whose `profiles/pixieengine/` holds the
-profile. The binding is in an explicit registry for the Pixie family,
-`.local\bindings\pixie.json` in the VAW checkout, passed with `-BindingsPath`
-on every command: agents have seen different copies of the default AppData
-registry ([PIXIE-ARCHIVE-071](archive/vaw-explicit-registry-2026-10-16.md)). VAW ignores
-`projects/`, so the repository keeps its own history and remote. The profile
-maps VAW's authority roles to this repository's documents, routes each source
-area to the documents that own it, and lists the full matrix as its
-validation. Nothing in this repository depends on it: a machine without it
-builds, checks, and commits as before.
+The workspace owns project profiles outside the VAW source repository. The
+active Pixie family contains Engine, Editor, Inspector and Lib at profile
+revision 4; product code and local project contracts remain independently owned.
+The Editor's `vaw-local` remote is a local binding identity, not publication.
 
-The three Pixie profiles (`pixieengine`, `pixieinspector`, `pixielib`) share one
-revision number and are revised together, even when only one of them changes.
-
-The profile adopts, besides binding and skill discovery: workflow records with
-planned-pause checkpoints that another agent can verify and resume, scoped
-premises (to skip re-reviewing validated code that has not changed), repository
-state in those records, multi-agent validation and documentation records,
-package validation, and product versioning (below). Campaigns stay frozen in
-VAW. Two skills of this profile, `pixieengine-documentation` and
-`pixieengine-qualification`, route an agent to this guide and the
-[documentation policy](governance/documentation-policy.md); the repository's
-documents remain the authority. VAW records live in `.local/vaw/` (unversioned)
-and never replace `TODO.md`, `TASKLIST.md`, the archive, or the code: they point
-to them.
-
-Before a task, an agent resolves the binding for the task's routes (`core`,
-`platform`, `render`, `app`, `engine`, `runtime`, `capi`, `devchannel`, `tools`,
-`editor`, `samples`, `build`, `documentation`), from the repository root, in
-PowerShell 7 (the VAW checkout is three directories up):
+Use the activated workspace launcher from the project root in PowerShell 7:
 
 ```powershell
-$bindings = (Resolve-Path ..\..\..\.local\bindings\pixie.json).Path  # VAW needs it absolute
-..\..\..\scripts\resolve-project-binding.ps1 -RepositoryPath . -BindingsPath $bindings `
-    -CompatibilityScope Routes -RouteId runtime,documentation
-..\..\..\vaw.ps1 skills list -Agent claude -RepositoryPath . -BindingsPath $bindings
+& ../../.governance/vaw.ps1 -Action resolve-project-binding -Arguments @{ RepositoryPath = (Get-Location).Path }
+& ../../.governance/vaw.ps1 -Action resolve-workplace-binding -Arguments @{ WorkplacePath = (Resolve-Path ..).Path }
 ```
 
-Select all routes affected by the actual task; `runtime,documentation` is an
-example. `skills show <name>` takes the same arguments as `skills list`, and
-Codex passes `-Agent codex`.
+The launcher selects external profiles, the explicit registry, and the installed
+package set. Require `bound` for the project and `workplace_bound` for the family.
+Its activation receipt records the platform location, exact pins, packages and
+shared-policy hash. The shared policy is materialized from the workspace's
+versioned configuration; runtime copies and coordination records are local.
 
-Never delete ignored files in the VAW checkout (`git clean -x` and the like):
-`projects/` is ignored there, so that would delete this repository and its
-unpushed work.
-
-It requires `bound_scoped` with every selected route checked (or `bound` without
-`-CompatibilityScope`), and the task's archive record states the VAW commit, the
-profile and revision, and the routes checked. A binding grants no authority:
-commits, pushes, and releases follow the rules below.
+Do not use an old VAW checkout's default profile directory after rebind. A
+binding grants no publication authority. Standalone project build and validation
+still work without VAW. Never run `git clean -x` on the enclosing VAW checkout:
+its ignored `projects/` contains independent repositories and unpushed work.
 
 ## Product version
 

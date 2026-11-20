@@ -8,16 +8,16 @@
 
 namespace pixie {
 
-// Where an entity is, in world units, Y down. Rotation is in radians, from +X toward +Y.
+/// Evaluated world pose in world units with Y down. Rotation is radians from +X toward +Y and
+/// scale is dimensionless. Edit an attached entity through the Parenting2D.hpp pose setters.
 struct Transform2D {
     pxPoint position;
     double rotation = 0.0;
     pxVec2 scale{1.0, 1.0};
 };
 
-// The Transform2D as it was at the start of the current step, kept by the World for every entity
-// with a Transform2D, so rendering can interpolate between two steps. Set it equal to the
-// Transform2D (World::ResetInterpolation) after a jump that should not be drawn as motion.
+/// World-owned start-of-step pose for rendering interpolation. Use World::ResetInterpolation
+/// after a teleport to reset the sample, including the attached branch's local history.
 struct PreviousTransform2D {
     Transform2D value;
 };

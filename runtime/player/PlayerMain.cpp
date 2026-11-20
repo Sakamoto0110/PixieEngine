@@ -1,8 +1,7 @@
 // The player of a game built with pixie_game: the engine's main, linked into the game's executable.
-// It opens the project folder it belongs to (--project; else the folder pixie_game's PROJECT_DIR
-// names; else the first folder above the executable that holds a .pixie file) and plays its start
-// scene in a window, with the options every player takes. Not part of the runtime library: only a
-// game's executable has it.
+// It plays the start scene from --project or the nearest project beside or above the executable.
+// Applicable development source builds can then fall back to pixie_game's PROJECT_DIR.
+// The entry point belongs to the executable. Its linked factory chooses the game or scene-only Project.
 
 #include "pixie/core/Log.hpp"
 #include "pixie/app/Run.hpp"
@@ -130,6 +129,7 @@ int PlayerMain(int argc, char** argv) {
         config.beforeRender = [&] { channel->Drain(); };
         config.renderAlpha = [&] { return channel->RenderAlpha(); };
         config.afterRender = [&](pixie::FramebufferSize size) { channel->AfterRender(size); };
+        // Drain/join transport while its borrowed session is still alive.
         config.beforeStop = [&] { channel->Stop(); };
     }
 #endif

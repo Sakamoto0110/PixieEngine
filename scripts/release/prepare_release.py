@@ -51,6 +51,7 @@ def stage_file(sdk: Path, record: dict, directory: Path) -> dict:
     return {"path": destination.name, "sha256": record["sha256"]}
 
 
+# Link the exporter against the installed shipping tuple, then seal its app-local payloads.
 def pair_exporter(source: Path, work: Path, sdk: Path, catalog: dict, shipping: dict) -> None:
     build = work / "build-exporter"
     subprocess.run([
@@ -163,6 +164,7 @@ def execute(source: Path, work: Path) -> None:
     require(standalone["queriedCapabilityBits"] == 4 and all(standalone[key] == shipping[key]
             for key in ("sdkId", "sdkBuildId", "productVersion", "profile", "configuration")),
             "Relocated runtime is not the matching shipping artifact")
+    # The release receipt identifies a single clean producer commit through relocation checks.
     require(git("rev-parse", "HEAD") == commit and not git("status", "--porcelain", "--untracked-files=normal"),
             "Producer checkout changed during candidate preparation")
 

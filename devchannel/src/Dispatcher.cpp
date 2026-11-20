@@ -1,9 +1,12 @@
 #include "pixie/dev/Dispatcher.hpp"
+#include "pixie/dev/GameCommands.hpp"
 #include "Session.hpp"
 #include "DevError.hpp"
+#include "pixie/runtime/InputTriggers.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include <nlohmann/json.hpp>
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <charconv>
 #include <cmath>
@@ -63,6 +66,59 @@ int Integer(const Json& value, int minimum, int maximum) {
 bool Boolean(const Json& p, const char* name) {
     if (!p.contains(name) || !p[name].is_boolean()) Reject(std::format("{} must be boolean", name));
     return p[name].get<bool>();
+}
+int InputInteger(const Json& p, const char* name, int min, int max) {
+    if (!p.contains(name)) Reject(std::format("missing {}", name));
+    return Integer(p[name], min, max);
+}
+constexpr std::array<std::string_view, 8> kTriggerKinds{
+    "key", "mouse_button", "mouse_move", "scroll", "text", "focus", "framebuffer_resize", "joystick_connection"
+};
+constexpr std::array<std::string_view, 4> kTriggerEdges{"any", "release", "press", "repeat"};
+constexpr std::size_t kMaxPendingTriggers = 1024;
+
+template<std::size_t N>
+std::string_view TriggerName(const std::array<std::string_view, N>& names, std::size_t index) {
+    return index < names.size() ? names[index] : "unknown";
+}
+
+InputEvent TriggerEvent(const Json& p) {
+    const auto kind = String(p, "kind");
+    const auto found = std::find(kTriggerKinds.begin(), kTriggerKinds.end(), kind);
+    if (found == kTriggerKinds.end()) Reject("unknown trigger event kind");
+    const auto modifiers = [&] {
+        return p.contains("modifiers") ? static_cast<InputModifiers>(Integer(p["modifiers"], 0, 63)) : InputModifiers::None;
+    };
+    const auto position = [&] { return pxPoint(Number(p, "x"), Number(p, "y")); };
+    const auto delta = [&] { return pxVec2(Number(p, "dx"), Number(p, "dy")); };
+    const auto edge = [&](bool allowRepeat) {
+        const auto action = String(p, "edge");
+        if (action == "release") return InputAction::Release;
+        if (action == "press") return InputAction::Press;
+        if (allowRepeat && action == "repeat") return InputAction::Repeat;
+        Reject(allowRepeat ? "edge must be press, release, or repeat" : "edge must be press or release");
+    };
+    switch (static_cast<TriggerType>(found - kTriggerKinds.begin())) {
+    case TriggerType::Key:
+        return KeyEvent{static_cast<Key>(InputInteger(p, "code", 0, Input::kKeyCount - 1)), edge(true), modifiers(),
+            p.contains("scan_code") ? Integer(p["scan_code"], 0, (std::numeric_limits<int>::max)()) : 0};
+    case TriggerType::MouseButton:
+        return MouseButtonEvent{static_cast<MouseButton>(InputInteger(p, "code", 0, Input::kButtonCount - 1)),
+            edge(false), modifiers(), position()};
+    case TriggerType::MouseMove: return MouseMoveEvent{position(), delta(), modifiers()};
+    case TriggerType::Scroll: return MouseScrollEvent{delta(), position(), modifiers()};
+    case TriggerType::Text: {
+        const int code = InputInteger(p, "code", 0, 0x10FFFF);
+        if (code >= 0xD800 && code <= 0xDFFF) Reject("text code must be a Unicode scalar value");
+        return TextInputEvent{static_cast<char32_t>(code)};
+    }
+    case TriggerType::Focus: return InputFocusEvent{Boolean(p, "focused")};
+    case TriggerType::FramebufferResize:
+        return FramebufferResizeEvent{{InputInteger(p, "width", 0, 16384), InputInteger(p, "height", 0, 16384)}};
+    case TriggerType::JoystickConnection:
+        return JoystickConnectionEvent{InputInteger(p, "code", 0, 15), Boolean(p, "connected")};
+    }
+    Reject("unknown trigger event kind");
 }
 uint64_t ParseId(const Json& value) {
     if (!value.is_string()) Reject("entity id must be a 16 digit hexadecimal scene ID");
@@ -143,6 +199,9 @@ struct WorldDispatcher::Impl {
     uint64_t generation = 0;
     uint64_t nextToken = 0;
     std::string nonce;
+    bool exposeGameCommands = false;
+    GameCommands commands;
+    std::optional<uint64_t> gameRevision;
     struct Snapshot {
         std::string text;
         std::vector<uint64_t> ids;
@@ -150,9 +209,17 @@ struct WorldDispatcher::Impl {
         uint64_t revision = 0;
     };
     std::unordered_map<std::string, Snapshot> snapshots;
-    explicit Impl(ProjectSession& session) : view(session) {
+    explicit Impl(ProjectSession& session, bool exposeGame) : view(session), exposeGameCommands(exposeGame) {
         static std::atomic<uint64_t> nextSession{0};
         nonce = std::format("session-{}", ++nextSession);
+    }
+    void RefreshGameCommands() {
+        const auto revision = view.session.WorldRevision();
+        if (!exposeGameCommands || gameRevision == revision) return;
+        GameCommands next;
+        if (auto* game = dynamic_cast<GameCommandProvider*>(&view.session.GetProject())) game->RegisterGameCommands(next);
+        commands = std::move(next);
+        gameRevision = revision;
     }
     PixieSession* S() { return &view; }
     uint32_t Find(uint64_t id) {
@@ -207,6 +274,40 @@ struct WorldDispatcher::Impl {
                 {"enums", enums}, {"asset", text(PIXIE_TEXT_ASSET)}, {"references", text(PIXIE_TEXT_REFERENCES)}});
         }
         return {{"name", TypeName(type)}, {"flags", pixie_type_flags(S(), type)}, {"fields", fields}};
+    }
+    Json Triggers(const Json& p) {
+        auto& world = view.session.GetWorld();
+        const int offset = p.contains("offset") ? Integer(p["offset"], 0, (std::numeric_limits<int>::max)()) : 0;
+        const int limit = p.contains("limit") ? Integer(p["limit"], 1, 256) : 64;
+        if (p.contains("action_catalog") && Boolean(p, "action_catalog")) {
+            const auto registrations = world.Triggers().ActionSources();
+            auto actions = Json::array();
+            auto next = static_cast<std::size_t>(offset);
+            for (; next < registrations.size() && actions.size() < static_cast<std::size_t>(limit); ++next) {
+                const auto& action = registrations[next];
+                actions.push_back({{"id", action.reference.Encode()}, {"name", action.action}});
+            }
+            return {{"actions", std::move(actions)}, {"total", registrations.size()},
+                {"next_offset", next < registrations.size() ? Json(next) : Json(nullptr)}};
+        }
+        const auto entity = p.contains("id") ? std::optional{Entity(p)} : std::nullopt;
+        auto bindings = Json::array();
+        std::size_t total = 0;
+        world.Each<const InputTriggers>([&](pixie::Entity source, const InputTriggers& component) {
+            if (entity && *entity != source.Number()) return;
+            for (std::size_t i = 0; i < component.bindings.size(); ++i) {
+                if (total++ < static_cast<std::size_t>(offset) || bindings.size() >= static_cast<std::size_t>(limit)) continue;
+                const auto& binding = component.bindings[i].value;
+                const auto* scene = source.TryGet<pixie::SceneId>();
+                bindings.push_back({{"id", scene ? Json(IdText(scene->value)) : Json(nullptr)}, {"index", i},
+                    {"kind", TriggerName(kTriggerKinds, static_cast<std::size_t>(binding.type))},
+                    {"edge", TriggerName(kTriggerEdges, static_cast<std::size_t>(binding.edge))}, {"code", binding.code},
+                    {"required_modifiers", binding.requiredModifiers}, {"enabled", binding.enabled},
+                    {"action", binding.action.Encode()}, {"action_registered", world.Triggers().HasAction(binding.action)}});
+            }
+        });
+        const auto next = static_cast<std::size_t>(offset) + bindings.size();
+        return {{"bindings", std::move(bindings)}, {"total", total}, {"next_offset", next < total ? Json(next) : Json(nullptr)}};
     }
     struct Address { uint32_t entity; int type; int field; int list = -1; int index = -1; int metaType; };
     Address Resolve(const Json& p) {
@@ -462,15 +563,49 @@ struct WorldDispatcher::Impl {
                 {"project", Text([&](char* b, int n) { return pixie_project_name(S(), b, n); })}, {"stats", Stats()},
                 {"engine", std::move(identity)},
                 {"capabilities", {{"world", true}, {"inspector", false}, {"capture", false}, {"transport", false}, {"save", false}}}};
+            RefreshGameCommands();
+            if (!commands.Empty()) value["game_commands"] = commands.Describe();
             hello = true;
             return value;
         }
         if (!hello) Reject("world.hello must be the first call");
+        if (method.starts_with("game.")) {
+            RefreshGameCommands();
+            const auto tick = view.session.GetWorld().Steps();
+            const GameCommands::Handler* handler = nullptr;
+            try {
+                if (method == "game.dev.describe" && !commands.Empty())
+                    return {{"tick", tick}, {"value", {{"commands", commands.Describe(p)}}}};
+                handler = commands.Find(method, p);
+            } catch (const std::invalid_argument& error) {
+                Reject(error.what(), PIXIE_ERROR_ARGUMENT, -32602);
+            }
+            if (!handler) Reject("unknown or unavailable game command", PIXIE_ERROR_NOT_FOUND, -32601);
+            mutationStarted = true;
+            try {
+                auto result = (*handler)(view.session, p);
+                if (!result.is_object()) throw std::runtime_error("game command handler returned a non-object result");
+                result["tick"] = view.session.GetWorld().Steps();
+                return result;
+            } catch (const CommandArgumentError& error) {
+                mutationStarted = false;
+                Reject(error.what(), PIXIE_ERROR_ARGUMENT, -32602);
+            }
+        }
         if (method == "world.prepare_capture") {
             nextRenderAlphaOne = true;
             return {{"alpha", 1.0}, {"pending_next_render", true}};
         }
         if (method == "world.stats") return Stats();
+        if (method == "world.triggers") return Triggers(p);
+        if (method == "world.trigger_post") {
+            if (view.session.Mode() != SessionMode::Play) Reject("enter Play before posting trigger events");
+            auto event = TriggerEvent(p);
+            if (!view.session.GetWorld().Triggers().TryPost(std::move(event), kMaxPendingTriggers))
+                Reject("trigger queue is full; advance the World before posting more events", PIXIE_ERROR_BUFFER);
+            mutationStarted = true;
+            return {{"queued_for_step", true}, {"tick", view.session.GetWorld().Steps()}};
+        }
         if (method == "world.lighting_debug") {
             // A view option, not a World change: {flags} sets it, and the reply says what is on.
             if (p.contains("flags")) {
@@ -644,7 +779,8 @@ struct WorldDispatcher::Impl {
     }
 };
 
-WorldDispatcher::WorldDispatcher(ProjectSession& session) : impl_(std::make_unique<Impl>(session)) {}
+WorldDispatcher::WorldDispatcher(ProjectSession& session) : WorldDispatcher(session, false) {}
+WorldDispatcher::WorldDispatcher(ProjectSession& session, bool exposeGameCommands) : impl_(std::make_unique<Impl>(session, exposeGameCommands)) {}
 WorldDispatcher::~WorldDispatcher() = default;
 
 std::optional<double> WorldDispatcher::ConsumeRenderAlpha() {
@@ -693,11 +829,15 @@ std::string WorldDispatcher::Dispatch(std::string_view request) {
         if (!impl_->view.session.GetTelemetry()) Reject("session has not started");
         const auto method = String(input, "method");
         rpc = -32000;
-        if (!method.starts_with("world.")) { rpc = -32601; Reject("player dispatcher supports only world.*", PIXIE_ERROR_NOT_FOUND); }
+        if (!method.starts_with("world.") && !(impl_->exposeGameCommands && method.starts_with("game."))) {
+            rpc = -32601; Reject("method is unavailable on this dispatcher", PIXIE_ERROR_NOT_FOUND);
+        }
         auto value = impl_->Execute(method, params);
         Json response{{"jsonrpc", "2.0"}, {"id", id}, {"result", {{"value", value}, {"session", impl_->nonce},
             {"sequence", impl_->sequence}, {"generation", impl_->generation}}}};
         auto output = response.dump();
+        // Serialization can exceed the response limit after a write. Preserve the mutation
+        // disposition in the error so callers can read back state without repeating it.
         if (output.size() >= static_cast<std::size_t>(kResponseCapacity))
             throw Failure(PIXIE_ERROR_BUFFER, "response exceeds 4 MiB; do not retry mutations", impl_->mutationStarted);
         return notification ? std::string{} : output;

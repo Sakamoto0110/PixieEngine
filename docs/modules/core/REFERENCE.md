@@ -20,11 +20,33 @@
 
 **Indexing:** include
 
-Core owns logging, explicit frame time and fixed stepping, rate sampling, CPU telemetry, and CPU image decoding/encoding. It does not own a window, input routing, GL context, GPU resource or simulation World.
+Core owns CPU-only timing, logging, telemetry and images. Its native source depends on PixieLib primitives and math and privately uses stb_image for PNG decoding. Platform, Render, App, GLFW, GLEW and the simulation World are outside this implementation boundary. Render owns GPU upload and readback.
 
-Its native source depends on PixieLib primitives/math and private stb image headers. No Platform, Render, App, GLFW or GLEW header belongs in this boundary. An Image is CPU-owned RGBA8 memory; GPU upload and readback belong to Render. Telemetry remains caller-owned and used on its owner thread.
+Headers use `pixie/core/` and namespace `pixie`. Out-of-line symbols use `PIXIE_CORE_API`. Timing value types and the fixed-step driver are header-only.
 
-Headers live in `pixie/core/`; the C++ namespace remains `pixie`. Out-of-line symbols use `PIXIE_CORE_API`; header-only code remains header-only. Shared runtime/toolchain requirements apply when C++ values cross the shared-engine boundary.
+## Time and framebuffer dimensions
+
+`FramebufferSize` is a width and height in physical pixels, both zero by default. The producer supplies a drawable size. A zero extent may describe a minimized or otherwise unavailable framebuffer.
+
+`FrameTime` is passed explicitly. In a fixed update, `delta` is the step in seconds, `elapsed` is the simulation time before that step, `index` counts updates from zero and `alpha` is zero. For rendering, `delta` is the supplied frame interval in seconds, `elapsed` is the completed simulation time, `index` comes from the frame driver and `alpha` is the fraction used to interpolate previous and current state. An alpha of one selects current state.
+
+`FixedStepper` takes a finite positive rate in updates per second, default 60 Hz. `Advance` clamps each finite wall-time contribution to [0, 0.25] seconds and invokes the callback synchronously for each step due, including zero calls if the accumulator is still short. `RenderTime` reports the remainder divided by the step and passes through the supplied delta and index. `Drop` clears the remainder while preserving `Steps()` and `Simulated()`. A host normally polls input, calls `Advance`, clears input transients after each update, then uses `RenderTime` when it draws. See [the player loop](../app/REFERENCE.md#player-loop-and-teardown).
+
+`RateMeter` counts updates and drawn frames separately. Supply monotonic `steady_clock` times. `Sample` closes the current window once at least one second has passed, divides by the actual duration and resets the interval counters. The getters report the last completed interval, or zero before the first sample.
+
+## CPU telemetry and logging
+
+A `Telemetry` collector belongs to its owner thread. It starts disabled and takes a non-null clock, defaulting to `steady_clock::now`. Register a stable non-empty name once per metric. A repeat with the same kind and unit returns the same handle, and conflicting registrations throw `std::invalid_argument`. Timing is measured in milliseconds, gauges hold finite values in caller-chosen units and counters use exact unsigned 64-bit increments. Disabled, invalid, nonfinite or overflowing writes are rejected as applicable.
+
+`MetricHandle` belongs to its collector. A handle and the borrowed result of `Timing` survive later registration and reset while the collector lives. `Timing` throws for a foreign or wrong-kind handle. `SetEnabled` preserves existing measurements and `Reset` clears values without unregistering names. Both an enable-state transition and a reset invalidate active scopes. `TelemetryScope` measures inclusive CPU wall time, so nested durations overlap. Disabled or invalid scopes read no clock. `Snapshot` copies the metrics in registration order and `WriteCsv` writes that order to the caller's stream. Both remain available when collection is off.
+
+`Log` and its severity helpers emit tagged lines to standard error. They are the provisional native logging surface.
+
+## CPU image data
+
+`Image` owns top-row-first RGBA8 bytes. `DecodePng` and `LoadPngFile` return premultiplied RGB for sprite filtering. They return an empty optional and a diagnostic on decode or file-open failure. `CheckerboardImage` builds an opaque magenta/dark fallback with the requested cell size in pixels. Supply positive dimensions and cell size.
+
+`EncodePng` expects positive dimensions and a span containing a complete, tightly packed, top-row-first image with straight alpha. It writes stored (uncompressed) deflate blocks, so the file is roughly the size of the pixels. `WriteFileBytes` returns false on open or write failure. For GL readback and texture orientation, see [Render targets and readback](../render/REFERENCE.md#targets-and-readback).
 
 ## Packaging and evidence
 

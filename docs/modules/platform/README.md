@@ -20,6 +20,7 @@
 
 **Indexing:** include
 
-Platform owns the player window, context creation/currentness/presentation, input data and frame limiting. It may depend on Core and GLFW; it must not include or link the Render implementation.
+Use Platform when a host needs a player window or needs to feed physical input into a fixed update. A player-owned `Window` creates and presents its GLFW context. A `HostSurface` carries a viewport size for a context managed by the caller.
 
-Read the [manifest](MANIFEST.md) for source/build routes and the [technical reference](REFERENCE.md) for ownership and lifecycle. Public declarations remain in `engine/platform/include/pixie/platform/`.
+- [Technical reference](REFERENCE.md) for contracts and lifecycle.
+- [Manifest](MANIFEST.md) for targets, source and test routes.

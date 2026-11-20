@@ -84,8 +84,9 @@ public:
     // Why the last OpenProject, Play, StopPlaying, or Save failed.
     const std::string& Error() const { return error_; }
 
-    // Creates the renderers and builds the World for a viewport of `size` pixels.
+    /// Creates renderers with the current GL context and builds the World for size in pixels.
     PIXIE_RUNTIME_API bool Start(FramebufferSize size);
+    /// Discards World storage and releases GL resources. Call with the context current before teardown.
     PIXIE_RUNTIME_API void Stop();
 
     // Throws the World away and builds it again, with the same seed, after the project has captured
@@ -174,6 +175,8 @@ public:
     // The interpolation of the last Advance, for Render.
     PIXIE_RUNTIME_API double Alpha() const;
 
+    /// Borrows the active World. Requires a successful Start and a session that has yet to Stop.
+    /// Reacquire the World and all World-backed handles whenever WorldRevision changes.
     World& GetWorld() { return *world_; }
     // Changes whenever World storage is discarded/rebuilt; invalidates host caches/tokens
     // even when an allocator reuses the same address and entity handle numbers.
@@ -195,18 +198,21 @@ public:
     PIXIE_RUNTIME_API ViewportCamera2D ResolveCameraForViewport(CameraSelection2D camera, FramebufferSize size) const;
     PIXIE_RUNTIME_API Entity PickViewport(CameraSelection2D camera, FramebufferSize size, pxPoint point, double tolerance = 0);
 
+    /// Borrows the Project. A factory-qualified rebuild can replace the Project and its descriptors.
     Project& GetProject() { return *project_; }
+    /// Borrows the catalog. Reacquire descriptor references after a factory-backed replacement.
     const ComponentTypes& Types() const { return types_; }
-    // The images of the World's sprites, resolved against the project folder (the working
-    // directory without a project).
+    // Session-owned images, resolved against the project folder (the working directory without
+    // a project). Reload and release between frames with this session's GL context current.
     SpriteImages& Images() { return images_; }
-    // The fonts of the screen layer's text, resolved as the images are.
+    // Session-owned World and screen fonts, with the same lifetime and context rules as images.
     Fonts& GetFonts() { return fonts_; }
 
     // Duration of the last step, in milliseconds.
     double LastStepMilliseconds() const { return lastStepMilliseconds_; }
 
 private:
+    void RefreshAuthoringPreview();
     PIXIE_RUNTIME_API bool Build(bool resetCamera, std::string_view sceneText, SceneBuildTimings* timings = nullptr,
                                  bool validateMovement = false);
     // A lit frame's receiver or emission pass: the sprites, texts and shapes again, in that pass.
@@ -229,15 +235,15 @@ private:
     ShapeRenderer shapes_;
     SpriteRenderer sprites_;
     PathRenderer paths_;
-    SpriteImages images_;
+    SpriteAlphaOutlines outlines_;
+    SpriteImages images_{outlines_};
     TextRenderer text_;
-    Fonts fonts_;
+    Fonts fonts_{text_};
     std::chrono::steady_clock::time_point nextImageCheck_{};
     ParticleRenderer particles_;
     LightRenderer lighting_;
     std::vector<LightInstance> lights_;
     std::vector<OccluderEdge> occluders_;
-    SpriteAlphaOutlines outlines_;
     // Lighting telemetry, registered in a World's collector at its first lit frame.
     struct LightingMetrics {
         MetricHandle cpu, gpuLights, gpuShadows, gpuCombine;
@@ -251,6 +257,7 @@ private:
     EnvironmentSelection2D environmentSelection_;
     bool environmentFallbackReported_ = false;
     RenderTarget target_;
+    bool authoringPreviewDirty_ = false;
     bool started_ = false;
     bool paused_ = false;
     double timeScale_ = 1.0;

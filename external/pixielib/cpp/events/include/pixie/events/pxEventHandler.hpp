@@ -1,442 +1,378 @@
 #pragma once
 
-#include <algorithm>
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <initializer_list>
-#include <utility>
-#include <vector>
-
 #include "pxCallback.hpp"
 #include "pxSubscription.hpp"
 
-// Moving a handler, or assigning to it, from inside one of its own callbacks is a bug, reported
-// here. Define it before the include to report it some other way.
+#include <algorithm>
+#include <atomic>
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <functional>
+#include <iterator>
+#include <memory>
+#include <mutex>
+#include <set>
+#include <span>
+#include <utility>
+#include <vector>
+
 #ifndef PX_EVENTS_ASSERT
 #define PX_EVENTS_ASSERT(cond, msg) assert((cond) && (msg))
 #endif
 
-// Callbacks invoked in order, what a C# multicast delegate is, with the same += and -=. It owns
-// its callbacks by value: a copy of the handler copies them.
-//
-// While an Invoke runs, a callback may add or remove callbacks, itself included: one added runs
-// from the next Invoke on, one removed before its turn does not run. A callback may also destroy
-// the handler, as in `delete this`: the Invoke stops there, and the callback must not touch its
-// own captures afterwards. Not thread-safe: using one handler from more than one thread needs a
-// lock around it.
-//
-// Forward links two handlers live: invoking this one invokes the target too, with whatever
-// callbacks the target has by then. The link ends with either handler and follows both when they
-// move.
-//
-// Ported from pxEvents.hpp of 2023 (indev, b961405).
+// An ordered multicast event. Registry operations and invocations can run concurrently. Each
+// callable's execution is serialized, and callbacks run without the registry lock. Mutating a
+// borrowed argument or a target shared by several callbacks still needs caller synchronization.
 template<typename... TArgs>
-class pxEventHandler : private pxEventsDetail::SubscriptionList {
+class pxEventHandler {
 public:
     using Callback = pxCallback<TArgs...>;
 
-    pxEventHandler() noexcept : SubscriptionList(&RemoveById) {}
+    pxEventHandler() noexcept = default;
+    pxEventHandler(const pxEventHandler& other) { Join(other); }
+    pxEventHandler(pxEventHandler&& other) noexcept : m_state(other.TakeState()) {}
+    ~pxEventHandler() { if (const auto state = ReadState()) state->Close(); }
 
-    // The copy gets the callbacks; the subscriptions and the forwards stay with the original.
-    pxEventHandler(const pxEventHandler& o) : pxEventHandler() { Join(o); }
+    pxEventHandler& operator=(const pxEventHandler& other) {
+        if (this != &other) WriteState()->Replace(CopyCallbacks(other.ReadState()));
+        return *this;
+    }
 
-    pxEventHandler(pxEventHandler&& o) noexcept : pxEventHandler() { TakeFrom(o); }
-
-    pxEventHandler& operator=(const pxEventHandler& o);
-    pxEventHandler& operator=(pxEventHandler&& o) noexcept;
-
-    ~pxEventHandler() {
-        for (DispatchFrame* f = m_frames; f != nullptr; f = f->outer)
-            f->destroyed = true;
-        DetachAll();
+    pxEventHandler& operator=(pxEventHandler&& other) noexcept {
+        if (this != &other) {
+            if (auto state = ReadState()) state->AssertIdle();
+            if (auto retired = ExchangeState(other.TakeState())) retired->Close();
+        }
+        return *this;
     }
 
     void operator+=(Callback callback) { Add(std::move(callback)); }
-    void operator+=(const pxEventHandler& o) { Join(o); }
+    void operator+=(const pxEventHandler& other) { Join(other); }
     void operator-=(const Callback& callback) { Remove(callback); }
-    void operator-=(const pxEventHandler& o) { Remove(o); }
+    void operator-=(const pxEventHandler& other) { Remove(other); }
 
-    // Adds a callback at the end. The same callback can be added more than once, as in C#.
-    void Add(Callback callback) {
-        if (callback)
-            Append(std::move(callback));
+    void Add(Callback callback) { if (callback) Subscribe(std::move(callback)).Detach(); }
+
+    void Join(const pxEventHandler& other) {
+        auto copies = CopyCallbacks(other.ReadState());
+        if (!copies.empty()) WriteState()->Append(std::move(copies));
     }
 
-    // Adds copies of the callbacks of o, as they are now.
-    void Join(const pxEventHandler& o);
+    bool Remove(const Callback& callback) {
+        return RemoveMatching([&](const Slots& slots) -> std::span<const SlotPtr> {
+            for (std::size_t i = slots.size(); i-- > 0;) {
+                if (slots[i]->Matches(callback)) return std::span(slots).subspan(i, 1);
+            }
+            return {};
+        });
+    }
 
-    // Removes the last occurrence of the callback, as C# does.
-    bool Remove(const Callback& callback);
+    bool Remove(const pxEventHandler& other) {
+        const auto state = other.ReadState();
+        if (!state) return false;
+        const auto pattern = state->ReadCallbacks().slots;
+        return RemoveMatching([&](const Slots& slots) -> std::span<const SlotPtr> {
+            if (pattern.empty() || pattern.size() > slots.size()) return {};
+            for (std::size_t start = slots.size() - pattern.size() + 1; start-- > 0;) {
+                if (std::equal(pattern.begin(), pattern.end(), slots.begin() + static_cast<std::ptrdiff_t>(start),
+                               [](const SlotPtr& a, const SlotPtr& b) { return a->Matches(*b); })) {
+                    return std::span(slots).subspan(start, pattern.size());
+                }
+            }
+            return {};
+        });
+    }
 
-    // Removes the last run of callbacks equal to all of o's, in order, as C# does.
-    bool Remove(const pxEventHandler& o);
-
-    // Adds a callback that stays while the returned subscription lives.
     [[nodiscard]] pxSubscription Subscribe(Callback callback) {
-        pxSubscription subscription;
-        if (callback)
-            Link(subscription, Append(std::move(callback)));
-        return subscription;
+        if (!callback) return {};
+        const auto state = WriteState();
+        auto slot = std::make_shared<Slot>(std::move(callback));
+        const std::lock_guard lock(state->mutex);
+        if (state->closed) return {};
+        state->Insert(slot);
+        return pxSubscription({state, slot->id, state->epoch});
     }
 
-    // Invokes target at this point of the list, as if target.Invoke were a callback here. A link
-    // that would close a loop (target already reaches this handler) is refused with false.
-    bool Forward(pxEventHandler& target);
-
-    // Ends the last link from this handler to target.
-    bool Unforward(pxEventHandler& target);
-
-    void Clear() noexcept {
-        for (std::size_t i = 0; i < Size(); ++i)
-            if (At(i).alive)
-                Kill(At(i));
-        Compact();
+    bool Forward(pxEventHandler& target) {
+        if (this == &target) return false;
+        return Link(WriteState(), target.WriteState());
     }
 
-    void Invoke(TArgs... args) { Dispatch(args...); }
-    void operator()(TArgs... args) { Dispatch(args...); }
+    bool Unforward(pxEventHandler& target) {
+        const auto source = ReadState();
+        const auto destination = target.ReadState();
+        if (!source || !destination) return false;
+        const std::lock_guard lock(source->mutex);
+        const auto found = std::find_if(source->slots.rbegin(), source->slots.rend(), [&](const SlotPtr& slot) {
+            return slot->forward.lock() == destination;
+        });
+        if (found == source->slots.rend()) return false;
+        (*found)->alive = false;
+        source->slots.erase(std::prev(found.base()));
+        ++source->revision;
+        return true;
+    }
 
-    std::size_t Count() const noexcept { return m_alive; }
-    bool IsEmpty() const noexcept { return m_alive == 0; }
+    void Clear() noexcept { if (const auto state = ReadState()) state->Clear(false); }
+    std::size_t Count() const noexcept {
+        const auto state = ReadState();
+        if (!state) return 0;
+        const std::lock_guard lock(state->mutex);
+        return static_cast<std::size_t>(std::count_if(state->slots.begin(), state->slots.end(),
+            [](const SlotPtr& slot) { return slot->IsLive(); }));
+    }
+    bool IsEmpty() const noexcept { return Count() == 0; }
+
+    void Invoke(TArgs... args) { if (const auto state = ReadState()) Dispatch(state, args...); }
+    void operator()(TArgs... args) { if (const auto state = ReadState()) Dispatch(state, args...); }
 
 private:
+    struct State;
+    using StatePtr = std::shared_ptr<State>;
+
     struct Slot {
-        std::uint64_t id;
+        explicit Slot(Callback value) : callback(std::move(value)) {}
+        explicit Slot(const StatePtr& target) : forward(target), isForward(true) {}
+
+        bool IsLive() const {
+            if (!alive) return false;
+            if (!isForward) return true;
+            const auto target = forward.lock();
+            return target && !target->closed;
+        }
+
+        Callback Copy() const {
+            const std::lock_guard lock(callMutex);
+            return callback;
+        }
+        bool Matches(const Callback& value) const {
+            const std::lock_guard lock(callMutex);
+            return callback == value;
+        }
+        bool Matches(const Slot& other) const {
+            if (this == &other) return true;
+            const std::scoped_lock lock(callMutex, other.callMutex);
+            return callback == other.callback;
+        }
+        void Call(pxEventArg<TArgs>... args) {
+            const std::lock_guard lock(callMutex);
+            if (alive) callback.Call(args...);
+        }
+
+        mutable std::recursive_mutex callMutex;
         Callback callback;
-        bool alive;
-
-        Slot(std::uint64_t i, Callback&& c) noexcept : id(i), callback(std::move(c)), alive(true) {}
+        std::weak_ptr<State> forward;
+        const bool isForward = false;
+        std::atomic<bool> alive{true};
+        std::uint64_t id = 0;
     };
 
-    // The callback that Forward adds. The target keeps the subscription of it, so the link ends
-    // with the target, and fixes the pointer here when it moves (Retarget).
-    struct ForwardBinding {
-        pxEventHandler* target;
-        void operator()(pxEventArg<TArgs>... args) const { target->Dispatch(args...); }
-    };
+    using SlotPtr = std::shared_ptr<Slot>;
+    using Slots = std::vector<SlotPtr>;
 
-    // One per running Invoke, on its stack, so the handler can tell each of them that it died.
-    struct DispatchFrame {
-        DispatchFrame* outer;
-        bool destroyed;
-    };
+    struct State final : pxEventsDetail::SubscriptionOwner {
+        mutable std::mutex mutex;
+        Slots slots;
+        std::atomic<bool> closed{false};
+        std::uint64_t epoch = 0;
+        std::uint64_t nextId = 1;
+        std::uint64_t revision = 0;
+        std::uint64_t dispatchCutoff = 0;
+        std::size_t dispatches = 0;
 
-    // Ends an Invoke, also when a callback throws.
-    struct DispatchScope {
-        pxEventHandler& handler;
-        DispatchFrame& frame;
+        void Insert(SlotPtr slot) {
+            slot->id = nextId;
+            slots.push_back(std::move(slot));
+            ++nextId;
+            ++revision;
+        }
 
-        ~DispatchScope() {
-            if (frame.destroyed)
-                return;
-            handler.m_frames = frame.outer;
-            --handler.m_depth;
+        void Append(Slots copies) {
+            const std::lock_guard lock(mutex);
+            if (closed) return;
+            slots.reserve(slots.size() + copies.size());
+            for (auto& slot : copies) Insert(std::move(slot));
+        }
+
+        void Replace(Slots replacement) {
+            const std::lock_guard lock(mutex);
+            if (closed) return;
+            for (auto& slot : replacement) slot->id = nextId++;
+            for (const auto& slot : slots) slot->alive = false;
+            slots.swap(replacement);
+            ++epoch;
+            ++revision;
+        }
+
+        void AssertIdle() const noexcept {
+            const std::lock_guard lock(mutex);
+            PX_EVENTS_ASSERT(dispatches == 0, "pxEventHandler: moved during one of its invocations");
+        }
+
+        void Clear(bool close) noexcept {
+            Slots retired;
+            {
+                const std::lock_guard lock(mutex);
+                if (close) closed = true;
+                for (const auto& slot : slots) slot->alive = false;
+                retired.swap(slots);
+                ++revision;
+            }
+        }
+
+        void Close() noexcept { Clear(true); }
+
+        bool KeepsSubscriptions(std::uint64_t expected) const noexcept override {
+            const std::lock_guard lock(mutex);
+            return !closed && epoch == expected;
+        }
+
+        void Remove(std::uint64_t id, std::uint64_t expected) noexcept override {
+            SlotPtr retired;
+            {
+                const std::lock_guard lock(mutex);
+                if (closed || epoch != expected) return;
+                const auto found = std::lower_bound(slots.begin(), slots.end(), id,
+                    [](const SlotPtr& slot, std::uint64_t value) { return slot->id < value; });
+                if (found == slots.end() || (*found)->id != id) return;
+                retired = std::move(*found);
+                retired->alive = false;
+                slots.erase(found);
+                ++revision;
+            }
+        }
+
+        struct Snapshot { Slots slots; std::uint64_t revision; };
+        Snapshot ReadCallbacks() const {
+            const std::lock_guard lock(mutex);
+            Slots result;
+            for (const auto& slot : slots) if (!slot->isForward) result.push_back(slot);
+            return {std::move(result), revision};
+        }
+
+        bool RemoveMatching(std::span<const SlotPtr> matching, std::uint64_t expected) {
+            const std::lock_guard lock(mutex);
+            if (revision != expected) return false;
+            if (matching.empty()) return true;
+            for (const auto& slot : matching) slot->alive = false;
+            // The caller's snapshot keeps these callbacks alive until after the lock is released.
+            std::erase_if(slots, [](const SlotPtr& slot) { return !slot->alive; });
+            ++revision;
+            return true;
+        }
+
+        Slots BeginDispatch() {
+            const std::lock_guard lock(mutex);
+            if (dispatches == 0) dispatchCutoff = nextId;
+            const auto end = std::lower_bound(slots.begin(), slots.end(), dispatchCutoff,
+                [](const SlotPtr& slot, std::uint64_t cutoff) { return slot->id < cutoff; });
+            Slots current(slots.begin(), end);
+            ++dispatches;
+            return current;
+        }
+
+        void EndDispatch() noexcept {
+            const std::lock_guard lock(mutex);
+            --dispatches;
         }
     };
 
-    std::size_t Size() const noexcept { return m_slots.size() + m_pending.size(); }
-
-    Slot& At(std::size_t i) noexcept {
-        return i < m_slots.size() ? m_slots[i] : m_pending[i - m_slots.size()];
-    }
-
-    const Slot& At(std::size_t i) const noexcept {
-        return i < m_slots.size() ? m_slots[i] : m_pending[i - m_slots.size()];
-    }
-
-    std::uint64_t Append(Callback&& callback) {
-        // During an Invoke, or while an earlier merge is still owed, new callbacks wait in
-        // m_pending; ids keep growing along m_slots and then m_pending.
-        std::vector<Slot>& target = (m_depth > 0 || !m_pending.empty()) ? m_pending : m_slots;
-        const std::uint64_t id = m_nextId++;
-        target.emplace_back(id, std::move(callback));
-        ++m_alive;
-        return id;
-    }
-
-    static bool IsForward(const Slot& slot) noexcept {
-        return slot.callback.template Target<ForwardBinding>() != nullptr;
-    }
-
-    // Ids grow along m_slots and then m_pending.
-    Slot* FindById(std::uint64_t id) noexcept {
-        for (std::vector<Slot>* slots : { &m_slots, &m_pending }) {
-            auto it = std::lower_bound(slots->begin(), slots->end(), id,
-                [](const Slot& slot, std::uint64_t value) { return slot.id < value; });
-            if (it != slots->end() && it->id == id)
-                return &*it;
+    template<typename Match>
+    bool RemoveMatching(Match match) {
+        const auto state = ReadState();
+        if (!state) return false;
+        for (;;) {
+            auto snapshot = state->ReadCallbacks();
+            const auto matching = match(snapshot.slots);
+            if (state->RemoveMatching(matching, snapshot.revision)) return !matching.empty();
         }
-        return nullptr;
     }
 
-    static pxEventHandler& SourceOf(const pxSubscription& link) noexcept {
-        return static_cast<pxEventHandler&>(*link.m_list);
+    static Slots CopyCallbacks(const StatePtr& state) {
+        Slots copies;
+        if (state) {
+            const auto snapshot = state->ReadCallbacks();
+            copies.reserve(snapshot.slots.size());
+            for (const auto& slot : snapshot.slots) copies.push_back(std::make_shared<Slot>(slot->Copy()));
+        }
+        return copies;
     }
 
-    // The slot behind one of the links in m_incoming, while both ends are alive.
-    static Slot* SlotOf(const pxSubscription& link) noexcept {
-        if (!link.IsActive())
-            return nullptr;
-        Slot* slot = SourceOf(link).FindById(link.m_id);
-        return slot != nullptr && slot->alive ? slot : nullptr;
+    static void Dispatch(const StatePtr& state, pxEventArg<TArgs>... args) {
+        const auto slots = state->BeginDispatch();
+        struct DispatchScope { State& state; ~DispatchScope() { state.EndDispatch(); } } scope{*state};
+        for (const auto& slot : slots) {
+            if (!slot->alive) continue;
+            if (slot->isForward) {
+                if (const auto target = slot->forward.lock(); target && !target->closed) Dispatch(target, args...);
+            } else {
+                slot->Call(args...);
+            }
+        }
     }
 
-    bool Reaches(const pxEventHandler& to) const noexcept;
-
-    // A dead slot stays where it is until Compact, so no Invoke sees the vector move.
-    void Kill(Slot& slot) noexcept {
-        slot.alive = false;
-        --m_alive;
-        m_dirty = true;
+    static bool Link(const StatePtr& source, const StatePtr& target) {
+        if (source == target) return false;
+        // Lock the source and the target's reachable graph in address order. If traversal
+        // finds more nodes, retry with those locks included before checking and inserting.
+        const auto order = [](const StatePtr& a, const StatePtr& b) { return std::less<State*>{}(a.get(), b.get()); };
+        std::vector<StatePtr> graph{source, target};
+        for (;;) {
+            std::sort(graph.begin(), graph.end(), order);
+            graph.erase(std::unique(graph.begin(), graph.end()), graph.end());
+            std::vector<StatePtr> missing;
+            {
+                std::vector<std::unique_lock<std::mutex>> locks;
+                locks.reserve(graph.size());
+                for (const auto& state : graph) locks.emplace_back(state->mutex);
+                if (source->closed || target->closed) return false;
+                std::set<State*> visited;
+                std::vector<StatePtr> reachable{target};
+                while (!reachable.empty()) {
+                    auto state = std::move(reachable.back());
+                    reachable.pop_back();
+                    if (state == source) return false;
+                    if (!visited.insert(state.get()).second) continue;
+                    if (!std::binary_search(graph.begin(), graph.end(), state, order)) {
+                        missing.push_back(std::move(state));
+                        continue;
+                    }
+                    for (const auto& slot : state->slots) {
+                        if (auto next = slot->forward.lock(); next && !next->closed) reachable.push_back(std::move(next));
+                    }
+                }
+                if (missing.empty()) {
+                    std::erase_if(source->slots, [](const SlotPtr& slot) { return slot->isForward && !slot->IsLive(); });
+                    source->Insert(std::make_shared<Slot>(target));
+                    return true;
+                }
+            }
+            graph.insert(graph.end(), missing.begin(), missing.end());
+        }
     }
 
-    void Dispatch(pxEventArg<TArgs>... args);
-    void Compact() noexcept;
-    void TakeFrom(pxEventHandler& o) noexcept;
+    StatePtr ReadState() const noexcept {
+        const std::lock_guard lock(m_stateMutex);
+        return m_state;
+    }
 
-    static void RemoveById(SubscriptionList& list, std::uint64_t id) noexcept;
+    StatePtr WriteState() {
+        const std::lock_guard lock(m_stateMutex);
+        if (!m_state) m_state = std::make_shared<State>();
+        return m_state;
+    }
 
-    // m_slots never grows nor shrinks while an Invoke runs (m_depth > 0), so the callable being
-    // called stays where it is.
-    std::vector<Slot> m_slots;
-    std::vector<Slot> m_pending;
-    std::size_t m_alive = 0;
-    std::uint64_t m_nextId = 1;
-    int m_depth = 0;
-    bool m_dirty = false;
-    DispatchFrame* m_frames = nullptr;
-    // The links that invoke this handler, one subscription in each source. Last, so they end
-    // before the rest of the handler.
-    std::vector<pxSubscription> m_incoming;
+    StatePtr ExchangeState(StatePtr next) noexcept {
+        const std::lock_guard lock(m_stateMutex);
+        return std::exchange(m_state, std::move(next));
+    }
+
+    StatePtr TakeState() noexcept {
+        if (auto state = ReadState()) state->AssertIdle();
+        return ExchangeState({});
+    }
+
+    mutable std::mutex m_stateMutex;
+    StatePtr m_state;
 };
-
-template<typename... TArgs>
-pxEventHandler<TArgs...>& pxEventHandler<TArgs...>::operator=(const pxEventHandler& o) {
-    if (this == &o)
-        return *this;
-    PX_EVENTS_ASSERT(m_depth == 0, "pxEventHandler: assigned to from inside one of its own callbacks");
-
-    std::vector<Slot> slots;
-    slots.reserve(o.m_alive);
-    std::uint64_t id = m_nextId;
-    for (std::size_t i = 0; i < o.Size(); ++i) {
-        const Slot& slot = o.At(i);
-        if (slot.alive && !IsForward(slot))
-            slots.emplace_back(id++, Callback(slot.callback));
-    }
-
-    // Nothing throws from here on. The old callbacks die last, with the handler consistent.
-    DetachAll();
-    slots.swap(m_slots);
-    std::vector<Slot> pending = std::move(m_pending);
-    m_pending.clear();
-    m_alive = m_slots.size();
-    m_nextId = id;
-    m_dirty = false;
-    return *this;
-}
-
-template<typename... TArgs>
-pxEventHandler<TArgs...>& pxEventHandler<TArgs...>::operator=(pxEventHandler&& o) noexcept {
-    if (this == &o)
-        return *this;
-    PX_EVENTS_ASSERT(m_depth == 0, "pxEventHandler: assigned to from inside one of its own callbacks");
-
-    // The old callbacks, and the links into the old ones, die last, with the handler consistent.
-    std::vector<Slot> slots = std::move(m_slots);
-    std::vector<Slot> pending = std::move(m_pending);
-    std::vector<pxSubscription> incoming = std::move(m_incoming);
-    m_incoming.clear();
-    DetachAll();
-    TakeFrom(o);
-    return *this;
-}
-
-template<typename... TArgs>
-void pxEventHandler<TArgs...>::Join(const pxEventHandler& o) {
-    // The size comes first, so joining a handler with itself doubles it once, as in C#.
-    const std::size_t size = o.Size();
-    for (std::size_t i = 0; i < size; ++i) {
-        const Slot& slot = o.At(i);
-        if (slot.alive && !IsForward(slot))
-            Append(Callback(slot.callback));
-    }
-}
-
-template<typename... TArgs>
-bool pxEventHandler<TArgs...>::Forward(pxEventHandler& target) {
-    if (&target == this || target.Reaches(*this))
-        return false;
-    // Links whose source died or dropped them go first, so m_incoming does not grow forever.
-    std::erase_if(target.m_incoming, [](const pxSubscription& link) { return SlotOf(link) == nullptr; });
-    // Linked where it lives, in the vector, instead of moved in from a temporary.
-    pxSubscription& link = target.m_incoming.emplace_back();
-    try {
-        Link(link, Append(Callback(ForwardBinding{ &target })));
-    } catch (...) {
-        target.m_incoming.pop_back();
-        throw;
-    }
-    return true;
-}
-
-template<typename... TArgs>
-bool pxEventHandler<TArgs...>::Unforward(pxEventHandler& target) {
-    for (std::size_t i = target.m_incoming.size(); i-- > 0;) {
-        pxSubscription& link = target.m_incoming[i];
-        if (SlotOf(link) == nullptr || &SourceOf(link) != this)
-            continue;
-        link.Unsubscribe();
-        target.m_incoming.erase(target.m_incoming.begin() + static_cast<std::ptrdiff_t>(i));
-        return true;
-    }
-    return false;
-}
-
-template<typename... TArgs>
-bool pxEventHandler<TArgs...>::Reaches(const pxEventHandler& to) const noexcept {
-    // Forward refuses loops, so this walk always ends.
-    for (std::size_t i = 0; i < Size(); ++i) {
-        const Slot& slot = At(i);
-        if (!slot.alive)
-            continue;
-        const ForwardBinding* link = slot.callback.template Target<ForwardBinding>();
-        if (link != nullptr && (link->target == &to || link->target->Reaches(to)))
-            return true;
-    }
-    return false;
-}
-
-template<typename... TArgs>
-bool pxEventHandler<TArgs...>::Remove(const Callback& callback) {
-    for (std::size_t i = Size(); i-- > 0;) {
-        Slot& slot = At(i);
-        if (slot.alive && slot.callback == callback) {
-            Kill(slot);
-            Compact();
-            return true;
-        }
-    }
-    return false;
-}
-
-template<typename... TArgs>
-bool pxEventHandler<TArgs...>::Remove(const pxEventHandler& o) {
-    std::vector<std::size_t> mine;
-    std::vector<std::size_t> theirs;
-    for (std::size_t i = 0; i < Size(); ++i)
-        if (At(i).alive)
-            mine.push_back(i);
-    for (std::size_t i = 0; i < o.Size(); ++i)
-        if (o.At(i).alive)
-            theirs.push_back(i);
-    if (theirs.empty() || theirs.size() > mine.size())
-        return false;
-
-    for (std::size_t start = mine.size() - theirs.size() + 1; start-- > 0;) {
-        bool match = true;
-        for (std::size_t j = 0; j < theirs.size() && match; ++j)
-            match = At(mine[start + j]).callback == o.At(theirs[j]).callback;
-        if (!match)
-            continue;
-        for (std::size_t j = 0; j < theirs.size(); ++j)
-            Kill(At(mine[start + j]));
-        Compact();
-        return true;
-    }
-    return false;
-}
-
-template<typename... TArgs>
-void pxEventHandler<TArgs...>::Dispatch(pxEventArg<TArgs>... args) {
-    Compact();
-
-    DispatchFrame frame{ m_frames, false };
-    m_frames = &frame;
-    ++m_depth;
-    {
-        DispatchScope scope{ *this, frame };
-        // Callbacks added from here on are in m_pending, past this size.
-        const std::size_t size = m_slots.size();
-        for (std::size_t i = 0; i < size; ++i) {
-            Slot& slot = m_slots[i];
-            if (!slot.alive)
-                continue;
-            slot.callback.Call(args...);
-            if (frame.destroyed)
-                return;
-        }
-    }
-    Compact();
-}
-
-// Drops the dead slots and merges the pending ones, only when no Invoke runs. Each removed
-// callable is destroyed while the handler is consistent, so its destructor may += or -= it.
-template<typename... TArgs>
-void pxEventHandler<TArgs...>::Compact() noexcept {
-    while (m_depth == 0 && (m_dirty || !m_pending.empty())) {
-        if (m_dirty) {
-            m_dirty = false;
-            std::size_t kept = 0;
-            for (std::size_t i = 0; i < m_slots.size(); ++i) {
-                if (!m_slots[i].alive)
-                    continue;
-                if (i != kept)
-                    std::swap(m_slots[kept], m_slots[i]);
-                ++kept;
-            }
-            // Counting as an Invoke keeps m_slots where it is while the destructors run.
-            ++m_depth;
-            for (std::size_t i = kept; i < m_slots.size(); ++i)
-                m_slots[i].callback = Callback();
-            --m_depth;
-            m_slots.erase(m_slots.begin() + static_cast<std::ptrdiff_t>(kept), m_slots.end());
-        }
-
-        if (!m_pending.empty()) {
-            std::vector<Slot> incoming;
-            incoming.swap(m_pending);
-            try {
-                m_slots.reserve(m_slots.size() + incoming.size());
-            } catch (...) {
-                incoming.swap(m_pending); // merged at the next chance
-                return;
-            }
-            for (Slot& slot : incoming)
-                if (slot.alive)
-                    m_slots.push_back(std::move(slot));
-            // The dead ones in `incoming` die here, out of the handler.
-        }
-    }
-}
-
-template<typename... TArgs>
-void pxEventHandler<TArgs...>::TakeFrom(pxEventHandler& o) noexcept {
-    PX_EVENTS_ASSERT(o.m_depth == 0, "pxEventHandler: moved from inside one of its own callbacks");
-    m_slots = std::move(o.m_slots);
-    m_pending = std::move(o.m_pending);
-    o.m_slots.clear();
-    o.m_pending.clear();
-    m_alive = std::exchange(o.m_alive, 0);
-    m_nextId = o.m_nextId; // o keeps counting from there: an id is never reused
-    m_dirty = std::exchange(o.m_dirty, false);
-    AdoptFrom(o);
-
-    // The links into o now invoke this handler.
-    m_incoming = std::move(o.m_incoming);
-    o.m_incoming.clear();
-    for (const pxSubscription& link : m_incoming)
-        if (Slot* slot = SlotOf(link))
-            slot->callback.template Target<ForwardBinding>()->target = this;
-}
-
-template<typename... TArgs>
-void pxEventHandler<TArgs...>::RemoveById(SubscriptionList& list, std::uint64_t id) noexcept {
-    pxEventHandler& self = static_cast<pxEventHandler&>(list);
-    Slot* slot = self.FindById(id);
-    if (slot != nullptr && slot->alive) {
-        self.Kill(*slot);
-        self.Compact();
-    }
-}

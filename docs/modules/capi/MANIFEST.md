@@ -62,10 +62,12 @@
 - Tests: `capi-test` (`tests/capi/CapiTest.c`), registered in CTest once per game library, and
   `project-code` (`tests/project-code/ProjectCodeTest.cmake`), a project with code built against
   the engine.
-- Distribution: this interface is part of the shared engine used by players,
-  tools and hosts. Module loading and the planned development channel are
-  excluded from shipping builds; export/dependency-closure qualification remains
-  tracked separately in PIXIE-TODO-051.
+- Distribution uses the shared engine. The installed `include/pixie_capi.h`
+  and `bindings/dotnet/PixieCapi.cs` are SDK payloads. Public authoring includes
+  the module loader. Public shipping excludes it. The native development
+  channel belongs to the local-private profile. See the
+  [profile contract](REFERENCE.md#sdk-identity-and-profiles) and
+  [native export qualification](../../shared-engine-export-validation.md).
 - Origin: [PIXIE-PROPOSAL-002](../../proposals/editor-native-bridge.md) and the `capi` boundary of
   [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md); built by PIXIE-TODO-010 (see
   the [archive](../../archive/README.md)).

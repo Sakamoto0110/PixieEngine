@@ -15,10 +15,13 @@ void TestVec();
 void TestMat();
 void TestSegment();
 #endif
+#ifdef PIXIE_TEST_EVENTS
 void TestCallback();
 void TestEventHandler();
 void TestSubscription();
 void TestEvent();
+
+#endif
 
 int main() {
     TestSize();
@@ -34,10 +37,13 @@ int main() {
     TestMat();
     TestSegment();
 #endif
+#ifdef PIXIE_TEST_EVENTS
     TestCallback();
     TestEventHandler();
     TestSubscription();
     TestEvent();
+
+#endif
 
     if (pxCheckFailures == 0)
         std::printf("all checks passed\n");

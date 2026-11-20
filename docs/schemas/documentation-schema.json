@@ -53,6 +53,7 @@
     "boundaryPattern": "^[a-z][a-z0-9]*(\\.[a-z][a-z0-9-]*)*$",
     "documentIdPattern": "^[A-Z][A-Z0-9-]*$",
     "canonicalPathStyle": "repository-relative-forward-slashes",
+    "canonicalScopeField": "Canonical scope is optional. When present, Canonical resolves from that explicitly declared checker scope root; otherwise existing repository-relative semantics apply.",
     "conditionalRules": [
       "Surface portal, Authority role portal, Indexing pointer-only, and Canonical are a single combined contract.",
       "Current technical references do not carry a historical Reference date.",
@@ -155,7 +156,7 @@
       "requiredFields": ["Status", "Description"],
       "conditionalFields": { "dropped": ["Reason"] },
       "statuses": ["open", "in-progress", "done", "dropped"],
-      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. A completed parent's section moves to docs/archive/."
+      "rule": "Tasks decompose the accepted scope of an existing TODO entry and never extend it. Completed tasks leave active planning; roadmap closure preserves important details and references the Git planning baseline."
     }
   },
   "records": {
@@ -215,7 +216,7 @@
   "archive": {
     "directory": "docs/archive",
     "index": "docs/archive/README.md",
-    "indexRole": "router: one table row per record, in Archive ID order, with enough to find the record",
+    "indexRole": "Legacy router retained. New roadmap closures are indexed under docs/history/.",
     "indexColumns": ["ID", "Date", "Type", "Origin", "Author", "Summary", "Commits", "Record"],
     "authors": ["owner", "claude", "codex"],
     "template": "docs/templates/ARCHIVE-RECORD.md",

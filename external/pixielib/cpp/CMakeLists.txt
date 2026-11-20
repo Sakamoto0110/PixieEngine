@@ -9,10 +9,15 @@ target_compile_features(pixie INTERFACE cxx_std_20)
 
 # The events, a module of their own (1.10): the engine links pixie::events, and whoever only wants
 # the primitives does not pull them. Also only headers, since everything in them is a template.
-add_library(pixie_events INTERFACE)
-add_library(pixie::events ALIAS pixie_events)
-target_include_directories(pixie_events INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/events/include)
-target_compile_features(pixie_events INTERFACE cxx_std_20)
+option(PIXIE_EVENTS "Build pixie::events, which requires thread support" ON)
+if(PIXIE_EVENTS)
+    add_library(pixie_events INTERFACE)
+    add_library(pixie::events ALIAS pixie_events)
+    find_package(Threads REQUIRED)
+    target_include_directories(pixie_events INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/events/include)
+    target_compile_features(pixie_events INTERFACE cxx_std_20)
+    target_link_libraries(pixie_events INTERFACE Threads::Threads)
+endif()
 
 # The math, a module of its own (6.1): the vectors and matrices are GLM's, under the names of
 # PixieLib, and the engine links pixie::math. GLM is only headers. It comes pinned to 1.0.3, or from

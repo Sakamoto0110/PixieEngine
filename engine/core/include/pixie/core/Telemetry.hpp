@@ -66,6 +66,7 @@ public:
     PIXIE_CORE_API bool RecordTiming(MetricHandle handle, double milliseconds);
     PIXIE_CORE_API bool SetGauge(MetricHandle handle, double value);
     PIXIE_CORE_API bool Increment(MetricHandle handle, std::uint64_t amount = 1);
+    /// Borrows stable stats from this collector. Throws for a foreign or wrong-kind handle.
     PIXIE_CORE_API const TimingStats& Timing(MetricHandle handle) const;
 
     // Copies in registration order. Snapshot/CSV work without a window, even after disabling.

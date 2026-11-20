@@ -3,8 +3,8 @@
   "inventoryKind": "pixie-editor-extraction-proposal/1",
   "proposalId": "PIXIE-PROPOSAL-022",
   "snapshotDate": "2026-11-05",
-  "sourceRoot": "C:\\Users\\Nekovih\\dev\\VAW\\projects\\Pixie\\PixieEngine",
-  "destinationRoot": "C:\\Users\\Nekovih\\dev\\VAW\\projects\\Pixie\\PixieEditor",
+  "sourceRoot": ".",
+  "destinationRoot": "../PixieEditor",
   "executionStatus": "proposed-only; no transfer or removal executed",
   "sourceStateNote": "Filesystem bytes observed; working-tree/index status must be revalidated before execution.",
   "counts": {

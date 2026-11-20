@@ -39,6 +39,7 @@ public:
     PIXIE_RENDER_API pxRect VisibleWorld() const;
     // World to clip space, for the GPU.
     PIXIE_RENDER_API pxMat4f ViewProjection() const;
+    /// Captures the current camera transform. Set a positive viewport before drawing.
     PIXIE_RENDER_API View MakeView() const;
 
     static constexpr double kMinZoom = 1e-4;

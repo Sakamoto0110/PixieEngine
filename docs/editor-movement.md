@@ -10,42 +10,58 @@
 
 **Subject:** authoring collision/character components, session lifecycle and in-game laboratory boundaries
 
-**Surface:** guide
+**Surface:** portal
 
 **Boundary:** runtime
 
-**Authority role:** non-normative
+**Authority role:** portal
 
 **Mutation:** authored
 
-**Indexing:** include
+**Indexing:** pointer-only
 
-This guide moved to PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+**Canonical:** docs/editor-movement.md
+
+**Canonical scope:** pixieeditor
+
+This portal preserves Engine links. The independent Editor owns the
+[published baseline guide](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md).
 
 ## Using the editor
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#using-the-editor).
 
 ## Physics debug views
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#physics-debug-views).
 
 ## Viewport collider handles
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#viewport-collider-handles).
 
 ## Compound bodies
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+In the retained v3 diagnostic, **Make compound** on a selected static
+Collider2D parent detached an unselected child. Undo restored the original
+collider and left the child detached. The child kept its stable ID and world pose.
+
+The [published Editor baseline section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#compound-bodies)
+predates this warning.
 
 ## Native lifecycle and ownership
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+The scene movement service synchronizes colliders in `PreUpdate` for gameplay
+queries. In `Physics`, it refreshes geometry after legacy velocity integration
+and completes body and motor movement before `PostUpdate`.
+[Authored movement contract](modules/runtime/REFERENCE.md#authored-scene-movement)
+
+The [published Editor baseline section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#native-lifecycle-and-ownership)
+predates this timing correction.
 
 ## Named collision layers
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#named-collision-layers).
 
 ## An editor inside the game
 
-See PixieEditor's `docs/editor-movement.md` (see the [Editor migration guide](../editor/README.md)).
+See [the canonical Editor section](https://github.com/Sakamoto0110/PixieEditor/blob/d1760e14549da826fecddec3550244123f9ea715/docs/editor-movement.md#an-editor-inside-the-game).

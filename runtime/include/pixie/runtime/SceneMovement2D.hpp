@@ -38,8 +38,9 @@ PIXIE_RUNTIME_API CollisionLayerNames2D DescribeCollisionLayers2D(const World& w
 
 enum class ColliderKind2D { Box, Circle, Polygon };
 
-// Authored static geometry. Transform2D supplies placement/rotation/scale; offset is local.
-// Category/mask expose 31 bits so existing integer inspectors represent every value exactly.
+/// Authored collision geometry. Pair with Transform2D for a static collider or add RigidBody2D
+/// for an explicit body. Offset and dimensions are local world units before entity scale.
+/// Category and mask expose 31 bits. Both sides' masks must admit the other's category.
 struct Collider2D {
     ColliderKind2D kind = ColliderKind2D::Box;
     pxVec2 halfSize{80, 12};
@@ -120,7 +121,8 @@ struct ScenePhysicsEvent2D {
     PhysicsEvent2D event;
     entt::entity entityA = entt::null, entityB = entt::null;
 };
-// Last completed scene tick; identities of removed entities are retained in the copied event.
+/// Borrows the last completed scene tick's copied events. Copy needed entries before the next
+/// publication, reset or World destruction. IDs can name entities that have already been removed.
 PIXIE_RUNTIME_API std::span<const ScenePhysicsEvent2D> ScenePhysicsEvents2D(World& world);
 
 // Reusable authoring presentation, not a dependency on the C# editor. Empty for invalid/missing geometry.

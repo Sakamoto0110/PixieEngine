@@ -5,8 +5,8 @@
 
 namespace pixie {
 
-// A world-to-clip transform and its viewport. Camera conventions belong to the producer.
-// Double precision preserves the camera calculation until uniforms are converted to float.
+/// Value snapshot of view, projection, projection * view and viewport dimensions in pixels.
+/// Matrix getters borrow from the snapshot. Camera conventions belong to the producer.
 class View {
 public:
     View(const pxMat4& view, const pxMat4& projection, FramebufferSize viewport)

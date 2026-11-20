@@ -56,7 +56,7 @@ premises, as the policy and the schema index said.
 The owner approved the smallest runtime addition: project binding and skill discovery. Applied:
 
 - **A profile outside both repositories**, `pixieengine` revision 1, in
-  `C:\Users\Sakamoto\dev\Void Agent Workplace\.local\profiles\pixieengine\` (ignored by that
+  `<vaw-workplace>/.local/profiles/pixieengine/` (ignored by that
   repository's Git, so machine-local), read by VAW's source commands through `-ProfilesPath`; the
   pinned VAW checkout is not edited. It maps VAW's authority roles to this repository's documents,
   routes seven source areas to the documents that own them, composes only `project-binding` and
@@ -75,7 +75,7 @@ packaging. PixieLib and PixieInspector are separate owners and were not bound.
 
 ## Evidence
 
-VAW checkout `C:\Users\Sakamoto\dev\VAW` at `c9d81ba1fe538ddaaaa44f2ca48e1dc9d3dcfcb1`, version
+VAW checkout `<vaw-checkout>` at `c9d81ba1fe538ddaaaa44f2ca48e1dc9d3dcfcb1`, version
 0.2.0.0, unmodified (its untracked `.vs/` kept), run with PowerShell 7.6.6:
 
 - `register-project-binding.ps1 ... -WhatIf` reported `would_register` with compatibility `all`;

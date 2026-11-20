@@ -34,5 +34,6 @@ source decision or evidence instead of copying it.
 **Breakdown:** TASKLIST.md section link, or none
 ```
 
-When the entry completes, move its record to `docs/archive/` and leave a
-one-line pointer in `TODO.md`.
+When the entry completes, remove it from active TODO. Preserve the roadmap
+block and outcome in `docs/history/`, link evidence and record the planning
+commit. Include important nested decisions; do not copy the TODO/task lists.

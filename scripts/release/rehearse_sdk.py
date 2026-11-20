@@ -140,6 +140,7 @@ def verify_and_relocate(archive_path, declared, relocated):
     check_tree(relocated, declared)
 
 
+# Rehearse the pinned, already-produced SDK and exporter as relocated bytes.
 def execute(input_path, out):
     inputs = read_json(input_path)
     require(inputs["schema"] == INPUT_SCHEMA, "Unsupported SDK rehearsal input schema")

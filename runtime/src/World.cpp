@@ -1,9 +1,11 @@
 #include "pixie/runtime/World.hpp"
+#include "Parenting2DInternal.hpp"
 #include "pixie/runtime/Lighting2D.hpp"
 #include <stdexcept>
 
 #include "pixie/runtime/Acceleration2D.hpp"
 #include "pixie/runtime/Name.hpp"
+#include "pixie/runtime/Parenting2D.hpp"
 #include "pixie/runtime/Transform2D.hpp"
 #include "pixie/runtime/Velocity2D.hpp"
 #include "pixie/runtime/SceneMovement2D.hpp"
@@ -126,6 +128,7 @@ void World::Destroy(Entity entity) {
     if (stepping_) {
         pendingDestroy_.push_back(entity.Id());
     } else {
+        detail::RemoveParenting2D(entity);
         membership_.erase(entity.Id());
         registry_.destroy(entity.Id());
     }
@@ -273,13 +276,11 @@ std::vector<SceneScope> World::Scopes() const {
 bool World::SetScope(Entity entity, ScopeId id) {
     if (entity.world_ != this || !registry_.valid(entity.Id()) ||
         (id.value != 0 && !scopes_.contains(id))) return false;
+    if (ScopeOf(entity) != id && (Parent2D(entity) || !Children2D(entity).empty())) return false;
     if (stepping_) {
         const entt::entity entityId = entity.Id();
         deferred_.push_back([entityId, id](World& world) {
-            if (world.registry_.valid(entityId) && (id.value == 0 || world.scopes_.contains(id))) {
-                if (id.value == 0) world.membership_.erase(entityId);
-                else world.membership_[entityId] = id;
-            }
+            world.SetScope(world.Wrap(entityId), id);
         });
     } else if (id.value == 0) {
         membership_.erase(entity.Id());
@@ -324,17 +325,23 @@ void World::Step(double delta, const Input& input) {
     const FrameTime time{delta, 0.0, elapsed_, steps_};
     stepping_ = true;
     struct RestoreStepping { bool& flag; ~RestoreStepping() { flag = false; } } restore{stepping_};
+    detail::RefreshParenting2D(*this);
+    detail::CaptureParenting2D(*this);
     RunSystems(SystemPhase::PreUpdate, time, input);
-    // A Behaviour class added during the step is updated from the next step on.
+    triggers_.Dispatch(*this, input.Events());
+    // Freeze the class count for this pass so a class registered during dispatch starts next tick.
     const std::size_t classes = behaviours_.size();
     {
         const TelemetryScope behaviours(telemetry_,behaviourMetric_);
         for (std::size_t i = 0; i < classes; ++i) behaviours_[i].update(*this, time, input);
     }
+    detail::RefreshParenting2D(*this);
     RunSystems(SystemPhase::Physics, time, input);
+    detail::RefreshParenting2D(*this);
     RunSystems(SystemPhase::PostUpdate, time, input);
     stepping_ = false;
     FinishStep();
+    detail::RefreshParenting2D(*this);
     ++steps_;
     elapsed_ += delta;
 }
@@ -343,12 +350,10 @@ void World::FinishStep() {
     // Destructions first, then deferred actions; an action may itself destroy or defer, and then
     // runs immediately, since the step is over.
     for (const entt::entity id : pendingDestroy_) {
-        if (registry_.valid(id)) {
-            membership_.erase(id);
-            registry_.destroy(id);
-        }
+        Destroy(Wrap(id));
     }
     pendingDestroy_.clear();
+    // Once detached from the queue, a failing action leaves later actions in this batch unrun.
     auto actions = std::move(deferred_);
     deferred_.clear();
     for (auto& action : actions) {
@@ -357,8 +362,11 @@ void World::FinishStep() {
 }
 
 void World::ResetInterpolation(Entity entity) {
+    if (entity.world_ != this || !entity.IsAlive()) return;
+    detail::RefreshParenting2D(*this);
     if (auto* transform = registry_.try_get<Transform2D>(entity.Id())) {
         registry_.emplace_or_replace<PreviousTransform2D>(entity.Id(), *transform);
+        detail::ResetBranchInterpolation2D(entity);
     }
 }
 

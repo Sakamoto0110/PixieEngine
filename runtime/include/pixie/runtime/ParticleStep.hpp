@@ -20,7 +20,8 @@ class World;
 // 2. every ParticleSpawner pointing at the system emits into it;
 // 3. the system's enabled affectors run, in the order added, then the ParticleAttraction and
 //    ParticleInteraction on its entity, and the particles they killed leave;
-// 4. each particle moves by its velocity.
+// 4. move the particles. A pool with ParticlePhysics2D integrates dynamic particles and
+//    can query the existing scene collision service. Other particles move by velocity.
 //
 // It installs once per World: later calls do nothing. Every World a ProjectSession builds gets it,
 // after the project's Build, so a scene's particle systems run without project code, and a project

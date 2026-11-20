@@ -135,8 +135,8 @@ public:
     PIXIE_RENDER_API bool Create();
     PIXIE_RENDER_API void Destroy();
 
-    // Remembers the framebuffer and viewport bound now, then draws into the albedo target, sized to
-    // `size` and cleared to `background` (opaque).
+    /// Saves the draw framebuffer and viewport, then binds the opaque albedo target.
+    /// Supply positive physical pixel dimensions and keep the light target bound for the passes.
     PIXIE_RENDER_API void BeginWorld(FramebufferSize size, pxColorRgba background);
     // Draws into the receiver target from now on. Its encoding is SpriteRenderer's and
     // ShapeRenderer's receiver pass's (LightingPass::Receivers).

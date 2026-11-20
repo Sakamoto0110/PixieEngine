@@ -24,20 +24,23 @@
 
 **State:** promoted by the owner on 2026-11-05 under
 [PIXIE-TODO-060](../../TODO.md#pixie-todo-060--separate-engine-sdk-game-runtime-and-editor-delivery).
-The [extraction task plan](../../TASKLIST.md#proposal-022--standalone-editor-extraction)
-owns execution state and clearances. The observed inventory still requires a
-reviewed execution baseline. Source removal and publication each require
-separate authorization.
+This document preserves the extraction design and its pre-move inventory.
+The [execution record](../evidence/sdk-editor-separation-2026-11-06.md#proposal-022--standalone-editor-extraction)
+retains scoped clearances; the [milestone record](../evidence/sdk-editor-separation-2026-11-06.md#milestones-and-closure)
+records the applied local cutover and its evidence limits. Current task state
+belongs to [TASKLIST](../../TASKLIST.md#pixie-todo-060--engine-sdk-game-runtime-and-editor-separation).
+The original execution gates below describe the reviewed plan, not an instruction
+to repeat extraction. Publication requires separate authorization.
 
 The objective is to place PixieEditor in its own project/repository, make it build and operate against installed Engine SDK artifacts, and leave PixieEngine independently buildable and distributable. A sibling folder is the owner's preferred workplace arrangement, not a dependency-resolution contract.
 
-The confirmed initial destination is:
+From the Engine checkout, the confirmed initial destination is:
 
-`C:\Users\Nekovih\dev\VAW\projects\Pixie\PixieEditor`
+`../PixieEditor`
 
-The present Engine checkout is:
+The Engine checkout is the reference root:
 
-`C:\Users\Nekovih\dev\VAW\projects\Pixie\PixieEngine`
+`.`
 
 The following owner decisions govern this proposal:
 
@@ -363,7 +366,7 @@ Cover normal/public and development profiles separately. Include code and no-cod
 4. Move current Editor guides and update Engine README/dependency/development routing. Preserve native contracts and historical attribution. Keep old guide paths as clearly identified migration pointers where needed, including anchors required by preserved references.
 5. Create destination development and code-authoring documentation. Validate links without requiring repositories to be siblings. Establish actual remote URLs before linking to them; until then, use product/path descriptions rather than invented URLs.
    Source-evidence links in this proposal also require a cutover disposition: preserve their observed-baseline meaning using a durable source/import anchor or an explicit provenance record when the old files are removed. Do not leave broken links or relabel old evidence as if it ran against the destination.
-6. Update the workspace launcher at `C:\Users\Nekovih\dev\VAW\projects\Pixie\abrir-todas-as-solucoes.bat` to the new solution. This is a separately enumerated workspace integration edit, not permission to reorganize the workspace.
+6. Update the workspace launcher at `../abrir-todas-as-solucoes.bat` to the new solution. This is a separately enumerated workspace integration edit, not permission to reorganize the workspace.
 
 **Output:** consumers, CI and docs route to their actual owners. **Exit condition:** active build/use instructions no longer direct users to the nested Editor; integration tests receive artifact inputs; historical records are not rewritten as new execution evidence.
 

@@ -1,4 +1,5 @@
-# pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...] [PROJECT_DIR <dir>]): a game written
+# pixie_game(<name> SOURCES <file>... [INCLUDE_DIRS <dir>...] [PROJECT_DIR <dir>]
+#            [ASSETS <project-relative-file>...] [CANDIDATE_AUTHORING]): a game written
 # against the engine, as three targets:
 #
 # - <name>-game, a static library with the game's code, which defines pixie::CreateProject();
@@ -9,9 +10,10 @@
 # INCLUDE_DIRS are the game library's public include directories; src/ when none are given. The player
 # is the Visual Studio startup project of the directory that calls this.
 #
-# PROJECT_DIR is for a game built in another tree than its project, such as the engine's samples,
-# whose players land in the engine's bin/: the player opens that folder unless --project says
-# otherwise, and a CTest test opens the project through the game's library (capi-test --open).
+# PROJECT_DIR provides a source-development fallback when the player finds no project
+# beside or above its executable. --project takes precedence. CTest can open that folder
+# through the development module. ASSETS declares code-owned inputs for export.
+# CANDIDATE_AUTHORING opts that module into the cooperative fresh-Project contract.
 
 function(pixie_game name)
     cmake_parse_arguments(PARSE_ARGV 1 GAME "CANDIDATE_AUTHORING" "PROJECT_DIR" "SOURCES;INCLUDE_DIRS;ASSETS")

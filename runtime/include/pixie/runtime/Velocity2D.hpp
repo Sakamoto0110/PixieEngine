@@ -4,9 +4,9 @@
 
 namespace pixie {
 
-// How fast an entity moves, in world units and radians per second. The World integrates it into
-// the Transform2D in PostUpdate, after every Behaviour has run. CharacterMotor2D and RigidBody2D
-// entities are excluded: their physics owner integrates motion without a second legacy integrator.
+/// Linear velocity in world units per second and angular velocity in radians per second.
+/// The built-in Physics system updates Transform2D after Behaviours and before PostUpdate.
+/// It excludes entities with CharacterMotor2D or RigidBody2D.
 struct Velocity2D {
     pxVec2 linear;
     double angular = 0.0;

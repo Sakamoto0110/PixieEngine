@@ -1,0 +1,51 @@
+{
+  "format": "pixie-scene",
+  "version": 3,
+  "seed": 1,
+  "entities": [
+    {
+      "id": "0000000000000001",
+      "name": "A",
+      "parent2D": "0000000000000003",
+      "components": {
+        "Transform2D": {"v": 1, "position": [0, 10], "rotation": 0, "scale": [1, 1]},
+        "Shape": {"v": 1, "kind": "Triangle", "size": [4, 4], "color": [255, 120, 120, 255], "visible": true}
+      }
+    },
+    {
+      "id": "0000000000000002",
+      "name": "B",
+      "parent2D": "0000000000000003",
+      "components": {
+        "Transform2D": {"v": 1, "position": [10, 0], "rotation": 0, "scale": [1, 1]},
+        "Shape": {"v": 1, "kind": "Quad", "size": [4, 4], "color": [120, 255, 140, 255], "visible": true}
+      }
+    },
+    {
+      "id": "0000000000000003",
+      "name": "Pivot",
+      "parent2D": "0000000000000004",
+      "components": {
+        "Transform2D": {"v": 1, "position": [20, 0], "rotation": 0, "scale": [1, 1]},
+        "Shape": {"v": 1, "kind": "Circle", "size": [4, 4], "color": [255, 220, 120, 255], "visible": true}
+      }
+    },
+    {
+      "id": "0000000000000004",
+      "name": "Root",
+      "components": {
+        "Transform2D": {"v": 1, "position": [100, 100], "rotation": 0, "scale": [1, 1]},
+        "Shape": {"v": 1, "kind": "Circle", "size": [6, 6], "color": [160, 180, 255, 255], "visible": true},
+        "Velocity2D": {"v": 1, "linear": [0, 0], "angular": 1.5707963267948966}
+      }
+    },
+    {
+      "id": "0000000000000005",
+      "name": "Alternate",
+      "components": {
+        "Transform2D": {"v": 1, "position": [200, 140], "rotation": 0, "scale": [1, 1]},
+        "Shape": {"v": 1, "kind": "Ring", "size": [8, 8], "color": [140, 175, 225, 255], "visible": true}
+      }
+    }
+  ]
+}
