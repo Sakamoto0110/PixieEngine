@@ -15,6 +15,7 @@ namespace pixie {
 class World;
 class ShapeRenderer;
 class Camera2D;
+struct PhysicsSettings2D;
 
 // Stable 1-based slots name the existing 31 scene filter bits. List order is immaterial;
 // removing a name never removes or renumbers a collider's bits.
@@ -98,6 +99,8 @@ struct CharacterCommand2D { double horizontal = 0; bool jumpPressed = false; };
 PIXIE_RUNTIME_API void InstallSceneMovement2D(World& world);
 // Refreshes authored geometry/settings without advancing time, including while editing.
 PIXIE_RUNTIME_API void SyncSceneMovement2D(World& world);
+// Pure authoring admission; does not install/sync a backend or change stored values.
+PIXIE_RUNTIME_API std::string ScenePhysicsSettingsEditError2D(const World& world, const PhysicsSettings2D& settings);
 // Rebuilds transient bodies, contacts and motor state from current authored components/poses.
 // Call outside a World step. Borrowed collision/motor views must be reacquired afterward.
 PIXIE_RUNTIME_API void ResetSceneMovement2D(World& world);

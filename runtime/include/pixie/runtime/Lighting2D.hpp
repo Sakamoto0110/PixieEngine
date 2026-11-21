@@ -25,11 +25,16 @@ enum class LightToneMapping2D : std::uint8_t {
 // through walls) and counted in telemetry.
 enum class LightQuality2D : std::uint8_t { Low, Medium, High };
 
-// Lighting for a scene: one per scene, on any entity, like PhysicsSettings2D. Without one, the scene
+// Legacy World lighting adapter, editable only before canonical presentation migration.
+// Its layout is also used as a transient render-parameter value, never a second authority.
+// Without configured lighting, the World
 // is drawn unlit, exactly as before lighting existed, and its lights do nothing. Its defaults (white
 // ambient at 1, exposure 1, no tone mapping) leave an unlit image unchanged; lower the ambient for
 // darkness. See docs/lighting-l0-design.md.
 struct LightingSettings2D {
+    // A present but disabled component retains its authored values and draws unlit.
+    // Missing in version 1 scenes means enabled, preserving their appearance.
+    bool enabled = true;
     // Light every receiver gets, whatever its layers; authored in sRGB.
     pxColorRgba ambient{255, 255, 255};
     // Linear multiplier of the ambient color.

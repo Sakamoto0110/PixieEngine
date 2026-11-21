@@ -1,0 +1,13 @@
+case,result,pos1_m,pos60_m,pos600_m,lin1_mps,lin60_mps,lin600_mps,ang1_radps,ang60_radps,ang600_radps,contact_mismatch_steps,event_mismatch_steps,ref_pair_peak,exp_pair_peak,ref_begins,exp_begins,ref_ends,exp_ends,ref_tunnel,exp_tunnel,extra_tunneling,sleep_observed,unexpected_wake_steps,transfer_continuity
+world-zero-override,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+effective-zero-base-nonzero,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+lateral-override,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+gravity-scale-half,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+density-change,PASS,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1
+resting-contact,PASS,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,1
+ccd-thin-floor,PASS,0,1.30897388e-06,1.30897388e-06,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,0,0,1
+cross-scope-contact,PASS,0,0,0,0,0,0,0,0,0,0,0,2,2,3,3,1,1,0,0,0,0,0,1
+scope-transfer,PASS,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0,0,0,0,0,1
+sleep-unchanged,PASS,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,0,0,0,0,0,1,0,1
+# mixed-scope-different-gravity: cross_scope_pair_steps=6; observational only; no equivalent one-World global-gravity reference
+experimental criteria: PASS; linearSlop=0.00499999989 m

@@ -23,6 +23,7 @@ internal sealed class EngineConnection : IAsyncDisposable
     public static async Task<EngineConnection> OpenAsync(string executable, string project, string captureDirectory,
         string channel, bool editor, TimeSpan startup, CancellationToken cancellationToken)
     {
+        var expectedApiVersion = NativeApiVersion.Current;
         if (!OperatingSystem.IsWindows()) throw new PlatformNotSupportedException("The qualified transport is Windows named pipes.");
         if (captureDirectory.Split(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar).Contains(".."))
             throw new ArgumentException("Capture startup root cannot contain parent traversal.");
@@ -66,7 +67,7 @@ internal sealed class EngineConnection : IAsyncDisposable
             }
             var hello = await connection.SendAsync("world.hello", new JsonObject(), cancellationToken);
             var value = hello["result"]?["value"];
-            if (value?["protocol_version"]?.GetValue<int>() != 1 || value?["pixie_api_version"]?.GetValue<int>() != 20)
+            if (value?["protocol_version"]?.GetValue<int>() != 1 || value?["pixie_api_version"]?.GetValue<int>() != expectedApiVersion)
                 throw new IOException("Host development protocol/API version mismatch.");
             var actualRoot = value?["capture_directory"]?.GetValue<string>();
             if (!string.Equals(Path.GetFullPath(actualRoot ?? ""), root, StringComparison.OrdinalIgnoreCase))

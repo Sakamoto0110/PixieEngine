@@ -254,12 +254,21 @@ internal static class EditorPhysicsQualification
                 Check(played.Tool.IsError != true && settled.Y > 60 && settled.Y < 150, "dynamic-box-lands-on-the-authored-floor",
                     new JsonArray(settled.X, settled.Y));
 
-                // Duplicate world settings disable the service; undoing the duplicate recovers it.
+                // TODO-057 owner policy: reject a new duplicate settings authority before mutation.
                 await Select(client, settings);
-                await Gesture(client, "duplicate");
-                Check(await FallAfterPlay(client, box, 30) == 0, "duplicate-world-settings-disable-simulation");
-                await Gesture(client, "undo");
-                Check(await FallAfterPlay(client, box, 30) > 20, "undoing-the-duplicate-settings-recovers-simulation");
+                var beforeDuplicateCount = await Entities(client);
+                var beforeDuplicateHistory = await Undos(client);
+                var beforeDuplicateGravity = await Pair(client, settings, "PhysicsSettings2D.gravity");
+                var beforeDuplicateFile = await File.ReadAllBytesAsync(Path.Combine(project, "scenes", "main.scene"));
+                var refusedDuplicate = await TryGesture(client, "duplicate");
+                Check(refusedDuplicate.Tool.IsError == true, "duplicate-world-settings-reports-refusal");
+                Check(await Entities(client) == beforeDuplicateCount && await Undos(client) == beforeDuplicateHistory &&
+                    await Pair(client, settings, "PhysicsSettings2D.gravity") == beforeDuplicateGravity,
+                    "duplicate-world-settings-rejected-without-world-or-history-mutation");
+                var afterDuplicateFile = await File.ReadAllBytesAsync(Path.Combine(project, "scenes", "main.scene"));
+                Check(beforeDuplicateFile.SequenceEqual(afterDuplicateFile),
+                    "rejected-duplicate-settings-preserves-saved-file");
+                Check(await FallAfterPlay(client, box, 30) > 20, "rejected-duplicate-settings-keeps-simulation-active");
 
                 await Gesture(client, "save");
                 var saved = await File.ReadAllTextAsync(Path.Combine(project, "scenes", "main.scene"));

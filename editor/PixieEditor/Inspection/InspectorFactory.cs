@@ -16,7 +16,8 @@ internal static class InspectorFactory
 
     // An inspector of component `type`, bound to the first handle and to the rest with AddBind. A
     // scenario type also gets a button that asks for the scene to be rebuilt with its values.
-    public static Inspector Build(EngineSession session, int type, IReadOnlyList<ComponentHandle> handles, Action rebuild)
+    public static Inspector Build(EngineSession session, int type, IReadOnlyList<ComponentHandle> handles, Action rebuild,
+        Func<int, bool>? include = null, bool forceReadOnly = false)
     {
         var inspector = Inspector.Create<ComponentHandle>(TypeBinderMode.Manual);
         var fields = Enumerable.Range(0, session.FieldCount(type))
@@ -27,10 +28,12 @@ internal static class InspectorFactory
         var row = 0;
         foreach (var (field, info) in fields)
         {
+            if (include != null && !include(field)) continue;
             if (info.Editor == PixieEditorKind.LayerMask) continue;
             foreach (var node in AddNodes(inspector, session, type, field, info))
             {
                 ApplyOptions(node, session, type, field, info);
+                if (forceReadOnly) node.ReadOnly = true;
                 node.Order = row++;
             }
         }
@@ -51,17 +54,18 @@ internal static class InspectorFactory
         }
 
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
-        ConfigureChains(inspector, session, type);
+        ConfigureChains(inspector, session, type, include);
 #endif
         return inspector;
     }
 
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
     // Only semantically related axes are eligible, never arbitrary numeric fields.
-    private static void ConfigureChains(Inspector inspector, EngineSession session, int type)
+    private static void ConfigureChains(Inspector inspector, EngineSession session, int type, Func<int, bool>? include)
     {
         for (var field = 0; field < session.FieldCount(type); ++field)
         {
+            if (include != null && !include(field)) continue;
             var kind = session.FieldInfo(type, field).Kind;
             var name = session.FieldName(type, field);
             if (kind is PixieFieldKind.Point or PixieFieldKind.Vector)

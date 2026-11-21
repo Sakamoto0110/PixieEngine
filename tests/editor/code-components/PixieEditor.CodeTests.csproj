@@ -6,6 +6,7 @@
     <Nullable>enable</Nullable>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <TreatWarningsAsErrors>true</TreatWarningsAsErrors>
+    <DefineConstants Condition="'$(PixieDevelopmentTools)' != 'false'">$(DefineConstants);PIXIE_DEVELOPMENT</DefineConstants>
   </PropertyGroup>
   <ItemGroup><ProjectReference Include="../../../editor/PixieEditor/PixieEditor.csproj" /></ItemGroup>
   <Target Name="RefusePublish" BeforeTargets="PrepareForPublish;Publish"><Error Text="Code-component qualification cannot be published." /></Target>

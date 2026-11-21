@@ -18,6 +18,8 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
     private const double DuplicateOffset = 16;
 
     public History History => history;
+    internal SceneDocumentEditor? SceneEditor { get; set; }
+    internal SceneAuthoring? Scenes { get; set; }
 
     // Names are scene data; slots never follow list order. A rename/clear is one native
     // snapshot history step and never writes any collider category or mask.
@@ -101,6 +103,7 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
             }
             // Snapshots are the existing native scene transport. Move the entire saved collider,
             // including unknown fields; no physics values or backend state are reconstructed here.
+            session.ValidateRestore(document.ToJsonString(), newIds: false, replacing: ids);
             foreach (var entity in entities) session.Destroy(entity);
             uint[] restored;
             try { restored = session.Restore(document.ToJsonString(), newIds: false); }
@@ -353,6 +356,7 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
     // project when it is outside; null, with the reason shown, when it cannot be used.
     public string? ImportAsset(string file, string kind)
     {
+        session.Edits.RequireMutation();
         if (!ProjectAssets.IsKind(file, kind))
         {
             Status.Show($"Only .{kind} files can be used here: {Path.GetFileName(file)}.", error: true);
@@ -392,15 +396,15 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
 
     // Copies the selected scene entities a little to the side and selects the copies; entities the
     // game generates are not in the scene and are not copied.
-    public void Duplicate(IReadOnlyList<uint> entities)
+    public bool Duplicate(IReadOnlyList<uint> entities)
     {
-        Guard(() =>
+        return Guard(() =>
         {
             var inScene = entities.Where(e => session.SceneId(e) != null).ToArray();
             if (inScene.Length == 0)
             {
                 Status.Show("Nothing to duplicate: only entities of the scene can be.", error: true);
-                return 0;
+                return false;
             }
 
             var copies = session.Restore(session.Snapshot(inScene), newIds: true);
@@ -417,7 +421,7 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
             selection.Set(copies);
             Record(copies.Length == 1 ? $"duplicate of {Describe(inScene[0])}" : $"duplicate of {copies.Length} entities",
                 copies, before: null, after: true);
-            return 0;
+            return true;
         });
     }
 
@@ -519,7 +523,8 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
 
         Guard(() =>
         {
-            if (history.Undo(session) is { } chosen)
+            if (SceneEditor?.OwnsNext(false) == true) { SceneEditor.Undo(); return 0; }
+            if (history.Undo(session) is { } chosen && !selection.IsWorld && selection.Scope == null)
                 selection.Set(chosen);
             return 0;
         });
@@ -535,7 +540,8 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
 
         Guard(() =>
         {
-            if (history.Redo(session) is { } chosen)
+            if (SceneEditor?.OwnsNext(true) == true) { SceneEditor.Redo(); return 0; }
+            if (history.Redo(session) is { } chosen && !selection.IsWorld && selection.Scope == null)
                 selection.Set(chosen);
             return 0;
         });
@@ -564,10 +570,11 @@ internal sealed partial class Authoring(EngineSession session, Selection selecti
             history.Record(new ReplaceStep(name, ids, before, after ? snapshot : null));
     }
 
-    private static T? Guard<T>(Func<T> change)
+    private T? Guard<T>(Func<T> change)
     {
         try
         {
+            session.Edits.RequireMutation();
             return change();
         }
         catch (EngineException e)

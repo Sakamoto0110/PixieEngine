@@ -556,6 +556,15 @@ std::vector<std::string> SceneMovementErrors2D(World& world) {
     errors.insert(errors.end(), layers.errors.begin(), layers.errors.end());
     return errors;
 }
+std::string ScenePhysicsSettingsEditError2D(const World& world, const PhysicsSettings2D& settings) {
+    if (std::string error = world.ValidatePhysicsSettings(settings); !error.empty()) return error;
+    const auto* state = world.Registry().ctx().find<MovementState>();
+    if (state && state->hasStepped && settings.unitsPerMeter != state->settings.unitsPerMeter) {
+        return "changing unitsPerMeter requires stopping Play and resetting";
+    }
+    return {};
+}
+
 const CollisionWorld2D* SceneCollisionWorld2D(World& world) { return State(world).validSettings ? State(world).collision.get() : nullptr; }
 BodyHandle2D SceneBody2D(World& world, entt::entity entity) {
     const auto& bodies = State(world).bodies;

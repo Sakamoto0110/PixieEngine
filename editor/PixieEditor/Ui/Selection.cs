@@ -11,6 +11,10 @@ internal sealed class Selection
 
     public IReadOnlyList<uint> Items => Chosen;
     public uint? Anchor { get; private set; }
+    public bool IsWorld { get; private set; }
+    public ulong? Scope { get; private set; }
+    public void SetWorld() { Clear(); IsWorld = true; }
+    public void SetScope(ulong scope) { if (scope == 0) throw new ArgumentOutOfRangeException(nameof(scope)); Clear(); Scope = scope; }
 
     public bool Contains(uint entity) => Chosen.Contains(entity);
 
@@ -28,6 +32,8 @@ internal sealed class Selection
     // These entities as well, after the ones already chosen.
     public void Add(IEnumerable<uint> entities)
     {
+        IsWorld = false;
+        Scope = null;
         foreach (var entity in entities)
         {
             if (!Chosen.Contains(entity))
@@ -38,6 +44,8 @@ internal sealed class Selection
     // Adds the entity, or takes it out when it was chosen.
     public void Toggle(uint entity)
     {
+        IsWorld = false;
+        Scope = null;
         if (!Chosen.Remove(entity))
             Chosen.Add(entity);
         Anchor = entity;
@@ -45,6 +53,8 @@ internal sealed class Selection
 
     public void Clear()
     {
+        IsWorld = false;
+        Scope = null;
         Chosen.Clear();
         Anchor = null;
     }
@@ -52,16 +62,21 @@ internal sealed class Selection
     // Play/Stop reconstruct the World. Scene IDs identify the same authored entities across it.
     public void PreserveThrough(EngineSession session, Action rebuild)
     {
+        var world = IsWorld;
+        var scope = Scope;
         var ids = Chosen.Select(session.SceneId).OfType<ulong>().ToArray();
         var anchorId = Anchor is { } anchor ? session.SceneId(anchor) : null;
         rebuild();
         var restored = ids.Select(session.Find).OfType<uint>().ToArray();
-        Set(restored, anchorId is { } id ? session.Find(id) : null);
+        if (scope is { } scopeId && session.SceneScopes().Any(s => s.Id == scopeId)) SetScope(scopeId);
+        else if (world || scope != null) SetWorld();
+        else Set(restored, anchorId is { } id ? session.Find(id) : null);
     }
 
     // Drops the entities that no longer exist, such as one deleted in the viewport.
     public void Prune(EngineSession session)
     {
+        if (Scope is { } scope && !session.SceneScopes().Any(s => s.Id == scope)) SetWorld();
         Chosen.RemoveAll(entity => !session.IsAlive(entity));
         if (Anchor is { } anchor && !session.IsAlive(anchor))
             Anchor = null;

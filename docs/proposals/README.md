@@ -47,3 +47,6 @@ update its state, and link the outcome.
 | [`gpu-particle-simulation.md`](gpu-particle-simulation.md) | PIXIE-PROPOSAL-015 | idea | Requires an owner decision; measure the CPU simulation at high counts first |
 | [`world-and-scene-properties.md`](world-and-scene-properties.md) | PIXIE-PROPOSAL-016 | idea | Distinct scopes and property inheritance; loading/simulation policy and implementation remain undecided |
 | [`editor-authoring-consolidation.md`](editor-authoring-consolidation.md) | PIXIE-PROPOSAL-017 | promoted | PIXIE-TODO-056 (2026-11-02); blocks A-G preserve ordered priorities, scope boundaries and later design/UX gates |
+| [`world-scene-reconciliation.md`](world-scene-reconciliation.md) | PIXIE-PROPOSAL-018 | promoted | PIXIE-TODO-057 active (2026-11-02); slice gates and owner decisions remain in the proposal. |
+| [`screen-canvas-sprite-export.md`](screen-canvas-sprite-export.md) | PIXIE-PROPOSAL-019 | promoted | PIXIE-TODO-058 (2026-11-02); restore the existing sized sprite API export for consumer builds |
+| [`project-quit-request.md`](project-quit-request.md) | PIXIE-PROPOSAL-020 | promoted | Native player graceful close query, requested with the consumer menus on 2026-11-02 |

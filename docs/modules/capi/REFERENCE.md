@@ -66,7 +66,7 @@ configuration-specific evidence and pending delivery gates.
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (20), raised when a function's meaning or a
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (27), raised when a function's meaning or a
   struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
   picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
   conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
@@ -83,8 +83,20 @@ configuration-specific evidence and pending delivery gates.
   (`pixie_lighting_debug_get`/`_set`, `PIXIE_LIGHTING_DEBUG_*`: light bounds, occluder edges,
   and the light buffer and overdraw views); a
   host checks the version and does not load a library of another one.
-  Version20 adds structured ordered input and explicit type-source metadata,
-  along with the changed C++ Behaviour/descriptor/input ABI; rebuild modules and players.
+  Version 20 adds structured ordered input and explicit type-source metadata,
+  along with the changed C++ Behaviour/descriptor/input ABI. Version 21 adds complete authored
+  project snapshot and restore operations. Version 22 adds read-only Scene scope catalog and
+  viewport Environment selection/resolution operations. Version 23 adds read-only structural
+  entity import/replacement validation. Version 24 adds bounded serial candidate authoring
+  admission, expected-World-revision checks and preparation/publication timing receipts;
+  version 25 adds `pixie_project_revision` and replaces the edit operation's expected revision
+  argument with a three-field session/storage/authored `PixieSceneEditToken`. Rebuild modules
+  and players. Version 26 adds read-only project scene-format and entity membership queries,
+  plus token-checked explicit conversion/save of the current fallback project's start scene.
+  Version27 adds explicitly contracted development-module candidate authoring with fresh
+  matching Project/descriptors/World reconstruction; modules must be rebuilt.
+  The local MCP bridge and its qualification client derive their exact expected
+  C API version from this header at build time; protocol version remains separate.
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
@@ -243,6 +255,97 @@ A project is a folder with one `<Name>.pixie` file and its scenes
   scene was edited since it was opened or saved: in edit mode, creating an entity, adding or
   removing a component of a scene entity, writing one of its fields, and destroying it are edits;
   changes to entities the game generates, and anything done in play, are not.
+- `pixie_project_snapshot(session, buffer, capacity, &length)` returns the complete authored
+  scene, including World defaults and empty Scene scopes, in Edit mode. A null buffer with zero
+  capacity queries the UTF-8 byte length. `pixie_project_restore(session, snapshot)` builds a
+  candidate World from that document and publishes it only on success, marking the project
+  unsaved. Both require an open project and a snapshot no larger than 128 MiB. The editor uses
+  restore only during startup, before bindings subscribe, and rebinds selection by Scene ID.
+  Registered custom components without a declarative v2 import contract cause v2 snapshot or
+  restore to fail with their type names. Whole-scene and selected-entity v2 writes apply the
+  same admission check before component serialization getters. v1 remains readable and writable
+  with its existing semantics. Project build hooks may still change external state or mutate
+  the published World through retained references even if candidate publication fails;
+  failed publication only retains the session-owned storage and revision. Entity-fragment
+  restore is still a live-World operation. These low-level APIs are available even though
+  dedicated editor scope authoring uses the separate factory-qualified candidate gate. `pixie_project_save` refuses
+  a recovered v2 snapshot over an existing v1 file with `PIXIE_ERROR_IO`, preserving file
+  bytes and unsaved state; explicit backed-up conversion is required first. Already-v2
+  files remain writable. The file-version check is not concurrent-writer protection.
+- `pixie_project_edit_status` admits an owned exact Engine `SceneProject` fallback or an
+  explicitly contracted development module, on its owner thread with an open project in Edit,
+  and reports its World revision. The optional `pixie_game_candidate_contract` export must
+  return1; missing/unknown versions stay refused. `pixie_game(... CANDIDATE_AUTHORING ...)`
+  opts into the [runtime lifecycle contract](../runtime/REFERENCE.md#edit-and-play).
+  Module/factory provenance is pinned before callbacks and retained through candidate and
+  published-state teardown. Other embedded factories and borrowed sessions stay excluded;
+  inheritance or token possession does not grant authority. The C factory catches project
+  construction exceptions and returns null. Failed module load preserves the previous native
+  module selection and reports failure; the host must not proceed as if loading succeeded.
+  `pixie_project_revision` returns an owner-thread `PixieSceneEditToken` with session identity,
+  World storage revision and conservative authored-content revision. It observes other project
+  sessions too; a token grants no candidate-edit authority. Supported authored C API mutation
+  attempts advance content revision before their mutating callbacks, including callbacks that
+  fail after partial application. Pure preflight rejection does not advance it; admitted no-ops
+  can. Storage replacement invalidates the World revision independently.
+  V2 Edit-mode component addition to an authored entity refuses types without import admission
+  before addition callbacks, construction or authored mutation; its status query reports the
+  same reason so the editor can disable the operation. Legacy v1 admission and runtime-only
+  additions retain their behavior. Raw registry changes,
+  captured references and arbitrary custom callback effects are not universally tracked.
+  `pixie_project_edit_scene` requires all three expected token fields and a complete v2 document bounded to
+  128 MiB. Existing duplicate settings authorities refuse new candidate mutation while legacy
+  reads remain available. The isolated candidate receives normal v2 structural/component
+  admission and strict movement-service validation before publication; reflected values retain
+  the reader's existing warning/default behavior, so this is not universal strict field-schema
+  validation. Unknown payload remains opaque. Warning formatting finishes before publication.
+  Success irreversibly replaces World storage and returns a trivial `PixieSceneEditReceipt`
+  containing its revision, preparation milliseconds and publication milliseconds including
+  old-World destruction (and retired Project/descriptors for contracted modules).
+  The bounded lifetime claim depends on owned fallback or cooperative module contract1;
+  arbitrary native registry injection is outside it. The operation does not write or convert
+  a scene file, implicitly activate missing lighting, or change the viewport Environment intent.
+  The host must refuse unfinished gestures and retire/rebind handles after success. UI recovery
+  failure is not native rollback. The editor's serial Scene controls use this coordinator.
+- `pixie_project_scene_version` reads the current authored World format in an open project;
+  `pixie_entity_scene_scope` returns zero for direct World membership and a nonzero scope ID
+  otherwise. Invalid/dead entities fail rather than being reported as World members. These
+  owner-thread observations do not grant mutation authority or serialize a full snapshot.
+- `pixie_project_convert_scene_v2` requires the same factory-qualified/Edit/owner-thread admission
+  and three-field token as candidate edits. It explicitly saves current authored data as v2,
+  retaining the original start-scene file as `.v1-backup`. Existing staging/backup paths refuse
+  conversion. Success preserves World storage/bindings, clears dirty and advances authored
+  revision; the host keeps ordinary history but does not undo the on-disk format. The runtime
+  validates source/candidate/round-trip and source identity before replacement. A late failure
+  can leave its recoverable backup as documented by the converter; no concurrent-writer lock
+  or arbitrary callback rollback is implied. Only nonallocating session updates follow commit.
+- `pixie_scene_scope_count` and `pixie_scene_scope_at` enumerate logical Scene definitions,
+  including empty scopes, without loading or changing them. `pixie_scene_scope_at` returns a
+  stable scope ID and UTF-8 name; capacity 0 measures the name length without its NUL.
+
+Reflected numeric writes to `PhysicsSettings2D` and `LightingSettings2D` reject ambiguous
+duplicate authorities before storage or dirty-state changes. Legacy v1 reads stay compatible.
+Their inputs must be finite, and integer fields require a representable integral value.
+Physics edits validate prospective gravity, units, substeps and every retained scope gravity
+before writing; changing units after the physics service has stepped is refused without
+changing stored settings or disabling the existing service. Direct native component access
+and legacy file reads retain their own documented semantics.
+- `pixie_viewport_environment_set/get` select Legacy World (kind 0, ID 0) or a Scene (kind 1,
+  nonzero scope ID) for presentation. The choice is independent of editor entity selection and
+  does not mark the project unsaved. A removed Scene ID remains selected so undo can restore its
+  meaning. `pixie_viewport_environment_resolve` returns Legacy World (0), Scene inheriting World
+  (1), or removed-Scene World fallback (2), plus absent/disabled/configured lighting state and a
+  measured diagnostic. Current Scenes inherit v1 World lighting; these calls do not author a
+  Scene Environment override or install `LightingSettings2D`.
+
+Before destructive entity replacement, `pixie_entities_validate(session, snapshot, ids,
+replacing, count)` checks structural admission against the prospective remaining World.
+`replacing` contains entity Scene IDs, permitted only with `PIXIE_RESTORE_SAME_IDS`.
+`PIXIE_RESTORE_NEW_IDS` validates copies while keeping the originals in conflict checks.
+The call invokes no component constructors, getters or writers, installs no scene index,
+and leaves World, RNG and dirty state unchanged. The editor calls it before destruction
+and before binding notifications. Import revalidates when applied. This is not a transaction:
+destruction hooks, subscribers or later component callbacks may still fail or change state.
 
 ## Rendering
 

@@ -14,7 +14,7 @@
 # otherwise, and a CTest test opens the project through the game's library (capi-test --open).
 
 function(pixie_game name)
-    cmake_parse_arguments(PARSE_ARGV 1 GAME "" "PROJECT_DIR" "SOURCES;INCLUDE_DIRS;ASSETS")
+    cmake_parse_arguments(PARSE_ARGV 1 GAME "CANDIDATE_AUTHORING" "PROJECT_DIR" "SOURCES;INCLUDE_DIRS;ASSETS")
     if(NOT GAME_SOURCES)
         message(FATAL_ERROR "pixie_game(${name}) needs SOURCES: the game's .cpp files.")
     endif()
@@ -40,6 +40,9 @@ function(pixie_game name)
     if(PIXIE_DEVELOPMENT)
         add_library(${name}-module MODULE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/../capi/src/GameModuleEntry.cpp)
         target_link_libraries(${name}-module PRIVATE ${name}-game)
+        if(GAME_CANDIDATE_AUTHORING)
+            target_compile_definitions(${name}-module PRIVATE PIXIE_CANDIDATE_AUTHORING)
+        endif()
         pixie_target_defaults(${name}-module)
         set_target_properties(${name}-module PROPERTIES FOLDER game)
         if(TARGET capi-test)
