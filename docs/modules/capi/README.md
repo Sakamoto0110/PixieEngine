@@ -34,5 +34,12 @@ wall time and `pixie_session_render`, and displays the returned texture.
 The library never creates windows or calls GLFW; the host owns the window and the context. One
 library hosts one game, the one whose `CreateProject` it was linked with.
 
+Native declarations and the ABI version belong to
+[`pixie_capi.h`](../../../capi/include/pixie_capi.h).
+Project lifecycle, drawing, and scene semantics belong to the
+[runtime reference](../runtime/REFERENCE.md); this module owns how a host
+reaches them across the C boundary.
+
 - [Manifest](MANIFEST.md): build target, dependencies, and routes.
 - [Technical reference](REFERENCE.md): the contract.
+- [Findings](FINDINGS.md): unconfirmed observations that do not change the contract.

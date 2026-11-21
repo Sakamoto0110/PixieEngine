@@ -43,7 +43,7 @@ PixieLib and PixieInspector derived their documentation from this schema at
 on the same day: `docs/development.md`, the named commit identity, the branch
 rule, `.local/` in disposable environments, the evidence rules, and the
 language of imported records. NekoLib is a released .NET library
-family; PixieEngine is a pre-code C++ and C# engine. Parts of the source that
+family; PixieEngine is a C++ and C# game engine. Parts of the source that
 only fit the former were changed or left out deliberately:
 
 | Area | NekoLib | PixieEngine | Reason |
@@ -66,4 +66,9 @@ only fit the former were changed or left out deliberately:
 | Work campaigns and premises | Separate schemas and policies | Not adopted | Frozen in the originating tooling; not needed yet |
 | Local SQLite documentation index | Policy and tooling | Not adopted | No tooling here |
 
-No verifier checks this schema yet; see the policy's enforcement section.
+[scripts/check_docs.py](../../scripts/check_docs.py) checks the schema's
+metadata vocabulary, relative links and anchors, scheduler relationships, and
+archive routing. These are mechanical checks, not proof that current claims
+match implementation or that historical evidence remains available. The
+[policy's enforcement section](../governance/documentation-policy.md#enforcement)
+defines the remaining review boundary.

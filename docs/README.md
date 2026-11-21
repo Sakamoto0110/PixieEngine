@@ -33,7 +33,7 @@ owns the authority table: which document owns which kind of fact.
 | [`governance/`](governance/documentation-policy.md) | Documentation and commit rules |
 | [`schemas/`](schemas/README.md) | Documentation structure and vocabulary, and its derivation |
 | [`templates/`](templates/) | Templates for modules, schedulers, proposals, and archive records |
-| [`proposals/`](proposals/README.md) | Unpromoted ideas |
+| [`proposals/`](proposals/README.md) | Ideas and their recorded promotion outcomes |
 | [`archive/`](archive/README.md) | Chronology, completed work, dated rationale |
 | [`../editor/`](../editor/README.md) | The C# ImGui editor |
 | `../scripts/check_docs.py` | The documentation verifier; see the [development guide](development.md#checks-before-a-commit) |

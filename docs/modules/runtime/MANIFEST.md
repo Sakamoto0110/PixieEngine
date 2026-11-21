@@ -30,7 +30,7 @@
 
 **Module dependencies:** none
 
-**Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes only)
+**Third-party dependencies:** EnTT, PixieLib, nlohmann/json (private: scenes and project files)
 
 **Distribution:** shipped-runtime
 
@@ -59,6 +59,9 @@
   `SpriteRenderer`, `PathRenderer`, `TextRenderer`, `Font`, `Image`, `Texture`), which
   belongs to no decided boundary yet, so it is not listed under module dependencies.
 - Tests: `runtime-tests`, from `tests/runtime/`, run through CTest.
+  Test coverage is indexed in [the reference](REFERENCE.md#validation);
+  session checks through the C API are owned by the
+  [C API validation section](../capi/REFERENCE.md#validation).
 - Origin: [PIXIE-PROPOSAL-004](../../proposals/scene-model-and-anchors.md), part 1, and the
   `runtime` boundary of [PIXIE-PROPOSAL-001](../../proposals/engine-module-boundaries.md);
   built by PIXIE-TODO-006 (see the [archive](../../archive/README.md)).

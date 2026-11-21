@@ -63,6 +63,9 @@
 - Tests: `capi-test` (`tests/capi/CapiTest.c`), registered in CTest once per game library, and
   `project-code` (`tests/project-code/ProjectCodeTest.cmake`), a project with code built against
   the engine.
+- Test modes and coverage: [the reference](REFERENCE.md#validation), including
+  `pixie-scene-capi`, each sample's project check, and `project-code`.
+- Unconfirmed contract observations: [`FINDINGS.md`](FINDINGS.md).
 - Distribution: the libraries serve hosts such as the editor; the players do not use them. They
   are still general (tools and tests use them too), as the guardrail on the editor asks.
 - Origin: [PIXIE-PROPOSAL-002](../../proposals/editor-native-bridge.md) and the `capi` boundary of

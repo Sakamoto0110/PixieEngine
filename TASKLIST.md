@@ -39,5 +39,6 @@ and the section shape is in the
 
 ## Open breakdowns
 
-None. The last ones, of PIXIE-TODO-032 to PIXIE-TODO-038 (opened on 2026-10-15 to 2026-10-17), and
-earlier ones, are in their archive records, routed from the [archive router](docs/archive/README.md).
+None. Completed breakdowns stay with their parent entries' archive records,
+routed from [TODO.md](TODO.md#completed). Their task IDs remain reserved;
+no completed task is renumbered or recreated here.

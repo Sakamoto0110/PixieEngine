@@ -52,12 +52,11 @@ folder that has no code. Beside it, `pixie-player` links the same game with the 
 - Strings are UTF-8, copied with a terminating NUL. A buffer too small receives the truncated
   string, and the call returns `PIXIE_ERROR_BUFFER`.
 - Null sessions, null outputs, and indices out of range return `PIXIE_ERROR_ARGUMENT`.
-- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (8), raised when a function's meaning or a
-  struct's layout changes, or functions are added. Version 2 added the field metadata, version 3
-  picking, destruction, and spawning, version 4 projects, modes, and authoring, version 5 the
-  conversion between view pixels and world units, version 6 scene IDs, snapshots, and names,
-  version 7 text fields, sprites' rectangles, and images, version 8 point lists and paths' lines; a
-  host checks the version and does not load a library of another one.
+- `pixie_api_version` returns `PIXIE_CAPI_VERSION` (currently 8), declared in
+  [the public header](../../../capi/include/pixie_capi.h). It is raised when
+  a function's meaning or a struct's layout changes, or functions are added.
+  A host checks the version and does not load a library of another one.
+  Version-change chronology belongs to the [archive](../../archive/README.md).
 - A project or scene that cannot be read or written returns `PIXIE_ERROR_IO`. Folder paths are
   UTF-8.
 
@@ -72,16 +71,21 @@ returns `PIXIE_ERROR_GL` if GL cannot be loaded or the renderers cannot be made.
 | Function | Effect |
 |---|---|
 | `pixie_session_resize` | Sets the view size; the next render matches it |
-| `pixie_session_advance(seconds)` | Adds wall time and runs the fixed steps it makes due (60 per second), unless paused; one call counts for 0.25 s at most |
+| `pixie_session_advance(seconds)` | Supplies wall time to the runtime's fixed-step advance, unless paused; time scaling and the clamp are defined by the runtime |
 | `pixie_session_step` | Runs one fixed step now, paused or not |
-| `pixie_session_set_paused` | Pauses or resumes; resuming drops the leftover fraction of a step |
+| `pixie_session_set_paused` | Pauses or resumes and drops the leftover fraction of a step |
 | `pixie_session_set_time_scale` | Simulated seconds per wall second given to advance, from 0.01 to 8 (clamped); not positive is an argument error |
 | `pixie_session_reset` | Rebuilds the World from the game with the same seed, after the game reads back its scenario; with a project open, from the scene's entities as they are now; steps start over |
-| `pixie_session_stats` | Steps, simulated seconds, last step's wall time, entity count, paused, time scale |
+| `pixie_session_stats` | Steps, simulated seconds, the World::Step duration, entity count, paused, time scale |
 | `pixie_project_name` | The project file's name when a project is open, else the game's |
 
 Before each step the session calls the project's `BeforeStep` with the session's input, then
 steps the World; after each step it forgets the step's presses, releases, scroll, and movement.
+
+The [runtime session contract](../runtime/REFERENCE.md#projects-and-sessions)
+owns fixed-step timing, scale/clamp order, and the scope of
+`LastStepMilliseconds`. The C API uses the default 60 Hz session settings;
+the statistic excludes the project's `BeforeStep`, rendering, and host UI.
 
 ## Projects and modes
 
@@ -137,6 +141,7 @@ Events are kept until the next step reads them.
   `count` to the total, so a call with capacity 0 asks for the count. A handle is the entity's 32
   bits (index and version); a destroyed entity's handle is reported as not found, never confused
   with a newer entity in the same slot.
+- `pixie_entity_alive` returns 1 for a live entity handle and 0 otherwise, including a null session.
 - `pixie_entity_name` gives the entity's `Name`, or an empty string.
 - `pixie_entity_create(name, &entity)` creates an entity that belongs to the scene (it gets a
   `SceneId`), named `name`, or unnamed for null or an empty string. `pixie_entity_set_name` writes
@@ -215,7 +220,7 @@ particles are not entities.
 - `pixie_entity_view_quad(entity, corners)` gives the four corners of a sprite's rectangle, or,
   without a sprite, of a text's block of lines, as the last render drew it, in view pixels
   (`corners[0..7]`: the top-left, top-right, bottom-right, bottom-left), or `PIXIE_ERROR_NOT_FOUND`
-  for an entity with neither. The text's outline needed no new function, so the version stays 8.
+  for an entity with neither.
 - `pixie_entity_view_path(entity, xy, capacity, &count)` gives the line a path was last drawn along,
   corners rounded, in view pixels, filling and counting as `pixie_entities` does, or
   `PIXIE_ERROR_NOT_FOUND` for an entity without a path.
@@ -226,12 +231,23 @@ particles are not entities.
 - `pixie_spawn_at` asks the game to create something at a point (`Project::SpawnAt`) and reports
   through `created` whether it did.
 
+The last-render wording of the three view-geometry queries has an open
+observation with an author-run reproduction in
+[CAPI-FINDING-001](FINDINGS.md#capi-finding-001--view-geometry-and-the-last-render).
+The owner retained this contract; independent confirmation of the finding
+is pending. The observation does not change the declarations or behavior.
+
 ## Non-goals
 
-No Name editing, no choice of scene other than the start scene, and no fields of nested structs
-(such as a particle pool's style) yet.
+No choice of scene other than the start scene, and no fields of nested structs
+(such as a particle pool's style) yet. Name editing is supported through
+`pixie_entity_set_name`, as specified above.
 
 ## Validation
+
+This is an index of checks in the test sources, not evidence of a new test
+run. Dated executions belong to the [archive](../../archive/README.md);
+test presence does not establish independent acceptance.
 
 `tests/capi/CapiTest.c` is a C11 program that includes only `pixie_capi.h` from the engine, loads a
 game's library at run time (`LoadLibrary` or `dlopen`, as P/Invoke does), creates a hidden GLFW

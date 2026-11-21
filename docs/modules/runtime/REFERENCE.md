@@ -26,7 +26,7 @@ The object model is an EC-style API over ECS storage
 ([`ROADMAP.md`](../../../ROADMAP.md#active-guardrails)). Components are data-only structs, each
 type in its own contiguous EnTT storage. Game logic is a `Behaviour`: a class with `Update()` that
 is itself a component, so every Behaviour class also has contiguous storage. Work shared by many
-entities (integration, and later spatial queries) is a system: a function over the whole World.
+entities (integration and spatial indexing) is a system: a function over the whole World.
 
 ## Public entry points
 
@@ -251,7 +251,7 @@ types.Add<Transform2D>("Transform2D")
 
 Each `FieldDescriptor` has a name, a `FieldKind` deduced from the member's type (`bool`, other
 integers, `float`, `double`, an enum, `pxPoint`, `pxVec2`, `pxRect`, `pxColorRgba`, `entt::entity`,
-`std::string`; any other type does not compile), optional names for an enum's values 0, 1, ..., and
+`std::string`, and `std::vector<pxPoint>`; unsupported member types do not compile), optional names for an enum's values 0, 1, ..., and
 `read` and `write` functions that move the value in and out of a component instance as a
 `FieldValue` (four doubles; the kind says which are used). Colors are clamped to 0 to 255 and
 rounded when written. Two kinds are not a `FieldValue`: a `std::string` member is a `Text` field,
@@ -278,7 +278,8 @@ A type marked with `Scenario()` holds a scenario: the values a scene is built fr
 state. A tool offers to rebuild the scene after editing one.
 
 `DescribeRuntimeComponents` describes `Transform2D`, `Velocity2D`, `Acceleration2D`, `Shape`,
-`Sprite` (its `image` a text field naming a PNG), `Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity), and
+`Sprite` (its `image` a text field naming a PNG), `Text` (its `font` an asset field naming a TTF),
+`Path` (its `points` a point list), `Attractor`, `ParticleSystem` (its capacity), and
 `ParticleSpawner`. The C API and scenes read and
 write fields only through these descriptors.
 
@@ -419,8 +420,9 @@ fonts (`GetFonts()`, resolved the same way), an
 `Input`, and a `FixedStepper`. `Start(size)`
 creates the GL objects and builds the World; `Stop` releases them; both need the context current.
 
-- `Update(delta, input)`: the project's `BeforeStep`, then `World::Step`; it records the step's
-  wall time (`LastStepMilliseconds`).
+- `Update(delta, input)`: the project's `BeforeStep`, then `World::Step`.
+  `LastStepMilliseconds` measures only the `World::Step` call; it excludes
+  `BeforeStep`, rendering, GPU work, and host UI work.
 - `Advance(frameDelta)`: for a host that drives the session; runs the fixed steps the frame makes
   due with the session's own `Input`, forgetting presses after each, unless paused.
   `StepOnce` runs one step regardless; `SetPaused` pauses or resumes; `SetTimeScale` makes
@@ -433,6 +435,12 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   framebuffer, after reading again the images whose files
   changed (checked at most every `SpriteImages::kCheckInterval`, half a second); `RenderToTarget()` does it into the session's own
   `RenderTarget`, sized to the viewport, and returns its texture.
+
+For `Advance`, `frameDelta * TimeScale()` is passed to the fixed stepper,
+which clamps the added scaled time to `[0, FixedStepper::kMaxFrameDelta]`
+(0.25 seconds). The fixed step size is unchanged. The clamp therefore applies
+after scaling, not to an independent 0.25-second wall-time allowance.
+`SetPaused` drops the accumulator remainder whenever it is called.
 
 ### Project folders
 
@@ -539,7 +547,7 @@ does.
 
 **Only what is on screen.** `SubmitShapes`, `SubmitPaths`, and `SubmitSprites` (with its texts) take
 an optional `view`, an area of the World: with one, they submit only what may show in it, in the same
-order and the same way as without it; without one, everything, as other callers expect. Each item is
+order and the same way as without it; without one, all visible items remain eligible. Each item is
 tested by a conservative bound (`Culling.hpp`): a circle around its position that holds a shape, a
 sprite (by its image's size), or a text (by `TextBlock`), however it is turned and pivoted; and the
 box of a path's points, widened by half its width. So what shows is never skipped, and something just
@@ -548,6 +556,14 @@ outside may still be drawn. A session passes `PaddedView(camera, 32)`, its camer
 first. Picking does not cull. Particles, and what a project draws itself (its overlay and screen
 layer), are not culled by the engine. `ShapeRenderer`, `PathRenderer`, and `SpriteRenderer` count
 what waits for their next flush (`PendingCount`).
+
+This is a submission filter, not a spatial index or a simulation filter.
+The submission routines still traverse their component views; sprite/text
+ordering gathers visible candidates before the view test. Hiding an item
+does not remove its entity or stop systems that process it. World updates
+and project-owned drawing or hit-testing keep their own traversal costs.
+These limits follow `ShapeDrawing.cpp`, `PathDrawing.cpp`, `SpriteDrawing.cpp`,
+and `World.cpp`; culling alone makes no whole-frame performance guarantee.
 
 ### Sprites
 
@@ -580,7 +596,7 @@ sprites of negative layers and the rest.
 `stb_image` (PNG only), into RGBA8 with premultiplied alpha (`DecodePng` in the engine's
 `Image.hpp`), and uploaded as a `Texture` with mipmaps when first drawn. `CheckForChanges` reads
 again every image whose file changed, appeared, or disappeared, so an image saved by a painting
-program shows at once in the editor and the player. An image that cannot be read (no path, a
+program is refreshed at the next session image check. An image that cannot be read (no path, a
 missing file, not a PNG) is drawn as a magenta checkerboard, and its problem is logged once each
 time it is read; `Size` is then empty and `Problem` says why. Reading needs no GL context; textures
 do.
@@ -670,10 +686,16 @@ None. A World and its Behaviours are used from one thread at a time.
 
 ## Non-goals
 
-No prefabs, nested scenes, or hierarchy, no binary scene format, no undo, no physics, no multithreaded
-systems, no long-range all-pairs forces between particles.
+No prefabs, nested scenes, or hierarchy, no binary scene format, no runtime-owned undo stack,
+no physics, no multithreaded systems, no long-range all-pairs forces between particles.
+The editor owns its undo/redo history and uses the runtime's
+[entity snapshots](#entity-snapshots); that does not add an undo stack to this module.
 
 ## Validation
+
+This section indexes checks present in the test sources. It is not a report
+that they passed for the current worktree. Executed results and their limits
+belong to the [dated archive records](../../archive/README.md).
 
 `tests/runtime/` (CTest `runtime-tests`) covers the phase order, the Behaviour lifecycle,
 deferred destruction and actions, the World's time, velocity integration with the previous
@@ -707,10 +729,10 @@ ignored), the user data folder (names made folder names, and the folder made und
 `PIXIE_USER_DATA`), and project folders (a new project named after its folder, with its one
 shape and no path outside it; a folder that is not empty refused; only a folder with one valid
 project file opening; unknown keys written back; and which paths count as inside the folder).
-Sessions, with their modes, are exercised by the samples and, through the C API, by `capi-test`,
-which drives a whole project through `pixie-scene-capi`, including a sprite drawn in its image's
-color, a path drawn in its two colors, over a background sprite and under one of layer 0, and a text
-drawn inside its outline and nowhere else, over a sprite of a lower layer and under one of a higher. `SubmitShapes` is exercised by the samples that draw a World.
+Session modes and hosted rendering are covered through `capi-test`; its
+project, sprite, path, and text checks are indexed in the
+[C API validation section](../capi/REFERENCE.md#validation).
+`SubmitShapes` is exercised by the samples that draw a World.
 `tests/engine/TextTests.cpp` (CTest `engine-tests`) covers UTF-8 decoding, refusing what is not a
 font, measuring by advances and lines, the atlases (clamped sizes, premultiplied white glyphs, the
 replacement glyph beyond Latin-1, and the layout's pens), the ladder, and text drawn into a render

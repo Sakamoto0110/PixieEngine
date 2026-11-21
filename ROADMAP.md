@@ -50,164 +50,52 @@ decisions below is in the [archive](docs/archive/README.md).
 
 ## Current direction
 
-Decided on 2026-10-13
-([decision record](docs/archive/object-model-and-editor-decisions-2026-10-13.md)):
-three anchor scenarios drive the first cut, each with user interaction and an
-editor: boids steered by the user, flocks, and particle systems with
-attractors ([PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md)).
-The work is scheduled in [`TODO.md`](TODO.md) as blocks, simple and
-foundational work first, each broken into tasks in
-[`TASKLIST.md`](TASKLIST.md):
+### Consumer anchors
 
-1. Dependencies: PixieLib, GLM, and EnTT vendored (PIXIE-TODO-003).
-2. A documentation verifier (PIXIE-TODO-004).
-3. Input, a 2D camera, and instanced shapes (PIXIE-TODO-005).
-4. The `runtime` module: World, entities, Behaviours, and update phases
-   (PIXIE-TODO-006).
-5. Anchor 1, boids (PIXIE-TODO-007).
-6. A spatial grid and anchor 2, flocks (PIXIE-TODO-008).
-7. Particles and anchor 3, attractors (PIXIE-TODO-009).
-8. The engine side for editor hosts: host loop, render target, reflection, and
-   `capi` (PIXIE-TODO-010).
-9. The C# ImGui editor over the three anchors (PIXIE-TODO-011).
+Develop the engine through concrete consumers. The initial anchors are boids
+steered by the user, flocks, and particle systems with attractors
+([PIXIE-PROPOSAL-004](docs/proposals/scene-model-and-anchors.md)).
+[LogicSandbox](https://github.com/Sakamoto0110/LogicSandbox) is a separate
+consumer project that exercises interactive circuit construction, saves,
+templates, and nested chips
+([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)).
 
-All nine blocks were completed on 2026-10-13: the three anchors run as
-players and in the editor (see [`TODO.md`](TODO.md#completed) and the
-[archive](docs/archive/README.md)). The owner's review of them, the same day,
-added five more blocks
-([decision record](docs/archive/editor-review-decisions-2026-10-13.md)):
+The engine supplies general capabilities usable by players, tools, and tests.
+The editor consumes those capabilities through the C API. The accepted
+dependency and object-model constraints remain in [Active guardrails](#active-guardrails).
 
-10. A single source of field metadata in the native registry (PIXIE-TODO-012).
-11. Scenario values, scene rebuild, and time control (PIXIE-TODO-013).
-12. Attractor size and death on contact (PIXIE-TODO-014).
-13. Particle systems and spawners apart (PIXIE-TODO-015).
-14. Selection and editing in the viewport (PIXIE-TODO-016).
-15. Spawners placed by hand in the particles game (PIXIE-TODO-017), asked for
-    by the owner after the review.
+### Boundaries and navigation
 
-Blocks 10 to 15 were completed on 2026-10-13. On 2026-10-14 the owner chose
-the next phase
-([decision record](docs/archive/projects-and-scenes-decisions-2026-10-14.md)):
-games as project folders created and opened from the editor, together with
-scene serialization ([PIXIE-PROPOSAL-005](docs/proposals/projects-and-scenes.md)):
+The decided module boundaries are [runtime](docs/modules/runtime/README.md)
+and [capi](docs/modules/capi/README.md). The proposed `platform` and
+`render` boundaries remain undecided; their code stays in the provisional
+engine library until their boundaries are accepted
+([PIXIE-PROPOSAL-001](docs/proposals/engine-module-boundaries.md)).
+The anchor direction supersedes the vertical slice of
+[PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md).
 
-16. Saving and loading scenes (PIXIE-TODO-018).
-17. Projects, edit mode, and play mode in the engine (PIXIE-TODO-019).
-18. New and open projects in the editor (PIXIE-TODO-020).
-19. Code in a project (PIXIE-TODO-021).
-20. Samples as projects (PIXIE-TODO-022).
-21. A centered start screen, the editor's icon, a viewport menu, and view-to-world conversion
-    (PIXIE-TODO-023), asked for by the owner after seeing the editor.
+Current technical contracts belong to the module references and public
+headers, as routed by the [documentation index](docs/README.md). Completed
+implementation blocks belong to the [completed-work pointers](TODO.md#completed)
+and their archive records. The previous chronological account is preserved
+in the [phase 1 sanitation record](docs/archive/documentation-sanitation-phase1-2026-10-18.md#roadmap-chronology-at-the-reference-baseline).
 
-Blocks 16 to 21 were completed on 2026-10-14: scene entities are saved and loaded, the engine opens
-project folders and edits and plays their scenes, the editor makes and opens projects, a project can
-have code of its own, which the editor builds against its engine, and the three anchor samples are
-projects of that kind.
+### Next work and deferred investigation
 
-Next, the owner chose authoring in the viewport, before sprites and exporting a game
-([PIXIE-PROPOSAL-006](docs/proposals/authoring-in-the-viewport.md),
-[decision record](docs/archive/authoring-decisions-2026-10-14.md)):
+[TODO.md](TODO.md#current-promoted-work) owns the executable work queue and
+its gates. This roadmap does not select or authorize a new implementation
+block. The [proposal index](docs/proposals/README.md) distinguishes ideas from
+recorded promotion outcomes; an idea still needs the owner's promotion.
+In particular, shared-engine/export work
+([PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md)) and building
+a player game once ([PIXIE-PROPOSAL-012](docs/proposals/player-builds-once.md))
+remain proposals.
 
-22. Entity snapshots, scene-ID lookup, and names in the engine (PIXIE-TODO-024).
-23. Moving, undo and redo, duplicating, deleting, and renaming in the editor (PIXIE-TODO-025).
-
-Blocks 22 and 23 were completed on 2026-10-15: a scene is built in the editor with the mouse, and
-every change to it can be undone. The continuous integration followed (PIXIE-TODO-026).
-
-Next, the owner chose sprites ([PIXIE-PROPOSAL-007](docs/proposals/sprites.md),
-[decision record](docs/archive/sprites-decisions-2026-10-15.md)):
-
-24. Images, sprites, and text fields in the engine (PIXIE-TODO-027).
-25. Sprites in the editor, and a sprites sample (PIXIE-TODO-028).
-
-Blocks 24 and 25 were completed on 2026-10-15: a scene draws PNG images, placed in the editor by
-dropping them on the viewport, and a project without code plays in the engine's generic player.
-Next, the owner proposed a first game on the engine, a sandbox of logic circuits
-([decision record](docs/archive/logic-sandbox-decisions-2026-10-15.md)), recorded as three
-unpromoted proposals: what the engine needs for it
-([PIXIE-PROPOSAL-008](docs/proposals/interactive-2d-games.md)), the game itself
-([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)), and one shared engine library with
-exporting a game ([PIXIE-PROPOSAL-010](docs/proposals/shared-engine-and-export.md)). The owner
-promoted the engine's part first:
-
-26. Paths, list fields, and points of a sprite (PIXIE-TODO-029).
-27. A screen layer, text, player saves, and fragment metadata (PIXIE-TODO-030).
-
-Block 26 was completed on 2026-10-15: the engine draws lines with rounded corners and a moving fill,
-and the editor edits lists of points. Block 27 was completed the same day: a game draws its interface
-and text on a screen layer, keeps its own files in a user data folder, and saves sets of entities
-with metadata. PIXIE-PROPOSAL-008 is carried out; the logic sandbox
-([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)) waits on the owner's promotion. Before it, the
-owner promoted text in the World as data
-([PIXIE-PROPOSAL-011](docs/proposals/scene-text.md); screen text stays code):
-
-28. Text in the scene (PIXIE-TODO-031).
-
-Block 28 was completed on 2026-10-15: text is part of a scene, saved, picked, and drawn among the
-sprites, and the editor treats fonts as assets. Then the owner promoted the logic sandbox
-([PIXIE-PROPOSAL-009](docs/proposals/logic-sandbox.md)), the engine's first game, in a project folder
-of its own:
-
-29. The logic sandbox, stage 1: light the lamp (PIXIE-TODO-032).
-30. The logic sandbox, stage 1.5: saves and templates (PIXIE-TODO-033).
-
-Block 29 was completed on 2026-10-15: on the engine as it is, a player places gates, wires them
-through bends, and lights a lamp, in a project of its own with its own tests. After playing it, the
-owner put fixes to stage 1 before block 30
-([promotion record](docs/archive/logic-sandbox-fixes-promotion-2026-10-16.md)):
-
-31. The logic sandbox, stage 1 fixes: selecting and removing wires (PIXIE-TODO-034), before block 30.
-
-Block 31 was completed on 2026-10-16: wires and their bends are selected and removed, and a right
-click on a wired input removes its wire. Then the owner asked for a box selection and a toolbar,
-before the templates of block 30
-([promotion record](docs/archive/logic-sandbox-toolbar-promotion-2026-10-16.md)):
-
-32. The logic sandbox: box selection and a toolbar (PIXIE-TODO-035).
-
-Block 32 was completed on 2026-10-16: a box selects pieces and their wires, the selection is copied
-and pasted with new IDs, and a toolbar deletes, copies, pastes, saves, and loads.
-
-Block 30 was completed on 2026-10-16: the circuit is saved and loaded, and parts of it become
-templates, placed from the hotbar's Templates page. PIXIE-PROPOSAL-009 is carried out.
-
-Then the owner promoted a new anchor for the game
-([promotion record](docs/archive/logic-sandbox-adder-promotion-2026-10-16.md)):
-
-33. The logic sandbox, stage 2: chips and an 8-bit adder (PIXIE-TODO-036).
-
-Block 33 was completed on 2026-10-16: templates come back as chips, boxes with labelled pins that
-open by zoom down to their gates, and an 8-bit ripple adder of full-adder chips of half-adder chips
-adds in the game's start scene.
-
-Then the owner asked for drawing to skip what is off screen, as the zoom grows
-([promotion record](docs/archive/view-culling-promotion-2026-10-16.md)):
-
-34. Drawing only what is on screen (PIXIE-TODO-037).
-
-Block 34 was completed on 2026-10-16: a session submits only the sprites, texts, paths, and shapes
-that may show on screen.
-
-Then the logic sandbox's calculator, thousands of chips each read as a small set of entities, took
-minutes to load, nearly all of it in `ReadEntities`, and the owner asked for it to load fast
-([promotion record](docs/archive/scene-index-promotion-2026-10-17.md)):
-
-35. Reading many small sets of entities into a large World (PIXIE-TODO-038).
-
-Block 35 was completed on 2026-10-17: the World keeps its scene entities by scene ID, so reading a set
-of entities costs what the set holds, not the World's size.
-
-Later, after the logic sandbox, and not promoted yet: the owner observed on 2026-10-16 that a
-particle system made in a blank project does not seem to work, and asked for it to be investigated
-toward the end ([decision record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md)).
-An unconfirmed lead: only the particles sample adds the particle step to its World
-(`AddParticleStep`, in `samples/particles/src/game/ParticlesScene.cpp`), and a project without code
-runs on the generic library, which does not; if that holds, its particle systems never step.
-
-The anchor blocks supersede the vertical slice
-of [PIXIE-PROPOSAL-003](docs/proposals/vertical-slice.md), with anchor 1 as the
-first scenario. The `platform` and `render` boundaries stay undecided; their
-code grows in the provisional engine library until they are.
+Investigating particle systems in blank projects remains deferred until after
+the logic sandbox work, and is not promoted. The owner's observation and an
+unconfirmed source lead are preserved in the
+[dated record](docs/archive/particles-in-blank-projects-postponed-2026-10-16.md).
+That record does not establish a reproduced defect or authorize a fix.
 
 ## Active guardrails
 

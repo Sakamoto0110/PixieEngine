@@ -8,7 +8,8 @@ executable, and a C# editor that inspects engine state through
 from [PixieLib](https://github.com/Sakamoto0110/PixieLib).
 
 Early stage: a provisional engine library (window, OpenGL context, main loop,
-input, 2D camera, shapes, particles, and PNG sprites), the `runtime` and `capi`
+input, 2D camera, shapes, particles, PNG sprites, paths, and text rendering),
+the [runtime](docs/modules/runtime/README.md) and [C API](docs/modules/capi/README.md)
 modules, the samples under [`samples/`](samples/) (three of them the anchors:
 boids, flocks, and particles; `sprites` a project without code), and the C# ImGui editor under [`editor/`](editor/README.md),
 which runs any of the anchors. From the Visual Studio 2026 developer prompt:

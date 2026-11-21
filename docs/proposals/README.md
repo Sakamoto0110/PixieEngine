@@ -8,7 +8,7 @@
 
 **Lifecycle:** current
 
-**Subject:** concise unpromoted ideas that require an owner decision
+**Subject:** proposal records and their recorded promotion outcomes
 
 **Surface:** index
 
@@ -26,7 +26,10 @@ only through formal promotion to [`TODO.md`](../../TODO.md); other sources may
 also be promoted directly.
 
 When a proposal is promoted, rejected, superseded, or split, keep the file,
-update its state, and link the outcome.
+update its state, and link the outcome. The index retains those records.
+A promoted state identifies a recorded decision; current scheduling and
+completion belong to TODO.md and the linked archive records. It does not
+mean that the proposal is still an unstarted implementation block.
 
 | Proposal | ID | State | Promotion state |
 |---|---|---|---|

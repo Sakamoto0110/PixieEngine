@@ -20,7 +20,7 @@ as it is. The editor creates no version-control files.
     pressed. The project takes the folder's name, and its scene starts with one shape.
   - **Open project** takes a folder that holds a `.pixie` file; project folders are marked in the
     picker, and Open waits until the current folder is one.
-- A project runs on the engine's generic library, `pixie-scene-capi`, so it opens without a
+- A project without code runs on the engine's generic library, `pixie-scene-capi`, so it opens without a
   compiler. The recent projects and the place of the last one are kept in the user's settings
   (`PixieEditor/settings.json` under the application data folder), never in a project.
 - **Edit and play.** A project opens in edit mode: time stands still, the time bar and Game wait,
@@ -46,6 +46,9 @@ as it is. The editor creates no version-control files.
   process, so the editor restarts, and the new one waits for the old to exit before building over
   its library. The game's player, `<project>/bin/<config>/<Id>.exe`, plays the project's start
   scene on its own.
+
+## Editing
+
 - **Authoring.** Create entity, in the Entities panel, adds an entity named `entity <n>` to the
   scene, with a transform and a 24-unit circle, and selects it. In the inspector, Add component
   lists the types the selected entities do not all have, and a component's header has a close
@@ -64,7 +67,8 @@ as it is. The editor creates no version-control files.
   is copied into the project's `images/` folder first (an identical one already there is used
   instead of a second copy, and another file of the same name gets a number), and the status line
   names what was copied, so the project stays whole on another machine. The image of an open
-  project's sprite that is saved again by a painting program shows at once.
+  project's sprite that is saved again by a painting program is refreshed
+  automatically, under the runtime's [image-check interval](../docs/modules/runtime/REFERENCE.md#projects-and-sessions).
 - **Undo and redo.** Ctrl + Z undoes, Ctrl + Y or Ctrl + Shift + Z redo, and the Edit menu names
   what they would undo or redo. Every change to the scene in edit mode is one step: an inspector
   edit (a scrub, a drag on a slider, or a typed value, from press to release, over every selected
@@ -74,9 +78,11 @@ as it is. The editor creates no version-control files.
   Stop discards them, and undo and redo wait for Stop. Entities the game's code generates are not
   in the scene, and not in the history. Each step is logged.
 
-- **Viewport.** The engine draws the World into a texture of the editor's own OpenGL 4.5 core
-  context (`pixie_session_render`); the window shows it with `ImGui.Image`, flipped, since GL's
-  first row is the bottom. The keys go to the game while the viewport has focus (click it first).
+## Viewport and panels
+
+- **Viewport.** The editor displays the session texture using the
+  [C API rendering convention](../docs/modules/capi/REFERENCE.md#rendering).
+  The keys go to the game while the viewport has focus (click it first).
   The game steps at its fixed rate with the editor's wall time. Two buttons at the top choose what
   the mouse does:
   - **Game**: the mouse over the image goes to the game, in the image's pixels, as in its player.
@@ -98,7 +104,8 @@ as it is. The editor creates no version-control files.
     while you pick them. Selected entities are outlined: a sprite by its rectangle, turned as it is
     drawn, a text by its block of lines, a path along its line with its ends circled, anything else
     by a circle. What is drawn on
-    top is picked first: shapes, then sprites, then paths, then sprites of negative layers.
+    top is picked first, including text among sprites; the exact hit-test
+    ordering is owned by the [runtime picking contract](../docs/modules/runtime/REFERENCE.md#picking).
 - **Entities.** Every entity, oldest first, by name or number; only the rows in view ask the engine
   for a name. A click selects one, Ctrl + click adds or takes out one, and Shift + click selects the
   range from the last one clicked.
@@ -111,8 +118,9 @@ as it is. The editor creates no version-control files.
   is bound to the first and to the rest with `AddBind`, so an edit changes all of them; a field
   whose values differ shows "--", except a number that scrubs, which shows the first entity's value
   so a scrub moves each from its own. Every mixed row's label is amber, and its tooltip says the
-  entities differ. The fields read and write the
-  component through the C API on every frame; the native World is the only copy of the state. No
+  entities differ. Field reads and edits go through the C API; the native
+  World owns the live state. The descriptor and field-transfer contracts are
+  defined by the [C API reference](../docs/modules/capi/REFERENCE.md#entities-and-fields). No
   class per component exists in the editor: a component added to a game's library shows up without
   rebuilding it. A text field, such as a sprite's `image`, is drawn above the rest of its section: a
   text box whose edit is one step when it lets go of the keyboard, "(mixed)" in its label when the
@@ -127,27 +135,38 @@ as it is. The editor creates no version-control files.
   is one step. When the selected entities' lists differ, the field asks to select one.
 - **Time.** A bar at the top slows time down, pauses or resumes, and speeds it up: 0.1, 0.25, 0.5,
   0.75, 1, 1.25, 1.5, 1.75, and 2 times. The fixed step stays 1/60 s; faster runs more steps per
-  frame, so a heavy World (5,000 flocking boids) falls a little behind at 2 times.
+  frame. The [runtime session contract](../docs/modules/runtime/REFERENCE.md#projects-and-sessions)
+  defines the time-scale clamp; this control is not a frame-rate or throughput measurement.
 - **Scenario.** Each game's starting values (counts, attractors) live in a scenario component on
   the `scenario` entity; its inspector has a "Rebuild the scene" button that builds the World again
   from the edited values.
 - **Session.** The project and its folder, or the game; a single step while paused, Rebuild (for a
   project, from the scene's entities as they are) or Reset; the World's time, entity count, and step
-  cost; and, for a game, buttons that open the other games built next to this one in a new editor
+  cost (World::Step only, excluding BeforeStep, rendering, and the editor UI);
+  and, for a game, buttons that open the other games built next to this one in a new editor
   (P/Invoke binds the library once, so one process hosts one game or project).
+
+## Dependencies
 
 The editor's icon, on its executable and its window, is the neko mark of the shared asset store
 (`vdr` alias `neko-purple-light`), copied into `PixieEditor/assets/` with `vdr cp` under its curated
-name. The window takes its 32-bit frames as pixels through GLFW, so it shows on every host.
+name. `Ui/WindowIcon.cs` supplies its 32-bit frames to GLFW for the window icon;
+this describes the implementation, not validation on every host.
 
-The editor references `PixieInspector.ImGui` 0.2.1 from nuget.org, which brings Hexa.NET.ImGui
-2.2.9, with Hexa.NET.GLFW 1.0.5 and ImGui's GLFW and OpenGL3 backends 1.0.18
-([`DEPENDENCIES.md`](../DEPENDENCIES.md)). Nothing in it is copied from PixieInspector's repository.
+The editor consumes `PixieInspector.ImGui` from NuGet, with Hexa.NET's GLFW
+and ImGui backends. [DEPENDENCIES.md](../DEPENDENCIES.md) owns dependency
+versions, status, and rationale;
+[`PixieEditor.csproj`](PixieEditor/PixieEditor.csproj) owns package wiring.
+Nothing in the editor is copied from PixieInspector's repository.
 
 ## Build and run
 
-Build the engine first: the editor looks for `<game>-capi.dll`, and for a project
-`pixie-scene-capi.dll`, in `bin/Release`, then `bin/Debug`, above the directory it runs from. Then,
+Build the native libraries using the [development guide](../docs/development.md#build).
+For a named game, the editor searches `bin/Release`, then `bin/Debug`, while
+walking upward from its executable directory: `<game>-capi.dll` on Windows,
+`lib<game>-capi.so` on the Linux code path. A project without code uses
+`pixie-scene-capi`; a project with code is built and resolved from its own
+`bin/<config>/` as described under [Projects](#projects). Then,
 with the .NET 10 SDK:
 
 ```bash
