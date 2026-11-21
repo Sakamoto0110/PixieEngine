@@ -1,6 +1,7 @@
 #include "Check.hpp"
 #include "pixie/dev/Dispatcher.hpp"
 #include "pixie/runtime/ProjectSession.hpp"
+#include "pixie/runtime/InputTriggers.hpp"
 #include "pixie/runtime/SceneProject.hpp"
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/Transform2D.hpp"
@@ -272,6 +273,47 @@ TEST(InputAndViewCommands) {
     CHECK(std::abs(view["y"].get<double>() - 13) < 1e-8);
     s.Good("world.pick", {{"x", 0}, {"y", 0}});
     s.Good("world.pick_box", {{"x0", 0}, {"y0", 0}, {"x1", 96}, {"y1", 64}});
+}
+
+TEST(TriggerCommandsDiscoverAndQueueTypedEventsForTheNextStep) {
+    pixie::ProjectSession session(std::make_unique<pixie::SceneProject>(), {});
+    CHECK(session.Start({96, 64}));
+    auto entity = session.GetWorld().Create("trigger-fixture");
+    constexpr pixie::TriggerActionId action{0x1e0987302f67d3ba};
+    entity.Add<pixie::SceneId>(pixie::SceneId{123});
+    entity.Add<pixie::InputTriggers>().bindings = {
+        {{pixie::TriggerType::Key, true, 290, pixie::TriggerEdge::Press, 2, action}, {}},
+        {{pixie::TriggerType::Text, true, -1, pixie::TriggerEdge::Any, 0, "Text"}, {}},
+    };
+    int hits = 0;
+    session.GetWorld().Triggers().Subscribe(action, "ToggleHUD", [&](pixie::Entity source, const pixie::InputEvent& event) {
+        CHECK(source == entity && std::get<pixie::KeyEvent>(event).scanCode == 59);
+        ++hits;
+    });
+    pixie::dev::WorldDispatcher dispatcher(session);
+    const auto call = [&](const char* method, Json params = Json::object()) {
+        auto request = Request(method);
+        request["params"] = std::move(params);
+        return Json::parse(dispatcher.Dispatch(request.dump()));
+    };
+    CHECK(call("world.hello").contains("result"));
+    CHECK(call("world.pause").contains("result"));
+    const auto first = call("world.triggers", {{"id", "000000000000007b"}, {"limit", 1}})["result"]["value"];
+    CHECK(first["total"] == 2 && first["next_offset"] == 1);
+    CHECK(first["bindings"][0]["action"] == "action:1e0987302f67d3ba" && first["bindings"][0]["action_registered"] == true);
+    const auto catalog = call("world.triggers", {{"action_catalog", true}})["result"]["value"];
+    CHECK(catalog["total"] == 1 && catalog["actions"][0]["id"] == first["bindings"][0]["action"]);
+    CHECK(catalog["actions"][0]["name"] == "ToggleHUD");
+    const auto second = call("world.triggers", {{"offset", 1}, {"limit", 1}})["result"]["value"];
+    CHECK(second["next_offset"].is_null() && second["bindings"][0]["action_registered"] == false);
+    CHECK(call("world.trigger_post", {{"kind", "text"}, {"code", 0xd800}})["error"]["data"]["possibly_applied"] == false);
+    const Json key{{"kind", "key"}, {"code", 290}, {"edge", "press"}, {"scan_code", 59}, {"modifiers", 2}};
+    const auto queued = call("world.trigger_post", key)["result"]["value"];
+    CHECK(queued["queued_for_step"] == true && queued["tick"] == 0 && hits == 0);
+    CHECK(call("world.step")["result"]["value"]["steps_run"] == 1 && hits == 1);
+    CHECK(!session.GetInput().IsDown(pixie::Key::F1));
+    CHECK(call("world.step")["result"]["value"]["steps_run"] == 1 && hits == 1);
+    session.Stop();
 }
 
 TEST(SnapshotReferenceClosureIsCheckedBeforeMutation) {

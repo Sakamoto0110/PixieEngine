@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <chrono>
 #include <format>
+#include <optional>
 
 namespace pixie {
 
@@ -29,6 +30,28 @@ struct PlayerInput {
     explicit PlayerInput(const RunConfig& config) : debug(config.vsync, config.frameRateCap, config.telemetry) {}
     Input game;
     DebugConsole debug;
+};
+
+// GLFW sends joystick connections to one process-wide callback. Run owns the GLFW session.
+class JoystickInput {
+public:
+    explicit JoystickInput(Input& input) {
+        active_ = &input;
+        glfwSetJoystickCallback([](int joystick, int event) {
+            active_->AddJoystickConnection(joystick, event == GLFW_CONNECTED);
+        });
+    }
+
+    ~JoystickInput() {
+        glfwSetJoystickCallback(nullptr);
+        active_ = nullptr;
+    }
+
+    JoystickInput(const JoystickInput&) = delete;
+    JoystickInput& operator=(const JoystickInput&) = delete;
+
+private:
+    static inline Input* active_ = nullptr;
 };
 
 PlayerInput& InputOf(GLFWwindow* handle) {
@@ -73,7 +96,9 @@ void ConnectInput(GLFWwindow* handle, PlayerInput& input) {
         }
     });
     glfwSetCharCallback(handle, [](GLFWwindow* window, unsigned int codepoint) {
-        InputOf(window).debug.Character(codepoint);
+        auto& state = InputOf(window);
+        if (state.debug.IsOpen()) state.debug.Character(codepoint);
+        else state.game.AddTextInput(static_cast<char32_t>(codepoint));
     });
     glfwSetMouseButtonCallback(handle, [](GLFWwindow* window, int button, int action, int mods) {
         auto& state = InputOf(window);
@@ -88,11 +113,12 @@ void ConnectInput(GLFWwindow* handle, PlayerInput& input) {
         if (!state.debug.IsOpen()) state.game.AddScroll(pxVec2(x, y));
     });
     glfwSetWindowFocusCallback(handle, [](GLFWwindow* window, int focused) {
-        if (focused == GLFW_FALSE) {
-            auto& state = InputOf(window);
-            state.game.ReleaseAll();
-            state.debug.FocusLost();
-        }
+        auto& state = InputOf(window);
+        state.game.SetFocus(focused != GLFW_FALSE);
+        if (focused == GLFW_FALSE) state.debug.FocusLost();
+    });
+    glfwSetFramebufferSizeCallback(handle, [](GLFWwindow* window, int width, int height) {
+        InputOf(window).game.AddFramebufferResize({width, height});
     });
     double x = 0.0;
     double y = 0.0;
@@ -145,13 +171,17 @@ int Run(App& app, const RunConfig& config) {
                                                   : std::string("none"),
                         config.vsync ? "on" : "off"));
 
+    std::optional<JoystickInput> joystick;
 #ifdef PIXIE_DEVELOPMENT
     if (config.quitAfterSteps || config.advanceFrame) {
         input.game.SetCursor(pxPoint(-1.0, -1.0));
         input.game.EndUpdate();
     } else
 #endif
-    ConnectInput(handle, input);
+    {
+        ConnectInput(handle, input);
+        joystick.emplace(input.game);
+    }
 
     if (!app.Start(window)) {
         LogError("App::Start failed");

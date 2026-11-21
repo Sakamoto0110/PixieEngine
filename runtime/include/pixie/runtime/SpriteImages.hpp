@@ -61,6 +61,7 @@ public:
     // Resolves the atlas source, or returns the direct source. An unavailable atlas frame
     // gives the centered checkerboard. Consume the view before the sprite or cache changes.
     PIXIE_RUNTIME_API SpriteSource Source(const Sprite& sprite);
+    void SetAnimationTime(double seconds) { animationTime_ = seconds; }
 
     // Reads the PNG again regardless of its timestamp. Returns whether it decoded. A failed
     // read replaces the entry with its diagnostic. The next draw uploads the new texture.
@@ -104,6 +105,7 @@ private:
         std::optional<std::filesystem::file_time_type> time;
         std::optional<SpriteAtlas> atlas;
         std::set<std::string, std::less<>> missingFrames;
+        std::set<std::string, std::less<>> missingAnimations;
         std::string imageProblem;
     };
 
@@ -115,6 +117,7 @@ private:
     void InvalidateOutlines();
 
     SpriteAlphaOutlines* outlines_ = nullptr;
+    double animationTime_ = 0.0;
     std::filesystem::path folder_;
     std::unordered_map<std::string, Entry> entries_;
     std::unordered_map<std::string, AtlasEntry> atlases_;

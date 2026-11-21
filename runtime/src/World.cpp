@@ -328,6 +328,7 @@ void World::Step(double delta, const Input& input) {
     detail::RefreshParenting2D(*this);
     detail::CaptureParenting2D(*this);
     RunSystems(SystemPhase::PreUpdate, time, input);
+    triggers_.Dispatch(*this, input.Events());
     // Freeze the class count for this pass so a class registered during dispatch starts next tick.
     const std::size_t classes = behaviours_.size();
     {

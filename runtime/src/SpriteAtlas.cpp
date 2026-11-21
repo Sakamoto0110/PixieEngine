@@ -201,6 +201,31 @@ std::optional<SpriteAtlas> SpriteAtlas::Parse(std::string_view json, std::string
         }
         ++index;
     }
+    if (const auto animations = document.find("animations"); animations != document.end()) {
+        if (!animations->is_array()) return fail("animations must be an array");
+        for (const auto& item : *animations) {
+            const auto name = item.find("name");
+            const auto fps = item.find("fps");
+            const auto loop = item.find("loop");
+            const auto ids = item.find("frameIds");
+            int rate = 0;
+            if (name == item.end() || !name->is_string() || name->get_ref<const std::string&>().empty() ||
+                name->get_ref<const std::string&>().find('\0') != std::string::npos ||
+                fps == item.end() || !PixelInteger(*fps, rate) || rate < 1 || rate > SpriteAtlasAnimation::kMaxFps ||
+                loop == item.end() || *loop != true || ids == item.end() || !ids->is_array() || ids->empty()) {
+                return fail("animation needs a name, an FPS between 1 and 120, loop true and ordered frame IDs");
+            }
+            SpriteAtlasAnimation animation{rate, {}};
+            animation.frameIds.reserve(ids->size());
+            for (const auto& id : *ids) {
+                if (!id.is_string() || !atlas.FindFrame(id.get_ref<const std::string&>()))
+                    return fail(std::format("animation {} references a missing frame", name->get_ref<const std::string&>()));
+                animation.frameIds.push_back(id.get<std::string>());
+            }
+            if (!atlas.animations_.try_emplace(name->get<std::string>(), std::move(animation)).second)
+                return fail("duplicate animation name");
+        }
+    }
     problem.clear();
     return atlas;
 }
@@ -208,6 +233,21 @@ std::optional<SpriteAtlas> SpriteAtlas::Parse(std::string_view json, std::string
 const SpriteAtlasFrame* SpriteAtlas::FindFrame(std::string_view id) const {
     const auto found = frames_.find(id);
     return found == frames_.end() ? nullptr : &found->second;
+}
+
+const SpriteAtlasAnimation* SpriteAtlas::FindAnimation(std::string_view name) const {
+    const auto found = animations_.find(name);
+    return found == animations_.end() ? nullptr : &found->second;
+}
+
+std::string_view SpriteAtlasAnimation::FrameAt(double seconds, int fpsOverride) const {
+    const int rate = fpsOverride > 0 && fpsOverride <= kMaxFps ? fpsOverride : fps;
+    if (frameIds.empty() || rate <= 0) return {};
+    if (!std::isfinite(seconds) || seconds <= 0.0) return frameIds.front();
+    const auto count = static_cast<double>(frameIds.size());
+    const double elapsed = std::fmod(seconds, count / rate);
+    const auto frame = static_cast<std::size_t>(std::floor(elapsed * rate + 1e-9)) % frameIds.size();
+    return frameIds[frame];
 }
 
 } // namespace pixie

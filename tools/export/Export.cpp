@@ -107,7 +107,8 @@ bool IsBinary(const std::string& role) { return role == "player" || role == "lib
 
 SpriteAtlasFrameRef AtlasReference(const Json& sprite) {
     if (!sprite.is_object()) return {};
-    return {sprite.value("atlas", std::string{}), sprite.value("frameId", std::string{})};
+    return {sprite.value("atlas", std::string{}), sprite.value("frameId", std::string{}),
+            sprite.value("animation", std::string{})};
 }
 
 // Planning, replay and verification use the same atlas rules. The asset callback
@@ -127,7 +128,10 @@ void RequireAtlas(const SpriteAtlasFrameRef& ref, std::map<std::string, SpriteAt
             throw std::runtime_error("sprite atlas PNG " + atlas->Image() + " dimensions differ from " + ref.atlas);
         found = atlases.emplace(ref.atlas, std::move(*atlas)).first;
     }
-    if (!found->second.FindFrame(ref.frameId))
+    if (!ref.animation.empty()) {
+        if (!found->second.FindAnimation(ref.animation))
+            throw std::runtime_error("sprite atlas " + ref.atlas + ": animation " + ref.animation + " is missing");
+    } else if (!found->second.FindFrame(ref.frameId))
         throw std::runtime_error("sprite atlas " + ref.atlas + ": frame " + ref.frameId + " is missing");
 }
 

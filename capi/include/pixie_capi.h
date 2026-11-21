@@ -103,6 +103,9 @@ PIXIE_API PixieResult pixie_dev_dispatch(PixieSession* session, const char* requ
  * The C ABI and SDK tuple are checked before any Project factory runs. On failure the prior
  * selection remains active. Existing sessions retain their own module lease through teardown. */
 PIXIE_API PixieResult pixie_module_load(const char* path);
+/// Opens a project using a module scoped to this session. Leaves the process default unchanged.
+PIXIE_API PixieResult pixie_session_open_project_module(int32_t width, int32_t height, const char* folder,
+    const char* path, PixieSession** session);
 #endif
 
 /* What a session does with time, for pixie_session_mode. */
@@ -521,6 +524,9 @@ PIXIE_API PixieResult pixie_type_name(PixieSession* session, int32_t type, char*
                                       int32_t capacity);
 /// Copies the descriptor's declared project-relative source path, or empty when unset.
 PIXIE_API PixieResult pixie_type_source(PixieSession* session, int32_t type, char* buffer, int32_t capacity, int32_t* length);
+/// Optional trigger action source catalog, as JSON records with id, action label, file and one-based line.
+/// Zero capacity measures the output including its NUL terminator.
+PIXIE_API PixieResult pixie_trigger_action_sources_v2(PixieSession* session, char* buffer, int32_t capacity, int32_t* length);
 /// Returns the PIXIE_TYPE_* flags of the descriptor, or zero for an invalid session or index.
 PIXIE_API uint32_t pixie_type_flags(PixieSession* session, int32_t type);
 /* 1 when the entity has a component of the type, else 0. */

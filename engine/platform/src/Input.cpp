@@ -1,5 +1,7 @@
 #include "pixie/platform/Input.hpp"
 
+#include <algorithm>
+
 namespace pixie {
 
 namespace {
@@ -80,6 +82,25 @@ void Input::AddScroll(pxVec2 offset, InputModifiers modifiers) {
     if (offset.x != 0 || offset.y != 0) events_.emplace_back(MouseScrollEvent{offset, cursor_, modifiers});
 }
 
+void Input::AddTextInput(char32_t codepoint) {
+    if (codepoint <= 0x10FFFF && (codepoint < 0xD800 || codepoint > 0xDFFF)) {
+        events_.emplace_back(TextInputEvent{codepoint});
+    }
+}
+
+void Input::SetFocus(bool focused) {
+    if (!focused) ReleaseAll();
+    events_.emplace_back(InputFocusEvent{focused});
+}
+
+void Input::AddFramebufferResize(FramebufferSize size) {
+    events_.emplace_back(FramebufferResizeEvent{size});
+}
+
+void Input::AddJoystickConnection(int joystick, bool connected) {
+    events_.emplace_back(JoystickConnectionEvent{joystick, connected});
+}
+
 void Input::EndUpdate() {
     events_.clear();
     for (auto& state : keys_) {
@@ -95,7 +116,11 @@ void Input::EndUpdate() {
 void Input::ReleaseAll() {
     // Replace pending input with cancellation releases. kCancelled retains a release if the
     // host cancels again before a fixed update has consumed it.
-    events_.clear();
+    std::erase_if(events_, [](const InputEvent& event) {
+        return !std::holds_alternative<InputFocusEvent>(event)
+            && !std::holds_alternative<FramebufferResizeEvent>(event)
+            && !std::holds_alternative<JoystickConnectionEvent>(event);
+    });
     modifiers_ = InputModifiers::None;
     for (int key = 0; key < kKeyCount; ++key) {
         auto& state = keys_[static_cast<std::size_t>(key)];
