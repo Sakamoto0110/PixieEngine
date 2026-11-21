@@ -22,6 +22,31 @@ public enum PixieMode
     Edit = 1,
 }
 
+public enum PixieEnvironmentSelectionKind { LegacyWorld = 0, Scene = 1 }
+public enum PixieEnvironmentResolutionKind { LegacyWorld = 0, SceneInheritedWorld = 1, RemovedSceneFallback = 2 }
+public enum PixieEnvironmentLightingState { Absent = 0, Disabled = 1, Configured = 2 }
+[StructLayout(LayoutKind.Sequential)]
+public struct PixieSceneEditReceipt
+{
+    public ulong WorldRevision;
+    public double PreparationMilliseconds;
+    public double PublicationMilliseconds;
+}
+[StructLayout(LayoutKind.Sequential)]
+public struct PixieSceneEditToken : IEquatable<PixieSceneEditToken>
+{
+    public ulong SessionIdentity;
+    public ulong WorldRevision;
+    public ulong AuthoredRevision;
+    public readonly bool Equals(PixieSceneEditToken other) => SessionIdentity == other.SessionIdentity &&
+        WorldRevision == other.WorldRevision && AuthoredRevision == other.AuthoredRevision;
+    public override readonly bool Equals(object? other) => other is PixieSceneEditToken token && Equals(token);
+    public override readonly int GetHashCode() => HashCode.Combine(SessionIdentity, WorldRevision, AuthoredRevision);
+}
+public readonly record struct PixieSceneScope(ulong Id, string Name);
+public readonly record struct PixieViewportEnvironment(
+    PixieEnvironmentResolutionKind Resolution, PixieEnvironmentLightingState Lighting, string Diagnostic);
+
 public enum PixieFieldKind
 {
     Bool = 0,
@@ -140,7 +165,7 @@ internal static unsafe partial class PixieCapi
     internal const string Library = "pixie_capi";
 
     // The C API version this editor was written against.
-    internal const int Version = 20;
+    internal const int Version = 27;
 #if PIXIE_DEVELOPMENT
     [LibraryImport(Library, EntryPoint = "pixie_dev_dispatch", StringMarshalling = StringMarshalling.Utf8)]
     internal static partial PixieResult DevDispatch(nint session, string request, byte* response, int capacity);
@@ -313,6 +338,46 @@ internal static unsafe partial class PixieCapi
     [LibraryImport(Library, EntryPoint = "pixie_project_unsaved")]
     internal static partial int ProjectUnsaved(nint session);
 
+    [LibraryImport(Library, EntryPoint = "pixie_project_snapshot")]
+    internal static partial PixieResult ProjectSnapshot(nint session, byte* buffer, int capacity, out int length);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_restore", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult ProjectRestore(nint session, string snapshot);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_edit_status")]
+    internal static partial PixieResult ProjectEditStatus(nint session, out ulong revision);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_revision")]
+    internal static partial PixieResult ProjectRevision(nint session, out PixieSceneEditToken token);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_scene_version")]
+    internal static partial PixieResult ProjectSceneVersion(nint session, out int version);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entity_scene_scope")]
+    internal static partial PixieResult EntitySceneScope(nint session, uint entity, out ulong scope);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_convert_scene_v2")]
+    internal static partial PixieResult ProjectConvertSceneV2(nint session, in PixieSceneEditToken expected);
+
+    [LibraryImport(Library, EntryPoint = "pixie_project_edit_scene", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult ProjectEditScene(nint session, in PixieSceneEditToken expected, string snapshot, out PixieSceneEditReceipt receipt);
+
+    [LibraryImport(Library, EntryPoint = "pixie_viewport_environment_set")]
+    internal static partial PixieResult ViewportEnvironmentSet(nint session, PixieEnvironmentSelectionKind kind, ulong sceneId);
+
+    [LibraryImport(Library, EntryPoint = "pixie_viewport_environment_get")]
+    internal static partial PixieResult ViewportEnvironmentGet(nint session, out PixieEnvironmentSelectionKind kind, out ulong sceneId);
+
+    [LibraryImport(Library, EntryPoint = "pixie_viewport_environment_resolve")]
+    internal static partial PixieResult ViewportEnvironmentResolve(nint session, out PixieEnvironmentResolutionKind resolution,
+        out PixieEnvironmentLightingState lighting, byte* diagnostic, int capacity, out int length);
+
+    [LibraryImport(Library, EntryPoint = "pixie_scene_scope_count")]
+    internal static partial PixieResult SceneScopeCount(nint session, out int count);
+
+    [LibraryImport(Library, EntryPoint = "pixie_scene_scope_at")]
+    internal static partial PixieResult SceneScopeAt(nint session, int index, out ulong id, byte* name, int capacity, out int length);
+
     [LibraryImport(Library, EntryPoint = "pixie_session_mode")]
     internal static partial int SessionMode(nint session);
 
@@ -333,6 +398,9 @@ internal static unsafe partial class PixieCapi
 
     [LibraryImport(Library, EntryPoint = "pixie_entity_find")]
     internal static partial PixieResult EntityFind(nint session, ulong id, out uint entity);
+
+    [LibraryImport(Library, EntryPoint = "pixie_entities_validate", StringMarshalling = StringMarshalling.Utf8)]
+    internal static partial PixieResult EntitiesValidate(nint session, string snapshot, int ids, ulong* replacing, int count);
 
     [LibraryImport(Library, EntryPoint = "pixie_entities_snapshot")]
     internal static partial PixieResult EntitiesSnapshot(nint session, uint* entities, int count, byte* buffer, int capacity, out int length);

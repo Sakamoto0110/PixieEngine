@@ -146,6 +146,13 @@ void StepParticles(World& world, const FrameTime& time, const Input&) {
             if (settings.begin() != settings.end()) gravity = settings.get<const PhysicsSettings2D>(*settings.begin()).gravity;
             if (collision) gravity = collision->Gravity();
             try {
+                // World-only pools retain their legacy backend/default path. Scene
+                // pools resolve natively without installing a collision service.
+                if (world.ScopeOf(entity).value_or(ScopeId{}).value != 0) {
+                    const auto resolved = world.ResolveGravity(entity, gravity);
+                    if (!resolved) throw std::invalid_argument(resolved.error);
+                    gravity = resolved.value;
+                }
                 MoveDynamicParticles2D(system, *physics, collision, gravity, time.delta, stats);
             } catch (const std::invalid_argument& error) {
                 errors.push_back("ParticlePhysics2D entity " + std::to_string(static_cast<std::uint32_t>(id)) + ": " + error.what());

@@ -30,6 +30,9 @@ enum class LightQuality2D : std::uint8_t { Low, Medium, High };
 // ambient at 1, exposure 1, no tone mapping) leave an unlit image unchanged; lower the ambient for
 // darkness. See docs/lighting-l0-design.md.
 struct LightingSettings2D {
+    // A present but disabled component retains its authored values and draws unlit.
+    // Missing in version 1 scenes means enabled, preserving their appearance.
+    bool enabled = true;
     // Light every receiver gets, whatever its layers; authored in sRGB.
     pxColorRgba ambient{255, 255, 255};
     // Linear multiplier of the ambient color.

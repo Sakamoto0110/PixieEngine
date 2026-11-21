@@ -54,6 +54,7 @@ public:
     friend bool operator==(const Entity&, const Entity&) = default;
 
 private:
+    friend class World;
     World* world_ = nullptr;
     entt::entity id_ = entt::null;
 };

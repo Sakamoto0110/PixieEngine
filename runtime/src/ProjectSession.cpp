@@ -1,4 +1,5 @@
 #include "pixie/runtime/ProjectSession.hpp"
+#include "SceneSave.hpp"
 
 #include "pixie/runtime/Culling.hpp"
 
@@ -15,15 +16,19 @@
 #include "pixie/runtime/SpriteDrawing.hpp"
 
 #include <algorithm>
+#include <atomic>
 #include <chrono>
 #include <format>
 #include <fstream>
 #include <sstream>
+#include <stdexcept>
 
 namespace pixie {
+namespace { std::atomic<std::uint64_t> nextSessionIdentity{1}; }
 
-ProjectSession::ProjectSession(std::unique_ptr<Project> project, SessionSettings settings)
-    : project_(std::move(project)), settings_(settings), stepper_(settings.updateRate) {
+ProjectSession::ProjectSession(std::unique_ptr<Project> project, SessionSettings settings, ProjectFactory candidateFactory)
+    : identity_(nextSessionIdentity.fetch_add(1)), candidateFactory_(std::move(candidateFactory)),
+      project_(std::move(project)), settings_(settings), stepper_(settings.updateRate) {
     DescribeRuntimeComponents(types_);
     project_->Describe(types_);
 }
@@ -53,6 +58,10 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
         error_ = std::format("{}: {}", opened.file.startScene, report.error);
         return false;
     }
+    std::error_code identityError;
+    const bool sameProject = opened_ && std::filesystem::equivalent(opened_->folder, opened.folder, identityError)
+        && !identityError;
+    if (started_ && !Build(true, text.str())) return false;
     images_.SetFolder(opened.folder);
     outlines_.SetFolder(opened.folder);
     text_.Destroy();
@@ -62,9 +71,8 @@ bool ProjectSession::OpenProject(const std::filesystem::path& folder) {
     playedFrom_.clear();
     mode_ = SessionMode::Edit;
     unsaved_ = false;
-    if (started_) {
-        Build(true);
-    }
+    if (!sameProject) SetViewportEnvironment({});
+    error_.clear();
     return true;
 }
 
@@ -73,12 +81,22 @@ std::string_view ProjectSession::ProjectName() const {
 }
 
 bool ProjectSession::Start(FramebufferSize size) {
+    error_.clear();
     if (!shapes_.Create() || !particles_.Create() || !sprites_.Create() || !paths_.Create() || !lighting_.Create()) {
         return false;
     }
+    const Camera2D previousCamera = camera_;
     camera_.SetViewport(size);
+    if (!Build(true, sceneText_)) {
+        camera_ = previousCamera;
+        lighting_.Destroy();
+        paths_.Destroy();
+        sprites_.Destroy();
+        particles_.Destroy();
+        shapes_.Destroy();
+        return false;
+    }
     started_ = true;
-    Build(true);
     return true;
 }
 
@@ -96,46 +114,137 @@ void ProjectSession::Stop() {
     started_ = false;
 }
 
-void ProjectSession::Build(bool resetCamera) {
-    // Held state can still be polled, but transitions captured for the old World must not be
-    // replayed into a new Behaviour lifetime after Play/Stop/Reset.
-    input_.EndUpdate();
-    ++worldRevision_;
-    world_.reset();
-    world_ = std::make_unique<World>(settings_.seed);
+bool ProjectSession::Build(bool resetCamera, std::string_view sceneText, SceneBuildTimings* timings, bool validateMovement) {
+    const auto preparing = std::chrono::steady_clock::now();
+    // Declaration order also governs failed-candidate teardown: World, types, Project.
+    std::unique_ptr<Project> candidateProject;
+    ComponentTypes candidateTypes;
+    std::unique_ptr<World> candidate;
+    Camera2D candidateCamera = camera_;
+    std::vector<std::string> warnings;
     if (resetCamera) {
-        camera_.SetCenter(pxPoint(0.0, 0.0));
-        camera_.SetZoom(1.0);
+        candidateCamera.SetCenter(pxPoint(0.0, 0.0));
+        candidateCamera.SetZoom(1.0);
     }
-    if (!sceneText_.empty()) {
-        const SceneReport report = ReadScene(*world_, types_, sceneText_);
-        if (!report.ok) {
-            LogError(std::format("{}: the scene could not be read: {}", ProjectName(), report.error));
+    try {
+        if (candidateFactory_) {
+            if (!sceneText.empty()) {
+                if (const auto problem = SceneImportAdmissionError(types_, sceneText); !problem.empty()) {
+                    error_ = problem;
+                    return false;
+                }
+            }
+            candidateProject = candidateFactory_();
+            if (candidateProject.get() == project_.get()) {
+                candidateProject.release(); // A broken factory must not destroy the live Project.
+                throw std::runtime_error("candidate factory returned the published Project");
+            }
+            if (!candidateProject) throw std::runtime_error("candidate factory returned no Project");
+            DescribeRuntimeComponents(candidateTypes);
+            candidateProject->Describe(candidateTypes);
+            if (!types_.SameSchema(candidateTypes)) throw std::runtime_error("candidate component schema changed");
         }
-        for (const std::string& warning : report.warnings) {
-            LogWarning(std::format("{}: {}", ProjectName(), warning));
+        candidate = std::make_unique<World>(settings_.seed);
+        if (!sceneText.empty()) {
+            const SceneReport report = ReadScene(*candidate, candidateProject ? candidateTypes : types_, sceneText);
+            if (!report.ok) {
+                error_ = std::format("{}: the scene could not be read: {}", ProjectName(), report.error);
+                return false;
+            }
+            warnings = report.warnings;
         }
+        const int authoredFormat = SceneFormatVersion(*candidate);
+        (candidateProject ? *candidateProject : *project_).Build(*candidate, candidateCamera);
+        // After the project's Build, so a project that adds the step itself keeps its place.
+        AddParticleStep(*candidate);
+        InstallSceneMovement2D(*candidate);
+        SyncSceneMovement2D(*candidate);
+        if (candidateProject) {
+            if (SceneFormatVersion(*candidate) != authoredFormat) throw std::runtime_error("candidate Build changed the authored scene format");
+            if (!types_.SameSchema(candidateTypes)) throw std::runtime_error("candidate component schema changed during Build");
+            if (const auto problem = ValidateV2SceneSnapshot(*candidate, candidateTypes); !problem.empty()) {
+                error_ = problem;
+                return false;
+            }
+        }
+        if (validateMovement) {
+            const auto problems = SceneMovementErrors2D(*candidate);
+            if (!problems.empty()) {
+                error_ = std::format("candidate movement is invalid: {}", problems.front());
+                return false;
+            }
+        }
+    } catch (const std::exception& failure) {
+        error_ = std::format("{}: World build failed: {}", ProjectName(), failure.what());
+        return false;
+    } catch (...) {
+        error_ = std::format("{}: World build failed: unknown exception", ProjectName());
+        return false;
     }
-    project_->Build(*world_, camera_);
-    // After the project's Build, so a project that adds the step itself keeps its place.
-    AddParticleStep(*world_);
-    InstallSceneMovement2D(*world_);
-    SyncSceneMovement2D(*world_);
-    const auto lights = world_->Registry().view<const Light2D>();
-    if (lights.begin() != lights.end() && FindLightingSettings(*world_) == nullptr) {
+    const auto lights = candidate->Registry().view<const Light2D>();
+    if (lights.begin() != lights.end() && FindLightingSettings(*candidate) == nullptr) {
         LogWarning(std::format("{}: the scene has lights but no LightingSettings2D, so it is drawn unlit", ProjectName()));
     }
+    // Formatting/logging can fail: finish it before the irreversible storage publication.
+    for (const std::string& warning : warnings) {
+        LogWarning(std::format("{}: {}", ProjectName(), warning));
+    }
+    const auto publishing = std::chrono::steady_clock::now();
+    // No handle into the old World remains valid after this point. A failed read never reaches it.
+    input_.EndUpdate();
+    world_.swap(candidate);
+    if (candidateProject) {
+        types_.Swap(candidateTypes);
+        project_.swap(candidateProject);
+    }
+    camera_ = candidateCamera;
+    ++worldRevision_;
+    candidate.reset();
+    // Retired callbacks/descriptors must be gone before their matching Project.
+    { ComponentTypes retiredTypes; candidateTypes.Swap(retiredTypes); }
+    candidateProject.reset();
+    error_.clear();
+    if (timings != nullptr) {
+        timings->preparationMilliseconds = std::chrono::duration<double, std::milli>(publishing - preparing).count();
+        timings->publicationMilliseconds = std::chrono::duration<double, std::milli>(std::chrono::steady_clock::now() - publishing).count();
+    }
+    return true;
 }
 
 void ProjectSession::Reset() {
+    error_.clear();
+    std::string nextSceneText = sceneText_;
     if (world_) {
-        project_->Capture(*world_);
+        if (!candidateFactory_) project_->Capture(*world_);
         if (opened_) {
-            sceneText_ = WriteScene(*world_, types_);
+            try {
+                nextSceneText = WriteScene(*world_, types_);
+            } catch (const std::runtime_error& error) {
+                error_ = error.what();
+                return;
+            }
         }
     }
-    Build(!opened_);
+    if (!Build(!opened_, nextSceneText)) return;
+    sceneText_.swap(nextSceneText);
     stepper_.Drop();
+}
+
+bool ProjectSession::RestoreAuthoredScene(std::string_view snapshot) {
+    return RestoreAuthoredScene(snapshot, nullptr);
+}
+
+bool ProjectSession::RestoreAuthoredScene(std::string_view snapshot, SceneBuildTimings* timings, bool validateMovement) {
+    if (!opened_ || mode_ != SessionMode::Edit || !world_) {
+        error_ = "an open project in Edit with an active World is required to restore an authored scene";
+        return false;
+    }
+    std::string nextSceneText(snapshot);
+    if (!Build(false, nextSceneText, timings, validateMovement)) return false;
+    sceneText_.swap(nextSceneText);
+    unsaved_ = true;
+    stepper_.Drop();
+    return true;
 }
 
 bool ProjectSession::Play() {
@@ -146,11 +255,19 @@ bool ProjectSession::Play() {
     if (mode_ == SessionMode::Play) {
         return true;
     }
-    playedFrom_ = WriteScene(*world_, types_);
-    sceneText_ = playedFrom_;
+    std::string nextPlayedFrom;
+    try {
+        nextPlayedFrom = WriteScene(*world_, types_);
+    } catch (const std::runtime_error& error) {
+        error_ = error.what();
+        return false;
+    }
+    std::string nextSceneText = nextPlayedFrom;
+    if (!Build(false, nextSceneText)) return false;
+    playedFrom_.swap(nextPlayedFrom);
+    sceneText_.swap(nextSceneText);
     mode_ = SessionMode::Play;
     paused_ = false;
-    Build(false);
     stepper_.Drop();
     return true;
 }
@@ -163,10 +280,11 @@ bool ProjectSession::StopPlaying() {
     if (mode_ == SessionMode::Edit) {
         return true;
     }
-    sceneText_ = std::move(playedFrom_);
+    std::string nextSceneText = playedFrom_;
+    if (!Build(false, nextSceneText)) return false;
+    sceneText_.swap(nextSceneText);
     playedFrom_.clear();
     mode_ = SessionMode::Edit;
-    Build(false);
     stepper_.Drop();
     return true;
 }
@@ -177,11 +295,17 @@ bool ProjectSession::Save() {
         return false;
     }
     std::vector<std::string> warnings;
-    const std::string text = mode_ == SessionMode::Play ? playedFrom_ : WriteScene(*world_, types_, &warnings);
+    std::string text;
+    try {
+        text = mode_ == SessionMode::Play ? playedFrom_ : WriteScene(*world_, types_, &warnings);
+    } catch (const std::runtime_error& error) {
+        error_ = error.what();
+        return false;
+    }
     for (const std::string& warning : warnings) {
         LogWarning(std::format("{}: {}", ProjectName(), warning));
     }
-    if (const SceneReport saved = SaveTextFile(text, opened_->StartScenePath()); !saved.ok) {
+    if (const SceneReport saved = detail::SaveSceneText(text, opened_->StartScenePath()); !saved.ok) {
         error_ = saved.error;
         return false;
     }
@@ -195,8 +319,33 @@ void ProjectSession::MarkChanged() {
     }
 }
 
+bool ProjectSession::ConvertStartSceneToV2() {
+    if (!opened_ || mode_ != SessionMode::Edit || !world_) {
+        error_ = "conversion requires an open project in Edit";
+        return false;
+    }
+    std::string converted;
+    const auto report = ConvertSceneFileV1ToV2(*world_, types_, opened_->StartScenePath(), &converted);
+    if (!report.ok) { error_ = report.error; return false; }
+    // The file is committed: only nonallocating state changes remain.
+    sceneText_.swap(converted);
+    unsaved_ = false;
+    ++authoredRevision_;
+    error_.clear();
+    return true;
+}
+
+void ProjectSession::BeginAuthoredMutation() {
+    if (opened_ && mode_ == SessionMode::Edit) ++authoredRevision_;
+}
+
 void ProjectSession::Resize(FramebufferSize size) {
     camera_.SetViewport(size);
+}
+
+std::optional<ViewportEnvironment2D> ProjectSession::ViewportEnvironment() const {
+    if (!world_) return std::nullopt;
+    return ResolveViewportEnvironment2D(*world_, environmentSelection_);
 }
 
 void ProjectSession::Update(double delta, const Input& input) {
@@ -255,8 +404,14 @@ constexpr double kCullPadding = 32.0;
 
 void ProjectSession::Render(double alpha) {
     const pxColorRgba background = project_->Background();
-    // Lighting is opt-in: without LightingSettings2D the scene is drawn exactly as before lighting.
-    const LightingSettings2D* lighting = FindLightingSettings(*world_);
+    const ViewportEnvironment2D environment = ResolveViewportEnvironment2D(*world_, environmentSelection_);
+    const bool fallback = environment.kind == EnvironmentResolutionKind2D::RemovedSceneFallback;
+    if (fallback && !environmentFallbackReported_) LogWarning(environment.diagnostic);
+    environmentFallbackReported_ = fallback;
+    // Absent or disabled lighting draws exactly as an unlit scene. A disabled
+    // component retains its authored values for later re-enabling.
+    const LightingSettings2D* lighting = environment.lighting.state == LightingState2D::Configured
+        ? FindActiveLightingSettings(*world_) : nullptr;
     if (lighting != nullptr) {
         lighting_.BeginWorld(camera_.Viewport(), background);
     } else {

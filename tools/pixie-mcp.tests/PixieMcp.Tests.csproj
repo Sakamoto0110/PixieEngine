@@ -8,6 +8,7 @@
     <RestorePackagesWithLockFile>true</RestorePackagesWithLockFile>
   </PropertyGroup>
   <ItemGroup><PackageReference Include="ModelContextProtocol" Version="2.3.0" /></ItemGroup>
+  <Import Project="../NativeApiVersion.props" />
   <Target Name="RefusePublish" BeforeTargets="PrepareForPublish;Publish">
     <Error Text="Development qualification clients cannot be published." />
   </Target>

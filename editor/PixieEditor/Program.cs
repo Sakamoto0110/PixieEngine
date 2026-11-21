@@ -24,6 +24,7 @@ internal sealed record EditorOptions
     public string? DevChannel { get; init; }
     public string? DevCaptureDirectory { get; init; }
     public bool DevHidden { get; init; }
+    public string? ReopenProbe { get; init; }
 #endif
     public string? Screenshot { get; init; }
     public double? TimeScale { get; init; }
@@ -76,6 +77,7 @@ internal static class Program
         + "\n  --dev-channel <name>   opt-in local Engine/Inspector command channel"
         + "\n  --dev-capture-dir <dir> fixed channel capture directory"
         + "\n  --dev-hidden on|off    create a channel-driven editor hidden"
+        + "\n  --reopen-probe <path>  development-only code-reopen qualification result"
 #endif
         ;
 
@@ -148,6 +150,9 @@ internal static class Program
                 case "--dev-hidden" when value is "on" or "off":
                     options = options with { DevHidden = value == "on" };
                     break;
+                case "--reopen-probe":
+                    options = options with { ReopenProbe = value };
+                    break;
                 case "--quit-after-steps" when ulong.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out var steps):
                     options = options with { QuitAfterSteps = steps };
                     break;
@@ -188,6 +193,7 @@ internal static class Program
         if (options.DevChannel is { } channel && (channel.Length is < 1 or > 64 || channel.Any(c => !char.IsAsciiLetterOrDigit(c) && c != '-' && c != '_') ||
             options.Game == null && options.Project == null || options.QuitAfterSteps.HasValue || options.SaveAfter.HasValue || options.Commands.Count != 0 || options.Edits.Count != 0)) return false;
         if (options.DevChannel == null && (options.DevCaptureDirectory != null || options.DevHidden)) return false;
+        if (options.ReopenProbe != null && (options.Project == null || options.DevChannel != null)) return false;
 #endif
         return true;
     }

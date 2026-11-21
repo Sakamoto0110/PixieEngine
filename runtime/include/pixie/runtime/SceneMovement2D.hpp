@@ -15,6 +15,7 @@ namespace pixie {
 class World;
 class ShapeRenderer;
 class Camera2D;
+struct PhysicsSettings2D;
 
 // Stable 1-based slots name the existing 31 scene filter bits. List order is immaterial;
 // removing a name never removes or renumbers a collider's bits.
@@ -63,8 +64,9 @@ struct CompoundCollider2D {
 };
 
 // Only authored settings are saved. Velocity, grounding, timers and backend handles are runtime state.
-// The tuning is CharacterSettings2D's, except gravity: the motor falls at the World's gravity
-// (PhysicsSettings2D, by default 1100 down) times gravityScale. Version 1 saved its own acceleration;
+// The tuning is CharacterSettings2D's, except gravity: the motor falls at its natively resolved
+// World/Scene gravity (by default 1100 down) times gravityScale. Upright motors diagnose lateral
+// or upward resolved gravity per entity. Version 1 saved its own acceleration;
 // reading one sets gravityScale to that acceleration / 1100, so an old scene falls as it did.
 struct CharacterMotor2D {
     double radius = 12;
@@ -98,6 +100,8 @@ struct CharacterCommand2D { double horizontal = 0; bool jumpPressed = false; };
 PIXIE_RUNTIME_API void InstallSceneMovement2D(World& world);
 // Refreshes authored geometry/settings without advancing time, including while editing.
 PIXIE_RUNTIME_API void SyncSceneMovement2D(World& world);
+// Pure authoring admission; does not install/sync a backend or change stored values.
+PIXIE_RUNTIME_API std::string ScenePhysicsSettingsEditError2D(const World& world, const PhysicsSettings2D& settings);
 // Rebuilds transient bodies, contacts and motor state from current authored components/poses.
 // Call outside a World step. Borrowed collision/motor views must be reacquired afterward.
 PIXIE_RUNTIME_API void ResetSceneMovement2D(World& world);

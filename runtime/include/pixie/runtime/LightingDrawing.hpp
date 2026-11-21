@@ -28,6 +28,9 @@ class World;
 
 // The scene's LightingSettings2D (one per scene); null when it has none, which leaves it unlit.
 PIXIE_RUNTIME_API const LightingSettings2D* FindLightingSettings(World& world);
+// The same selected legacy component only while lighting is enabled. A disabled
+// first component does not cause a duplicate's later component to take over.
+PIXIE_RUNTIME_API const LightingSettings2D* FindActiveLightingSettings(World& world);
 
 // What the LightRenderer combines with for these settings: the ambient decoded from sRGB and
 // multiplied by its intensity, the exposure and the tone mapping.

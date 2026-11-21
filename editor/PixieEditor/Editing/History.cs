@@ -52,6 +52,7 @@ internal sealed class ReplaceStep(string name, IReadOnlyList<ulong> entities, st
 
     private uint[] Apply(EngineSession session, string? state)
     {
+        if (state != null) session.ValidateRestore(state, newIds: false, replacing: entities);
         foreach (var id in entities)
         {
             if (session.Find(id) is { } entity)
@@ -66,6 +67,8 @@ internal sealed class ReplaceStep(string name, IReadOnlyList<ulong> entities, st
 // and outlasts Play, Stop, and Save, which do not change what the scene holds.
 internal sealed class History
 {
+    internal SessionEditGate? Gate { get; set; }
+    internal long Revision { get; private set; }
     private readonly List<IStep> Done = [];
     private readonly List<IStep> Undone = [];
 
@@ -73,35 +76,59 @@ internal sealed class History
     public string? RedoName => Undone.Count > 0 ? Undone[^1].Name : null;
     public int UndoCount => Done.Count;
     public int RedoCount => Undone.Count;
+    internal IStep? NextUndo => Done.Count == 0 ? null : Done[^1];
+    internal IStep? NextRedo => Undone.Count == 0 ? null : Undone[^1];
 
-    public void Record(IStep step)
+    // Capacity is reserved before a candidate can commit. The serial publisher invokes no host
+    // callbacks between this reservation and RecordPrepared; the existing UI is not exposed yet.
+    internal void ReserveRecord() => Done.EnsureCapacity(Done.Count + 1);
+    internal void RecordPrepared(IStep step)
     {
         Done.Add(step);
         Undone.Clear();
+        ++Revision;
+    }
+
+    public void Record(IStep step)
+    {
+        Gate?.RequireMutation();
+        Done.Add(step);
+        Undone.Clear();
+        ++Revision;
         Console.Error.WriteLine($"[info] Did {step.Name}");
     }
 
     // The entities to select, or null when there was nothing to undo.
-    public uint[]? Undo(EngineSession session)
+    public uint[]? Undo(EngineSession session) { Gate?.RequireMutation(); return UndoCore(session, true); }
+    internal uint[]? UndoPrepared(EngineSession session) => UndoCore(session, false);
+    private uint[]? UndoCore(EngineSession session, bool log)
     {
         if (Done.Count == 0)
             return null;
         var step = Done[^1];
-        Done.RemoveAt(Done.Count - 1);
+        Undone.EnsureCapacity(Undone.Count + 1);
+        var selected = step.Undo(session);
         Undone.Add(step);
-        Console.Error.WriteLine($"[info] Undid {step.Name}");
-        return step.Undo(session);
+        Done.RemoveAt(Done.Count - 1);
+        ++Revision;
+        if (log) Console.Error.WriteLine($"[info] Undid {step.Name}");
+        return selected;
     }
 
-    public uint[]? Redo(EngineSession session)
+    public uint[]? Redo(EngineSession session) { Gate?.RequireMutation(); return RedoCore(session, true); }
+    internal uint[]? RedoPrepared(EngineSession session) => RedoCore(session, false);
+    private uint[]? RedoCore(EngineSession session, bool log)
     {
         if (Undone.Count == 0)
             return null;
         var step = Undone[^1];
-        Undone.RemoveAt(Undone.Count - 1);
+        Done.EnsureCapacity(Done.Count + 1);
+        var selected = step.Redo(session);
         Done.Add(step);
-        Console.Error.WriteLine($"[info] Redid {step.Name}");
-        return step.Redo(session);
+        Undone.RemoveAt(Undone.Count - 1);
+        ++Revision;
+        if (log) Console.Error.WriteLine($"[info] Redid {step.Name}");
+        return selected;
     }
 }
 
@@ -112,6 +139,11 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 {
     private readonly Dictionary<(uint Entity, int Type, int Field), (ulong Id, PixieValue Before, PixieValue After)> Open = [];
     private readonly Dictionary<uint, (ulong Id, string Before)> Records = [];
+    internal bool HasPendingEdits => Open.Count != 0 || Records.Count != 0
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        || Grouping
+#endif
+        ;
 
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
     private bool Grouping;
@@ -119,6 +151,7 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void BeginInteraction(IReadOnlyList<uint> recordEntities)
     {
+        session.Edits.RequireMutation();
         Close();
         if (recording())
             foreach (var entity in recordEntities.Distinct())
@@ -153,6 +186,7 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void WriteRecord(uint entity, RecordAddress address, int field, PixieValue value)
     {
+        session.Edits.RequireMutation();
         if (!Records.ContainsKey(entity) && recording() && session.SceneId(entity) is { } id)
         {
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
@@ -166,6 +200,7 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void Write(uint entity, int type, int field, PixieValue value)
     {
+        session.Edits.RequireMutation();
         var key = (entity, type, field);
         var existing = Open.TryGetValue(key, out var change);
         var sceneId = existing ? change.Id : recording() ? session.SceneId(entity) : null;
@@ -191,6 +226,7 @@ internal sealed class EditRecorder(EngineSession session, History history, Func<
 
     public void Close()
     {
+        if (HasPendingEdits) session.Edits.RequireMutation();
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
         if (Grouping) { CloseInteraction(); return; }
 #endif

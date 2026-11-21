@@ -8,6 +8,7 @@
 #include "pixie/runtime/Scene.hpp"
 #include "pixie/runtime/World.hpp"
 #include <cmath>
+#include <array>
 #include <limits>
 #include <stdexcept>
 
@@ -18,6 +19,144 @@ void Advance(ParticleSystem& pool, const ParticlePhysics2D& settings, const Coll
     for (auto& p : pool.particles) { p.previous = p.position; p.age += static_cast<float>(dt); }
     MoveDynamicParticles2D(pool, settings, world, gravity, dt, stats);
 }
+Entity ScopedGravityPool(World& world, pxVec2 gravity, bool backend) {
+    world.Create().Add<PhysicsSettings2D>().gravity = gravity;
+    auto pool = world.Create();
+    pool.Add<ParticleSystem>().EmitDynamic({0, 0}, {0, 0}, 20);
+    pool.Add<ParticlePhysics2D>().gravityScale = 0.5;
+    if (backend) InstallSceneMovement2D(world);
+    AddParticleStep(world);
+    return pool;
+}
+}
+TEST(SceneParticlePoolsMatchSeparateGlobalReferencesWithAndWithoutBackend) {
+    for (const bool backend : {false, true}) {
+        World lateral, zero, scoped;
+        auto a = ScopedGravityPool(lateral, {90, 0}, backend);
+        auto b = ScopedGravityPool(zero, {0, 0}, backend);
+        auto first = ScopedGravityPool(scoped, {0, 600}, backend);
+        auto second = scoped.Create();
+        second.Add<ParticleSystem>().EmitDynamic({0, 0}, {0, 0}, 20);
+        second.Add<ParticlePhysics2D>().gravityScale = 0.5;
+        SceneGravity2D sideways; sideways.mode = SceneGravityMode2D::Override; sideways.value = {90, 0};
+        SceneGravity2D stopped; stopped.mode = SceneGravityMode2D::Override; stopped.value = {0, 0};
+        const ScopeId left{101}, right{202};
+        CHECK(scoped.CreateScope(left, "Lateral pool", sideways) && scoped.CreateScope(right, "Zero pool", stopped));
+        CHECK(scoped.SetScope(first, left) && scoped.SetScope(second, right));
+        for (int tick = 1; tick <= 600; ++tick) {
+            lateral.Step(1.0 / 60, {}); zero.Step(1.0 / 60, {}); scoped.Step(1.0 / 60, {});
+            if (tick != 1 && tick != 60 && tick != 600) continue;
+            CHECK(ParticlePhysicsErrors2D(scoped).empty());
+            for (const auto pair : {std::pair{a, first}, std::pair{b, second}}) {
+                const auto& native = pair.first.Get<ParticleSystem>().particles;
+                const auto& local = pair.second.Get<ParticleSystem>().particles;
+                CHECK(native.size() == 1 && local.size() == 1);
+                if (native.size() == 1 && local.size() == 1) {
+                    CHECK(native[0].position == local[0].position);
+                    CHECK(native[0].velocity == local[0].velocity);
+                }
+            }
+        }
+        if (!backend) CHECK(SceneCollisionWorld2D(scoped) == nullptr);
+    }
+}
+
+TEST(SceneParticleTransferUsesOldMembershipThroughParticlesThenNewGravityNextTick) {
+    World world;
+    auto pool = ScopedGravityPool(world, {0, 600}, false);
+    pool.Get<ParticleSystem>().Emit({0, 0}, {0, 0}, 20); // Ordinary particle remains ballistic.
+    SceneGravity2D lateral; lateral.mode = SceneGravityMode2D::Override; lateral.value = {90, 0};
+    const ScopeId room{101};
+    CHECK(world.CreateScope(room, "Lateral", lateral));
+    bool physicsBeforeParticles = false, oldMembership = false;
+    world.AddSystem(SystemPhase::Physics, "qualification.transfer.pool", [&](World& current, const FrameTime&, const Input&) {
+        if (current.Steps() != 0) return;
+        physicsBeforeParticles = pool.Get<ParticleSystem>().particles[0].velocity == pxVec2f(0, 0);
+        CHECK(current.SetScope(pool, room));
+        oldMembership = current.ScopeOf(pool) == ScopeId{};
+    });
+    world.Step(1.0 / 60, {});
+    CHECK(physicsBeforeParticles && oldMembership && world.ScopeOf(pool) == room);
+    const auto previous = pool.Get<ParticleSystem>().particles[0].velocity;
+    CHECK(previous.x == 0 && std::abs(previous.y - 5) < 0.001);
+    world.Step(1.0 / 60, {});
+    const auto& particles = pool.Get<ParticleSystem>().particles;
+    CHECK(std::abs(particles[0].velocity.x - 0.75) < 0.001 && particles[0].velocity.y == previous.y);
+    CHECK(particles[1].velocity == pxVec2f(0, 0) && particles[1].position == pxPointf(0, 0));
+    CHECK(SceneCollisionWorld2D(world) == nullptr);
+}
+
+TEST(SceneParticleMultiplyAndInactiveOverrideApplyScaleExactlyOnce) {
+    for (const auto mode : {SceneGravityMode2D::Inherit, SceneGravityMode2D::Multiply}) {
+        World world;
+        auto pool = ScopedGravityPool(world, {0, 600}, false);
+        SceneGravity2D gravity; gravity.mode = mode; gravity.multiplier = 0.5; gravity.value = {900, 0};
+        const ScopeId room{101};
+        CHECK(world.CreateScope(room, "Configured", gravity));
+        CHECK(world.SetScope(pool, room));
+        world.Step(1.0 / 60, {});
+        const auto& particle = pool.Get<ParticleSystem>().particles[0];
+        CHECK(particle.velocity.x == 0);
+        CHECK(std::abs(particle.velocity.y - (mode == SceneGravityMode2D::Inherit ? 5.0 : 2.5)) < 0.001);
+        CHECK(SceneCollisionWorld2D(world) == nullptr);
+    }
+}
+
+TEST(SceneParticleInheritanceUsesTheSameEffectiveBackendGravityAsWorldOnlyPools) {
+    for (const bool authoredSettings : {false, true}) {
+        World world;
+        if (authoredSettings) world.Create().Add<PhysicsSettings2D>().gravity = {0, 300};
+        auto remote = world.Create();
+        remote.Add<Transform2D>().position = {100000, 100000};
+        remote.Add<Collider2D>(); // Allocate the normal scene backend, away from the pools.
+        const std::array<ScopeId, 5> scopes{{{}, {11}, {12}, {13}, {14}}};
+        CHECK(world.CreateScope(scopes[1], "No override"));
+        SceneGravity2D configured; configured.mode = SceneGravityMode2D::Inherit;
+        configured.value = {900, 0}; configured.multiplier = 0.5;
+        CHECK(world.CreateScope(scopes[2], "Inherit", configured));
+        configured.mode = SceneGravityMode2D::Multiply;
+        CHECK(world.CreateScope(scopes[3], "Half", configured));
+        configured.mode = SceneGravityMode2D::Override; configured.value = {0, 0};
+        CHECK(world.CreateScope(scopes[4], "Explicit zero", configured));
+        std::array<Entity, 5> pools;
+        std::array<ParticleSystem, 5> references;
+        const std::array<double, 5> expectedGravity{{600, 600, 600, 300, 0}};
+        for (std::size_t i = 0; i < pools.size(); ++i) {
+            pools[i] = world.Create();
+            CHECK(pools[i].Add<ParticleSystem>().EmitDynamic({0, 0}, {0, 0}, 20));
+            pools[i].Add<ParticlePhysics2D>();
+            CHECK(world.SetScope(pools[i], scopes[i]));
+            CHECK(references[i].EmitDynamic({0, 0}, {0, 0}, 20));
+        }
+        InstallSceneMovement2D(world);
+        world.AddSystem(SystemPhase::PostUpdate, "qualification.effective.backend.gravity",
+            [](World& current, const FrameTime&, const Input&) {
+                auto* backend = ScenePhysicsWorld2D(current);
+                CHECK(backend != nullptr);
+                if (backend) backend->SetGravity({0, 600});
+            });
+        AddParticleStep(world); // The custom game command runs after sync and before particles.
+        for (int tick = 1; tick <= 600; ++tick) {
+            world.Step(1.0 / 60, {});
+            for (std::size_t i = 0; i < references.size(); ++i) {
+                ParticlePhysicsStats2D stats;
+                Advance(references[i], {}, nullptr, {0, expectedGravity[i]}, 1.0 / 60, stats);
+            }
+            if (tick != 1 && tick != 60 && tick != 600) continue;
+            CHECK(ParticlePhysicsErrors2D(world).empty());
+            for (std::size_t i = 0; i < pools.size(); ++i) {
+                const auto& actual = pools[i].Get<ParticleSystem>().particles;
+                CHECK(actual.size() == 1 && references[i].particles.size() == 1);
+                if (actual.size() == 1 && references[i].particles.size() == 1) {
+                    CHECK(actual[0].position == references[i].particles[0].position);
+                    CHECK(actual[0].velocity == references[i].particles[0].velocity);
+                }
+            }
+            // The existing overload remains an authored-value query. It does not
+            // silently replace authored defaults with the current backend command.
+            CHECK(world.ResolveGravity(pools[2]).value == pxVec2(0, authoredSettings ? 300 : 1100));
+        }
+    }
 }
 TEST(DynamicParticlesPreserveLayoutPreviousAndStaticBallisticMotion) {
     CHECK(sizeof(Particle) == 40);

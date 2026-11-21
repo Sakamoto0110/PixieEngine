@@ -319,6 +319,111 @@ Build/test presets serially when they share native output folders. See the
 [qualification record](../docs/shared-engine-export-validation.md) for Windows
 scope, executed cases and remaining project-wide gates.
 
+## World properties
+
+Serial full-document Scene editing uses one coordinator. It reserves snapshot history before native publication, invalidates
+old bindings on success, and retains committed history when rebinding needs an explicit retry.
+Its edits refuse unfinished gestures and pending recorder changes through a session gate shared
+with GUI/scripted authoring, history, Inspector writes and development dispatch. Its history
+entries can be replayed only through that coordinator. During committed binding recovery,
+ordinary mutations, project asset imports and stale Inspector queries refuse before their
+handlers; read-only `world.*` observations remain available. `editor.do` with
+`{"command":"recover"}` retries bindings without replaying the World or history; the reply
+distinguishes `recovered` from `recovery_pending`. A recovery panel offers the same retry.
+The unsaved-close prompt still permits discard/cancel and disables Save until recovery; the
+existing scripted timed exit remains available.
+
+Preparation and publication are separate serial calls. The immutable prepared value owns its
+before/after document strings and session/content/storage/history identity, never live World,
+Inspector or descriptor references. Publication rechecks all identities and captures current
+selection. Ordinary field edits expire prepared data even without a storage replacement.
+This boundary launches no workers and does not make native reconstruction thread-safe.
+The coordinator accepts the Engine fallback and explicitly contracted C++ modules admitted by
+C API27. Module contract1 reconstructs matching Project/descriptors/World instances and
+requires candidate-local callbacks and nonthrowing local teardown; arbitrary native external
+effects are outside its guarantee. See the [runtime contract](../docs/modules/runtime/REFERENCE.md#edit-and-play).
+Ordinary component-field editing keeps
+its existing path. Qualification measures serial edit latency and process peak memory across
+World sizes. Complete snapshots use an owner-thread reusable managed byte buffer, initially
+64 KiB and bounded to 128 MiB plus the terminator: a fitting capture serializes once; overflow
+retries once with fresh native data. Capacity is retained until session disposal and measured
+separately from process peaks. Native data is never cached between captures. v2 history retains
+the original snapshot string instead of parsing and serializing it again; v1 in-memory history
+promotion and the explicit backed-up on-disk conversion gate remain separate.
+Multithreaded loading remains deferred until its backend and lifetime contracts are qualified.
+
+**Session > World properties** selects a distinct World target in the existing Inspector.
+Physics and Environment sections bind their unique existing v1 settings owners independently;
+the Environment section contains ambient light and fog, while exposure, bloom and renderer
+quality remain in their existing component editor. No proxy entity or missing capability is
+created by navigation. Absent settings are shown explicitly; conflicting legacy settings are
+diagnosed without choosing an editable owner. Runtime-generated settings and Play-mode fields
+are read-only in this view.
+
+Inspecting World does not change the viewport's Environment choice. Selecting an entity returns
+the same Inspector to entity editing. World inspection survives Undo/Redo, Play/Stop and the
+private code-reopen handoff; bindings reject access after their World generation is replaced.
+The owner accepted this bounded Session-to-Inspector organization on 2026-11-03. Multiple
+Inspector panels are explicitly outside the current TODO-057 slice.
+
+The development Inspector channel currently supports entity field targets. When the GUI inspects
+World or Scene, `inspector.tree` reports that target with an explicit unsupported reason and no entity
+rows; its entity property writes and entity-bound gestures refuse before their handler. The validated
+`select=<scene ID>` gesture remains available to return to entity inspection with a fresh
+generation. This is not a new World-property authoring protocol.
+
+## Scene authoring
+
+**Entities > Scenes** lists logical Scene scopes and a World-properties target. Selecting a
+Scene opens its name and stable ID in the same Inspector; it does not filter visibility,
+redirect input or select the viewport Environment. **+ Scene** creates an empty scope using
+the entered name. Scene names commit as one queued edit when text activity finishes, including
+when the user switches target or collapses Inspector. The queue carries stable IDs and its
+original session/content/history token; an intervening edit refuses the expired command.
+
+**Remove empty Scene** refuses an occupied scope. Select its entities and change **Scene
+membership** to another Scene or **Directly in World** first. Multiselection transfers form
+one candidate/history entry and reject entirely if any member is generated, missing or
+duplicated. Entity IDs, component reference payloads and unknown data remain unchanged.
+Creating an entity still places it directly in World; Scene selection does not implicitly
+assign new entities. Scene overrides, local body gravity and temporary unloading are not
+enabled by these controls; Scenes currently inherit World Environment.
+
+Scene authoring requires an open fallback or explicitly contracted module project in Edit.
+C++ projects opt in with `pixie_game(... CANDIDATE_AUTHORING SOURCES ...)`; existing projects
+are not enabled automatically. Custom authored components need the restricted native
+`AddData<T>` contract; ordinary registrations and authored Behaviour components stay refused for v2
+until they have a supported contract. Unsupported type names are reported without partial
+import. Rebuild/reopen replaces the process/module and restores authored data, membership,
+Scene inspection and Environment intent with fresh bindings and an empty Undo/Redo history.
+It does not copy mutable Project instance state or preserve history across code recompilation.
+After a failed module load, retrying that same repaired path is supported; selecting a different
+library requires restarting and displays a diagnostic instead of silently selecting fallback.
+On a v1 project, use
+**Convert to v2... > Convert and save** first. The confirmation explicitly saves current
+unsaved authorship, validates the converted result and preserves the exact original file
+beside it as `.v1-backup`. A pre-existing backup/staging conflict refuses conversion; no
+existing backup is overwritten. Conversion does not replace World storage, clears dirty
+after saving and expires prepared content tokens. It does not create a format-undo step;
+existing entity history remains usable. Ordinary v1 projects remain v1 until that explicit
+action. Unsupported code projects keep existing component editing and do not gain candidate
+authoring authority.
+
+Normal Undo/Redo routes Scene steps through the coordinator and ordinary entity steps through
+their existing path, in the same history order. Distinct Scene inspection survives candidate
+recovery, Play/Stop and the private code-reopen handoff. Removal falls back to World inspection;
+Undo restores the same Scene ID and target. Viewport Environment intent remains independent.
+
+The command line's `--do` and development channel's `editor.do` share these serial handlers:
+`scenecreate=<name>`, `sceneselect=<16-digit scope ID|world>`,
+`scenerename=<16-digit scope ID>:<name>`, `sceneremove=<16-digit scope ID>`,
+`scenemove=<16-digit scope ID|world>` for the selected entities, and
+`sceneconvert=confirm` for explicit conversion/save. The channel requires a fresh generation
+from `inspector.tree`. `editor.scenes` lists scope IDs/names, format version and current scope;
+`editor.selection` distinguishes entity IDs from `scope_id`. Conversion is unavailable in
+channel builds with `PixieChannelSave=false`. Inspector field writes remain entity-only;
+Scene commands and global Undo/Redo can operate from World/Scene targets.
+
 ## Collision and movement authoring
 
 Open [movement-lab](../samples/movement-lab/README.md) as a no-code project.
@@ -327,7 +432,7 @@ entries use native reflected components and one undo step per creation.
 Edit-mode gizmos show actual static geometry/capsules; invalid configuration
 appears in Session. Play uses the same native services as the generic player;
 Stop restores authored data. The editor requires the C API version it was built
-for (19 now), so game libraries must be rebuilt with the engine. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
+for (27 now), so game libraries must be rebuilt with the engine. See [workflow and runtime laboratory reuse](../docs/editor-movement.md).
 **Session > Physics debug** toggles collider/sensor outlines, origins, centers of
 mass, velocities, awake/asleep markers and contact normals in Edit and Play.
 These options belong to the session and do not change scene data. Use

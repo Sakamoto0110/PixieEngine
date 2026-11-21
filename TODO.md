@@ -75,6 +75,15 @@ entry may keep an explicit gate after promotion.
 **Completion criteria:** all numbered child tasks are done or explicitly dropped with reasons; one real normal-editor exercise demonstrates create/attach/code/IntelliSense/build/play/save/reopen, contextual component access, visible build/attachment state and predictable camera gestures; reviewed field/preset decisions and UI prototype receive owner acceptance; each implemented slice has candidate hashes, relevant regressions, independent review, normal Debug/Release adoption and a concise guide. Deferred manager/telemetry blocks must either receive their bounded designs and qualification or an explicit disposition before parent closure; no blanket completion while they remain open.
 **Breakdown:** [Editor and C++ authoring consolidation](TASKLIST.md#pixie-todo-056--editor-and-c-authoring-consolidation)
 
+### `PIXIE-TODO-057` — World and Scene reconciliation
+
+**Status:** in-progress
+**Source:** owner promotion and activation of [PIXIE-PROPOSAL-018](docs/proposals/world-scene-reconciliation.md) as the highest priority on 2026-11-02.
+**Accepted scope:** execute the incremental World and Scene plan in proposal 018: typed World authority, logical Scene scopes and membership, complete persistence and editor reconstruction, qualified local gravity, and explicit camera and environment selection. Preserve World-only entities, existing v1 behavior, and the independent input work described there.
+**Dependencies and gates:** follow the proposal's slice prerequisites and evidence requirements. Resolve its listed owner decisions before migrating settings groups, enabling a new persisted format, exposing local gravity, or extending viewport policy. Coordinate with PIXIE-TODO-056 at task 229; do not treat that coordination as backend acceptance.
+**Completion criteria:** each applicable slice meets the evidence and regression gates in proposal 018, with player and editor qualification and documented disposition of deferred choices. Existing scenes and unsaved authored state survive the relevant transitions.
+**Breakdown:** [World and Scene reconciliation](TASKLIST.md#pixie-todo-057--world-and-scene-reconciliation)
+
 ## Completed
 
 Sorted by stable TODO ID. Each record owns its historical scope, tasks and
@@ -134,3 +143,21 @@ records in `a18fe6b`; this table does not imply independent acceptance.
 | `PIXIE-TODO-049` | published Inspector 0.3.0 adoption in the editor | 2026-10-27 | [Completion](docs/archive/todo-049-inspector-030-adoption-2026-10-27.md) |
 | `PIXIE-TODO-051` | shared native engine, manifest game export, local MCP and approved deterministic capture | 2026-11-01 | [Completion](docs/archive/todo-051-shared-engine-export-mcp-2026-11-01.md) |
 | `PIXIE-TODO-052` | 2D lighting: lights, shadows, emission, particle light, authoring, budgets and optional effects | 2026-10-31 | [Completion](docs/archive/todo-052-2d-lighting-2026-10-31.md) |
+
+### `PIXIE-TODO-058` — Export the existing sized ScreenCanvas sprite overload
+
+**Status:** implemented and consumer-validated; archive pending
+**Source:** owner request on 2026-11-02 to complete the LogicSandbox build and investigate stale binaries; [PIXIE-PROPOSAL-019](docs/proposals/screen-canvas-sprite-export.md).
+**Accepted scope:** add PIXIE_RUNTIME_API to the existing sized/tinted ScreenCanvas::Sprite declaration. No rendering or simulation changes.
+**Completion criteria:** all LogicSandbox Release targets link and its complete CTest suite passes. Performance qualification remains separate.
+
+**PIXIE-TODO-058 validation (2026-11-02):** all LogicSandbox Release targets linked; full CTest suite passed (151 tests, zero failed checks). Consumer browser follow-up passed five focused tests. Evidence: consumer docs/build-performance-2026-11-02.md and build/release-tests.log. This is local Windows evidence only.
+
+### `PIXIE-TODO-059` — Native player exit requests
+
+**Status:** implemented and consumer-validated; archive pending
+**Source:** owner request on 2026-11-02 for Play/Quit and contextual Resume/Quit consumer menus; [PIXIE-PROPOSAL-020](docs/proposals/project-quit-request.md).
+**Accepted scope:** World-scoped exit request functions in PlayerExit.hpp; ProjectApp closes its Window after observing a request and retains normal shutdown. Embedded hosts keep ownership of their lifetime. No Project vtable or object-layout changes.
+**Completion criteria:** consumer menu request/isolation tests and the complete Release build pass; verify the native menu renders. This does not close an editor host.
+
+**PIXIE-TODO-059 validation (2026-11-02):** all consumer Release targets built; 163 consumer tests passed, including request isolation by World, menu Quit state, pause restoration and input ownership. Native start screen rendered and inspected; normal timed player shutdown succeeded. Evidence: consumer docs/interaction-polish-2026-11-02.md and build/polish-tests-final.log. No editor-window close behavior is introduced.

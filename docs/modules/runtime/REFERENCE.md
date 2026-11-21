@@ -303,6 +303,22 @@ added with its defaults when the entity has none (a Behaviour is added as `AddBe
 null for a type that is not default-constructible, and the result is null for a destroyed entity),
 and a `remove` function. `add` and `remove` are not for use during a step.
 
+`AddData<T>(name)` is a separate declarative v2 import contract. `T` must be trivial,
+trivially default-constructible, standard-layout and not a union. Its restricted builder
+accepts direct scalar member fields: bool, float/double and integers/enums up to32 bits.
+It does not expose upgrades, Behaviours, entity references, lists or arbitrary callbacks.
+Builders can only be obtained from the catalog; callers cannot bind a C++ type to an
+arbitrary descriptor index. They are construction-time objects and must not survive catalog
+replacement. Registrations involving AddData reject duplicate component names/native type IDs
+in either order; unrelated ordinary Add behavior is unchanged. Data fields reject duplicate
+names, repeated direct members and reserved name `v` before appending. Named enum labels must
+be nonempty and unique, so serialization cannot resolve two values through the same label.
+Checked adapters refuse nonfinite values, native-range overflow
+and fractional integer writes before assignment; reads are checked before serialization.
+The existing warning/default rules for malformed field shapes still apply. Ordinary `Add`
+keeps its legacy adapters and does not grant project types v2 admission. Unknown payload
+remains opaque. This contract does not sandbox arbitrary native registry hooks.
+
 `CanAdd(check)` optionally registers a native authoring admission reason. The descriptor's
 `AdditionError(world, entity)` returns empty for an allowed or existing component, and a
 reason for a missing default, dead entity or rejected combination. `Singleton()` marks types
@@ -403,7 +419,17 @@ entities to a World and returns a `SceneReport` (`ok`, `error`, and `warnings`).
 replaces it, so a failed save leaves the old file; `LoadSceneFile` reads one. Reading is not
 allowed during a step.
 
-The format, version 1 (`kSceneFormat`, `kSceneVersion`):
+Scene and project saves share a runtime-private destination-version check after admitted
+serialization. A v2 candidate cannot replace an existing v1 scene: explicit
+`ConvertSceneFileV1ToV2` conversion must first preserve the recoverable backup. An already-v2
+file and a new destination remain writable. For a v2 save, an unreadable, malformed or
+unsupported destination envelope is refused before staging. This is an envelope/version
+check without component callbacks, not concurrent-writer protection. The public
+`SaveSceneFile(World, ComponentTypes, path)` retains v2 component admission through
+`WriteScene`; there is no public raw scene-text overload. Generic `SaveTextFile` remains
+a lower-level text operation.
+
+Legacy version 1 example (`kSceneFormat` still identifies the format; `kSceneVersion` is now 2):
 
 ```json
 {
@@ -490,6 +516,14 @@ there is none), and `ReadFragmentMeta(text)` reads it alone, with the number of 
 quickly. A `meta` that is not an object is ignored with a warning; a document that is not a set of
 entities fails as `ReadEntities` fails.
 
+`ValidateEntities(world, types, text, ids, replacing)` performs the same structural
+preparation without installing an index, generating IDs or invoking component callbacks.
+Replacement Scene IDs are excluded logically from collisions and settings authorities
+in Keep mode. A copy uses New mode with no exclusions. When no replacement is requested,
+a current index may be read without changing it; otherwise validation scans const storage.
+This preserves legacy field warning/default semantics. Success does not guarantee that
+destruction, construction, field writers or external hooks will succeed during application.
+
 ### A game's own files
 
 `UserDataFolder(projectName)` is the folder for a game's own files, such as its player's saves
@@ -528,8 +562,8 @@ creates the GL objects and builds the World; `Stop` releases them; both need the
   due with the session's own `Input`, forgetting presses after each, unless paused.
   `StepOnce` runs one step regardless; `SetPaused` pauses or resumes; `SetTimeScale` makes
   simulated time run faster or slower than wall time (0.01 to 8; the fixed step stays the same, so a
-  faster scale runs more steps per frame); `Reset` lets the project `Capture`, then builds the World
-  again with the same seed.
+  faster scale runs more steps per frame); ordinary `Reset` lets the project `Capture`, then builds
+  the World again with the same seed. A session with a candidate factory skips live `Capture`.
 - `Render(alpha)` clears to the project's background and draws sprites of negative layers, then
   paths, then the other sprites, then particles, then shapes, then the overlay, then the project's
   screen layer, into the bound
@@ -580,10 +614,82 @@ A session with a project has two modes (`SessionMode`):
   play stays. The camera is kept across both.
 
 `Reset` builds the World again from the scene's entities as they are now. `Save()` writes the
-scene's entities to the start scene's file through `SaveTextFile`; in `Play`, it writes the ones
+scene's entities to the start scene's file through the shared private save guard; in `Play`, it writes the ones
 `Play` kept. `MarkChanged()` notes an edit, and is ignored outside `Edit`; `HasUnsavedChanges()`
 reports it until the next save. `ProjectName()` is the project file's name, or the `Project`'s
 without a project. A session without a project always plays, as before.
+
+`RestoreAuthoredScene` prepares an Edit-mode candidate and publishes it only on success.
+Failure does not replace session-owned World storage or advance its revision. This does not
+roll back arbitrary project code: a Build callback can mutate the published World through
+a retained reference, or change external state. Successful publication also destroys the old
+World, with its ordinary lifetime effects. The editor's legacy project-restore binding uses
+this operation only before live binding subscribers attach. The separate factory-qualified
+C API candidate path supports the serial live-edit coordinator and the editor's scope-authoring
+controls under factory-qualified admission.
+
+An optional `ProjectSession::ProjectFactory` stages a fresh Project, its descriptors and World
+for each Build, including Play/Stop/Reset. Required state must be reconstructed from authored
+data; mutable instance state is not copied and Reset does not call live `Capture`. Before a
+reconstruction factory is invoked, pure input admission refuses unsupported registered v2 component types.
+The new descriptor catalog must exactly match the live catalog's order, identities, field
+adapters and metadata, preserving existing numeric history indices. The schema is checked
+again after Build; format drift, conflicting settings authorities and unsupported registered
+authored components introduced by Build also refuse publication and retain the prior bundle.
+Success publishes the
+matching bundle using nonthrowing swaps. Both failed-candidate and retired-state teardown
+destroy World before descriptors, Project and the factory's retained module lease.
+
+This is a cooperative lifecycle contract, not isolation of arbitrary C++ effects. Factory,
+Describe, Build, destruction, registry hooks and captured deleters must stay within candidate
+or retired instance state and passed arguments, never mutate published/external state, and
+destruction must not throw. Without a factory the prior Project callback semantics remain.
+Describe completes schema construction; Build and later callbacks must not retain builders
+or alter that catalog afterward.
+During candidate authoring the supplied authored document remains authoritative: Build
+recreates derived state/runtime entities and must not rewrite authored fields, scopes or
+membership. The output guards do not sandbox arbitrary native code or track every raw write.
+The development host pins the selected module/factory per session. Explicit
+`pixie_game(name CANDIDATE_AUTHORING SOURCES ...)` selects module contract1; absent or
+unknown contracts do not admit Scene authoring. C factory exceptions become null results.
+The flag does not admit custom components: use the restricted `AddData` contract where
+applicable, while unsupported authored components continue to refuse the whole operation.
+Low-level snapshot, import and already-v2 save APIs are available; this UI/acceptance gate
+is not a blanket prohibition of all v2 writes. A recovered v2 snapshot over a v1 project file
+stays unsaved when Save is refused; file bytes and dirty state are retained in Edit and Play.
+The current converter requires both the live authored World and source file to be v1. It
+does not directly convert an already-v2 recovered World over a v1 file. Preserve that private
+handoff, convert the original v1 project before restoring it, then reopen the handoff against
+the converted destination. The normal Scene GUI converts before its first new Scene edit.
+
+`World::ValidatePhysicsSettings` checks prospective World physics values and retained scope
+gravity without writing them. `ScenePhysicsSettingsEditError2D` also checks the existing
+movement service's units restriction after stepping, without installing or synchronizing a
+backend. These are authoring admission helpers; they do not activate local body gravity.
+
+The measured `RestoreAuthoredScene` overload reports candidate preparation and publication
+milliseconds; publication includes destruction of the replaced World. Its optional movement
+validation rejects candidate movement-service errors before publication. Existing Open, Play,
+Reset and the original restore overload retain their legacy diagnostic behavior. All warning
+formatting/log preparation now precedes the storage swap. Timing alone grants no lifecycle
+qualification: the C API's separate factory-provenance gate owns admission to bounded live
+candidate editing. Direct ProjectSession callers still control arbitrary project callbacks.
+
+`ProjectSession::Identity()` distinguishes session instances; `WorldRevision()` distinguishes
+storage replacements, while `AuthoredRevision()` expires serial prepared edits after supported
+authored mutation attempts without replacing storage. `BeginAuthoredMutation()` advances the
+latter in an open Edit session and is separate from the legacy dirty flag. C API writers call
+it after pure admission and before their mutating callbacks, so a failed callback can expire a
+token even without a subsequent `MarkChanged()`. These counters do not track arbitrary native
+registry access or provide locks, worker safety, or authority to edit code-project sessions.
+
+`SceneFormatVersion` reads authored metadata without serialization (a World without metadata
+uses legacy version1). The `ConvertSceneFileV1ToV2` overload with a string output leaves it
+untouched on failure and swaps the validated committed text into it on success, without an
+allocation after file replacement. `ProjectSession::ConvertStartSceneToV2` uses that handoff
+to update its cached scene text, clear dirty and expire authored tokens while keeping World
+storage and handles. It saves current authorship, not only the old file's contents. The exact
+original remains in `.v1-backup`; conversion is an explicit file action, not undoable history.
 
 `SceneProject` is a `Project` whose `Build` adds nothing and whose `BeforeStep` pans and zooms: a
 project folder without code runs as one, and a game with code can start from it.

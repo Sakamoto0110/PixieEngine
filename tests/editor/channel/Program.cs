@@ -25,6 +25,12 @@ internal static class Program
         .GetField("Sections", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(panel)!)
         .Cast<object>().Select(s => (Inspector)s.GetType().GetProperty("Inspector")!.GetValue(s)!)
         .First(i => i.Any(n => n.Path == "positionX"));
+    // Bypass only the managed notification in the native-fault fixture, never in product code.
+    private static void RemoveNativeComponent(EngineSession session, uint entity, int type)
+    {
+        var handle = (nint)typeof(EngineSession).GetField("Handle", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(session)!;
+        EngineSession.Check(PixieCapi.ComponentRemove(handle, entity, type), "inject native component removal");
+    }
     private static unsafe int Main(string[] args)
     {
         if (args.Length != 3) return 2;
@@ -50,7 +56,7 @@ internal static class Program
         int exit = 1;
         try
         {
-            foreach (var mode in new[] { "readonly", "pending", "partial", "rejected-setter" })
+            foreach (var mode in new[] { "readonly", "pending", "stale", "partial", "rejected-setter" })
             {
                 var folder = Path.Combine(root, mode + "-" + Guid.NewGuid().ToString("N"));
                 EngineSession.CreateProject(folder);
@@ -106,11 +112,21 @@ internal static class Program
                         "failed-command-and-refresh-preserve-staged-value-without-history");
                     Check(session.Get(first, type, session.FieldIndex(type, "position")).X == 0, "pending-value-never-written-to-native-storage");
                 }
+                else if (mode == "stale")
+                {
+                    session.RemoveComponent(second, type);
+                    var receipt = panel.ChannelSet("Transform2D.positionX", JsonValue.Create(77), panel.ChannelGeneration);
+                    Check(receipt["pixie_result"] == null && receipt["bind_failures"]!.ToJsonString().Contains("replaced World"),
+                        "managed-removal-invalidates-bindings-before-native-access");
+                    Check(session.Get(first, type, session.FieldIndex(type, "position")).X == 0 && history.UndoCount == 0,
+                        "stale-bindings-do-not-write-other-targets-or-create-history");
+                }
                 else
                 {
                     // Fault below protocol preflight: a later native target loses its component
-                    // after binding. This tests adapter partial-failure receipts, not MCP races.
-                    session.RemoveComponent(second, type);
+                    // after binding, without managed invalidation. This tests adapter receipts,
+                    // not MCP races; the separate stale case exercises the managed guard.
+                    RemoveNativeComponent(session, second, type);
                     var receipt = panel.ChannelSet("Transform2D.positionX", JsonValue.Create(77), panel.ChannelGeneration);
                     Check(receipt["handler_returned"]!.GetValue<bool>() && receipt["outcome"]!.GetValue<string>() == "failed_possibly_partial",
                         "handler-true-does-not-hide-later-native-target-failure");

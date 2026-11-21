@@ -64,13 +64,20 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
     private readonly Dictionary<(int Type, int Field), string> Typing = [];
     // A point being typed, while its row has the keyboard.
     private readonly Dictionary<(int Type, int Field, int Index), Vector2> PointTyping = [];
+    internal bool HasActiveAuthoringGesture => NameActive || ScopeNameActive || Typing.Count != 0 || PointTyping.Count != 0 ||
+        LayerTyping.Count != 0 || RecordText.Count != 0 || RecordPoints.Count != 0
+#if PIXIE_INSPECTOR_FIELD_INTERACTIONS
+        || IsInteracting
+#endif
+        ;
 
     public void Draw(IReadOnlyList<uint> selected)
     {
+        if (session.Edits.IsBlocked && !session.Edits.BindingRecovery) return;
         var types = selected.Count == 0
             ? []
             : Enumerable.Range(0, session.TypeCount).Where(t => selected.All(id => session.Has(id, t))).ToArray();
-        if (BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types))
+        if (BoundToWorld || BoundScope != null || BoundRevision != session.BindingRevision || !selected.SequenceEqual(Entities) || !types.SequenceEqual(Types))
             Rebuild([.. selected], types);
 
         if (ImGui.Begin("Inspector"))
@@ -90,6 +97,7 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
                     ImGui.TextUnformatted($"{Entities.Length} entities: {string.Join(", ", Entities.Take(4).Select(Describe))}{(Entities.Length > 4 ? ", ..." : "")}");
                 if (Entities.Length > 1 && Types.Length == 0)
                     ImGui.TextDisabled("They share no component.");
+                DrawMembership();
                 ImGui.Separator();
                 int? remove = null;
                 var makeCompound = false;
@@ -393,9 +401,12 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
 #endif
     )
     {
+        session.Edits.RequireMutation();
         var section = Sections.FirstOrDefault(s => s.Name == type);
         if (section == null)
             return false;
+        if (BoundToWorld && (!session.Editing || !WorldPropertyAllowed(type, property) ||
+                WorldRows.First(row => row.Type == section.Type).ReadOnly)) return false;
 
         var maskField = Enumerable.Range(0, session.FieldCount(section.Type)).FirstOrDefault(f => session.FieldName(section.Type, f) == property, -1);
         if (maskField >= 0 && session.FieldInfo(section.Type, maskField).Editor == PixieEditorKind.LayerMask)
@@ -470,7 +481,12 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
 
     private void Rebuild(uint[] entities, int[] types)
     {
+        if (BoundRevision == session.BindingRevision) recorder.Close();
         Release();
+        BoundToWorld = false;
+        BoundScope = null;
+        ScopeNameActive = false;
+        NameActive = false;
         Typing.Clear();
         PointTyping.Clear();
         LayerTyping.Clear();
@@ -518,6 +534,7 @@ internal sealed partial class InspectorPanel(EngineSession session, Authoring au
 
     public void Dispose()
     {
+        if (WorldBindingsSubscribed) session.BindingsReplacing -= BeforeWorldBindingsReplace;
 #if PIXIE_INSPECTOR_FIELD_INTERACTIONS
         if (InteractionSubscribed) session.BindingsReplacing -= BeforeBindingsReplace;
 #endif
