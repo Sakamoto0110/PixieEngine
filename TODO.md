@@ -44,8 +44,9 @@ entry may keep an explicit gate after promotion.
 
 Owner authorization, 2026-11-22: "Pode fazer então" following the proposed
 corrections, final-package qualification, versioning, commit/push/publication
-and subsequent VAW baseline promotion. Status: in progress; publication requires
-successful final-artifact acceptance.
+and subsequent VAW baseline promotion. Status: done, 2026-11-22. Final-artifact
+qualification and CI passed; both releases were published and VAW generation 2
+propagation completed. See the [publication and adoption evidence](docs/evidence/sdk-040-publication-2026-11-22.md).
 
 Scope: writable generation from read-only SDK templates; directional source
 compatibility for 0.3.1 predecessors in CMake, Editor and export; exact native
