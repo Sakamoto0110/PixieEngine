@@ -40,6 +40,21 @@ entry may keep an explicit gate after promotion.
 
 ## Current promoted work
 
+### SDK 0.4 compatible-successor release
+
+Owner authorization, 2026-11-22: "Pode fazer então" following the proposed
+corrections, final-package qualification, versioning, commit/push/publication
+and subsequent VAW baseline promotion. Status: in progress; publication requires
+successful final-artifact acceptance.
+
+Scope: writable generation from read-only SDK templates; directional source
+compatibility for 0.3.1 predecessors in CMake, Editor and export; exact native
+module admission; candidate build/reload, sprites/animations, reopen and export
+validation. Preserve existing work and SDK installations. No historical cleanup
+or unrelated feature migration. The [C API reference](docs/modules/capi/REFERENCE.md#source-project-compatibility)
+owns the project compatibility contract. Editor implementation and release remain
+owned by its repository.
+
 ### `PIXIE-TODO-053` — Inspector fields, options and interactions overhaul
 
 Current owner: [workspace TODO entry](../../.governance/workplaces/void-workplace/TODO.md#pixie-todo-053--inspector-fields-options-and-interactions-overhaul).

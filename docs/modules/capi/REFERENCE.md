@@ -60,6 +60,32 @@ configuration-specific evidence and pending delivery gates.
 
 ## SDK identity and profiles
 
+### Source-project compatibility
+
+Package identity is not a source compatibility verdict. A catalog may declare
+`projectCompatibility`, identical to its inventoried
+`cmake/project-compatibility.json`: schema 1, `currentContract`, a directional
+`supportedContracts` set and a `legacyRequirements` map for qualified hash-only
+predecessors. The producer owns this declaration; release qualification must
+exercise the claimed predecessors before publication. Product versions do not
+automatically imply compatibility.
+
+Portable `.pixie-code/sdk.json` requirements may carry `projectContract` and an
+optional boolean `exactSdk`. New projects record the selected current contract.
+Without an explicit exact lock, CMake, the Editor and the public exporter accept
+a supported contract even when `sdkId` differs. Legacy requirements use the
+producer's predecessor map; unknown hashes are unverified, not automatically
+accepted. Acceptance preserves the original requirement. An explicit exact lock
+requires the original identity. Platform, compiler, CPU, profile and capability
+checks still apply.
+
+Rebuild source against the selected SDK into a distinct cache. This policy never
+relaxes native module/runtime identity or ABI checks, never converts scene data,
+and does not automatically approve a VAW baseline. Compatibility is directional;
+a project using new features need not work on an older SDK.
+
+### Native identity
+
 Start by querying `pixie_api_version`, `pixie_sdk_identity` and
 `pixie_capabilities` before session or GL creation. The installed header owns
 `PIXIE_CAPI_VERSION` (currently 28). SDK identity schema 1 carries a typed

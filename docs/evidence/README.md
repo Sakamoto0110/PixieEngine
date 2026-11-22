@@ -26,6 +26,7 @@ a test. Completed roadmap outcomes belong in the [history index](../history/READ
 
 | Subject | Record | Scope |
 |---|---|---|
+| SDK 0.4 compatibility | [Compatible-project candidate checks](sdk-040-compatibility-2026-11-22.md) | Hash-independent project admission, writable generation, unchanged predecessor build/export and public Editor reload/assets |
 | Consumer handbook | [Local handbook walkthrough](consumer-handbook-2026-11-06.md) | Public SDK examples, actual Editor UI steps, local export and explicit unverified flows |
 | Consumer handbook follow-up | [First-consumer feedback and r2 playthrough](consumer-handbook-2026-11-07.md) | Report provenance, physical SDK path, manual/synthetic input distinction and observed exported game |
 | Native entity parenting | [Simple runtime fixture in Release](native-parenting-runtime-2026-11-07.md) | In-memory hierarchy, pose composition, interpolation, reparenting and rejection cases |
