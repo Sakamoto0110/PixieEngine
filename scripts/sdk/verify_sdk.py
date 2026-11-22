@@ -222,6 +222,22 @@ def verify(root: Path, *, complete: bool = False, query: bool = False) -> dict:
     if actual != set(inventory):
         raise ValueError(f"Undeclared/missing SDK files: {sorted(actual ^ set(inventory))[:10]}")
     generation = generation_ready(root, actual)
+    if "projectCompatibility" in manifest:
+        policy = manifest["projectCompatibility"]
+        policy_path = "cmake/project-compatibility.json"
+        if policy_path not in inventory or policy != read_json(root / policy_path):
+            raise ValueError("SDK project compatibility differs from its inventoried policy")
+        if (not isinstance(policy, dict) or set(policy) != {"schemaVersion", "currentContract", "supportedContracts", "legacyRequirements"}
+                or type(policy["schemaVersion"]) is not int or policy["schemaVersion"] != 1):
+            raise ValueError("Unsupported SDK project compatibility policy")
+        supported = policy["supportedContracts"]
+        if (not isinstance(supported, list) or not supported
+                or any(not isinstance(value, str) or not re.fullmatch(r"pixie\.project/[1-9][0-9]*", value) for value in supported)
+                or len(set(supported)) != len(supported) or policy["currentContract"] not in supported):
+            raise ValueError("Invalid supported project contracts")
+        legacy = policy["legacyRequirements"]
+        if not isinstance(legacy, dict) or any(not HEX.fullmatch(key) or value not in supported for key, value in legacy.items()):
+            raise ValueError("Invalid legacy project requirements")
     authoring_available = any(entry["profile"] != "shipping" for entry in manifest["profiles"])
     if manifest["features"]["projectGeneration"] is not (generation and authoring_available):
         raise ValueError("SDK generator availability does not match its installed inputs")

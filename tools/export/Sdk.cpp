@@ -283,7 +283,24 @@ bool ExportSdk::CheckRequirement(const fs::path& project) const {
     const auto requirement = ReadMetadata(path);
     if (!requirement.at("schemaVersion").is_number_integer() || requirement.at("schemaVersion") != 1 || requirement.at("profile") != "authoring")
         throw std::runtime_error("public export requires an authoring project requirement, never private/shipping fallback");
-    for (const auto* field : {"sdkId", "platform", "architecture", "compilerVersion"})
+    const auto exact = requirement.value("exactSdk", false);
+    auto compatible = requirement.at("sdkId") == identity_.at("sdkId");
+    if (!compatible && !exact && catalog_.contains("projectCompatibility")) {
+        const auto& policy = catalog_.at("projectCompatibility");
+        const auto policyPath = ResolveDeclared("cmake/project-compatibility.json");
+        if (ReadMetadata(policyPath) != policy || policy.at("schemaVersion") != 1)
+            throw std::runtime_error("invalid SDK project compatibility policy");
+        const auto original = requirement.at("sdkId").get<std::string>();
+        std::string contract;
+        if (requirement.contains("projectContract")) contract = requirement.at("projectContract").get<std::string>();
+        else if (policy.at("legacyRequirements").contains(original))
+            contract = policy.at("legacyRequirements").at(original).get<std::string>();
+        for (const auto& supported : policy.at("supportedContracts"))
+            compatible = compatible || (!contract.empty() && supported == contract);
+    }
+    if (!compatible)
+        throw std::runtime_error("project/selected shipping SDK requirement mismatch: compatibility unverified or excluded by exactSdk");
+    for (const auto* field : {"platform", "architecture", "compilerVersion"})
         if (requirement.at(field).type() != identity_.at(field).type() || requirement.at(field) != identity_.at(field))
             throw std::runtime_error("project/selected shipping SDK requirement mismatch: " + std::string(field));
     const auto cpuSet = [](const Json& list) {
@@ -297,7 +314,7 @@ bool ExportSdk::CheckRequirement(const fs::path& project) const {
     // still compares the SDK's canonical typed CPU array exactly.
     if (cpuSet(requirement.at("cpuFeatures")) != cpuSet(identity_.at("cpuFeatures")))
         throw std::runtime_error("project/selected shipping SDK requirement mismatch: cpuFeatures");
-    static const std::set<std::string> allowed{"schemaVersion", "sdkId", "profile", "platform", "architecture", "compilerVersion", "cpuFeatures", "requiredCapabilities"};
+    static const std::set<std::string> allowed{"schemaVersion", "sdkId", "projectContract", "exactSdk", "profile", "platform", "architecture", "compilerVersion", "cpuFeatures", "requiredCapabilities"};
     for (const auto& [key, value] : requirement.items()) { (void)value; if (!allowed.contains(key)) throw std::runtime_error("unknown/path-bearing portable requirement"); }
     if (requirement.contains("requiredCapabilities")) {
         if (!requirement.at("requiredCapabilities").is_array())

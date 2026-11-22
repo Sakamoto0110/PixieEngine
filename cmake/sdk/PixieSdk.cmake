@@ -47,7 +47,7 @@ function(pixie_sdk_prepare)
         engine/*.cpp engine/*.hpp engine/CMakeLists.txt engine/*/CMakeLists.txt
         runtime/src/*.cpp runtime/include/*.hpp runtime/player/*.cpp runtime/CMakeLists.txt
         capi/src/*.cpp capi/src/*.hpp capi/include/*.h capi/CMakeLists.txt
-        cmake/*.cmake cmake/sdk/*.in scripts/sdk/*.py templates/*
+        cmake/*.cmake cmake/sdk/*.in cmake/sdk/*.json scripts/sdk/*.py templates/*
         tools/export/*.cpp tools/export/*.hpp tools/export/CMakeLists.txt
         external/pixielib/cpp/include/* external/pixielib/cpp/math/include/*
         external/pixielib/cpp/events/include/*
@@ -242,6 +242,7 @@ function(pixie_sdk_install)
     install(DIRECTORY "${sdk_root}/templates/project-code/" DESTINATION templates/project-code COMPONENT PixieSDK
         FILES_MATCHING PATTERN "*.in" PATTERN "versions.json")
     install(FILES "${sdk_root}/scripts/sdk/verify_sdk.py" "${sdk_root}/scripts/sdk/assemble_sdk.py" DESTINATION tools/sdk COMPONENT PixieSDK)
+    install(FILES "${sdk_root}/cmake/sdk/project-compatibility.json" DESTINATION cmake COMPONENT PixieSDK)
     install(FILES "${sdk_output}/producer-inputs.tsv" "${sdk_output}/dependency-inputs.tsv" DESTINATION provenance COMPONENT PixieSDK)
     install(FILES "${sdk_root}/LICENSE" DESTINATION notices/PixieEngine COMPONENT PixieSDK)
     foreach(dependency pixielib glm entt glew glfw stb box2d nlohmann_json)

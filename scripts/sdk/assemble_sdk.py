@@ -85,6 +85,7 @@ def root_manifest(root: Path, sdk_id: str, version: str, distribution: str, entr
         "schemaVersion": 1, "sdkId": sdk_id, "productVersion": version,
         "distributionClass": distribution, "profiles": sorted(entries, key=lambda item: (item["profile"], item["configuration"])),
         "files": files, "tools": {},
+        "projectCompatibility": read_json(root / "cmake/project-compatibility.json"),
         "features": {"nativeCpp": True, "noCodePlayer": True, "managedBindingInputs": metadata_ready,
                      "projectGeneration": generation and any(entry["profile"] != "shipping" for entry in entries),
                      "pairedExport": False},

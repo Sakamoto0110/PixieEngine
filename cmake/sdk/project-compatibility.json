@@ -1,0 +1,9 @@
+{
+  "schemaVersion": 1,
+  "currentContract": "pixie.project/2",
+  "supportedContracts": ["pixie.project/1", "pixie.project/2"],
+  "legacyRequirements": {
+    "43ddf2c77b18233dd806b38184c622c8c1584e4e96e26d0eda8df33bd6ce8050": "pixie.project/1",
+    "7115d9f70dcc19ab9f47d70ab4f37b153e490f28ca7df97d4a69258691592f0f": "pixie.project/1"
+  }
+}
